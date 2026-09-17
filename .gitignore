@@ -22,6 +22,9 @@ export/
 *.sqlite3
 *.pdf
 
+# Résultats de vérification sur données réelles (restent en local)
+*.local.md
+
 # =====================================================================
 # IDENTIFIANTS
 # =====================================================================
@@ -41,6 +44,14 @@ keyfile*
 venv/
 __pycache__/
 *.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# uv.lock est au contraire VERSIONNÉ : il fige les versions exactes des
+# bibliothèques, pour que deux utilisateurs obtiennent les mêmes chiffres (D-32).
 
 # =====================================================================
 # DIVERS

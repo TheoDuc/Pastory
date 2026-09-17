@@ -314,7 +314,7 @@ def main(dossier):
     for e in evts:
         index[e["timestamp"][:19]].append(e)
     correspondances, sans_json = Counter(), Counter()
-    montants_ok, parts_ok = Counter(), Counter()
+    montants_ok = Counter()
     vus = set()
     for l in lignes_csv:
         cands = [e for e in index.get(l["Date"][:19], []) if e.get("amount")]

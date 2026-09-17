@@ -1,14 +1,25 @@
-"""
-Script d'exportation automatique des transactions Trade Republic
+"""Script d'exportation des transactions Trade Republic — **à reprendre**.
+
+Premier jet écrit avant le cadrage du projet. Il est conservé pour ce qu'il montre de
+l'appel à pytr, mais il n'est pas branché sur l'application. Deux choses sont à corriger
+avant de le réutiliser :
+
+- le **PIN est passé en argument de commande** (`-p`), ce que D-25 interdit : un argument de
+  commande est visible par les autres programmes de la machine et reste dans l'historique du
+  terminal. Les trois modes de stockage au choix de l'utilisateur sont écrits à l'étape 10 ;
+- l'export est écrit dans `./data`, à l'intérieur du dossier synchronisé par OneDrive, alors
+  que D-37 le range dans le dossier personnel local.
+
+La récupération des données devient la commande `dashboard rafraichir` à l'étape 2.
 """
 
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
-# Dossier d'exportation
+# Dossier d'exportation. Il est créé au moment de l'export, pas à l'import du module :
+# importer un script ne doit rien écrire sur le disque.
 OUTPUT_DIR = Path("./data")
-OUTPUT_DIR.mkdir(exist_ok=True)
 
 
 def check_and_install_pytr():
@@ -33,6 +44,7 @@ def check_and_install_pytr():
 def run_export():
     # Récupère les données du compte trade republic dans un csv
     check_and_install_pytr()
+    OUTPUT_DIR.mkdir(exist_ok=True)
     print("\n[+] Lancement de l'exportation des transactions Trade Republic...")
 
     phone_number = input(

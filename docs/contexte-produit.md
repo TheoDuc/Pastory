@@ -10,9 +10,13 @@ existants (ex. Finary) se synchronisent mal et s'appuient sur des données de ma
 
 ## Objectif
 
-Montrer clairement l'évolution du patrimoine investi sur Trade Republic : ce qui a été apporté, ce
-que ça vaut, ce que ça a rapporté (TRI, TWRR, plus-values), comment c'est réparti et ce que ça
-coûte.
+Montrer clairement l'évolution des **actifs achetés** sur Trade Republic : ce qui y est réellement
+placé, ce que ça vaut, ce que ça a rapporté (TRI, TWRR, plus-values, dividendes), comment c'est
+réparti entre poches et actifs, et ce que ça coûte (frais, taxes, coûts cachés estimés).
+
+**Les espèces ne sont pas suivies** ([D-11](decisions.md)) : ni le compte courant, ni l'origine de
+l'argent, ni les dépenses. L'interface est à concevoir : la maquette des notes n'est pas un modèle
+([D-20](decisions.md)).
 
 ## Public visé
 
@@ -39,11 +43,22 @@ Tirés des notes :
 
 - Les outils pour **traders** (suivi intrajournalier, analyse technique, passage d'ordres).
 
-Proposés, **à confirmer** (Q-19) :
+Décidés :
 
-- Passer des ordres ou modifier quoi que ce soit chez Trade Republic (lecture seule).
-- Le conseil en investissement ou les recommandations d'achat/vente.
-- Les autres courtiers et banques.
-- Tout hébergement en ligne, compte utilisateur ou synchronisation cloud.
-- La production de déclarations fiscales (l'appli peut *estimer* une fiscalité, pas la déclarer).
-- Les devises autres que l'euro (toutes les données observées sont en EUR).
+- Le suivi des **espèces** : solde, virements, paiements carte, intérêts sur espèces, primes,
+  origine de l'argent investi ([D-11](decisions.md)).
+
+- Passer des ordres ou modifier quoi que ce soit chez Trade Republic : l'application est en
+  **lecture seule**, elle sert à visualiser ce qu'on a ([D-26](decisions.md)).
+- Le **conseil en investissement** ou les recommandations d'achat/vente. Le but est que
+  l'utilisateur comprenne ce qui se passe dans ses investissements.
+- La **production de déclarations fiscales**. L'appli peut *estimer* un impôt (vue « valeur
+  réelle »), pas le déclarer.
+- Les **devises autres que l'euro**, pour l'instant.
+- Les **autres courtiers et banques** : non pris en charge. Mais le moteur lit un format pivot
+  documenté, et quelqu'un qui forke le projet peut écrire un adaptateur pour sa banque
+  ([D-26](decisions.md)).
+- Tout hébergement en ligne, compte utilisateur ou synchronisation cloud (l'application tourne en
+  local).
+- La **simulation Monte-Carlo** n'est pas hors périmètre, mais reportée : fonctionnalité
+  indépendante ([D-27](decisions.md)).
