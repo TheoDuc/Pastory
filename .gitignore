@@ -1,0 +1,50 @@
+# =====================================================================
+# DONNÉES : rien de ce qui vient de Trade Republic n'entre dans git.
+# Un fichier entré dans l'historique y reste, même supprimé ensuite.
+# =====================================================================
+
+# Dossiers de données (les miennes, celles d'un tiers, tout futur export)
+data/
+data_*/
+data-*/
+exports/
+export/
+
+# Exports bruts, quel que soit leur emplacement
+*.json
+*.csv
+*.tsv
+*.xlsx
+*.xls
+*.parquet
+*.db
+*.sqlite
+*.sqlite3
+*.pdf
+
+# =====================================================================
+# IDENTIFIANTS
+# =====================================================================
+.env
+.env.*
+*.key
+*.pem
+credentials*
+cookies*
+keyfile*
+.pytr/
+
+# =====================================================================
+# ENVIRONNEMENT PYTHON
+# =====================================================================
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# =====================================================================
+# DIVERS
+# =====================================================================
+.DS_Store
+Thumbs.db
+desktop.ini
