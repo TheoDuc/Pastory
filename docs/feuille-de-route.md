@@ -14,12 +14,12 @@ accord.**
 
 ### Une étape = une nouvelle session Claude
 Une longue conversation accumule du contexte et finit par se perdre. Ouvre une **nouvelle
-conversation** au début de chaque étape et commence par :
-
-> Lis CLAUDE.md puis docs/feuille-de-route.md. On attaque l'étape N.
+conversation** au début de chaque étape et copie le message préparé dans
+[prompt-session-suivante.md](prompt-session-suivante.md).
 
 Tout ce qui doit survivre d'une session à l'autre est écrit dans `docs/` : c'est la mémoire du
-projet.
+projet. **Chaque étape met à jour `prompt-session-suivante.md` avant sa fusion dans `main`**, pour
+que la session d'après sache d'où elle part.
 
 ### Déroulé type d'une étape
 1. **Plan d'abord.** Claude propose un plan (mode plan). Tu le lis et tu l'acceptes ou le corriges.

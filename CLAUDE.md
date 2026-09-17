@@ -9,6 +9,7 @@ lisible et vérifiable à la main.
 
 | Fichier | Contenu |
 |---|---|
+| [docs/prompt-session-suivante.md](docs/prompt-session-suivante.md) | **À lire en premier** : où en est le projet, et ce que la session en cours doit savoir. À mettre à jour à la fin de chaque étape |
 | [docs/feuille-de-route.md](docs/feuille-de-route.md) | **Étapes du projet**, étape en cours, méthode de travail |
 | [docs/notes-initiales.md](docs/notes-initiales.md) | **Référence** des intentions du propriétaire (notes + évolutions de cap) |
 | [docs/format-pivot.md](docs/format-pivot.md) | **Le format des opérations** : le contrat entre les adaptateurs et le moteur |
