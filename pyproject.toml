@@ -1,0 +1,58 @@
+[project]
+name = "dashboard-tr"
+version = "0.1.0"
+description = "Tableau de bord local des actifs d'un portefeuille Trade Republic"
+readme = "README.md"
+requires-python = ">=3.12"
+
+# Dépendances du cœur de l'application. Elles sont ajoutées étape par étape,
+# jamais « au cas où » : chacune doit servir à du code existant.
+dependencies = [
+    "pytr>=0.4.10",   # récupération des données Trade Republic (étape 2)
+    "dash>=3.0",      # interface locale (D-31, étapes 8 et 9)
+    "pandas>=2.2",    # séries de cours et tableaux d'affichage seulement (D-33)
+]
+
+[project.scripts]
+# Point d'entrée unique : `uv run dashboard <commande>`
+dashboard = "dashboard_tr.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["dashboard_tr"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+# Jeu de règles choisi explicitement : les règles par défaut changent d'une version de
+# ruff à l'autre, et le projet doit rester reproductible.
+select = [
+    "E", # style
+    "F", # erreurs réelles (variable inutilisée, import manquant…)
+    "I", # ordre des imports
+    "UP", # tournures obsolètes de Python
+    "B", # pièges classiques
+    "SIM", # simplifications lisibles
+]
+# Volontairement absent : FURB157, qui voudrait écrire `Decimal(2)` au lieu de
+# `Decimal("2")`. Tous les montants et quantités sont écrits sous forme de texte, sans
+# exception, parce que c'est la seule forme correcte pour un nombre à virgule (D-33).
+
+[tool.ruff.lint.per-file-ignores]
+# Outil de diagnostic de l'étape 0, écrit d'un jet et conservé tel quel : c'est lui qui a
+# produit les comptages de docs/inventaire-donnees.md, et le réécrire pour le style ferait
+# courir le risque de changer ses résultats. Les vraies erreurs (règles F) restent vérifiées.
+"scripts/inventaire_structure.py" = ["E501", "E731", "E741", "SIM", "UP", "B"]

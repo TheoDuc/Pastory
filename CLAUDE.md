@@ -1,7 +1,7 @@
 # DashBoard Trade Republic
 
-Tableau de bord local et gratuit pour suivre un portefeuille Trade Republic, destiné à des
-investisseurs long terme. Les données viennent de `pytr` (export JSON d'événements + CSV).
+Tableau de bord local et gratuit pour suivre **les actifs** d'un portefeuille Trade Republic
+(PEA, CTO, crypto ; les espèces ne sont pas suivies), destiné à des investisseurs long terme. Les données viennent de `pytr` (export JSON d'événements + CSV).
 Le propriétaire du projet ne code pas : il vérifie les chiffres. Tout calcul doit donc être
 lisible et vérifiable à la main.
 
@@ -9,7 +9,10 @@ lisible et vérifiable à la main.
 
 | Fichier | Contenu |
 |---|---|
-| [docs/notes-initiales.md](docs/notes-initiales.md) | **Référence** des intentions du propriétaire (retranscription de ses notes) |
+| [docs/feuille-de-route.md](docs/feuille-de-route.md) | **Étapes du projet**, étape en cours, méthode de travail |
+| [docs/notes-initiales.md](docs/notes-initiales.md) | **Référence** des intentions du propriétaire (notes + évolutions de cap) |
+| [docs/format-pivot.md](docs/format-pivot.md) | **Le format des opérations** : le contrat entre les adaptateurs et le moteur |
+| [docs/architecture-notes.md](docs/architecture-notes.md) | Points d'architecture notés en chemin |
 | [docs/contexte-produit.md](docs/contexte-produit.md) | Objectif, public, contraintes, hors périmètre |
 | [docs/glossaire.md](docs/glossaire.md) | Notions financières : définition et formule retenue |
 | [docs/inventaire-donnees.md](docs/inventaire-donnees.md) | Structure des données pytr, type par type, et pièges |
@@ -26,4 +29,8 @@ lisible et vérifiable à la main.
 5. **Un type d'événement inconnu n'est jamais ignoré ni classé par défaut** : l'application l'affiche.
 6. **Toute déduction est explicite, isolée, et signalée à l'utilisateur** dans l'interface.
 7. **En cas de doute entre deux interprétations : ne pas trancher.** Ajouter la question dans `docs/questions-ouvertes.md` et demander.
-8. Toute décision structurante est ajoutée à `docs/decisions.md`. Les notes initiales évoluent quand le propriétaire change de cap.
+8. **Principes d'architecture** (détail dans `docs/decisions.md`) :
+   - les espèces ne sont jamais suivies (D-11) ;
+   - la performance est calculée en montants bruts, les frais et taxes à part (D-21) ;
+   - le moteur ne lit que le format pivot, Trade Republic n'étant qu'un adaptateur (D-26).
+9. Toute décision structurante est ajoutée à `docs/decisions.md`. Tout point d'architecture qui apparaît en discussion est noté dans `docs/architecture-notes.md`. Les notes initiales évoluent quand le propriétaire change de cap.

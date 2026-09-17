@@ -133,6 +133,13 @@ ni partagés.
 
 Tous les montants observés sont en **EUR**.
 
+> **Périmètre retenu depuis ce relevé ([D-11](decisions.md)) : les actifs, pas les espèces.**
+> Les familles *Externe* et *Interne*, ainsi que les revenus en espèces (`INTEREST_PAYOUT`,
+> `CASH_PERK`, euro d'activation PEA), sont **hors périmètre** : écartés mais comptés. Restent
+> traités : *Achat/vente*, *Titres seuls*, et les revenus des actifs (`SSP_CORPORATE_ACTION_CASH`,
+> `SSP_CORPORATE_ACTION_CASH_NON_DIVIDEND`). Le compte espèces reste utile pour une seule chose :
+> savoir si un achat a eu lieu dans le PEA.
+
 > **Règle pour l'application :** un événement dont le type n'est ni dans les familles traitées ni
 > dans la liste « Écarté » est **inconnu** et doit être affiché. On ne peut **pas** écarter un
 > événement parce qu'il n'a pas de montant : l'action gagnée et les actions gratuites n'ont pas de
@@ -154,7 +161,7 @@ crédit de titres lié au saveback apparaîtra donc probablement plus tard.
 | Compte | Ce qu'on y voit | Rôle déduit 🔶 |
 |---|---|---|
 | **A** | Virements reçus (3), versements vers le PEA (3), plans d'épargne crypto et ETF hors PEA (2), achat ponctuel « Portfolio = Brokerage » (1), réception du transfert PEA (1) | **Compte courant** : CTO, crypto, point d'entrée et de sortie de l'argent |
-| **B** | +1 € « PEA-Aktivierung », puis −1 € « PEA-Übertragung » vers le compte A six jours plus tard (même seconde que le `PEA_WITHDRAWAL_CASH` sur A). Plus rien ensuite | **Premier compte espèces PEA, vidé et inactif**. Hypothèse : PEA ouvert puis rouvert (Q-11) |
+| **B** | +1 € « PEA-Aktivierung », puis −1 € « PEA-Übertragung » vers le compte A six jours plus tard (même seconde que le `PEA_WITHDRAWAL_CASH` sur A). Plus rien ensuite | **Premier compte espèces PEA, vidé et inactif**. Confirmé : PEA ouvert, fermé puis rouvert ; l'euro d'activation est versé par Trade Republic |
 | **C** | +1 € « PEA-Aktivierung » deux minutes après le vidage de B, puis les 3 achats de plans PEA | **Compte espèces du PEA actif** |
 
 Le paiement carte n'a **aucun** numéro de compte. Rattachement probable au compte courant 🔶.
@@ -380,8 +387,10 @@ les quantités, les frais et les taxes, qu'il donne sous forme de nombres.
 - ➕ Le CSV omet les versements : il ne double pas le capital, mais il a d'autres défauts
   (section 8).
 
-**Conséquence pour la conception :** le capital net investi **global** se calcule uniquement à
-partir des flux externes. Il ne dépend alors ni de l'appariement ni des versements manquants.
+**Conséquence pour la conception :** d'abord, calculer le capital net investi global à partir des
+flux externes (D-07). Puis le périmètre a été recentré sur les actifs (D-11) : **on ne lit que les
+achats et les ventes**, et les versements PEA sont hors périmètre. Le piège du double comptage et
+les versements manquants n'ont donc plus d'effet.
 
 ### 2. « Pas de rapprochement par montant ni par temps ; passer par l'identifiant de plan » : **montant et temps confirmés, identifiant de plan infirmé**
 - ✅ Montants différents dans 1 cas sur 3 (propriétaire, 1 €) et 3 cas sur 14 (tiers). Chez le
@@ -430,9 +439,9 @@ nommer les comptes à l'installation est retenue ([decisions.md](decisions.md), 
 
 ### 7. « Un retrait PEA → compte courant n'est pas une sortie » : **confirmé**
 Le `PEA_WITHDRAWAL_CASH` (+) a sa contrepartie exacte (−) sur le compte PEA, à la même seconde.
-Flux externes observés : `BANK_TRANSACTION_INCOMING` (apport) et `CARD_TRANSACTION` (retrait,
-Q-02). À trancher : le classement des revenus, primes et euros d'activation, qui entrent sans
-franchir la frontière depuis la poche de l'investisseur (Q-01).
+Flux externes observés : `BANK_TRANSACTION_INCOMING` et `CARD_TRANSACTION`. **Depuis D-11, ces
+flux sont hors périmètre** : les rendements se mesurent sur les flux entre espèces et actifs
+(achats, ventes, dividendes).
 
 ### 8. « La crypto est identifiée par un code XF » : **cohérent, mais non vérifiable sur plusieurs cas**
 Un seul code crypto dans les deux jeux (propriétaire), de forme `XF000` + lettres + 4 chiffres.

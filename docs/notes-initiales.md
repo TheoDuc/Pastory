@@ -7,7 +7,73 @@
 >
 > Les passages entre crochets `[…]` sont des remarques de retranscription, pas le texte original.
 
-Dernière mise à jour : 2026-09-17 (retranscription initiale).
+Dernière mise à jour : 2026-09-17 (précisions du propriétaire après l'inventaire).
+
+---
+
+## Évolutions de cap
+
+Ces précisions **priment** sur le texte d'origine ci-dessous.
+
+### 2026-09-17 · La maquette n'est pas un modèle ([D-20](decisions.md))
+> La maquette était un premier jet, sans réflexion préalable. La disposition des filtres, du
+> graphique, des légendes et les chiffres clés ne sont pas réfléchis. Elle servait à donner une
+> idée globale de la forme, et a fait naître le mot « Dashboard ». L'application devrait être bien
+> différente dans sa configuration.
+
+### 2026-09-17 · On suit les actifs, pas les espèces ([D-11](decisions.md))
+> L'application ignore complètement la poche espèces. Le compte espèces sert plutôt aux achats de
+> la vie quotidienne. Même s'il sert aussi à acheter dans le PEA, le CTO ou la crypto, son
+> évolution n'a pas d'intérêt ici. Ce qui compte, c'est **l'évolution des actifs achetés** : quand
+> un achat est fait, comment l'actif évolue, quand il est vendu. Et les entrées et sorties : taxes
+> éventuelles, frais fixes… Peu importe d'où vient l'argent. On veut savoir si des frais ou des
+> taxes ont été appliqués et comment ils font évoluer le capital investi.
+
+### 2026-09-17 · Capital net investi ([D-12](decisions.md))
+> Le capital net investi est le montant réellement placé, après frais et taxes. Exemple : je mets
+> 201 € avec 1 € de frais fixes sur mon PEA, la valeur passe à 200 €. Idem pour toutes les poches.
+> Lors d'une vente, le capital investi diminue au prorata de la part vendue de l'actif concerné.
+
+### 2026-09-17 · Coûts cachés et cours de marché ([D-17](decisions.md), [D-18](decisions.md))
+> Le spread et les frais des ETF doivent être **estimés** : frais des ETF trouvés dans une base de
+> données d'actifs, spread avec une valeur par défaut selon l'actif. Les cours viendront d'un outil
+> gratuit accessible en Python (Yahoo Finance ou autre), à choisir.
+
+### 2026-09-17 · Les frais à part de l'évolution ([D-21](decisions.md))
+> Les frais sont indépendants de la santé générale du portefeuille. Ils ne vont pas dans les
+> performances générales mais dans un onglet à part. C'est la partie extérieure à l'évolution : ce
+> qui se passe à l'entrée et à la sortie. On ne l'ignore pas, on la traite à part de l'évolution,
+> qui est le cœur de l'application. Si on met 201 € avec 1 € de frais fixes, seuls 200 € entrent
+> dans le « coffre ». Le −1 € est examiné indépendamment.
+
+### 2026-09-17 · Trois chiffres clés et deux lectures ([D-22](decisions.md), [D-23](decisions.md))
+> Trois chiffres clés :
+> - le **gain** (selon les filtres, combien j'ai gagné en euros) ;
+> - le **TRI** ;
+> - le **TWRR**.
+>
+> Le premier est le seul intéressant pour un portefeuille jeune. Les deux autres précisent la
+> performance et deviennent utiles après un certain âge du portefeuille.
+>
+> La page **synthèse** montre uniquement le cœur des investissements (un peu flatteuse). Une autre
+> page, plus **réelle**, montre le capital possédé si on retirait tout (avec les taxes, plus
+> correct).
+
+### 2026-09-17 · Périmètre et ouverture ([D-26](decisions.md), [D-27](decisions.md), [D-28](decisions.md))
+> Euro uniquement pour l'instant. Lecture seule, pas de conseil d'investissement : c'est juste pour
+> visualiser ce qu'on a et comprendre ce qui se passe dans ses investissements. Pas de production de
+> déclarations. Les autres banques ne sont pas prises en charge, mais le projet peut être forké et
+> utilisé tant que les données correspondent à ce qu'attend l'application. « La locomotive avance,
+> et on peut changer de wagon (banque) sans problème tant que les données sont bien formatées. »
+>
+> Monte-Carlo est une fonctionnalité indépendante, dont on peut se passer pour le moment.
+>
+> Les données de diversification, comme les cours, doivent être gratuites et fiables.
+
+### 2026-09-17 · Identifiants ([D-25](decisions.md))
+> Pas de PIN en argument de commande. À l'installation, l'utilisateur choisit, avec les risques
+> expliqués : rien d'enregistré (le plus sûr), PIN dans le gestionnaire d'identifiants du système,
+> ou seulement la session pytr. Jamais de PIN en clair dans le projet, un `.env` ou OneDrive.
 
 ---
 
@@ -82,8 +148,8 @@ L'application sera composée de plusieurs onglets :
 
 ## Annexe : maquette (résumé)
 
-La maquette est indicative. Les chiffres qui y figurent sont des **exemples** et ne doivent pas
-servir de référence de calcul.
+La maquette **n'est pas un modèle** (voir « Évolutions de cap »). Ce résumé sert seulement de
+trace. Les chiffres sont des exemples, la disposition n'est pas à reproduire.
 
 - **Synthèse** : courbe « Capital brut » et courbe en escalier « Capital net investi » sur le même
   graphique. Filtres « Depuis [date] » et cases à cocher PEA / CTO / crypto. Trois tuiles :
