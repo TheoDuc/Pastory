@@ -424,3 +424,21 @@ et c'est précisément ce qui aurait attrapé tout seul le piège du séparateur
 parmi les « Dépôt » (inventaire §8). Ces absences-là sont attendues et ne déclenchent pas
 d'alerte. Sa colonne `Date` ne portant aucun fuseau, elle sert à **rapprocher** une ligne d'une
 opération, jamais à décider d'un jour (D-36).
+
+---
+
+### D-43 · 2026-09-18 · L'euro d'activation du PEA reste dans le capital investi · Validée
+**Décision :** l'euro versé par Trade Republic à l'ouverture d'un PEA est compté comme investi
+dès lors qu'il a servi à acheter des parts. Le capital net investi de l'actif concerné vaut donc
+le prix de l'achat entier, et non le montant prélevé sur le compte courant.
+**Raison :** arbitrage du propriétaire, après vérification sur ses données (un achat en PEA dont
+le versement associé était inférieur d'un euro). C'est cohérent avec [D-11](#d-11) — « peu
+importe d'où vient l'argent » — et avec le fait que cet euro est bien dans l'actif : il en suit
+l'évolution comme le reste.
+**Écarte :** retrancher l'euro du capital investi, ce qui obligerait à suivre l'origine de
+chaque euro, précisément ce que le périmètre exclut.
+**Conséquence assumée :** le capital investi total est majoré d'un euro, **une seule fois** dans
+la vie du PEA. C'est sans effet sur la valeur des actifs et sur leur évolution ; seul le rapport
+« ce que j'ai mis de ma poche » s'en trouve flatté d'un euro.
+**Vérifié :** le solde reconstitué du compte espèces du PEA retombe exactement à zéro, ce qui
+confirme au passage qu'aucune opération PEA ne manque dans l'export.

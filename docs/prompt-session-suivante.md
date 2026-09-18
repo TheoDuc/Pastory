@@ -37,7 +37,7 @@ On attaque l'étape 3 : le moteur de positions.
 | `dashboard_tr/adaptateurs/trade_republic/` | L'adaptateur complet, en couches testables |
 | `dashboard_tr/config/` | Emplacements des fichiers personnels, et rôles des comptes |
 | `dashboard_tr/cli.py` | `rafraichir`, `comptes`, `lire`, `exporter-pivot` ; `ouvrir` à l'étape 9 |
-| [decisions.md](decisions.md) | D-01 à D-42. L'étape 2 a ajouté D-39 à D-42 |
+| [decisions.md](decisions.md) | D-01 à D-43. L'étape 2 a ajouté D-39 à D-43 |
 | [inventaire-donnees.md](inventaire-donnees.md) | Ce que contient un export, **et son §11 : les pièges trouvés en écrivant le code** |
 | [verification/etape-2.md](verification/etape-2.md) | Le cahier de vérification de la lecture |
 
@@ -62,6 +62,14 @@ On attaque l'étape 3 : le moteur de positions.
 - **Le rapprochement avec les positions réelles** (portefeuille actuel via pytr) reste à faire :
   c'est ce qui révélera les titres entrés sans aucun événement, limite connue de D-15. Le seul
   événement inconnu des deux exports en est justement un cas possible (Q-10).
+- **L'euro d'activation du PEA compte comme investi** ([D-43](decisions.md)). Le moteur n'a rien
+  de particulier à faire : il additionne les montants bruts des achats, et l'euro s'y trouve
+  déjà. C'est noté ici parce que le propriétaire a repéré l'écart lui-même en vérifiant, et
+  qu'il reposera la question s'il retombe dessus.
+
+**Ce que le propriétaire a vérifié à l'étape 2 :** aucun type inconnu sur ses données, et chaque
+opération recoupée dans l'application Trade Republic. Le moteur peut donc partir du principe que
+le pivot dit vrai.
 
 ---
 
