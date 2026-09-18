@@ -163,7 +163,41 @@ Les colonnes « origine … » disent d'où vient chaque valeur :
 | `deduction` | reconstitué par une règle écrite | à confirmer : poche déduite du compte, code `XF` pris pour de la crypto |
 | `a_completer` | valeur manquante, attendue à l'étape 4 | la ligne ne compte dans aucun total |
 
-### B.3 — Les contrôles que le programme fait déjà pour toi
+### B.3 — Un chiffre qui surprend, mais qui est juste : l'euro d'activation du PEA
+
+Sur **une** de tes opérations PEA, l'application Trade Republic montre un montant **inférieur
+d'un euro** à celui de l'export. Ce n'est une erreur ni de l'un ni de l'autre : ce sont deux
+événements différents, le même jour, sur le même actif.
+
+Quand Trade Republic ouvre un PEA, il y verse **1 € d'activation** — son argent, pas le tien.
+Cet euro dort sur le compte espèces du PEA. Au premier achat qui suit, le versement prélevé sur
+ton compte courant ne couvre donc que **ce qui manque**, et pas le prix entier.
+
+Exemple avec des valeurs fictives :
+
+| Événement | Montant | Ce que c'est |
+|---|---|---|
+| Activation du PEA | **+ 1,00 €** | offert par Trade Republic, en attente sur le compte espèces |
+| Versement depuis le compte courant | **− 99,00 €** | ce qui est parti de **ton** compte |
+| **Achat de l'ETF** | **− 100,00 €** | ce qui est réellement **placé dans l'actif** |
+| | **solde : 0,00 €** | le compte espèces du PEA retombe à zéro |
+
+- Le chiffre que l'application affiche sur la ligne de **virement** est le 99,00 € ;
+- le chiffre de l'écran de l'**achat** — et celui que l'application retient — est le 100,00 €.
+
+**C'est bien 100,00 € que l'application compte comme investi dans l'actif**, parce que c'est ce
+qui a acheté les parts. Le fait qu'un euro vienne d'un cadeau ne change ni la valeur de l'actif,
+ni son évolution — et l'origine de l'argent est volontairement hors périmètre
+([D-11](../decisions.md) : « peu importe d'où vient l'argent »).
+
+> **Seule conséquence, une fois pour toutes :** ton capital investi total est flatté d'un euro,
+> une seule fois dans la vie du PEA. Si tu préfères que cet euro n'y figure pas, dis-le : ce
+> serait une nouvelle décision, à prendre avant l'étape 3.
+
+Pour retrouver ce cas chez toi : c'est l'achat dont le versement associé est inférieur d'un euro.
+Le reste de tes opérations PEA a un versement d'un montant identique à l'achat.
+
+### B.4 — Les contrôles que le programme fait déjà pour toi
 
 Tu n'as pas à les refaire, mais il est utile de savoir qu'ils existent : s'ils échouent, le
 rapport te le dit, et **rien n'est corrigé en silence**.
@@ -176,7 +210,7 @@ rapport te le dit, et **rien n'est corrigé en silence**.
   ([D-42](../decisions.md)) ;
 - la poche déduite du compte correspond au libellé affiché.
 
-### B.4 — Sur un deuxième export (celui de ton ami)
+### B.5 — Sur un deuxième export (celui de ton ami)
 
 ```
 uv run dashboard lire --export <le dossier de son export>
