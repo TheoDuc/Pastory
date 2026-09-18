@@ -471,3 +471,92 @@ des achats d'actions (« Steuer »), y compris en PEA (Q-08, Q-13).
 | ISIN des dividendes et titres reçus | `icon` uniquement | Détournement d'un chemin d'image |
 | Paiement carte définitif ou non | ⚠️ « Kartenzahlung » | Seule source |
 | Rattachement carte et anciens intérêts à un compte | 🔶 | Aucun compte dans l'événement |
+
+---
+
+## 11. Ce que l'écriture de l'adaptateur a révélé (étape 2, 2026-09-18)
+
+Relevé sur les deux mêmes exports, en écrivant le code qui les lit. Les comptages sont réels,
+**aucune valeur ne l'est**. Chaque constat a produit un test.
+
+### 1. Le séparateur décimal change à l'intérieur d'un même export ⚠️ **le piège principal**
+
+| Où | Écriture | Exemple fictif |
+|---|---|---|
+| Quantité d'un achat ou d'une vente (page de détail « Transaktion ») | **virgule** décimale | `0,123456` |
+| Quantité d'un dividende (« Aktien », section « Geschäft ») | **point** décimal | `1.234567` |
+| Quantité de titres reçus (« Aktien », « Aktien hinzugefügt ») | **point** décimal | `3.000000` |
+| Tous les montants | **virgule** décimale, point pour les milliers | `1.234,56 €` |
+
+Un lecteur « allemand » appliqué partout lit `1.234567` comme **1 234 567 parts** : un million
+de fois trop, sans la moindre alerte. C'est pour cela que la convention n'est jamais devinée :
+elle est déclarée libellé par libellé dans le lexique, et une écriture qui ne respecte pas la
+convention annoncée est **refusée**.
+
+### 2. Un libellé seul ne suffit pas à identifier une information
+`Aktien` vaut un **nombre de parts** sous « Übersicht » et « Geschäft », mais un **montant en
+euros** sous « Transaktion » d'une action gagnée. La clé de lecture est donc le couple
+**(section, libellé)**.
+
+### 3. Dividende : `Gesamt` est le **net**, le brut vaut `Gesamt + Steuer`
+L'inventaire laissait ce point « à vérifier ». Vérifié : `Gesamt` = `|amount.value|` dans 15 cas
+sur 15, et sur les 9 dividendes libellés en euros, `parts × dividende par action` retombe sur
+`Gesamt + Steuer` (9/9). C'est donc ce brut qui compte dans la performance ([D-29](decisions.md)).
+Même chose pour une distribution de capital : `Bruttoertrag` = `Gesamt + Steuer` (1/1).
+
+### 4. La taxe est affichée **négative** (`-1,50 €`)
+Le format pivot n'accepte aucun nombre négatif : le signe est retiré explicitement à la lecture.
+
+### 5. Le dividende par action est parfois libellé en **devise étrangère**
+6 cas sur 15 en dollars. Il n'est alors pas comparable au montant brut en euros : il est laissé
+**vide** plutôt que recopié, ce que le format autorise pour une valeur informative (§3). Le
+contrôle « quantité × prix » devient simplement sans objet.
+
+### 6. `Summe` vaut `|amount.value|` partout (62/62)
+Le montant réglé vient donc du champ structuré ✅, et `Summe` sert de **recoupement**.
+
+### 7. La décomposition des ordres est confirmée (62/62)
+`Summe` = quantité × prix **+** frais **+** taxes à l'achat, **−** frais **−** taxes à la vente.
+Le sens vient du **signe de `amount.value`** ; le mot « Kauf » / « Verkaufen » ne fait que le
+recouper. La page de détail donne d'ailleurs directement le montant brut (`Summe` de la
+sous-page = quantité × prix, 62/62).
+
+### 8. La quantité est écrite à **deux endroits**, qui concordent (56/56)
+Le résumé « quantité × prix » et la page de détail donnent la même valeur. C'est un contrôle
+gratuit, indépendant de tout fichier extérieur, et il est appliqué à chaque lecture.
+
+### 9. `Gebühr` n'est pas toujours un nombre
+Jamais numérique sur les plans d'épargne (46/46, le mot « Kostenlos ») ; toujours numérique sur
+les ordres ponctuels (16/16). Un mot **inconnu** à cette place n'est pas traité comme zéro : ce
+serait effacer un frais réel.
+
+### 10. Deux types traités n'ont **aucun champ `status`**
+`GIFTING_LOTTERY_PRIZE_ACTIVITY` et `SSP_CORPORATE_ACTION_NO_CASH` : exiger `status = EXECUTED`
+ferait disparaître **exactement les deux événements de titres reçus**. La règle retenue est
+donc : *un statut présent doit valoir `EXECUTED`* ; un statut absent n'est pas un refus.
+
+### Sur le CSV
+- Sa colonne `Date` est l'horodatage **en temps universel**, mais **tronqué à la seconde**,
+  alors que le JSON horodate à la milliseconde. Le rapprochement se fait donc à la seconde.
+- Sur les 56 achats et ventes rapprochables, sa colonne `Parts` diffère de la lecture dans
+  **2 cas**. Les deux endroits où le JSON écrit la quantité, eux, concordent : c'est donc le
+  CSV qui arrondit autrement. Le désaccord est signalé, jamais corrigé ([D-42](decisions.md)).
+
+### Résultat de la lecture complète
+
+| | Propriétaire | Tiers |
+|---|---:|---:|
+| Événements | 29 | 171 |
+| Traités | 6 | 74 |
+| Hors périmètre | 11 | 40 |
+| Écartés | 12 | 56 |
+| **Inconnus** | **0** | **1** |
+| Opérations produites | 6 | 74 |
+| Contrôles de cohérence en échec | **0** | **0** |
+
+Le seul événement inconnu est le transfert de PEA sans type ni montant du tiers (Q-10) : il peut
+faire entrer des titres sans qu'aucun achat n'apparaisse, et il est affiché plutôt que rangé.
+
+> **Piège d'outillage.** Le **titre d'une section** peut contenir un montant réel (le bandeau
+> « Du hast … gespart »). Tout texte venu de l'écran passe donc par un garde-fou avant d'entrer
+> dans un rapport, comme le fait déjà `scripts/inventaire_structure.py`.

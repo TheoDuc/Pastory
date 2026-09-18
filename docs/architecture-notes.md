@@ -42,19 +42,43 @@ L'ébauche de cette section a été reprise, complétée et validée : le format
 - `nature_source`, informative, qui garde la nature d'origine sans que le moteur calcule dessus ;
 - une cinquième provenance, `a_completer`, pour un prix qui attend les cours de l'étape 4.
 
-## 3. Adaptateur Trade Republic
+## 3. Adaptateur Trade Republic — **écrit à l'étape 2**
+
+Réalisé dans `dashboard_tr/adaptateurs/trade_republic/`, en couches testables séparément.
+Ce que l'écriture a confirmé, et ce qu'elle a changé :
 
 - **Classement explicite de chaque `eventType`** en quatre catégories : traité, hors périmètre
   (espèces), écarté (information), **inconnu**. Aucun classement par défaut
-  ([D-08](decisions.md), [D-11](decisions.md)).
-- Contrôle du statut (`EXECUTED`), car un plan échoué porte un montant.
-- **Rapport de lecture** produit à chaque chargement : nombre d'événements par catégorie, liste des
-  types inconnus, libellés non reconnus. L'interface doit pouvoir l'afficher.
-- **Lecteur de textes isolé** dans un seul module, avec un dictionnaire de libellés allemand et
-  français ([D-09](decisions.md), [D-19](decisions.md)). Formats numériques localisés (`1.234,56`).
-- Poche : compte de l'achat (compte espèces du PEA → PEA), libellé « Portfolio » en contrôle, code
-  `XF` → crypto ([D-16](decisions.md)).
-- Les numéros de compte ne sortent jamais de l'adaptateur, sauf dans la configuration locale.
+  ([D-08](decisions.md), [D-11](decisions.md)). ✅ `classement.py`
+- Contrôle du statut — mais **assoupli** : un plan échoué porte un montant, *et* les deux
+  événements de titres reçus n'ont **aucun champ `status`**. La règle est donc « un statut
+  présent doit valoir `EXECUTED` », pas « le statut doit être présent et valoir `EXECUTED` »
+  (inventaire §11.10).
+- **Rapport de lecture** produit à chaque chargement ([`rapport.py`](../dashboard_tr/adaptateurs/trade_republic/rapport.py)) :
+  comptages par catégorie, types inconnus, libellés non reconnus, désaccords. L'interface
+  l'affichera (étape 9). Tout texte venu de l'écran y passe par un **garde-fou** : le titre
+  d'une section contient parfois un montant réel.
+- **Lecteur de textes isolé** ([D-09](decisions.md), [D-19](decisions.md)), en deux modules :
+  - `nombres.py` : les écritures localisées. **Un même export en mélange deux** — virgule
+    décimale pour les montants et les quantités d'ordres, **point décimal** pour les quantités
+    de dividendes. La convention n'est jamais devinée, elle est déclarée par libellé, et une
+    écriture qui ne la respecte pas est refusée (inventaire §11.1) ;
+  - `lexique.py` : le dictionnaire, indexé par **(section, libellé)** et non par libellé seul,
+    parce que `Aktien` désigne des parts à un endroit et des euros à un autre. Il se vérifie
+    lui-même au chargement : deux libellés de même notion doivent annoncer la même écriture.
+- Poche : ordre de résolution figé par [D-40](decisions.md) — déclaration de l'utilisateur, puis
+  code `XF` ([D-16](decisions.md)), puis rôle du compte ([D-10](decisions.md)). Si rien ne
+  répond, **l'opération n'est pas produite** et l'export s'arrête. Le libellé « Portfolio » n'est
+  qu'un contrôle.
+- Les numéros de compte ne sortent jamais de l'adaptateur : ils n'entrent pas dans le pivot, et
+  la configuration qui les porte vit dans le dossier personnel.
+- **Recoupement avec le CSV** à chaque lecture ([D-42](decisions.md)) : second avis indépendant
+  sur la quantité, les frais et les taxes — les trois valeurs qui n'existent qu'en texte.
+
+**Contrôles internes, gratuits, qui ne dépendent d'aucun fichier extérieur :** la quantité est
+écrite à deux endroits de l'écran et doit concorder ; le total affiché doit valoir le montant
+structuré ; le mot « Kauf » / « Verkaufen » doit s'accorder avec le signe du montant. Chacun
+alimente le rapport sans jamais bloquer une opération par ailleurs cohérente.
 
 ## 4. Traçabilité : chaque chiffre dit d'où il vient
 

@@ -152,20 +152,32 @@ douteuse, plutôt que de laisser un chiffre faux se propager en silence.
 tous les totaux en silence — exactement ce que le projet cherche à éviter. Un prix illisible est
 donc marqué `a_completer`, jamais laissé vide sans explication.
 
-**La tolérance sur « quantité × prix ».** Elle vaut :
+**La tolérance sur « quantité × prix »** ([D-39](decisions.md)). Elle vaut :
 
 ```
-1 centime  +  nombre de parts × un demi-centime
+1 centime                                       arrondi du montant par la banque
++ quantité × (½ dernier chiffre du prix)        le prix affiché est arrondi
++ prix × (½ dernier chiffre de la quantité)     la quantité affichée l'est aussi
 ```
 
-- le centime est l'arrondi que la banque applique au montant ;
-- le demi-centime par part vient de ce que le **prix affiché est lui-même arrondi au centime** :
-  un prix écrit « 0,33 € » vaut en réalité entre 0,325 € et 0,335 €. Sur 200 parts, l'écart
-  légitime atteint donc un euro.
+Les deux derniers termes sont **symétriques**, et il faut les deux. Le nombre de décimales n'est
+jamais supposé : il est **lu sur la valeur elle-même**, qui garde l'écriture exacte du libellé
+dont elle vient. Une valeur écrite **sans décimale** est tenue pour exacte — Trade Republic écrit
+les fractions de part avec des décimales, donc « 200 » veut dire deux cents parts, pas « entre
+199,5 et 200,5 ».
 
-Exemple : un dividende de 0,335 € par action sur 200 parts est affiché « 0,33 € ». Le calcul
-donne 66,00 € alors que 67,00 € ont été versés : ce n'est pas une erreur de lecture, et une
-tolérance fixe d'un centime l'aurait signalé à tort tous les trimestres.
+| Cas | Calcul | Tolérance |
+|---|---|---|
+| 2 parts à 25,00 € | 0,01 + 2 × 0,005 + 25,00 × 0 | **0,02 €** |
+| 200 parts à 0,33 € | 0,01 + 200 × 0,005 + 0,33 × 0 | **1,01 €** |
+| 0,000833 part à 30 000,00 € | 0,01 + 0,000833 × 0,005 + 30 000 × 0,0000005 | **0,03 €** |
+
+- **Deuxième ligne :** un dividende de 0,335 € par action sur 200 parts est affiché « 0,33 € ».
+  Le calcul donne 66,00 € alors que 67,00 € ont été versés : ce n'est pas une erreur de lecture,
+  et une tolérance fixe d'un centime l'aurait signalé à tort tous les trimestres.
+- **Troisième ligne :** un achat de crypto. La quantité est écrite avec six décimales et le prix
+  vaut des dizaines de milliers d'euros ; la moitié du dernier chiffre de la quantité pèse alors
+  un centime et demi. Sans le troisième terme, **chaque achat de crypto serait signalé à tort**.
 
 **Un écart plus grand n'est jamais corrigé en silence** : la ligne est conservée telle quelle et
 l'anomalie apparaît dans le rapport de lecture, avec l'identifiant de l'événement d'origine.

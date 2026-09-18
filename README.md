@@ -4,8 +4,9 @@ Tableau de bord **local** et **gratuit** pour suivre les actifs d'un portefeuill
 (PEA, CTO, crypto), destiné aux investisseurs long terme. Les données ne quittent jamais la
 machine.
 
-> **Projet en construction.** Étape 1 sur 12 : les choix techniques et le format des données sont
-> figés, l'application n'affiche encore rien. L'avancement est suivi dans
+> **Projet en construction.** Étape 2 sur 12 : l'application sait **lire** un export Trade
+> Republic et en sortir la liste des opérations, mais elle ne calcule encore aucune performance
+> et n'a pas d'interface. L'avancement est suivi dans
 > [docs/feuille-de-route.md](docs/feuille-de-route.md). Le guide d'installation complet viendra à
 > l'étape 10.
 
@@ -21,6 +22,30 @@ uv run dashboard --help  # liste les commandes disponibles
 
 `uv run dashboard emplacements` indique où l'application rangera les fichiers personnels
 (exports, cache, configuration), en dehors du dossier du projet.
+
+## Lire ses données
+
+```bash
+uv run dashboard rafraichir       # récupère l'export auprès de Trade Republic
+uv run dashboard comptes          # une seule fois : à quoi sert chaque compte espèces
+uv run dashboard lire             # le rapport de lecture, sans rien écrire
+uv run dashboard exporter-pivot   # les opérations en CSV, à ouvrir dans un tableur
+```
+
+`rafraichir` ne manipule aucun identifiant : c'est Trade Republic qui demande le numéro et le
+PIN, la saisie du PIN est masquée, et **rien n'est enregistré** ([D-41](docs/decisions.md)).
+
+`comptes` est nécessaire parce que rien, dans l'export, ne dit à quoi sert un compte espèces —
+alors que c'est lui qui détermine la poche d'un achat. L'application ne le devine pas
+([D-40](docs/decisions.md)) : elle montre les opérations vues sur chaque compte et vous laisse
+les nommer.
+
+Le **rapport de lecture** affiche tout ce qui n'a pas été compris : types d'événements inconnus,
+libellés non reconnus, écarts avec le CSV de Trade Republic. Un type inconnu n'est jamais ignoré
+([D-08](docs/decisions.md)).
+
+Pour examiner un export rangé ailleurs — celui de quelqu'un d'autre, par exemple — sans le
+copier dans le projet : `uv run dashboard lire --export <dossier>`.
 
 ## Comment c'est construit
 
@@ -40,7 +65,8 @@ demande que d'écrire un nouvel adaptateur ([D-26](docs/decisions.md)).
 | [docs/format-pivot.md](docs/format-pivot.md) | Le format des opérations, champ par champ |
 | [docs/glossaire.md](docs/glossaire.md) | Chaque notion financière et sa formule |
 | [docs/decisions.md](docs/decisions.md) | Les décisions prises, avec leurs raisons |
-| [docs/inventaire-donnees.md](docs/inventaire-donnees.md) | Ce que contiennent les exports pytr |
+| [docs/inventaire-donnees.md](docs/inventaire-donnees.md) | Ce que contiennent les exports pytr, et leurs pièges |
+| [docs/verification/](docs/verification/) | Comment vérifier les chiffres soi-même, étape par étape |
 
 ## Vie privée
 

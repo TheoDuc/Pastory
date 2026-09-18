@@ -12,6 +12,7 @@ from decimal import Decimal
 
 import pytest
 
+from dashboard_tr.pivot import validation
 from dashboard_tr.pivot.operation import Provenance
 from dashboard_tr.pivot.validation import controler, controler_toutes
 from tests.pivot import exemples
@@ -58,6 +59,47 @@ class TestMontantBrut:
             montant_regle=Decimal("50.05"),
         )
         assert "montant_brut" in regles(controler(operation))
+
+    def test_la_tolerance_tient_compte_de_l_arrondi_de_la_quantite(self):
+        # Le cas qui a fait corriger la formule (D-39) : un achat de crypto. La quantité est
+        # écrite avec six décimales et le prix vaut des dizaines de milliers d'euros. La
+        # moitié du dernier chiffre de la quantité pèse alors bien plus qu'un centime, et
+        # l'ancienne formule — qui ne tenait compte que de l'arrondi du prix — signalait
+        # chaque achat de crypto comme anormal.
+        operation = dataclasses.replace(
+            exemples.achat_plan_epargne(),
+            quantite=Decimal("0.000833"),
+            prix_unitaire=Decimal("30000.00"),
+            montant_brut=Decimal("25.00"),
+            montant_regle=Decimal("25.00"),
+        )
+        assert controler(operation) == []
+
+    def test_un_ecart_reste_detecte_sur_une_quantite_imprecise(self):
+        # La tolérance élargie ne doit pas devenir un blanc-seing : 0,000833 × 30 000 vaut
+        # environ 25 €, et un montant brut de 30 € reste une anomalie.
+        operation = dataclasses.replace(
+            exemples.achat_plan_epargne(),
+            quantite=Decimal("0.000833"),
+            prix_unitaire=Decimal("30000.00"),
+            montant_brut=Decimal("30.00"),
+            montant_regle=Decimal("30.00"),
+        )
+        assert "montant_brut" in regles(controler(operation))
+
+    def test_une_quantite_ecrite_sans_decimale_est_tenue_pour_exacte(self):
+        # « 200 » veut dire deux cents parts, pas « entre 199,5 et 200,5 » : Trade Republic
+        # écrit les fractions de part avec des décimales. Sans cette règle, la tolérance
+        # deviendrait la moitié d'une part entière, soit un demi-prix d'action.
+        assert validation.arrondi_affiche(Decimal("200")) == Decimal("0")
+        assert validation.arrondi_affiche(Decimal("0.33")) == Decimal("0.005")
+        assert validation.arrondi_affiche(Decimal("0.000833")) == Decimal("0.0000005")
+
+    def test_un_prix_ecrit_avec_plus_de_decimales_resserre_la_tolerance(self):
+        # « 25,00 » et « 25,0000 » valent pareil, mais le second est cent fois plus précis.
+        large = validation.tolerance_du_produit(Decimal("10"), Decimal("25.00"))
+        serree = validation.tolerance_du_produit(Decimal("10"), Decimal("25.0000"))
+        assert large > serree
 
     def test_la_tolerance_grandit_avec_le_nombre_de_parts(self):
         # Un dividende de 0,335 € par action sur 200 parts est affiché « 0,33 € » :
