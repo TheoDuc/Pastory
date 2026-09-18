@@ -33,7 +33,12 @@ uv run dashboard exporter-pivot   # les opérations en CSV, à ouvrir dans un ta
 ```
 
 `rafraichir` ne manipule aucun identifiant : c'est Trade Republic qui demande le numéro et le
-PIN, la saisie du PIN est masquée, et **rien n'est enregistré** ([D-41](docs/decisions.md)).
+PIN, et **rien n'est enregistré** ([D-41](docs/decisions.md)).
+
+> **En tapant le PIN, rien ne s'affiche** — ni les chiffres, ni des étoiles, ni le curseur qui
+> avance. C'est normal, la saisie est masquée : tapez le PIN et appuyez sur Entrée.
+> Sous Windows, cette saisie a besoin d'une **vraie console** : lancez la commande depuis
+> PowerShell, `cmd` ou le terminal de VS Code. Depuis Git Bash, elle resterait bloquée.
 
 `comptes` est nécessaire parce que rien, dans l'export, ne dit à quoi sert un compte espèces —
 alors que c'est lui qui détermine la poche d'un achat. L'application ne le devine pas

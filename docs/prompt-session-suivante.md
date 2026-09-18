@@ -75,6 +75,13 @@ On attaque l'étape 3 : le moteur de positions.
   coches, ni les flèches. Un rapport qui en contiendrait ferait échouer la commande **au moment
   de l'afficher**, alors que le calcul, lui, s'est bien passé. Le CLI force la sortie en UTF-8
   par précaution, et un test vérifie que le rapport reste affichable en cp1252.
+- **La saisie du PIN n'affiche rien du tout.** Sous Windows, `getpass` lit les caractères
+  directement depuis la console (`msvcrt.getwch`) : ni chiffres, ni étoiles, ni curseur qui
+  avance. Le propriétaire a cru à un blocage la première fois. `rafraichir` le prévient
+  maintenant en toutes lettres avant de passer la main à pytr.
+  **Corollaire :** `msvcrt` exige une **vraie console Windows**. Dans Git Bash (MinTTY), la
+  saisie ne fonctionne pas et la commande reste bloquée. Il faut lancer `rafraichir` depuis
+  PowerShell, `cmd` ou le terminal intégré de VS Code — pas depuis Git Bash.
 - Commandes utiles : `uv run pytest`, `uv run ruff check .`, `uv run dashboard emplacements`.
 - Pour travailler sur un export sans le copier dans le projet :
   `uv run dashboard lire --export <dossier>`.

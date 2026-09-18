@@ -59,11 +59,23 @@ def commande_emplacements() -> int:
 
 
 def commande_rafraichir() -> int:
-    """Récupère l'export auprès de Trade Republic, via pytr."""
+    """Récupère l'export auprès de Trade Republic, via pytr.
+
+    L'avertissement sur le PIN invisible n'est pas une politesse : sous Windows, la saisie
+    masquée n'affiche **rien**, pas même des astérisques, et la première réaction naturelle
+    est de croire que le clavier ne répond plus.
+    """
     dossier = source.dossier_par_defaut()
     print(f"Récupération de l'export Trade Republic dans :\n  {dossier}\n")
-    print("Trade Republic va demander votre numéro de téléphone puis votre code PIN.")
-    print("La saisie du PIN est masquée, et rien n'est enregistré sur cette machine.\n")
+    print("Trade Republic va vous demander votre numéro de téléphone, puis votre code PIN.")
+    print()
+    print("  ATTENTION : en tapant le PIN, vous ne verrez RIEN s'afficher.")
+    print("  Ni les chiffres, ni des étoiles, ni même le curseur qui avance.")
+    print("  C'est normal : la saisie est masquée. Tapez le PIN, puis appuyez sur Entrée.")
+    print()
+    print("Rien n'est enregistré sur cette machine : le PIN vous sera redemandé la")
+    print("prochaine fois. C'est le mode le plus sûr.")
+    print()
 
     code = source.rafraichir(dossier)
     if code != CODE_SUCCES:
