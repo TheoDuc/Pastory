@@ -16,7 +16,8 @@ lisible et vérifiable à la main.
 | [docs/architecture-notes.md](docs/architecture-notes.md) | Points d'architecture notés en chemin |
 | [docs/contexte-produit.md](docs/contexte-produit.md) | Objectif, public, contraintes, hors périmètre |
 | [docs/glossaire.md](docs/glossaire.md) | Notions financières : définition et formule retenue |
-| [docs/inventaire-donnees.md](docs/inventaire-donnees.md) | Structure des données pytr, type par type, et pièges |
+| [docs/inventaire-donnees.md](docs/inventaire-donnees.md) | Structure des données pytr, type par type, et pièges. **Le §11 recense ceux trouvés en écrivant l'adaptateur** |
+| [docs/verification/](docs/verification/) | Cahiers de vérification : cas fictifs refaisables à la main, et contrôles sur les vraies données |
 | [docs/decisions.md](docs/decisions.md) | Journal des décisions (raison + ce qui est écarté) |
 | [docs/questions-ouvertes.md](docs/questions-ouvertes.md) | Arbitrages en attente du propriétaire |
 | [scripts/inventaire_structure.py](scripts/inventaire_structure.py) | Relevé structurel d'un export, sans afficher aucune valeur |

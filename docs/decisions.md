@@ -40,7 +40,7 @@ des comptages, des noms de champs et des libellés techniques. Les comptes sont 
 vérifié.
 **Écarte :** un script jetable ; un script qui affiche les valeurs.
 
-### D-06 · 2026-09-17 · Le JSON est la source ; le CSV sert seulement à recouper · Proposée
+### D-06 · 2026-09-17 · Le JSON est la source ; le CSV sert seulement à recouper · Validée
 **Décision :** le moteur lira `all_events.json`. Le CSV ne servira qu'à recouper les quantités,
 les frais et les taxes.
 **Raison :** le CSV omet les versements PEA, les primes et les actions gagnées. Il compte des
@@ -57,7 +57,7 @@ possible : chez le tiers, 27 achats PEA sur 41 n'ont pas de versement. Un total 
 serait faux.
 **Écarte :** calculer le capital investi à partir des achats ; additionner achats et versements.
 
-### D-08 · 2026-09-17 · Classement par liste explicite de types · Proposée
+### D-08 · 2026-09-17 · Classement par liste explicite de types · Validée
 **Décision :** chaque `eventType` est rangé explicitement dans une famille (externe, revenu,
 achat/vente, interne, titres seuls, écarté). Un événement ne compte que si `status = EXECUTED`.
 Tout type absent des listes est **inconnu** et affiché à l'utilisateur. Le nombre d'événements
@@ -66,7 +66,7 @@ Tout type absent des listes est **inconnu** et affiché à l'utilisateur. Le nom
 titres reçus n'en ont pas.
 **Écarte :** « sans montant = ignorer », « avec montant = compter », et tout classement par défaut.
 
-### D-09 · 2026-09-17 · Champs structurés d'abord ; textes isolés et marqués · Proposée
+### D-09 · 2026-09-17 · Champs structurés d'abord ; textes isolés et marqués · Validée
 **Décision :** type, montant, date, compte, statut et ISIN viennent de champs structurés. Ce qui
 n'existe qu'en texte (quantité, prix, frais, taxes, poche d'un ordre, nature des événements `null`)
 est lu par un module unique, avec un dictionnaire de libellés par langue. Chaque valeur issue d'un
@@ -351,3 +351,94 @@ versionné. Les tests sont écrits avec `pytest` et n'utilisent **que** des donn
 ne se heurte pas à l'exclusion globale des `*.json` du `.gitignore` (D-01), qui aurait obligé à
 une exception par fichier.
 **Écarte :** la configuration en JSON ou en YAML.
+
+---
+
+*Étape 2 (lecture des données). Les quatre premières décisions sont des arbitrages du
+propriétaire du 2026-09-18 ; les trois précédentes (D-06, D-08, D-09), proposées à l'étape 0,
+passent en « Validée » parce que l'adaptateur les met en œuvre telles quelles.*
+
+### D-39 · 2026-09-18 · Tolérance symétrique des contrôles de cohérence · Validée
+**Décision :** l'écart acceptable entre `montant_brut` et `quantité × prix` vaut
+
+```
+1 centime  +  quantité × (½ dernier chiffre du prix affiché)
+           +  prix × (½ dernier chiffre de la quantité affichée)
+```
+
+Le nombre de décimales n'est pas supposé : il est **lu sur la valeur elle-même**, qui conserve
+l'écriture exacte du libellé dont elle vient. Remplace la formule de [D-35](#d-35) et du §5 de
+[format-pivot.md](format-pivot.md).
+
+**Raison :** l'ancienne formule ne tenait compte que de l'arrondi du **prix**. Or un achat de
+crypto a une quantité minuscule écrite avec six décimales et un prix de plusieurs dizaines de
+milliers d'euros : la moitié du dernier chiffre de la quantité pèse alors bien plus qu'un
+centime. Tous les achats de crypto étaient signalés comme anormaux, à tort — et un rapport qui
+crie au loup à chaque ligne ne sert plus à rien. L'ancienne formule supposait aussi un prix
+affiché à deux décimales, alors qu'on en observe à deux, trois et quatre.
+**Écarte :** garder la formule et apprendre à ignorer les fausses alertes ; une tolérance
+forfaitaire en pourcentage, qui laisserait passer de vraies erreurs sur les gros montants.
+**Vérifié :** zéro anomalie sur les 80 opérations des deux exports disponibles.
+
+### D-40 · 2026-09-18 · La poche n'est jamais devinée · Validée
+**Décision :** la poche se reconstitue dans cet ordre — poche déclarée par l'utilisateur pour
+cet actif, puis code commençant par `XF` (crypto, D-16), puis rôle du compte espèces de
+l'opération (D-10). Si aucune règle ne répond, **l'opération n'est pas produite** : elle est
+signalée, et `exporter-pivot` s'arrête **sans écrire de fichier** en disant quoi déclarer.
+**Raison :** un classement par défaut mettrait des chiffres faux dans la bonne colonne, ce qui
+est pire que pas de chiffre du tout : rien ne signalerait l'erreur. Cohérent avec D-08.
+**Écarte :** supposer « CTO » pour un compte non nommé.
+**Contrepartie assumée :** `dashboard comptes` est une étape obligatoire au premier lancement.
+Le libellé « Portfolio » de l'écran ne sert qu'à **contrôler** la poche, jamais à la décider :
+c'est un texte (D-09), et un désaccord avec le compte part au rapport.
+**Précisions ajoutées après relecture :** l'assistant réécrit le fichier entier, donc il y
+recopie **tout** ce que l'utilisateur y avait mis — rôles, comptes absents de cet export-ci et
+corrections de poche. Sans cela, le relancer effacerait les poches déclarées à la main et des
+opérations disparaîtraient sans message. Et avec `--export`, il **n'écrit rien** : les numéros
+de compte d'un export qui n'est pas le sien appartiennent à quelqu'un d'autre (règle 2 de
+CLAUDE.md).
+
+### D-41 · 2026-09-18 · `rafraichir` ne manipule aucun identifiant · Validée
+**Décision :** `dashboard rafraichir` appelle pytr **sans** `-n`, **sans** `-p` et **sans**
+`--store_credentials`. C'est pytr qui demande lui-même le numéro et le PIN, la saisie du PIN
+étant masquée. Rien n'est enregistré.
+**Raison :** c'est le plus sûr des trois modes de [D-25](#d-25), et il se trouve qu'il est
+aussi le plus simple : le PIN ne transite jamais par cette application. Il n'apparaît donc ni
+dans la ligne de commande — visible des autres programmes de la machine — ni dans l'historique
+du terminal.
+**Écarte :** reprendre le `-p` du premier script (supprimé), et reporter toute la commande à
+l'étape 10.
+**Reste à l'étape 10 :** les deux autres modes (gestionnaire d'identifiants du système,
+session pytr seule) et le choix à l'installation.
+
+### D-42 · 2026-09-18 · Recoupement systématique avec le CSV · Validée
+**Décision :** à chaque lecture, la quantité, les frais et les taxes lus dans les textes sont
+comparés aux colonnes du CSV. Tout désaccord part au rapport. Le CSV ne fait **jamais**
+autorité (D-06) : un désaccord est une invitation à aller vérifier, pas une correction.
+**Raison :** ces trois valeurs n'existent qu'en texte allemand, et le CSV les donne en nombres
+déjà convertis. C'est un second avis indépendant sur la partie la plus fragile de la lecture —
+et c'est précisément ce qui aurait attrapé tout seul le piège du séparateur décimal
+(inventaire §11).
+**Écarte :** s'en remettre à la seule relecture humaine du CSV pivot.
+**Limite connue :** le CSV omet les actions gagnées et range les distributions de capital
+parmi les « Dépôt » (inventaire §8). Ces absences-là sont attendues et ne déclenchent pas
+d'alerte. Sa colonne `Date` ne portant aucun fuseau, elle sert à **rapprocher** une ligne d'une
+opération, jamais à décider d'un jour (D-36).
+
+---
+
+### D-43 · 2026-09-18 · L'euro d'activation du PEA reste dans le capital investi · Validée
+**Décision :** l'euro versé par Trade Republic à l'ouverture d'un PEA est compté comme investi
+dès lors qu'il a servi à acheter des parts. Le capital net investi de l'actif concerné vaut donc
+le prix de l'achat entier, et non le montant prélevé sur le compte courant.
+**Raison :** arbitrage du propriétaire, après vérification sur ses données (un achat en PEA dont
+le versement associé était inférieur d'un euro). C'est cohérent avec [D-11](#d-11) — « peu
+importe d'où vient l'argent » — et avec le fait que cet euro est bien dans l'actif : il en suit
+l'évolution comme le reste.
+**Écarte :** retrancher l'euro du capital investi, ce qui obligerait à suivre l'origine de
+chaque euro, précisément ce que le périmètre exclut.
+**Conséquence assumée :** le capital investi total est majoré d'un euro, **une seule fois** dans
+la vie du PEA. C'est sans effet sur la valeur des actifs et sur leur évolution ; seul le rapport
+« ce que j'ai mis de ma poche » s'en trouve flatté d'un euro.
+**Vérifié :** le solde reconstitué du compte espèces du PEA retombe exactement à zéro, ce qui
+confirme au passage qu'aucune opération PEA ne manque dans l'export.

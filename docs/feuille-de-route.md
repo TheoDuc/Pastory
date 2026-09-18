@@ -88,9 +88,21 @@ montant brut illisible qui passait sans alerte.
 
 **Session :** nouvelle session, mode plan.
 
-## Étape 2 · Lecture des données 🔜
+## Étape 2 · Lecture des données ✅
 **But :** transformer `all_events.json` en une liste propre d'opérations sur actifs **au format
 pivot**, sans rien perdre en silence. C'est l'adaptateur Trade Republic, le premier wagon.
+
+**Fait :** adaptateur complet (`dashboard_tr/adaptateurs/trade_republic/`), quatre commandes
+(`rafraichir`, `comptes`, `lire`, `exporter-pivot`), recoupement automatique avec le CSV, et le
+[cahier de vérification](verification/etape-2.md). Sur les deux exports disponibles : 80
+opérations produites, **zéro contrôle de cohérence en échec**, un seul événement inconnu — le
+transfert de PEA du tiers (Q-10), affiché au lieu d'être rangé.
+
+Quatre décisions nouvelles (D-39 à D-42) et trois confirmations (D-06, D-08, D-09). La lecture
+des textes s'est révélée plus piégeuse que l'inventaire ne le laissait voir : les dix constats
+sont dans [inventaire-donnees.md §11](inventaire-donnees.md). Le principal — **un même export
+mélange deux écritures des nombres** — aurait donné des quantités un million de fois trop
+grandes sans déclencher la moindre alerte.
 
 **Claude :**
 - Écrit l'adaptateur : classement explicite de chaque type (traité, hors périmètre,
@@ -110,7 +122,7 @@ pivot**, sans rien perdre en silence. C'est l'adaptateur Trade Republic, le prem
 
 **Session :** nouvelle session. Relecture `/code-review` à la fin.
 
-## Étape 3 · Moteur de positions ⏳
+## Étape 3 · Moteur de positions 🔜
 **But :** pour chaque actif et chaque date, calculer la quantité détenue, le capital net investi,
 le PRU, les frais, les taxes, les dividendes et les plus-values réalisées. Tout est défini dans le
 [glossaire](glossaire.md).

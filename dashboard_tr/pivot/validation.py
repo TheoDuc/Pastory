@@ -27,20 +27,53 @@ TOLERANCE = Decimal("0.01")
 """Un centime : l'arrondi que la banque applique à un montant. Au-delà, l'écart n'est plus
 un arrondi, c'est une anomalie."""
 
-ARRONDI_DU_PRIX_AFFICHE = Decimal("0.005")
-"""Un demi-centime. Le prix unitaire est lu **arrondi au centime** dans un libellé : un
-prix affiché 0,33 € vaut en réalité entre 0,325 € et 0,335 €. L'écart que cela produit sur
-le montant brut grandit avec le nombre de parts, et la tolérance doit grandir avec lui."""
+def arrondi_affiche(valeur: Decimal) -> Decimal:
+    """De combien une valeur peut s'écarter de ce qui est écrit à l'écran (D-39).
 
+    C'est la moitié de son dernier chiffre : un prix affiché ``0,33`` vaut en réalité entre
+    0,325 et 0,335, donc un demi-centime près. Un prix affiché ``0,3300`` est cent fois plus
+    précis. Le nombre de décimales n'est pas supposé : il est **lu sur la valeur elle-même**,
+    qui garde l'écriture exacte du libellé dont elle vient.
 
-def tolerance_du_produit(quantite: Decimal) -> Decimal:
-    """Écart acceptable entre `montant_brut` et `quantite × prix_unitaire`.
-
-    Un centime pour l'arrondi du montant, plus un demi-centime par part pour l'arrondi du
-    prix affiché. Exemple : 200 parts à 0,33 € affiché tolèrent 1,01 € d'écart ; sans cela,
-    un dividende parfaitement normal serait signalé à tort.
+    Une valeur écrite **sans décimale** est tenue pour exacte : Trade Republic écrit les
+    fractions de part avec des décimales, donc « 200 » veut dire deux cents parts, pas
+    « entre 199,5 et 200,5 ».
     """
-    return TOLERANCE + abs(quantite) * ARRONDI_DU_PRIX_AFFICHE
+    exposant = valeur.as_tuple().exponent
+    if not isinstance(exposant, int) or exposant >= 0:
+        return Decimal(0)
+    return Decimal(1).scaleb(exposant) / 2
+
+
+def tolerance_du_produit(quantite: Decimal, prix_unitaire: Decimal) -> Decimal:
+    """Écart acceptable entre `montant_brut` et `quantite × prix_unitaire` (D-39).
+
+    Trois arrondis se cumulent, et la tolérance les additionne :
+
+    ```
+    1 centime                         l'arrondi que la banque applique au montant
+    + quantité × arrondi du prix      le prix affiché est lui-même arrondi
+    + prix × arrondi de la quantité   la quantité affichée l'est aussi
+    ```
+
+    Les deux derniers termes sont symétriques, et il faut les deux. Avec le seul arrondi du
+    prix, un achat de crypto — quantité minuscule écrite avec six décimales, prix de
+    plusieurs dizaines de milliers d'euros — était signalé comme anormal à chaque fois : la
+    moitié du dernier chiffre de la quantité, multipliée par un tel prix, vaut bien plus
+    qu'un centime.
+
+    Exemples :
+
+    - 2 parts à 25,00 € → 0,01 + 2 × 0,005 + 25,00 × 0 = **0,02 €** ;
+    - 200 parts à 0,33 € → 0,01 + 200 × 0,005 + 0,33 × 0 = **1,01 €** ;
+    - 0,000123 part à 25 000,00 € → 0,01 + 0,000123 × 0,005 + 25 000 × 0,0000005 ≈ **0,02 €**.
+    """
+    return (
+        TOLERANCE
+        + abs(quantite) * arrondi_affiche(prix_unitaire)
+        + abs(prix_unitaire) * arrondi_affiche(quantite)
+    )
+
 
 CHAMPS_NUMERIQUES = ("quantite", "prix_unitaire", "montant_brut", "frais", "taxes", "montant_regle")
 
@@ -139,7 +172,8 @@ def controler(operation: Operation) -> list[Anomalie]:
     )
     if attendu_calculable:
         attendu = operation.quantite * operation.prix_unitaire
-        if abs(attendu - operation.montant_brut) > tolerance_du_produit(operation.quantite):
+        tolerance = tolerance_du_produit(operation.quantite, operation.prix_unitaire)
+        if abs(attendu - operation.montant_brut) > tolerance:
             signaler(
                 "montant_brut",
                 f"montant brut {operation.montant_brut} alors que quantité × prix donne {attendu}",

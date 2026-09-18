@@ -2,17 +2,44 @@
 
 Les commandes sont ajoutées étape par étape. Celles qui ne sont pas encore écrites le disent
 clairement, avec l'étape où elles arrivent, plutôt que d'échouer sans explication.
+
+L'enchaînement normal, au premier usage :
+
+```
+dashboard rafraichir      récupérer l'export auprès de Trade Republic
+dashboard comptes         dire à quoi sert chaque compte espèces (une seule fois)
+dashboard lire            vérifier qu'aucun type d'événement n'est inconnu
+dashboard exporter-pivot  écrire les opérations en CSV, pour les vérifier dans un tableur
+```
 """
 
 from __future__ import annotations
 
 import argparse
+import collections
+import contextlib
 import sys
 from importlib.metadata import PackageNotFoundError, version
+from pathlib import Path
 
+from dashboard_tr.adaptateurs.trade_republic import evenements as lecture_evenements
+from dashboard_tr.adaptateurs.trade_republic import recoupement_csv, source
+from dashboard_tr.adaptateurs.trade_republic.classement import classer
+from dashboard_tr.adaptateurs.trade_republic.lecture import Lecteur
+from dashboard_tr.adaptateurs.trade_republic.rapport import Rapport
+from dashboard_tr.config import comptes as config_comptes
 from dashboard_tr.config import emplacements
+from dashboard_tr.pivot import export_csv
 
 NOM = "dashboard"
+
+NOM_EXPORT_PIVOT = "operations.csv"
+
+CODE_SUCCES = 0
+CODE_ECHEC = 1
+CODE_DECLARATION_ATTENDUE = 2
+"""L'export s'est arrêté parce qu'il manque une information que seul l'utilisateur peut
+donner (D-40). Un code distinct de l'échec : rien n'est cassé, il faut compléter."""
 
 
 def _version() -> str:
@@ -28,12 +55,183 @@ def commande_emplacements() -> int:
     for nom, chemin in emplacements.tous_les_dossiers().items():
         etat = "existe" if chemin.exists() else "pas encore créé"
         print(f"  {nom:<14} {chemin}  [{etat}]")
-    return 0
+    return CODE_SUCCES
+
+
+def commande_rafraichir() -> int:
+    """Récupère l'export auprès de Trade Republic, via pytr.
+
+    L'avertissement sur le PIN invisible n'est pas une politesse : sous Windows, la saisie
+    masquée n'affiche **rien**, pas même des astérisques, et la première réaction naturelle
+    est de croire que le clavier ne répond plus.
+    """
+    dossier = source.dossier_par_defaut()
+    print(f"Récupération de l'export Trade Republic dans :\n  {dossier}\n")
+    print("Trade Republic va vous demander votre numéro de téléphone, puis votre code PIN.")
+    print()
+    print("  ATTENTION : en tapant le PIN, vous ne verrez RIEN s'afficher.")
+    print("  Ni les chiffres, ni des étoiles, ni même le curseur qui avance.")
+    print("  C'est normal : la saisie est masquée. Tapez le PIN, puis appuyez sur Entrée.")
+    print()
+    print("Rien n'est enregistré sur cette machine : le PIN vous sera redemandé la")
+    print("prochaine fois. C'est le mode le plus sûr.")
+    print()
+
+    code = source.rafraichir(dossier)
+    if code != CODE_SUCCES:
+        print(
+            "\nLa récupération a échoué. Les données déjà présentes n'ont pas été touchées.",
+            file=sys.stderr,
+        )
+        return CODE_ECHEC
+
+    print(f"\nExport à jour dans {dossier}.")
+    print("Vérifiez la lecture avec « dashboard lire ».")
+    return CODE_SUCCES
+
+
+def commande_comptes(dossier_export: Path | None) -> int:
+    """Assistant « nommer ses comptes » (D-10).
+
+    Montre les types d'opérations vus sur chaque compte : c'est ce qui permet de reconnaître
+    un compte dont on ignorait l'existence.
+
+    **Avec `--export`, rien n'est écrit.** Les numéros de compte d'un export qui n'est pas le
+    sien appartiennent à quelqu'un d'autre : les enregistrer dans sa propre configuration
+    serait les recopier (règle 2 de CLAUDE.md). L'assistant se contente alors d'afficher ce
+    qu'il a trouvé.
+    """
+    dossier = dossier_export or source.dossier_par_defaut()
+    try:
+        bruts = source.charger_evenements(dossier)
+        configuration = config_comptes.charger()
+    except source.ExportIntrouvable as erreur:
+        print(erreur, file=sys.stderr)
+        return CODE_ECHEC
+    except config_comptes.ConfigurationInvalide as erreur:
+        # C'est la commande censée aider à corriger ce fichier : elle doit l'expliquer,
+        # pas s'interrompre sur une erreur technique.
+        print(erreur, file=sys.stderr)
+        return CODE_ECHEC
+
+    vus: dict[str, set[str]] = collections.defaultdict(set)
+    for evenement in bruts:
+        compte = lecture_evenements.compte(evenement)
+        if compte is None:
+            continue
+        vus[compte].add(classer(evenement).type_affiche)
+
+    if not vus:
+        print("Aucun compte espèces n'apparaît dans cet export.")
+        return CODE_SUCCES
+
+    print(f"{len(vus)} compte(s) espèces trouvé(s) dans l'export.")
+    for compte, types in sorted(vus.items()):
+        role = configuration.roles.get(compte)
+        print(f"\n  compte {compte} — rôle : {role.value if role else 'à donner'}")
+        print(f"    opérations vues : {', '.join(sorted(types))}")
+
+    if dossier_export is not None:
+        print(
+            "\nRien n'a été écrit : cet export a été lu depuis un dossier que vous avez "
+            "indiqué,\net ses comptes ne sont pas forcément les vôtres. Pour nommer vos "
+            f"propres comptes,\nlancez « {NOM} comptes » sans --export."
+        )
+        return CODE_SUCCES
+
+    fichier = config_comptes.chemin()
+    fichier.parent.mkdir(parents=True, exist_ok=True)
+    fichier.write_text(
+        config_comptes.modele(
+            {compte: sorted(types) for compte, types in vus.items()}, configuration
+        ),
+        encoding="utf-8",
+    )
+
+    manquants = [compte for compte in vus if compte not in configuration.roles]
+    print(f"\nOuvrez ce fichier et donnez un rôle à chaque compte :\n  {fichier}\n")
+    print("Les types d'opérations vus sur chaque compte y sont rappelés pour vous aider.")
+    if manquants:
+        print(f"\n{len(manquants)} compte(s) attendent encore un rôle.")
+    else:
+        print("\nTous les comptes ont déjà un rôle.")
+    return CODE_SUCCES
+
+
+def _lire(dossier: Path, avec_recoupement: bool) -> tuple[Rapport, int]:
+    """Lecture commune à « lire » et « exporter-pivot »."""
+    bruts = source.charger_evenements(dossier)
+    configuration = config_comptes.charger()
+    rapport = Lecteur(configuration).lire(bruts)
+
+    if avec_recoupement:
+        chemin_csv = source.chemin_transactions(dossier)
+        if chemin_csv is None:
+            rapport.signaler(
+                "recoupement CSV",
+                f"pas de fichier « {source.NOM_TRANSACTIONS} » dans cet export : "
+                "les quantités, frais et taxes lus dans les textes n'ont pas pu être recoupés",
+            )
+        else:
+            recoupement_csv.recouper(
+                rapport.operations, recoupement_csv.lire_csv(chemin_csv, rapport), rapport
+            )
+
+    code = CODE_DECLARATION_ATTENDUE if rapport.declarations_attendues else CODE_SUCCES
+    return rapport, code
+
+
+def commande_lire(dossier_export: Path | None) -> int:
+    """Affiche le rapport de lecture, sans rien écrire."""
+    dossier = dossier_export or source.dossier_par_defaut()
+    try:
+        rapport, code = _lire(dossier, avec_recoupement=True)
+    except source.ExportIntrouvable as erreur:
+        print(erreur, file=sys.stderr)
+        return CODE_ECHEC
+    except config_comptes.ConfigurationInvalide as erreur:
+        print(erreur, file=sys.stderr)
+        return CODE_ECHEC
+
+    print(rapport.resume())
+    return code
+
+
+def commande_exporter_pivot(dossier_export: Path | None) -> int:
+    """Écrit les opérations en CSV, après avoir affiché le rapport de lecture."""
+    dossier = dossier_export or source.dossier_par_defaut()
+    try:
+        rapport, code = _lire(dossier, avec_recoupement=True)
+    except source.ExportIntrouvable as erreur:
+        print(erreur, file=sys.stderr)
+        return CODE_ECHEC
+    except config_comptes.ConfigurationInvalide as erreur:
+        print(erreur, file=sys.stderr)
+        return CODE_ECHEC
+
+    print(rapport.resume())
+
+    if rapport.declarations_attendues:
+        # Rien n'est écrit tant qu'il manque une déclaration : un fichier incomplet
+        # ressemblerait à un fichier complet (D-40).
+        print(
+            "\nAucun fichier n'a été écrit : il manque des informations "
+            "que vous seul pouvez donner (voir ci-dessus).",
+            file=sys.stderr,
+        )
+        return code
+
+    fichier = export_csv.ecrire(
+        rapport.operations, emplacements.dossier_personnel() / NOM_EXPORT_PIVOT
+    )
+    print(f"\n{len(rapport.operations)} opération(s) écrite(s) dans :\n  {fichier}")
+    print("Ouvrez ce fichier dans un tableur pour comparer avec l'application Trade Republic.")
+    return code
 
 
 def _a_venir(commande: str, etape: str) -> int:
     print(f"La commande « {commande} » sera disponible à l'{etape}.", file=sys.stderr)
-    return 1
+    return CODE_ECHEC
 
 
 def construire_analyseur() -> argparse.ArgumentParser:
@@ -45,13 +243,46 @@ def construire_analyseur() -> argparse.ArgumentParser:
 
     commandes = analyseur.add_subparsers(dest="commande")
     commandes.add_parser("emplacements", help="où sont rangés les fichiers personnels")
-    commandes.add_parser("rafraichir", help="récupérer les données Trade Republic (étape 2)")
-    commandes.add_parser("exporter-pivot", help="écrire les opérations en CSV (étape 2)")
+    commandes.add_parser("rafraichir", help="récupérer les données Trade Republic")
+
+    for nom, aide in (
+        ("comptes", "dire à quoi sert chaque compte espèces"),
+        ("lire", "rapport de lecture, sans rien écrire"),
+        ("exporter-pivot", "écrire les opérations en CSV"),
+    ):
+        sous_analyseur = commandes.add_parser(nom, help=aide)
+        sous_analyseur.add_argument(
+            "--export",
+            type=Path,
+            default=None,
+            metavar="DOSSIER",
+            help="dossier contenant l'export, au lieu du dossier personnel "
+            "(pour examiner l'export de quelqu'un d'autre sans le copier dans le projet)",
+        )
+
     commandes.add_parser("ouvrir", help="ouvrir le tableau de bord (étape 9)")
     return analyseur
 
 
+def _preparer_la_sortie() -> None:
+    """Fait en sorte que l'affichage ne puisse pas faire échouer une commande.
+
+    La console Windows par défaut écrit en cp1252, qui ne connaît ni les caractères de
+    dessin ni la plupart des symboles. Un rapport parfaitement correct ferait alors planter
+    l'application au moment de l'afficher — et sur un projet dont le but est de montrer des
+    chiffres, perdre le résultat à l'impression serait absurde.
+    """
+    for flux in (sys.stdout, sys.stderr):
+        reconfigurer = getattr(flux, "reconfigure", None)
+        if reconfigurer is None:
+            continue
+        # Si le terminal refuse, tant pis : on continue avec ce qu'il sait faire.
+        with contextlib.suppress(ValueError, OSError):
+            reconfigurer(encoding="utf-8", errors="replace")
+
+
 def main(arguments: list[str] | None = None) -> int:
+    _preparer_la_sortie()
     analyseur = construire_analyseur()
     options = analyseur.parse_args(arguments)
 
@@ -59,14 +290,18 @@ def main(arguments: list[str] | None = None) -> int:
         case "emplacements":
             return commande_emplacements()
         case "rafraichir":
-            return _a_venir("rafraichir", "étape 2 (lecture des données)")
+            return commande_rafraichir()
+        case "comptes":
+            return commande_comptes(options.export)
+        case "lire":
+            return commande_lire(options.export)
         case "exporter-pivot":
-            return _a_venir("exporter-pivot", "étape 2 (lecture des données)")
+            return commande_exporter_pivot(options.export)
         case "ouvrir":
             return _a_venir("ouvrir", "étape 9 (réalisation de l'interface)")
         case _:
             analyseur.print_help()
-            return 0
+            return CODE_SUCCES
 
 
 if __name__ == "__main__":  # pragma: no cover
