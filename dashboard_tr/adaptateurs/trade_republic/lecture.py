@@ -158,9 +158,15 @@ class Lecteur:
         obligatoire: bool,
         devise_attendue: bool = True,
     ) -> NombreLu | None:
-        """Lit un nombre en imposant l'écriture déclarée par le lexique."""
-        texte = index.get((section, notion))
-        if texte is None:
+        """Lit un nombre en imposant l'écriture déclarée par le lexique.
+
+        « Ligne absente » et « ligne présente mais vide » sont deux choses différentes.
+        Une ligne de taxe absente veut dire qu'aucune taxe n'a été prélevée ; une ligne de
+        taxe présente et illisible veut dire qu'on ne sait pas combien. Les confondre
+        reviendrait à inventer un zéro, et le montant brut d'un dividende s'en trouverait
+        amputé de la retenue, sans que rien ne le signale.
+        """
+        if not _presente(index, section, notion):
             if obligatoire:
                 raise OperationNonProduite(
                     "valeur absente",
@@ -168,6 +174,8 @@ class Lecteur:
                     "indispensable au calcul",
                 )
             return None
+
+        texte = index[(section, notion)]
 
         convention = lexique.convention(section, notion)
         if convention is None:  # pragma: no cover - toute notion numérique en déclare une
@@ -605,11 +613,11 @@ class Lecteur:
         Un mot inconnu à cette place n'est pas traité comme zéro : ce serait effacer un frais
         réel. L'opération est alors refusée et signalée.
         """
-        texte = index.get((Section.APERCU, Notion.FRAIS))
-        if texte is None:
+        if not _presente(index, Section.APERCU, Notion.FRAIS):
             return ValeurLue(NombreLu(ZERO, decimales=2), Provenance.DONNEE)
 
-        if texte.strip() in lexique.MOTS_SANS_FRAIS:
+        texte = index[(Section.APERCU, Notion.FRAIS)]
+        if texte is not None and texte.strip() in lexique.MOTS_SANS_FRAIS:
             return ValeurLue(NombreLu(ZERO, decimales=2), Provenance.TEXTE)
 
         lu = self._nombre(index, Section.APERCU, Notion.FRAIS, obligatoire=True)
@@ -621,7 +629,7 @@ class Lecteur:
     ) -> ValeurLue:
         """Taxes prélevées. Elles sont **affichées négatives** ; le pivot n'accepte que des
         nombres positifs, le signe est donc retiré ici, explicitement."""
-        if index.get((section, Notion.TAXES)) is None:
+        if not _presente(index, section, Notion.TAXES):
             return ValeurLue(NombreLu(ZERO, decimales=2), Provenance.DONNEE)
 
         lu = self._nombre(index, section, Notion.TAXES, obligatoire=True)
@@ -639,7 +647,7 @@ class Lecteur:
         Son absence n'empêche rien (format-pivot §3), donc une lecture ratée est signalée
         plutôt que bloquante.
         """
-        if index.get((Section.AFFAIRE, Notion.QUANTITE)) is None:
+        if not _presente(index, Section.AFFAIRE, Notion.QUANTITE):
             return None
         try:
             lu = self._nombre(index, Section.AFFAIRE, Notion.QUANTITE, obligatoire=True)
@@ -661,7 +669,7 @@ class Lecteur:
         comparable au montant brut en euros : il est laissé vide plutôt que recopié, et le
         contrôle « quantité × prix » est simplement sans objet.
         """
-        if index.get((Section.AFFAIRE, Notion.DIVIDENDE_PAR_ACTION)) is None:
+        if not _presente(index, Section.AFFAIRE, Notion.DIVIDENDE_PAR_ACTION):
             return None
         try:
             lu = self._nombre(
@@ -744,7 +752,7 @@ class Lecteur:
         notion = (
             Notion.MONTANT_REGLE if section is Section.APERCU else Notion.MONTANT_NET_RECU
         )
-        if index.get((section, notion)) is None:
+        if not _presente(index, section, notion):
             return
         try:
             lu = self._nombre(index, section, notion, obligatoire=True)
@@ -792,6 +800,18 @@ class Lecteur:
             if nature is not None:
                 return nature
         return None
+
+
+def _presente(
+    index: dict[tuple[Section, Notion], str | None], section: Section, notion: Notion
+) -> bool:
+    """Vrai si l'écran **porte** cette ligne, même si son texte est vide.
+
+    Distinction essentielle : une ligne de taxe absente veut dire « aucune taxe » ; une
+    ligne de taxe présente mais illisible veut dire « on ne sait pas combien ». Traiter la
+    seconde comme la première inventerait un zéro.
+    """
+    return (section, notion) in index
 
 
 def _titres_apercu(evenement: dict[str, Any]) -> list[str]:

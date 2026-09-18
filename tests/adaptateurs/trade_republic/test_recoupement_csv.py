@@ -132,6 +132,19 @@ class TestLectureDuFichier:
         assert len(lignes) == 1
         assert lignes[0].type_operation.value == "titres_recus"
 
+    def test_une_colonne_illisible_est_signalee_au_lieu_d_etre_sautee(self, tmp_path):
+        # Si le CSV changeait de forme — ici une quantité écrite à point décimal — avaler
+        # l'erreur désarmerait le recoupement (D-42) au moment précis où il servirait :
+        # plus aucune quantité ne serait comparée, et le rapport n'en dirait rien.
+        fichier = ecrire_csv(
+            tmp_path / "t.csv",
+            [f"2026-01-02T08:00:00;Achat;-50;Note;{fictifs.ACTIF_ETF};2.5;0;;;"],
+        )
+        rapport = Rapport()
+        recoupement_csv.lire_csv(fichier, rapport)
+
+        assert any("illisible" in s.message for s in rapport.signalements)
+
     @pytest.mark.parametrize("valeur", ["", "   "])
     def test_une_case_vide_vaut_non_renseigne_et_non_zero(self, valeur, tmp_path):
         # Prendre une case vide pour un zéro inventerait un frais nul là où le CSV ne dit

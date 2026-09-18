@@ -127,13 +127,22 @@ def _lire_poches(brut: object, fichier: Path) -> dict[str, Poche]:
     return poches
 
 
-def modele(comptes_vus: Mapping[str, list[str]], deja_nommes: Mapping[str, RoleCompte]) -> str:
+def modele(
+    comptes_vus: Mapping[str, list[str]],
+    configuration: Configuration,
+) -> str:
     """Le texte du fichier à écrire, avec un compte par ligne, à compléter.
 
     `comptes_vus` associe chaque numéro de compte aux types d'opérations observés dessus :
     c'est ce qui permet à l'utilisateur de reconnaître un compte qu'il ne connaissait pas
-    (D-10). Les rôles déjà renseignés sont conservés.
+    (D-10).
+
+    **Tout ce que l'utilisateur avait déjà écrit est repris** : ses rôles, ses comptes qui
+    n'apparaissent pas dans cet export-ci, et ses corrections de poche. L'assistant réécrit
+    le fichier entier ; s'il n'en recopiait qu'une partie, relancer `dashboard comptes`
+    effacerait le reste en silence, et les poches déclarées à la main disparaîtraient.
     """
+    deja_nommes = configuration.roles
     lignes = [
         "# Le rôle de chaque compte espèces, à compléter une fois.",
         "#",
@@ -160,12 +169,25 @@ def modele(comptes_vus: Mapping[str, list[str]], deja_nommes: Mapping[str, RoleC
         lignes.append(f'"{compte}" = "{role.value if role else ""}"')
         lignes.append("")
 
+    # Les comptes déjà nommés qui n'apparaissent pas dans cet export : un export ne remonte
+    # pas forcément toute l'histoire du compte, et perdre un rôle déjà donné obligerait à
+    # tout refaire.
+    autres = sorted(set(deja_nommes) - set(comptes_vus))
+    if autres:
+        lignes.append("# Comptes déjà nommés, absents de cet export :")
+        for compte in autres:
+            lignes.append(f'"{compte}" = "{deja_nommes[compte].value}"')
+        lignes.append("")
+
     lignes += [
         "[poches]",
         "# Facultatif. Corrige la poche déduite pour un actif (D-16). La crypto est reconnue",
         "# à son code commençant par « XF » : si cette règle se trompe sur l'un de vos actifs,",
         '# corrigez-le ici, par exemple :  "XX0000000001" = "CTO"',
         f"# Poches acceptées : {', '.join(p.value for p in Poche)}",
-        "",
     ]
+    for actif, poche in sorted(configuration.poches_corrigees.items()):
+        lignes.append(f'"{actif}" = "{poche.value}"')
+    lignes.append("")
+
     return "\n".join(lignes)

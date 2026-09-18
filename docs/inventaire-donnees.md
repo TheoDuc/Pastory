@@ -290,7 +290,7 @@ Même structure que le dividende, avec « Bruttoertrag » (produit brut) et « E
 |---|---|
 | Actif (ISIN) | ✅ `icon` uniquement |
 | Nature | ⚠️ `subtitle` / « Orderart » = « Bonusaktien » |
-| Quantité | ⚠️ « Aktien hinzugefügt ». CSV : ligne `SPLIT` même jour, même ISIN, colonne `Parts` |
+| Quantité | ⚠️ « Aktien hinzugefügt ». CSV : ligne `SPLIT`, même ISIN et **même horodatage à la seconde** (vérifié §11), colonne `Parts` |
 
 ---
 
@@ -541,6 +541,8 @@ donc : *un statut présent doit valoir `EXECUTED`* ; un statut absent n'est pas 
 - Sur les 56 achats et ventes rapprochables, sa colonne `Parts` diffère de la lecture dans
   **2 cas**. Les deux endroits où le JSON écrit la quantité, eux, concordent : c'est donc le
   CSV qui arrondit autrement. Le désaccord est signalé, jamais corrigé ([D-42](decisions.md)).
+- La ligne `SPLIT` des actions gratuites se rapproche elle aussi **à la seconde** (1/1) : la
+  section 4 disait « même jour », ce qui était approximatif.
 
 ### Résultat de la lecture complète
 

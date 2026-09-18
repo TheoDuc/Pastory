@@ -79,19 +79,27 @@ class LigneCsv:
     taxes: Decimal | None
 
 
-def _nombre(texte: str | None) -> Decimal | None:
-    """Lit une colonne numérique du CSV. Une case vide vaut « non renseigné », pas zéro."""
+def _nombre(texte: str | None, colonne: str, illisibles: list[str]) -> Decimal | None:
+    """Lit une colonne numérique du CSV.
+
+    Une case **vide** vaut « non renseigné », pas zéro : la comparaison est alors sautée.
+    Une case **remplie mais illisible** est tout autre chose — elle voudrait dire que le CSV
+    n'a plus la forme attendue. La sauter en silence désarmerait le recoupement ([D-42]) au
+    moment précis où il servirait le plus, alors le nom de la colonne part au rapport.
+    """
     if texte is None or texte.strip() == "":
         return None
     try:
         return lire_nombre(texte, Convention.VIRGULE_DECIMALE).absolu().valeur
     except LectureImpossible:
+        illisibles.append(colonne)
         return None
 
 
-def lire_csv(fichier: Path) -> list[LigneCsv]:
+def lire_csv(fichier: Path, rapport: Rapport | None = None) -> list[LigneCsv]:
     """Lit le CSV et ne garde que les lignes qui correspondent à une opération sur actif."""
     lignes: list[LigneCsv] = []
+    colonnes_illisibles: set[str] = set()
 
     with fichier.open(encoding="utf-8", newline="") as flux:
         for brute in csv.DictReader(flux, delimiter=SEPARATEUR):
@@ -105,18 +113,34 @@ def lire_csv(fichier: Path) -> list[LigneCsv]:
                 # Lue en temps universel : c'est ce que le rapprochement confirme.
                 instant = datetime.fromisoformat(date).replace(tzinfo=UTC)
             except ValueError:
+                if rapport is not None:
+                    rapport.signaler(
+                        "recoupement CSV",
+                        f"une ligne du CSV porte une date illisible : elle n'a pas pu être "
+                        f"rapprochée d'une opération sur l'actif {actif}",
+                    )
                 continue
 
+            illisibles: list[str] = []
             lignes.append(
                 LigneCsv(
                     instant_utc=instant,
                     type_operation=type_operation,
                     actif=actif,
-                    quantite=_nombre(brute.get(COLONNE_PARTS)),
-                    frais=_nombre(brute.get(COLONNE_FRAIS)),
-                    taxes=_nombre(brute.get(COLONNE_TAXES)),
+                    quantite=_nombre(brute.get(COLONNE_PARTS), COLONNE_PARTS, illisibles),
+                    frais=_nombre(brute.get(COLONNE_FRAIS), COLONNE_FRAIS, illisibles),
+                    taxes=_nombre(brute.get(COLONNE_TAXES), COLONNE_TAXES, illisibles),
                 )
             )
+            colonnes_illisibles.update(illisibles)
+
+    if rapport is not None and colonnes_illisibles:
+        rapport.signaler(
+            "recoupement CSV",
+            f"colonne(s) {', '.join(sorted(colonnes_illisibles))} du CSV illisibles : "
+            "le recoupement de ces valeurs n'a pas pu être fait. Le CSV n'a peut-être plus "
+            "la forme attendue.",
+        )
 
     return lignes
 

@@ -23,6 +23,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from dashboard_tr.adaptateurs.trade_republic import lexique
+from dashboard_tr.adaptateurs.trade_republic.rapport import sur
 from dashboard_tr.config.comptes import Configuration, RoleCompte
 from dashboard_tr.pivot.operation import Poche, Provenance
 
@@ -110,8 +111,10 @@ def _avec_controle(
             poche,
             provenance,
             desaccord=(
-                f"le libellé de poche « {poche_affichee} » n'est pas connu du lexique ; "
-                f"la poche {poche.value} a été retenue à partir du compte"
+                # Le libellé est inconnu : justement le cas où l'on ne peut pas savoir ce
+                # qu'il contient. Il passe donc par le garde-fou avant d'entrer au rapport.
+                f"le libellé de poche {sur(poche_affichee)} n'est pas connu du "
+                f"lexique ; la poche {poche.value} a été retenue à partir du compte"
             ),
         )
 

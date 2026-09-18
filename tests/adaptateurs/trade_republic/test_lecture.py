@@ -147,6 +147,30 @@ class TestVersements:
         # Rien n'attend de donnée externe : l'opération est complète.
         assert operation.complete
 
+    def test_une_taxe_presente_mais_illisible_n_est_pas_prise_pour_zero(self):
+        # « Pas de ligne de taxe » et « ligne de taxe vide » sont deux choses différentes.
+        # Les confondre amputerait le montant brut du dividende de la retenue — ici 5,00 €
+        # deviendrait 3,50 € — sans qu'aucun contrôle ne s'en aperçoive, puisque
+        # « montant réglé = brut − taxes » resterait vrai avec une taxe nulle.
+        evenement = fictifs.dividende()
+        for section in evenement["details"]["sections"]:
+            if section.get("title") != "Geschäft":
+                continue
+            for ligne in section["data"]:
+                if ligne["title"] == "Steuer":
+                    ligne["detail"]["text"] = None
+
+        rapport = lire([evenement])
+        assert rapport.operations == []
+        assert "nombre illisible" in categories(rapport)
+
+    def test_une_absence_de_ligne_de_taxe_vaut_bien_zero(self):
+        # L'autre moitié de la distinction : une distribution sans ligne « Steuer » n'a
+        # effectivement pas été taxée.
+        operation, _ = une_operation(fictifs.distribution_capital())
+        assert operation.taxes == Decimal("0")
+        assert operation.provenance["taxes"] is Provenance.DONNEE
+
     def test_une_distribution_de_capital_lit_son_produit_brut(self):
         operation, _ = une_operation(fictifs.distribution_capital())
 

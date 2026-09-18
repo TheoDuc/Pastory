@@ -10,7 +10,13 @@ from __future__ import annotations
 import pytest
 
 from dashboard_tr.config import comptes
-from dashboard_tr.config.comptes import ConfigurationInvalide, RoleCompte, charger, modele
+from dashboard_tr.config.comptes import (
+    Configuration,
+    ConfigurationInvalide,
+    RoleCompte,
+    charger,
+    modele,
+)
 from dashboard_tr.pivot.operation import Poche
 
 
@@ -72,21 +78,37 @@ class TestMessagesDErreur:
 
 class TestModele:
     def test_le_modele_rappelle_les_operations_vues_sur_chaque_compte(self):
-        texte = modele({"0000000001": ["TRADING_SAVINGSPLAN_EXECUTED"]}, {})
+        texte = modele({"0000000001": ["TRADING_SAVINGSPLAN_EXECUTED"]}, Configuration())
 
         assert "TRADING_SAVINGSPLAN_EXECUTED" in texte
         assert '"0000000001" = ""' in texte
 
     def test_le_modele_conserve_les_roles_deja_donnes(self):
-        texte = modele({"0000000001": []}, {"0000000001": RoleCompte.PEA})
+        texte = modele({"0000000001": []}, Configuration(roles={"0000000001": RoleCompte.PEA}))
         assert '"0000000001" = "pea"' in texte
+
+    def test_le_modele_conserve_les_poches_declarees_a_la_main(self, tmp_path):
+        # L'assistant réécrit le fichier entier. S'il ne recopiait que les rôles, relancer
+        # « dashboard comptes » effacerait les poches déclarées à la main — et des opérations
+        # disparaîtraient du jour au lendemain, sans message.
+        depart = Configuration(poches_corrigees={"XX0000000001": Poche.CTO})
+        fichier = ecrire(tmp_path, modele({"0000000001": []}, depart))
+
+        assert charger(fichier).poches_corrigees == {"XX0000000001": Poche.CTO}
+
+    def test_le_modele_conserve_un_compte_absent_de_cet_export(self, tmp_path):
+        # Un export ne remonte pas forcément toute l'histoire du compte.
+        depart = Configuration(roles={"0000000009": RoleCompte.PEA})
+        fichier = ecrire(tmp_path, modele({"0000000001": []}, depart))
+
+        assert charger(fichier).role("0000000009") is RoleCompte.PEA
 
     def test_le_modele_se_relit_tout_seul(self, tmp_path):
         # Ce que l'assistant écrit doit pouvoir être relu sans retouche : sinon l'utilisateur
         # se retrouverait devant un fichier que l'application refuse.
         texte = modele(
             {"0000000001": ["TRADING_TRADE_EXECUTED"], "0000000002": []},
-            {"0000000001": RoleCompte.COURANT},
+            Configuration(roles={"0000000001": RoleCompte.COURANT}),
         )
         fichier = ecrire(tmp_path, texte)
 

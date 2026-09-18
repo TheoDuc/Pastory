@@ -45,7 +45,9 @@ libellés non reconnus, écarts avec le CSV de Trade Republic. Un type inconnu n
 ([D-08](docs/decisions.md)).
 
 Pour examiner un export rangé ailleurs — celui de quelqu'un d'autre, par exemple — sans le
-copier dans le projet : `uv run dashboard lire --export <dossier>`.
+copier dans le projet : `uv run dashboard lire --export <dossier>`. Avec `--export`, la commande
+`comptes` se contente d'**afficher** les comptes trouvés : elle n'enregistre rien, parce que les
+comptes d'un autre export ne sont pas les vôtres.
 
 ## Comment c'est construit
 

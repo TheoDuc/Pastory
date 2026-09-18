@@ -391,6 +391,12 @@ est pire que pas de chiffre du tout : rien ne signalerait l'erreur. Cohérent av
 **Contrepartie assumée :** `dashboard comptes` est une étape obligatoire au premier lancement.
 Le libellé « Portfolio » de l'écran ne sert qu'à **contrôler** la poche, jamais à la décider :
 c'est un texte (D-09), et un désaccord avec le compte part au rapport.
+**Précisions ajoutées après relecture :** l'assistant réécrit le fichier entier, donc il y
+recopie **tout** ce que l'utilisateur y avait mis — rôles, comptes absents de cet export-ci et
+corrections de poche. Sans cela, le relancer effacerait les poches déclarées à la main et des
+opérations disparaîtraient sans message. Et avec `--export`, il **n'écrit rien** : les numéros
+de compte d'un export qui n'est pas le sien appartiennent à quelqu'un d'autre (règle 2 de
+CLAUDE.md).
 
 ### D-41 · 2026-09-18 · `rafraichir` ne manipule aucun identifiant · Validée
 **Décision :** `dashboard rafraichir` appelle pytr **sans** `-n`, **sans** `-p` et **sans**

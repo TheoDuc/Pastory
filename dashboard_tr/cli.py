@@ -83,11 +83,22 @@ def commande_comptes(dossier_export: Path | None) -> int:
 
     Montre les types d'opérations vus sur chaque compte : c'est ce qui permet de reconnaître
     un compte dont on ignorait l'existence.
+
+    **Avec `--export`, rien n'est écrit.** Les numéros de compte d'un export qui n'est pas le
+    sien appartiennent à quelqu'un d'autre : les enregistrer dans sa propre configuration
+    serait les recopier (règle 2 de CLAUDE.md). L'assistant se contente alors d'afficher ce
+    qu'il a trouvé.
     """
     dossier = dossier_export or source.dossier_par_defaut()
     try:
         bruts = source.charger_evenements(dossier)
+        configuration = config_comptes.charger()
     except source.ExportIntrouvable as erreur:
+        print(erreur, file=sys.stderr)
+        return CODE_ECHEC
+    except config_comptes.ConfigurationInvalide as erreur:
+        # C'est la commande censée aider à corriger ce fichier : elle doit l'expliquer,
+        # pas s'interrompre sur une erreur technique.
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
 
@@ -102,19 +113,30 @@ def commande_comptes(dossier_export: Path | None) -> int:
         print("Aucun compte espèces n'apparaît dans cet export.")
         return CODE_SUCCES
 
-    configuration = config_comptes.charger()
+    print(f"{len(vus)} compte(s) espèces trouvé(s) dans l'export.")
+    for compte, types in sorted(vus.items()):
+        role = configuration.roles.get(compte)
+        print(f"\n  compte {compte} — rôle : {role.value if role else 'à donner'}")
+        print(f"    opérations vues : {', '.join(sorted(types))}")
+
+    if dossier_export is not None:
+        print(
+            "\nRien n'a été écrit : cet export a été lu depuis un dossier que vous avez "
+            "indiqué,\net ses comptes ne sont pas forcément les vôtres. Pour nommer vos "
+            f"propres comptes,\nlancez « {NOM} comptes » sans --export."
+        )
+        return CODE_SUCCES
+
     fichier = config_comptes.chemin()
     fichier.parent.mkdir(parents=True, exist_ok=True)
     fichier.write_text(
         config_comptes.modele(
-            {compte: sorted(types) for compte, types in vus.items()},
-            configuration.roles,
+            {compte: sorted(types) for compte, types in vus.items()}, configuration
         ),
         encoding="utf-8",
     )
 
     manquants = [compte for compte in vus if compte not in configuration.roles]
-    print(f"{len(vus)} compte(s) espèces trouvé(s) dans l'export.")
     print(f"\nOuvrez ce fichier et donnez un rôle à chaque compte :\n  {fichier}\n")
     print("Les types d'opérations vus sur chaque compte y sont rappelés pour vous aider.")
     if manquants:
@@ -140,7 +162,7 @@ def _lire(dossier: Path, avec_recoupement: bool) -> tuple[Rapport, int]:
             )
         else:
             recoupement_csv.recouper(
-                rapport.operations, recoupement_csv.lire_csv(chemin_csv), rapport
+                rapport.operations, recoupement_csv.lire_csv(chemin_csv, rapport), rapport
             )
 
     code = CODE_DECLARATION_ATTENDUE if rapport.declarations_attendues else CODE_SUCCES
