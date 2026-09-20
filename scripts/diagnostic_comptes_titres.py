@@ -38,6 +38,7 @@ donnée enregistrée. Comme `dashboard rafraichir`, il ne manipule aucun identif
     pas depuis Git Bash, où la saisie masquée reste bloquée.
 """
 
+import logging
 import sys
 
 PROFONDEUR_MAXIMALE = 4
@@ -48,6 +49,24 @@ MOTS_CLES = ("securitiesaccount", "secacc", "depot", "account", "portfolio", "pe
 """Ce qu'on cherche dans les noms de champs. Volontairement large : on ne sait pas
 comment Trade Republic nomme un second compte-titres, et passer à côté serait pire
 qu'afficher trois lignes de trop."""
+
+
+def museler_le_journal_de_pytr():
+    """Empêche pytr d'imprimer les réglages du compte en clair.
+
+    `pytr.account.login()` se termine par `log.debug(get_settings(tr))` : **le JSON complet
+    du compte**, avec le nom, le téléphone et les numéros de compte. Il n'apparaît pas
+    aujourd'hui, parce que le journal s'installe au niveau « info » par défaut — mais c'est
+    un défaut de bibliothèque tierce, et la promesse de ce script (« aucune valeur ») ne
+    doit pas en dépendre.
+
+    Un **filtre sur le logger** tient là où un réglage de niveau ne tiendrait pas : pytr
+    remet lui-même son niveau à `DEBUG` et réinstalle ses gestionnaires à chaque appel,
+    mais il ne touche jamais aux filtres déjà posés.
+    """
+    logging.getLogger("account").addFilter(
+        lambda enregistrement: enregistrement.levelno > logging.DEBUG
+    )
 
 
 def genre(valeur):
@@ -134,7 +153,13 @@ def main():
         print("pytr n'est pas installé. Lancez « uv sync » d'abord.", file=sys.stderr)
         return 1
 
-    tr = login(v2=True)
+    # `waf_token="default"` n'est pas une décoration : c'est ce que la commande `pytr`
+    # passe elle-même, et ce qui, combiné à `v2=True`, fait qu'aucun jeton AWS WAF n'est
+    # réclamé. La fonction `login()` de la bibliothèque, elle, a pour défaut "playwright",
+    # qui exige un navigateur à installer à part — et l'écrase donc sans le dire.
+    # Sans cette ligne : « playwright is not installed ».
+    museler_le_journal_de_pytr()
+    tr = login(v2=True, waf_token="default")
 
     try:
         reglages = tr.settings()

@@ -117,6 +117,19 @@ ne dépende pas de ce que le portefeuille contient.
   numéro, le PIN et la confirmation dans l'application sont redemandés à chaque fois. C'est
   pourquoi `positions-reelles` est une commande à part et non un morceau de `rafraichir` (D-46).
   À garder en tête si l'étape 4 envisage d'appeler pytr pour des cours.
+- **Utiliser pytr comme bibliothèque réserve deux pièges**, tous deux rencontrés en écrivant le
+  diagnostic des comptes-titres. La commande `pytr` ne les a pas, parce qu'elle règle ces deux
+  points elle-même :
+  1. `pytr.account.login()` a pour défaut `waf_token="playwright"`, qui exige un navigateur à
+     installer à part. Message obtenu : « playwright is not installed ». La ligne de commande,
+     elle, passe `"default"`, qui se résout à **aucun jeton** dès lors qu'on est en `v2`. Il faut
+     donc écrire `login(v2=True, waf_token="default")` ;
+  2. `login()` se termine par `log.debug(get_settings(tr))` — **le JSON complet du compte**, nom
+     et numéros compris. Il ne s'imprime pas aujourd'hui, le journal s'installant au niveau
+     « info » par défaut, mais c'est un défaut de bibliothèque tierce. Tout script qui promet de
+     n'afficher aucune valeur doit poser un **filtre** sur le logger `account`, comme le fait
+     `museler_le_journal_de_pytr()` : pytr remet son niveau à `DEBUG` et réinstalle ses
+     gestionnaires à chaque appel, mais ne touche jamais aux filtres déjà posés.
 - Commandes utiles : `uv run pytest`, `uv run ruff check .`, `uv run dashboard emplacements`.
 - Pour travailler sur un export sans le copier dans le projet :
   `uv run dashboard lire --export <dossier>` (idem pour `positions`).

@@ -35,7 +35,11 @@ l'explication ; **un seul** l'infirme, et la cause est ailleurs.
 - (b) **Écrire notre propre récupération**, compte-titres par compte-titres, en utilisant pytr
   comme bibliothèque. Contrepartie sérieuse : c'est nous qui gérerions alors le dialogue de
   connexion, ce que [D-41](decisions.md) a justement évité pour que le PIN ne transite jamais par
-  cette application.
+  cette application. **Deux pièges connus**, rencontrés en écrivant le diagnostic : `login()` a
+  pour défaut `waf_token="playwright"`, qui réclame un navigateur — il faut `"default"` avec
+  `v2=True` ; et `login()` journalise le JSON complet du compte en niveau *debug*, qu'il faut
+  filtrer. Les deux sont détaillés dans
+  [prompt-session-suivante.md](prompt-session-suivante.md).
 - (c) **Le signaler en amont**, à pytr, et attendre que l'outil sache demander tous les
   comptes-titres. Gratuit pour nous, sans garantie de délai.
 
