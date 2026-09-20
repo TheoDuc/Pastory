@@ -4,9 +4,11 @@ Tableau de bord **local** et **gratuit** pour suivre les actifs d'un portefeuill
 (PEA, CTO, crypto), destiné aux investisseurs long terme. Les données ne quittent jamais la
 machine.
 
-> **Projet en construction.** Étape 2 sur 12 : l'application sait **lire** un export Trade
-> Republic et en sortir la liste des opérations, mais elle ne calcule encore aucune performance
-> et n'a pas d'interface. L'avancement est suivi dans
+> **Projet en construction.** Étape 3 sur 12 : l'application sait **lire** un export Trade
+> Republic et en tirer, pour chaque actif, la quantité détenue, le capital investi, le prix de
+> revient, les frais, les taxes, les dividendes et les plus-values réalisées. Il lui manque
+> encore les **cours de marché** — donc la valeur du portefeuille et les rendements — et une
+> interface. L'avancement est suivi dans
 > [docs/feuille-de-route.md](docs/feuille-de-route.md). Le guide d'installation complet viendra à
 > l'étape 10.
 
@@ -79,7 +81,13 @@ titres entrés **sans aucun événement** dans l'export ([D-46](docs/decisions.m
 n'est enregistré sur la machine, cette commande redemande le numéro et le PIN — d'où une commande
 à part, à lancer quand on veut vérifier.
 
-Les deux commandes acceptent `--au AAAA-MM-JJ` pour arrêter les chiffres à une date.
+**Le rapprochement ne couvre pas le PEA**, et l'application le dit en une ligne plutôt que de
+lever une alerte par actif : l'outil qui interroge Trade Republic ne demande les positions que
+d'un seul compte-titres, et le PEA est dans un autre ([D-47](docs/decisions.md)). Les chiffres
+du PEA restent justes — ils sont seulement calculés à partir des seules opérations, sans second
+avis.
+
+Les deux premières commandes acceptent `--au AAAA-MM-JJ` pour arrêter les chiffres à une date.
 
 La valeur des actifs, le gain, le TRI et le TWRR ont besoin des cours de marché : ils arrivent
 aux étapes 4 et 5.

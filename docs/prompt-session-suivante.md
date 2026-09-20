@@ -7,7 +7,7 @@ commencer.
 > **À mettre à jour par l'instance qui termine une étape**, avant la fusion dans `main`. La
 > dernière section dit comment.
 >
-> Dernière mise à jour : **2026-09-20**, fin de l'étape 3.
+> Dernière mise à jour : **2026-09-21**, fin de l'étape 3.
 
 ---
 
@@ -28,7 +28,8 @@ On attaque l'étape 4 : les cours de marché.
   que la banque dit détenir.
 - **Prochaine : étape 4**, les cours de marché. C'est ce qui débloque le reste : la valeur des
   actifs, puis le gain, le TRI et le TWRR (étape 5).
-- Une seule question ouverte : **Q-21** (présentation des frais), qui attend l'étape 8.
+- Deux questions ouvertes : **Q-21** (présentation des frais), qui attend l'étape 8, et
+  **Q-26** (rapprocher le PEA, voir plus bas), qui n'est pas bloquante.
 
 **Ce qui existe déjà :**
 
@@ -40,8 +41,9 @@ On attaque l'étape 4 : les cours de marché.
 | `dashboard_tr/moteur/` | `position.py` (le rejeu), `portefeuille.py`, `rapprochement.py`, `export_csv.py`, `rapport.py` |
 | `dashboard_tr/tableur.py` | Les conventions d'écriture des nombres, communes à tous les CSV |
 | `dashboard_tr/cli.py` | 7 commandes ; `ouvrir` arrive à l'étape 9 |
-| [decisions.md](decisions.md) | D-01 à D-46. L'étape 3 a ajouté D-44 à D-46 |
+| [decisions.md](decisions.md) | D-01 à D-47. L'étape 3 a ajouté D-44 à D-47 |
 | [verification/etape-3.md](verification/etape-3.md) | Le cahier de vérification du moteur |
+| [scripts/diagnostic_comptes_titres.py](../scripts/diagnostic_comptes_titres.py) | Diagnostic structurel pour Q-26. **Jamais lancé pour l'instant** |
 
 **Ce qui n'existe pas encore :** les cours, les rendements, l'interface.
 
@@ -69,8 +71,27 @@ On attaque l'étape 4 : les cours de marché.
 - **Le prix de revient est arrêté à six décimales** (D-44) : c'est un résultat de division, et
   `prix de revient × quantité` peut s'écarter du capital de quelques centièmes de centime. **Le
   capital investi fait foi.**
+- **Le rapprochement ne couvre pas le PEA** (D-47), et ce n'est pas un défaut du moteur : `pytr`
+  ne demande les positions que d'**un seul** compte-titres, et Trade Republic loge le PEA dans un
+  second. Une poche entièrement absente de la photo est signalée **une fois** et ses actifs
+  sortent en « hors périmètre », sans alerte. **Conséquence pour la suite : sur le PEA, aucune
+  seconde source ne confirme les quantités.** Q-26 reste ouverte, et le
+  [diagnostic](../scripts/diagnostic_comptes_titres.py) écrit pour la trancher **n'a pas encore
+  été lancé** — le proposer au propriétaire quand l'occasion se présente, il ne prend qu'une
+  minute et n'affiche aucune valeur personnelle.
 
-**Ce que le propriétaire a vérifié à l'étape 3 :** *(à compléter après sa relecture du cahier)*
+**Ce que le propriétaire a vérifié à l'étape 3 (2026-09-21) :** il a lancé le moteur sur ses
+données et **confirme que les chiffres sont bons**. Un seul écart, expliqué et corrigé depuis :
+tous ses actifs de PEA ressortaient « absent de la banque » au rapprochement, ce qui a donné
+D-47 et Q-26.
+
+**Ce qu'il n'a pas pu vérifier, et c'est à garder en tête :** son portefeuille est **jeune**. Peu
+de ventes, peu de dividendes, pas de distribution de capital, aucun recul dans le temps. Les
+règles les plus délicates du moteur — vente partielle au prorata, plus-values réalisées — sont
+donc validées par les cas fictifs du cahier, **pas par ses données**. Les étapes suivantes ne
+doivent pas prendre « vérifié sur les vraies données » pour acquis au-delà de ce qui l'a
+réellement été. C'est aussi pour cela que le rapprochement compte : c'est le seul contrôle qui
+ne dépende pas de ce que le portefeuille contient.
 
 ---
 
