@@ -253,6 +253,12 @@ def _etat_de_la_lecture(rapport: Rapport) -> list[str]:
     ennuis = []
     if rapport.types_inconnus:
         ennuis.append(f"{sum(rapport.types_inconnus.values())} événement(s) de type inconnu")
+    if rapport.operations_non_produites:
+        # Un événement traité dont aucune opération n'est sortie est un trou franc dans les
+        # totaux : des parts ou des montants manquent, et rien d'autre ne le dirait.
+        ennuis.append(
+            f"{rapport.operations_non_produites} événement(s) traités sans opération produite"
+        )
     if rapport.anomalies:
         ennuis.append(f"{len(rapport.anomalies)} contrôle(s) de cohérence en échec")
     if ennuis:
@@ -307,7 +313,13 @@ def commande_positions(dossier_export: Path | None, au: Date | None) -> int:
         if construit is None:
             return CODE_DECLARATION_ATTENDUE
         portefeuille, _, entete = construit
-        positions_reelles, anomalies_du_fichier = _charger_positions_reelles(dossier)
+        # Le portefeuille de la banque est une photo d'**aujourd'hui** : le comparer à un
+        # portefeuille arrêté à une date passée signalerait à tort tout ce qui a bougé
+        # depuis. Le rapprochement n'a de sens que sur les chiffres à jour.
+        if au is None:
+            positions_reelles, anomalies_du_fichier = _charger_positions_reelles(dossier)
+        else:
+            positions_reelles, anomalies_du_fichier = None, []
     except source.ExportIntrouvable as erreur:
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
@@ -324,9 +336,11 @@ def commande_positions(dossier_export: Path | None, au: Date | None) -> int:
         print(f"Chiffres arrêtés au {au.isoformat()}.")
 
     rapprochement = (
-        rapprocher(portefeuille, positions_reelles) if positions_reelles is not None else None
+        rapprocher(portefeuille, positions_reelles, lignes_illisibles=len(anomalies_du_fichier))
+        if positions_reelles is not None
+        else None
     )
-    print(rapport_moteur.resume(portefeuille, rapprochement))
+    print(rapport_moteur.resume(portefeuille, rapprochement, arrete_au=au))
 
     for anomalie in anomalies_du_fichier:
         print(f"  portefeuille réel, {anomalie}", file=sys.stderr)

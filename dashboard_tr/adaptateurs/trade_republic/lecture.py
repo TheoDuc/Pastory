@@ -102,6 +102,10 @@ class Lecteur:
             try:
                 operation = self._construire(evenement, classement.famille, rapport)
             except OperationNonProduite as refus:
+                # Un événement traité qui ne donne aucune opération est un **trou** dans les
+                # chiffres : il est compté à part, pour que le moteur puisse prévenir que
+                # ses totaux sont incomplets sans avoir à relire les signalements un à un.
+                rapport.operations_non_produites += 1
                 rapport.signaler(refus.categorie, str(refus), reference)
                 continue
 

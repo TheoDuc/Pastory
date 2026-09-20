@@ -7,6 +7,7 @@ une console Windows.
 
 from __future__ import annotations
 
+from datetime import date
 from decimal import Decimal
 
 from dashboard_tr.moteur import rapport as rapport_moteur
@@ -84,11 +85,77 @@ class TestCeQuiEstIncertain:
         assert "Aucun signalement" in rapport_moteur.resume(portefeuille_complet())
 
 
+class TestColonnes:
+    def test_le_sous_total_d_une_poche_tombe_sous_la_colonne_qu_il_additionne(self):
+        """Un total décalé d'une colonne fait douter du chiffre autant que s'il était faux."""
+        texte = rapport_moteur.resume(portefeuille_complet())
+        lignes = texte.splitlines()
+
+        entete = next(ligne for ligne in lignes if "capital investi" in ligne and "nom" in ligne)
+        sous_total = next(ligne for ligne in lignes if "capital investi de la poche" in ligne)
+
+        # Les deux colonnes « capital investi » doivent se terminer au même caractère.
+        fin_de_l_entete = entete.index("capital investi") + len("capital investi")
+        assert len(sous_total.rstrip()) == fin_de_l_entete
+
+
+class TestCouts:
+    def test_le_detail_affiche_tombe_sur_le_total_affiche(self):
+        operations = [
+            operation(
+                TypeOperation.ACHAT,
+                horodatage="2026-01-05 09:00",
+                quantite="30",
+                prix_unitaire="10.00",
+                frais="1.00",
+            ),
+            operation(
+                TypeOperation.DISTRIBUTION_CAPITAL,
+                horodatage="2026-05-05 09:00",
+                quantite="30",
+                prix_unitaire="0.40",
+                frais="0.50",
+            ),
+        ]
+        texte = rapport_moteur.resume(Portefeuille.construire(operations))
+
+        assert "autres prélèvements" in texte
+        bloc = texte.split("Coûts réellement payés")[1].split("Le spread")[0]
+        montants = [
+            Decimal(ligne.rsplit(" ", 1)[-1].replace(",", "."))
+            for ligne in bloc.splitlines()
+            if ligne.startswith("  ") and ligne.strip() and ligne.rstrip()[-1].isdigit()
+        ]
+        detail, total = montants[:-1], montants[-1]
+        assert sum(detail) == total == Decimal("1.50")
+
+
 class TestRapprochement:
     def test_sans_portefeuille_reel_le_rapport_dit_comment_l_obtenir(self):
         texte = rapport_moteur.resume(portefeuille_complet())
 
         assert "positions-reelles" in texte
+
+    def test_a_une_date_passee_le_rapprochement_est_sans_objet(self):
+        """La banque ne sait montrer qu'aujourd'hui : comparer serait un faux diagnostic."""
+        texte = rapport_moteur.resume(portefeuille_complet(), None, arrete_au=date(2026, 1, 31))
+
+        assert "Sans objet" in texte
+        assert "2026-01-31" in texte
+        assert "positions-reelles" not in texte
+
+    def test_un_fichier_abime_empeche_de_conclure(self):
+        portefeuille = portefeuille_complet()
+        rapprochement = rapprocher(
+            portefeuille,
+            [PositionReelle(actif=ACTIF, quantite=Decimal("15"))],
+            lignes_illisibles=1,
+        )
+        texte = rapport_moteur.resume(portefeuille, rapprochement)
+
+        assert "n'ont pas pu être lues" in texte
+        assert "rapprochement est donc incomplet" in texte
+        assert "concordent" not in texte
 
     def test_un_accord_complet_se_lit_en_une_phrase(self):
         portefeuille = portefeuille_complet()

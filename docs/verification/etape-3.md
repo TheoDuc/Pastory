@@ -125,7 +125,9 @@ D'où la différence de traitement avec le dividende du A.4.
 
 **Et si la distribution dépassait le capital ?** Le capital s'arrête à **zéro**, et le rapport te
 le signale ([D-45](../decisions.md)) : au-delà de ce qui a été mis, ce n'est plus un
-remboursement, c'est un gain.
+remboursement, c'est un gain. L'actif est alors marqué « historique incomplet » et son prix de
+revient disparaît, comme en A.6 et A.7 — ou bien une acquisition manque, ou bien la distribution
+a été mal lue, et dans les deux cas le capital ne décrit plus ce qui a été mis dans l'actif.
 
 ### A.6 — Des actions gratuites : les parts comptent, le prix de revient se tait ⚠️
 
@@ -245,6 +247,14 @@ règle. Soit les quantités tombent juste, soit il manque quelque chose.
 La ligne **`absent du moteur`** est exactement ce que l'étape 2 ne pouvait pas trouver toute
 seule : c'est la limite connue de [D-15](../decisions.md), et c'est probablement là qu'apparaîtra
 le transfert de PEA sans événement (Q-10).
+
+> **Si le rapport annonce des lignes du fichier « non lues »**, ne conclus rien : un actif marqué
+> `absent de la banque` peut très bien se trouver dans l'une d'elles. Relance
+> `dashboard positions-reelles` d'abord.
+
+Le rapprochement ne se fait **pas** avec `--au` : la banque ne sait montrer que son portefeuille
+d'aujourd'hui, et le comparer à des chiffres arrêtés dans le passé signalerait à tort tout ce qui
+a bougé depuis. Le rapport le dit au lieu de comparer de travers.
 
 ### B.4 — Les deux prix de revient : à regarder, pas à corriger
 

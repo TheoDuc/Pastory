@@ -292,6 +292,55 @@ class TestPositions:
         # Seul le plan d'épargne du 2 janvier a eu lieu : l'action du PEA n'existe pas.
         assert fictifs.ACTIF_ACTION not in affichage
 
+    def test_a_une_date_passee_le_portefeuille_actuel_n_est_pas_rapproche(
+        self, export, capsys
+    ):
+        # La banque ne sait montrer qu'aujourd'hui : comparer une photo d'aujourd'hui à des
+        # chiffres arrêtés en janvier signalerait à tort tout ce qui a bougé depuis.
+        nommer_les_comptes(f'\n[poches]\n"{fictifs.ACTIF_ACTION_B}" = "CTO"\n')
+        deposer_portefeuille_reel(export, f"Action Exemple SA;{fictifs.ACTIF_ACTION};5;40;20;200")
+
+        cli.main(["positions", "--au", "2026-01-31"])
+        affichage = capsys.readouterr().out
+
+        assert "Sans objet" in affichage
+        assert "absent du moteur" not in affichage
+
+    def test_un_evenement_traite_sans_operation_declenche_l_avertissement(
+        self, export, capsys, monkeypatch
+    ):
+        # Un événement traité dont aucune opération n'est sortie est un trou franc dans les
+        # totaux : rien d'autre que cette bannière ne le dirait.
+        nommer_les_comptes(f'\n[poches]\n"{fictifs.ACTIF_ACTION_B}" = "CTO"\n')
+        lecture_reelle = cli.Lecteur.lire
+
+        def lecture_avec_un_refus(self, bruts):
+            rapport = lecture_reelle(self, bruts)
+            rapport.operations_non_produites += 1
+            return rapport
+
+        monkeypatch.setattr(cli.Lecteur, "lire", lecture_avec_un_refus)
+
+        cli.main(["positions"])
+
+        assert "sans opération produite" in capsys.readouterr().out
+
+    def test_un_fichier_de_banque_abime_empeche_de_conclure(self, export, capsys):
+        # Sinon l'actif de la ligne illisible ressortirait « absent de la banque », ce qui
+        # est un faux diagnostic : c'est le fichier qui est abîmé.
+        nommer_les_comptes(f'\n[poches]\n"{fictifs.ACTIF_ACTION_B}" = "CTO"\n')
+        deposer_portefeuille_reel(
+            export,
+            f"Action Exemple SA;{fictifs.ACTIF_ACTION};5;40;20;200",
+            "Ligne Cassee;;;;;",
+        )
+
+        cli.main(["positions"])
+        sortie = capsys.readouterr()
+
+        assert "n'ont pas pu être lues" in sortie.out
+        assert "portefeuille réel" in sortie.err
+
     def test_une_date_mal_ecrite_explique_comment_l_ecrire(self, export, capsys):
         with pytest.raises(SystemExit):
             cli.main(["positions", "--au", "31/01/2026"])

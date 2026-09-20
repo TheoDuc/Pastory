@@ -476,7 +476,10 @@ jamais en silence. Chacune produit un **signalement** visible dans le rapport et
 |---|---|
 | Des parts entrent **sans prix connu** ([D-15](#d-15)) | les parts sont comptées, leur montant n'entre dans aucun total, et le **prix de revient de l'actif est affiché « à compléter »** au lieu d'un nombre |
 | Une vente porte sur **plus de parts** que le moteur n'en a comptées | la quantité tombe à 0 — jamais négative — le capital investi tombe à 0, et l'actif est marqué « historique incomplet » |
-| Une **distribution de capital dépasse** le capital investi ([D-14](#d-14)) | le capital s'arrête à zéro, l'excédent est signalé |
+| Une **distribution de capital dépasse** le capital investi ([D-14](#d-14)) | le capital s'arrête à zéro, l'excédent est signalé, et l'actif est marqué « historique incomplet » |
+
+Dans les trois cas, **le prix de revient de l'actif n'est plus affiché** : le capital investi
+ne décrit plus ce qui a réellement été mis dedans, donc la division ne veut plus rien dire.
 
 **Raison :** arbitrages du propriétaire du 2026-09-20. Le fil commun : **ne jamais afficher un
 chiffre qui n'a pas de sens, et ne jamais le corriger sans le dire.** Le cas du prix de revient
@@ -502,6 +505,15 @@ titres entrés sans événement. Le moteur seul ne peut pas les retrouver.
 - **le prix de revient de la banque est une information** : affiché à côté du nôtre, étiqueté,
   il ne déclenche jamais d'alerte ;
 - la récupération est une **commande à part**, `dashboard positions-reelles`.
+
+Deux précautions, ajoutées après la relecture indépendante de l'étape :
+
+- **avec `--au`, aucun rapprochement.** La banque ne sait montrer que son portefeuille
+  d'aujourd'hui ; le comparer à des chiffres arrêtés à une date passée signalerait à tort
+  tout ce qui a bougé depuis ;
+- **un fichier dont des lignes n'ont pas pu être lues ne permet pas de conclure.** Un actif
+  qui s'y trouvait ressortirait « absent de la banque », exactement le faux diagnostic que
+  le comptage des lignes illisibles sert à éviter. Le rapport le dit avant le tableau.
 
 **Raison :** c'est le contrôle le plus fort du projet — il ne dépend d'aucune lecture de texte,
 d'aucune déduction et d'aucune règle — et **le seul capable de révéler les titres entrés sans

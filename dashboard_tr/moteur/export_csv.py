@@ -85,6 +85,11 @@ def remarque(etat: EtatPosition) -> str:
         raisons.append("des parts sont entrées sans prix connu : capital sous-estimé")
     if etat.stock_insuffisant:
         raisons.append("une vente a dépassé le stock compté : il manque une entrée de titres")
+    if etat.distribution_excedentaire:
+        raisons.append(
+            "une distribution a dépassé le capital investi : le capital s'est arrêté à zéro, "
+            "d'où un montant distribué supérieur au capital retiré"
+        )
     return " ; ".join(raisons)
 
 

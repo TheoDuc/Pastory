@@ -123,6 +123,66 @@ class TestDesaccords:
         ]
 
 
+class TestFichierAbime:
+    def test_des_lignes_illisibles_empechent_de_conclure(self):
+        """Un actif absent d'une ligne illisible ressortirait « absent de la banque »."""
+        rapprochement = rapprocher(portefeuille_de("10"), [], lignes_illisibles=1)
+
+        assert rapprochement.lignes_illisibles == 1
+        assert rapprochement.tout_concorde is False
+
+    def test_un_accord_parfait_reste_un_accord(self):
+        rapprochement = rapprocher(
+            portefeuille_de("10"),
+            [PositionReelle(actif=ACTIF, quantite=Decimal("10"))],
+            lignes_illisibles=0,
+        )
+
+        assert rapprochement.tout_concorde is True
+
+    def test_meme_un_accord_apparent_ne_conclut_pas_si_le_fichier_est_abime(self):
+        rapprochement = rapprocher(
+            portefeuille_de("10"),
+            [PositionReelle(actif=ACTIF, quantite=Decimal("10"))],
+            lignes_illisibles=2,
+        )
+
+        assert rapprochement.tout_concorde is False
+
+    def test_un_actif_liste_deux_fois_par_la_banque_est_additionne(self):
+        # Écraser la première ligne par la seconde ferait disparaître des parts et créerait
+        # un écart de toutes pièces.
+        rapprochement = rapprocher(
+            portefeuille_de("15"),
+            [
+                PositionReelle(actif=ACTIF, quantite=Decimal("10"), nom_actif="ETF Exemple"),
+                PositionReelle(actif=ACTIF, quantite=Decimal("5")),
+            ],
+        )
+
+        assert len(rapprochement.lignes) == 1
+        ligne = rapprochement.lignes[0]
+        assert ligne.quantite_banque == Decimal("15")
+        assert ligne.nom_actif == "ETF Exemple"
+        assert rapprochement.tout_concorde
+
+    def test_deux_lignes_abandonnent_le_prix_de_revient_de_la_banque(self):
+        # Additionner ou moyenner deux prix de revient n'aurait aucun sens.
+        rapprochement = rapprocher(
+            portefeuille_de("15"),
+            [
+                PositionReelle(
+                    actif=ACTIF, quantite=Decimal("10"), prix_de_revient_banque=Decimal("20")
+                ),
+                PositionReelle(
+                    actif=ACTIF, quantite=Decimal("5"), prix_de_revient_banque=Decimal("30")
+                ),
+            ],
+        )
+
+        assert rapprochement.lignes[0].prix_de_revient_banque is None
+
+
 class TestPrixDeRevient:
     def test_le_prix_de_revient_de_la_banque_ne_declenche_jamais_rien(self):
         """D-46 : on ignore ce que la banque met dans le sien, on ne le compare donc pas."""

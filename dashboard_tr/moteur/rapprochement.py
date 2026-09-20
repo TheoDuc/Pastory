@@ -83,26 +83,39 @@ class Rapprochement:
     lignes: tuple[LigneRapprochement, ...]
     signalements: tuple[Signalement, ...]
 
+    lignes_illisibles: int = 0
+    """Lignes du fichier de la banque qui n'ont pas pu être lues.
+
+    Tant qu'il y en a, **le rapprochement est incomplet** : un actif signalé « absent de la
+    banque » peut très bien se trouver dans l'une de ces lignes. Le rapport le dit, pour que
+    le désaccord ne soit pas pris pour un diagnostic."""
+
     @property
     def desaccords(self) -> list[LigneRapprochement]:
         return [ligne for ligne in self.lignes if not ligne.concorde]
 
     @property
     def tout_concorde(self) -> bool:
-        return not self.desaccords
+        return not self.desaccords and not self.lignes_illisibles
 
 
 def rapprocher(
-    portefeuille: Portefeuille, positions_reelles: Iterable[PositionReelle]
+    portefeuille: Portefeuille,
+    positions_reelles: Iterable[PositionReelle],
+    lignes_illisibles: int = 0,
 ) -> Rapprochement:
     """Compare les quantités du moteur à celles de la banque, actif par actif.
 
     Les quantités du moteur sont additionnées **toutes poches confondues** : la banque liste
     des ISIN sans dire dans quelle enveloppe ils sont détenus, et un même ETF peut être à la
     fois en PEA et en CTO.
+
+    `lignes_illisibles` est le nombre de lignes que l'adaptateur n'a pas su lire. Le
+    rapprochement les compte pour pouvoir dire qu'il est incomplet, plutôt que de faire
+    passer un fichier abîmé pour un désaccord.
     """
     du_moteur = portefeuille.quantites_par_actif()
-    de_la_banque = {position.actif: position for position in positions_reelles}
+    de_la_banque = _par_actif(positions_reelles)
 
     lignes: list[LigneRapprochement] = []
     signalements: list[Signalement] = []
@@ -179,7 +192,38 @@ def rapprocher(
             case Accord.ACCORD:
                 pass
 
-    return Rapprochement(lignes=tuple(lignes), signalements=tuple(signalements))
+    return Rapprochement(
+        lignes=tuple(lignes),
+        signalements=tuple(signalements),
+        lignes_illisibles=lignes_illisibles,
+    )
+
+
+def _par_actif(positions_reelles: Iterable[PositionReelle]) -> dict[str, PositionReelle]:
+    """Regroupe les positions de la banque par actif, **en additionnant les doublons**.
+
+    Une banque liste normalement chaque actif une fois. Si elle le fait deux fois — deux
+    lignes pour une même valeur détenue dans deux enveloppes, par exemple — écraser la
+    première par la seconde ferait disparaître des parts et créerait un écart de toutes
+    pièces. On additionne donc, comme le moteur le fait déjà de son côté.
+
+    Le prix de revient, lui, est abandonné dès qu'il y a plusieurs lignes : additionner ou
+    moyenner deux prix de revient n'aurait aucun sens, et ce n'est qu'une information
+    (D-46).
+    """
+    regroupees: dict[str, PositionReelle] = {}
+    for position in positions_reelles:
+        deja_vue = regroupees.get(position.actif)
+        if deja_vue is None:
+            regroupees[position.actif] = position
+            continue
+        regroupees[position.actif] = PositionReelle(
+            actif=position.actif,
+            quantite=deja_vue.quantite + position.quantite,
+            nom_actif=deja_vue.nom_actif or position.nom_actif,
+            prix_de_revient_banque=None,
+        )
+    return regroupees
 
 
 def _positions_de(portefeuille: Portefeuille, actif: str):

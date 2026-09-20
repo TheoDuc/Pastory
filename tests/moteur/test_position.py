@@ -233,6 +233,11 @@ def test_une_distribution_superieure_au_capital_s_arrete_a_zero():
     assert position.etat.capital_net_investi == Decimal("0.00")
     assert position.distributions_capital == Decimal("10.00")
     assert [signalement.categorie for signalement in signalements] == ["distribution excédentaire"]
+    # Le plafonnement laisse un montant distribué supérieur au capital retiré : sans
+    # drapeau, le journal montrerait cet écart sans un mot d'explication.
+    assert position.etat.distribution_excedentaire is True
+    assert position.historique_incomplet is True
+    assert position.etat.prix_de_revient is None
 
 
 # --- A.6 : titres reçus sans achat ----------------------------------------------------
@@ -503,11 +508,39 @@ def test_les_couts_sont_ranges_par_moment():
         "frais de vente": Decimal("1.00"),
         "taxes de vente": Decimal("0.00"),
         "taxes sur revenus": Decimal("1.50"),
+        "autres prélèvements": Decimal("0.00"),
     }
     assert position.frais == Decimal("2.00")
     assert position.taxes == Decimal("2.10")
     # Rien de tout cela n'a touché au capital investi.
     assert position.etat.capital_net_investi == Decimal("100.00")
+
+
+def test_le_detail_des_couts_tombe_toujours_sur_leur_total():
+    """Une colonne de rapport qui ne fait pas son propre total fait douter de tout le reste."""
+    operations = [
+        operation(
+            TypeOperation.ACHAT,
+            horodatage="2026-01-05 09:00",
+            quantite="30",
+            prix_unitaire="10.00",
+        ),
+        # Une distribution de capital avec des frais : aucun des cinq moments nommés ne la
+        # couvre, et sans la ligne « autres prélèvements » ces 0,80 € disparaîtraient.
+        operation(
+            TypeOperation.DISTRIBUTION_CAPITAL,
+            horodatage="2026-05-05 09:00",
+            quantite="30",
+            prix_unitaire="0.40",
+            frais="0.50",
+            taxes="0.30",
+        ),
+    ]
+    position, _ = rejouer(operations)
+
+    detail = position.couts_par_moment()
+    assert detail["autres prélèvements"] == Decimal("0.80")
+    assert sum(detail.values()) == position.frais + position.taxes
 
 
 # --- Les garde-fous -------------------------------------------------------------------

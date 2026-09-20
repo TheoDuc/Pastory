@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import textwrap
 from collections.abc import Callable, Iterable
+from datetime import date as Date
 from decimal import Decimal
 
 from dashboard_tr import tableur
@@ -71,8 +72,17 @@ def _nom(position: Position) -> str:
     return nom
 
 
-def resume(portefeuille: Portefeuille, rapprochement: Rapprochement | None = None) -> str:
-    """Le rapport complet, prêt à être affiché."""
+def resume(
+    portefeuille: Portefeuille,
+    rapprochement: Rapprochement | None = None,
+    arrete_au: Date | None = None,
+) -> str:
+    """Le rapport complet, prêt à être affiché.
+
+    `arrete_au` dit que les chiffres s'arrêtent à une date passée. Le rapprochement est alors
+    hors sujet — la banque ne sait montrer qu'aujourd'hui — et le rapport l'explique au lieu
+    de réclamer un fichier qui ne servirait à rien.
+    """
     lignes: list[str] = []
 
     def titre(texte: str) -> None:
@@ -86,7 +96,7 @@ def resume(portefeuille: Portefeuille, rapprochement: Rapprochement | None = Non
     _performance(lignes, titre, portefeuille.total)
     _couts(lignes, titre, portefeuille)
     _a_surveiller(lignes, titre, portefeuille)
-    _rapprochement(lignes, titre, rapprochement)
+    _rapprochement(lignes, titre, rapprochement, arrete_au)
 
     return "\n".join(lignes)
 
@@ -125,8 +135,10 @@ def _positions(lignes: list[str], titre: Titre, portefeuille: Portefeuille) -> N
                 f"{_prix_de_revient(position):>16}"
             )
         totaux = par_poche[poche]
+        # Le sous-total doit tomber **exactement** sous la colonne qu'il additionne : la
+        # largeur reprend celle de l'en-tête, séparateurs compris (actif, nom, quantité).
         lignes.append(
-            f"  {'capital investi de la poche':<{14 + LARGEUR_NOM + 13}} "
+            f"  {'capital investi de la poche':<{14 + 1 + LARGEUR_NOM + 1 + 12}} "
             f"{_lisible(totaux.capital_net_investi):>16}"
         )
         if totaux.historique_incomplet:
@@ -174,6 +186,10 @@ def _couts(lignes: list[str], titre: Titre, portefeuille: Portefeuille) -> None:
             moments[nom] = moments.get(nom, Decimal("0.00")) + valeur
 
     for nom, valeur in moments.items():
+        # « autres prélèvements » n'est là que pour boucler la colonne : à zéro, il n'apprend
+        # rien et une ligne de plus rend le bloc moins lisible.
+        if nom == "autres prélèvements" and valeur == Decimal("0.00"):
+            continue
         lignes.append(f"  {nom:<46} {_lisible(valeur):>16}")
     lignes.append(f"  {'total':<46} {_lisible(total.frais + total.taxes):>16}")
     lignes.append("")
@@ -210,10 +226,25 @@ def _a_surveiller(lignes: list[str], titre: Titre, portefeuille: Portefeuille) -
 
 
 def _rapprochement(
-    lignes: list[str], titre: Titre, rapprochement: Rapprochement | None
+    lignes: list[str],
+    titre: Titre,
+    rapprochement: Rapprochement | None,
+    arrete_au: Date | None = None,
 ) -> None:
     if rapprochement is None:
         titre("Rapprochement avec le portefeuille réel")
+        if arrete_au is not None:
+            # La banque ne sait montrer qu'aujourd'hui : comparer une photo d'aujourd'hui à
+            # des chiffres arrêtés dans le passé signalerait à tort tout ce qui a bougé
+            # depuis. Mieux vaut ne pas rapprocher du tout que rapprocher de travers.
+            lignes.append(
+                f"  Sans objet : les chiffres sont arrêtés au {arrete_au.isoformat()}, alors "
+                "que la banque"
+            )
+            lignes.append("  ne sait montrer que son portefeuille d'aujourd'hui.")
+            lignes.append("")
+            lignes.append("  Relancez « dashboard positions » sans --au pour le rapprochement.")
+            return
         lignes.append("  Pas encore fait. C'est le contrôle le plus sûr du projet : il ne")
         lignes.append("  dépend d'aucune lecture de texte, et lui seul peut révéler des titres")
         lignes.append("  entrés sans qu'aucune opération ne l'indique.")
@@ -222,7 +253,18 @@ def _rapprochement(
         return
 
     titre("Rapprochement avec le portefeuille réel")
-    if rapprochement.tout_concorde:
+    if rapprochement.lignes_illisibles:
+        # Un actif absent d'une ligne illisible ressortirait « absent de la banque », ce qui
+        # est un faux diagnostic : c'est le fichier qui est abîmé, pas le portefeuille.
+        lignes.append(
+            f"  ATTENTION - {rapprochement.lignes_illisibles} ligne(s) du fichier de la "
+            "banque n'ont pas pu être lues."
+        )
+        lignes.append("  Le rapprochement est donc incomplet : un « absent de la banque »")
+        lignes.append("  ci-dessous peut très bien s'y trouver. Relancez")
+        lignes.append("  « dashboard positions-reelles » avant de conclure.")
+        lignes.append("")
+    elif rapprochement.tout_concorde:
         lignes.append("  Toutes les quantités concordent avec celles de Trade Republic.")
     else:
         lignes.append("  Des quantités ne concordent pas. Chacune est expliquée ci-dessous.")

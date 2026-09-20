@@ -82,10 +82,21 @@ class EtatPosition:
     Signe qu'il manque une entrée de titres : c'est la limite connue de D-15, des titres
     peuvent être arrivés sans aucun événement dans l'export."""
 
+    distribution_excedentaire: bool = False
+    """Une distribution de capital a dépassé le capital investi, et a été plafonnée (D-45).
+
+    C'est aussi le signe d'une histoire trouée : ou bien une acquisition manque, ou bien la
+    distribution a été mal lue. Sans ce drapeau, le journal montrerait un montant distribué
+    différent du capital retiré, sans un mot d'explication."""
+
     @property
     def historique_incomplet(self) -> bool:
-        """Vrai si les chiffres de cet actif reposent sur une histoire trouée."""
-        return self.prix_inconnu or self.stock_insuffisant
+        """Vrai si les chiffres de cet actif reposent sur une histoire trouée.
+
+        Dans les trois cas, le capital investi ne décrit plus ce qui a réellement été mis
+        dans l'actif, et le prix de revient qu'on en tirerait serait faux sans le dire
+        (D-45)."""
+        return self.prix_inconnu or self.stock_insuffisant or self.distribution_excedentaire
 
     @property
     def prix_de_revient(self) -> Decimal | None:
@@ -356,7 +367,9 @@ def _distribution_capital(
         return LigneJournal(operation=operation, avant=etat, apres=etat, fiable=False)
 
     capital_retire = montant
+    excedentaire = etat.distribution_excedentaire
     if montant > etat.capital_net_investi:
+        excedentaire = True
         signalement(
             "distribution excédentaire",
             f"distribution de {tableur.nombre_lisible(montant)} € le {operation.date} "
@@ -367,13 +380,17 @@ def _distribution_capital(
         )
         capital_retire = etat.capital_net_investi
 
-    apres = replace(etat, capital_net_investi=etat.capital_net_investi - capital_retire)
+    apres = replace(
+        etat,
+        capital_net_investi=etat.capital_net_investi - capital_retire,
+        distribution_excedentaire=excedentaire,
+    )
     return LigneJournal(
         operation=operation,
         avant=etat,
         apres=apres,
         capital_retire=capital_retire,
-        fiable=not etat.historique_incomplet,
+        fiable=not apres.historique_incomplet,
     )
 
 
@@ -493,6 +510,12 @@ class Position:
 
         Prépare les trois niveaux de la vue « frais et taxes » (Q-21, étape 6), sans rien
         estimer : ce sont les coûts **réellement** prélevés, lus dans les données.
+
+        **La somme de ce tableau vaut toujours `frais + taxes`**, à l'euro près. La dernière
+        ligne, « autres prélèvements », ramasse tout ce que les moments nommés ne couvrent
+        pas — des frais sur une distribution de capital, par exemple. Sans elle, une colonne
+        de rapport ne tomberait pas sur son propre total, et c'est exactement le genre
+        d'écart qui fait douter de tout le reste.
         """
         moments = {
             "frais d'achat": (TypeOperation.ACHAT, "frais"),
@@ -501,10 +524,14 @@ class Position:
             "taxes de vente": (TypeOperation.VENTE, "taxes"),
             "taxes sur revenus": (TypeOperation.DIVIDENDE, "taxes"),
         }
-        return {
+        detail = {
             nom: self._somme_si(type_operation, champ, seulement_comptables=False)
             for nom, (type_operation, champ) in moments.items()
         }
+        detail["autres prélèvements"] = (
+            self.frais + self.taxes - sum(detail.values(), Decimal("0.00"))
+        )
+        return detail
 
     # --- Fiabilité ------------------------------------------------------------
 
