@@ -79,12 +79,26 @@ Vente :  CNI ← CNI × (1 − quantité vendue / quantité détenue avant la ve
 ```
 
 - **Distribution de capital** (« Kapitalverteilung ») : CNI ← CNI − montant brut distribué
-  ([D-14](decisions.md)).
+  ([D-14](decisions.md)), **sans jamais passer sous zéro** ([D-45](decisions.md)) : une
+  distribution ne peut pas rendre plus que ce qui a été mis, et l'excédent est signalé.
 
 Exemple :
 1. Achat de 10 parts pour 201 € dont 1 € de frais → CNI = 200 €.
 2. Achat de 10 parts à 30 € sans frais → CNI = 500 €, 20 parts.
 3. Vente de 5 parts (25 % des parts) → CNI = 500 × 0,75 = 375 €.
+
+**Comment le moteur l'écrit** ([D-44](decisions.md)). À la vente, il calcule d'abord ce qui
+**sort**, puis le retranche :
+
+```
+capital retiré = CNI × (quantité vendue / quantité détenue avant)
+CNI            = CNI − capital retiré
+```
+
+C'est la même chose, écrite dans l'ordre où on la refait de tête — « la moitié de mes parts
+part, donc la moitié de ma mise part » — et les deux morceaux retombent exactement sur le
+capital d'avant, sans centime perdu. Le CNI est **arrondi au centime après chaque opération**,
+comme le ferait une main.
 
 ### Capital net investi (d'une poche, du total)
 Somme des capitaux nets investis des actifs de la poche, ou de tous les actifs.
@@ -98,6 +112,15 @@ PRU = CNI / quantité détenue
 
 Il change à chaque achat, pas à la vente. Dans l'exemple ci-dessus : 10 € après l'étape 1, 25 €
 après l'étape 2, toujours 25 € après l'étape 3.
+
+**Deux cas où l'application n'affiche aucun prix de revient** ([D-45](decisions.md)) :
+
+- **plus aucune part détenue** : diviser par zéro ne veut rien dire ;
+- **histoire incomplète** : des parts sont entrées sans prix connu ([D-15](decisions.md)), donc
+  le capital connu ne couvre pas toutes les parts détenues. La division donnerait un prix de
+  revient **artificiellement bas** — 200 € pour 13 parts dont 3 sans prix font 15,38 €, un
+  chiffre crédible et faux. L'application écrit « à compléter » : le nombre reviendra quand les
+  cours de l'étape 4 auront rempli les prix manquants.
 
 > Le prix de revient **fiscal** français inclut les frais d'achat. Si l'application estime un jour
 > l'impôt, il sera recalculé à part.

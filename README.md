@@ -54,6 +54,36 @@ copier dans le projet : `uv run dashboard lire --export <dossier>`. Avec `--expo
 `comptes` se contente d'**afficher** les comptes trouvés : elle n'enregistre rien, parce que les
 comptes d'un autre export ne sont pas les vôtres.
 
+## Voir ses positions
+
+```bash
+uv run dashboard positions           # quantités, capital investi, prix de revient
+uv run dashboard exporter-positions  # positions.csv et journal.csv, pour le tableur
+uv run dashboard positions-reelles   # demande à la banque ce qu'elle dit détenir
+```
+
+Le **journal** (`journal.csv`) est la pièce à ouvrir pour vérifier : une ligne par opération,
+avec l'état d'avant et l'état d'après. Sur chaque ligne, *capital avant + ajouté − retiré =
+capital après*. C'est ce qui permet de refaire un chiffre à la main, sans lire le code
+([D-44](docs/decisions.md)). La démarche complète est dans le
+[cahier de vérification de l'étape 3](docs/verification/etape-3.md).
+
+**Là où l'arithmétique n'a plus de sens, l'application se tait et le dit**
+([D-45](docs/decisions.md)). Des parts reçues gratuitement dont le cours n'est pas encore connu
+sont bien comptées, mais le prix de revient de l'actif reste « à compléter » : le calculer
+quand même donnerait un chiffre crédible et faux, que rien ne signalerait.
+
+`positions-reelles` compare ensuite ce que l'application a calculé avec ce que la banque affiche.
+C'est le seul contrôle qui ne dépend d'aucune lecture de texte, et le seul capable de révéler des
+titres entrés **sans aucun événement** dans l'export ([D-46](docs/decisions.md)). Comme rien
+n'est enregistré sur la machine, cette commande redemande le numéro et le PIN — d'où une commande
+à part, à lancer quand on veut vérifier.
+
+Les deux commandes acceptent `--au AAAA-MM-JJ` pour arrêter les chiffres à une date.
+
+La valeur des actifs, le gain, le TRI et le TWRR ont besoin des cours de marché : ils arrivent
+aux étapes 4 et 5.
+
 ## Comment c'est construit
 
 ```

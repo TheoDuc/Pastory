@@ -105,3 +105,37 @@ def rafraichir(dossier: Path, executable: str | None = None) -> int:
     # Pas de capture des flux : l'utilisateur doit voir les questions de pytr et pouvoir y
     # répondre. Une capture ferait attendre indéfiniment devant un terminal muet.
     return subprocess.run(commande, check=False).returncode
+
+
+COMMANDE_PYTR_PORTEFEUILLE = ("portfolio", "--v2")
+"""Arguments passés à pytr pour la photo du portefeuille actuel (D-46).
+
+Les mêmes précautions que ci-dessus s'appliquent : ni `-n`, ni `-p`, ni
+`--store_credentials`. Comme rien n'est enregistré, **cet appel redemande le numéro et le
+PIN** : c'est le prix du mode le plus sûr (D-41), et la raison pour laquelle le portefeuille
+réel a sa propre commande au lieu d'être récupéré à chaque rafraîchissement.
+
+`--decimal-localization` est volontairement **absent**, alors qu'il est passé à l'export des
+transactions : les nombres arrivent ainsi à point décimal, sans séparateur de milliers. La
+convention est imposée à la source plutôt que devinée à la lecture — c'est exactement le
+piège qui a coûté le plus cher à l'étape 2 (inventaire §11.1).
+"""
+
+
+def recuperer_portefeuille(fichier: Path, executable: str | None = None) -> int:
+    """Lance pytr pour écrire dans `fichier` le portefeuille tel que la banque le voit.
+
+    Ce fichier contient de vraies positions : il est écrit dans le dossier personnel, hors
+    du dossier synchronisé, et n'entre jamais dans git (D-01, D-37).
+    """
+    fichier.parent.mkdir(parents=True, exist_ok=True)
+
+    commande = [
+        executable or sys.executable,
+        "-m",
+        "pytr.main",
+        *COMMANDE_PYTR_PORTEFEUILLE,
+        "--output",
+        str(fichier),
+    ]
+    return subprocess.run(commande, check=False).returncode

@@ -1,13 +1,14 @@
 """Export des opérations pivot en CSV lisible dans un tableur (format-pivot §7).
 
 C'est **le fichier que le propriétaire ouvre pour vérifier**, ligne à ligne, en face de son
-application Trade Republic. Tout est donc pensé pour un tableur français :
+application Trade Republic. Deux choix lui sont propres :
 
-- séparateur point-virgule et **virgule décimale**, pour qu'Excel et LibreOffice n'aillent
-  pas interpréter les nombres de travers ;
 - une colonne de provenance à côté de chaque valeur qui en porte une, pour qu'on voie d'un
   coup d'œil ce qui vient d'un champ solide et ce qui a été lu dans un texte ;
 - les colonnes dans l'ordre du §2 du format.
+
+Les conventions de tableur (point-virgule, virgule décimale, encodage attendu par Excel) sont
+communes à tous les exports du projet : elles sont dans `dashboard_tr/tableur.py`.
 
 Ce fichier contient de **vraies valeurs** : il est écrit dans le dossier personnel, hors du
 dossier synchronisé, et n'entre jamais dans git (D-01, D-37).
@@ -15,14 +16,13 @@ dossier synchronisé, et n'entre jamais dans git (D-01, D-37).
 
 from __future__ import annotations
 
-import csv
 from collections.abc import Iterable
-from decimal import Decimal
 from pathlib import Path
 
+from dashboard_tr import tableur
 from dashboard_tr.pivot.operation import Operation
 
-SEPARATEUR = ";"
+SEPARATEUR = tableur.SEPARATEUR
 
 CHAMPS_AVEC_PROVENANCE = (
     "actif",
@@ -36,18 +36,10 @@ CHAMPS_AVEC_PROVENANCE = (
 )
 """Champs dont on affiche l'origine, dans une colonne « origine … » qui suit la valeur."""
 
-VALEUR_A_COMPLETER = "à compléter"
-"""Ce qu'on écrit à la place d'un montant qui attend les cours de l'étape 4 (D-15).
+VALEUR_A_COMPLETER = tableur.VALEUR_A_COMPLETER
+"""Ce qu'on écrit à la place d'un montant qui attend les cours de l'étape 4 (D-15)."""
 
-Une case **vide** laisserait croire à un zéro une fois dans un tableur ; le lecteur doit
-voir que la valeur manque et pourquoi."""
-
-
-def _nombre(valeur: Decimal | None) -> str:
-    """Un nombre pour un tableur français : virgule décimale, pas de séparateur de milliers."""
-    if valeur is None:
-        return ""
-    return format(valeur, "f").replace(".", ",")
+_nombre = tableur.nombre
 
 
 def _colonnes() -> list[str]:
@@ -107,17 +99,5 @@ def _ligne(operation: Operation) -> dict[str, str]:
 
 
 def ecrire(operations: Iterable[Operation], fichier: Path) -> Path:
-    """Écrit les opérations et renvoie le chemin du fichier produit.
-
-    L'encodage est UTF-8 **avec BOM** : sans lui, Excel sous Windows affiche les accents de
-    travers, et un fichier de vérification illisible ne sert à rien.
-    """
-    fichier.parent.mkdir(parents=True, exist_ok=True)
-
-    with fichier.open("w", encoding="utf-8-sig", newline="") as flux:
-        redacteur = csv.DictWriter(flux, fieldnames=COLONNES, delimiter=SEPARATEUR)
-        redacteur.writeheader()
-        for operation in operations:
-            redacteur.writerow(_ligne(operation))
-
-    return fichier
+    """Écrit les opérations et renvoie le chemin du fichier produit."""
+    return tableur.ecrire(COLONNES, (_ligne(operation) for operation in operations), fichier)

@@ -324,4 +324,52 @@ un investissement de l'arrondi — ne doit pas être forcé dans un type existan
 comme **inconnu**, présenté à l'utilisateur, et le format n'est étendu que par une nouvelle
 décision dans [decisions.md](decisions.md), suivie d'une mise à jour de ce document.
 
-Un adaptateur pour une autre banque n'a rien d'autre à produire que ces lignes.
+Un adaptateur pour une autre banque n'a rien d'autre à produire que ces lignes — **plus,
+facultativement, celles du §9**.
+
+---
+
+## 9. Les positions réelles : la photo, à côté de l'histoire
+
+*Ajouté à l'étape 3 ([D-46](decisions.md)).*
+
+Les opérations racontent **l'histoire** d'un portefeuille. Une position réelle en donne la
+**photo**, telle que la banque l'affiche à l'instant où on la lui demande.
+
+Les deux doivent concorder, et c'est le seul moyen de découvrir des titres entrés **sans qu'aucun
+événement ne le dise** — la limite connue de [D-15](decisions.md). Un PEA transféré depuis un
+autre établissement fait exactement cela : les parts sont là, et rien dans la timeline ne les
+explique.
+
+| Champ | Contenu | Rôle |
+|---|---|---|
+| `actif` | ISIN, ou code interne pour la crypto. **Le même identifiant que dans les opérations** | — |
+| `quantite` | Parts détenues | **contrôle** : tout écart avec le moteur est signalé |
+| `nom_actif` | Nom lisible | affichage seulement |
+| `prix_de_revient_banque` | Prix de revient calculé par la banque | **information seulement** |
+
+**Pourquoi le prix de revient n'est pas un contrôle.** On ignore ce que la banque y met : frais
+d'achat compris ou non, quelle méthode de moyenne. Le prix de revient du projet, lui, les exclut
+explicitement ([D-13](decisions.md)). Les comparer automatiquement déclencherait une alerte sur
+presque chaque actif, à tort. Il est donc affiché à côté du nôtre, étiqueté, et ne déclenche
+jamais rien.
+
+**Ce que le rapprochement peut trouver :**
+
+| Cas | Ce que ça veut dire |
+|---|---|
+| Les deux quantités concordent | rien à faire |
+| Elles diffèrent | une opération manque, ou a été mal lue |
+| La banque détient, le moteur ignore | **le cas à examiner** : des titres sont entrés sans événement |
+| Le moteur compte, la banque ne montre rien | l'actif a été vendu hors de l'export, ou une opération a été comptée deux fois |
+
+Les quantités du moteur sont additionnées **toutes poches confondues** : la banque liste des
+ISIN sans dire dans quelle enveloppe ils sont détenus, et un même ETF peut être à la fois en PEA
+et en CTO.
+
+Un adaptateur qui ne sait pas produire ces lignes reste un adaptateur valable : le rapprochement
+est alors simplement indisponible, et l'application le dit.
+
+**La tolérance sur la quantité** vaut un millionième de part : la banque publie ses quantités
+arrondies à six décimales, et deux nombres qui ne diffèrent qu'au-delà décrivent la même
+position.

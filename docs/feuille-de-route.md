@@ -122,10 +122,26 @@ grandes sans déclencher la moindre alerte.
 
 **Session :** nouvelle session. Relecture `/code-review` à la fin.
 
-## Étape 3 · Moteur de positions 🔜
+## Étape 3 · Moteur de positions ✅
 **But :** pour chaque actif et chaque date, calculer la quantité détenue, le capital net investi,
 le PRU, les frais, les taxes, les dividendes et les plus-values réalisées. Tout est défini dans le
 [glossaire](glossaire.md).
+
+**Fait :** moteur complet (`dashboard_tr/moteur/`), trois commandes (`positions`,
+`exporter-positions`, `positions-reelles`) et le [cahier de vérification](verification/etape-3.md).
+
+Le moteur ne produit pas qu'un résultat : il tient un **journal**, une ligne par opération avec
+l'état d'avant et l'état d'après, exporté en CSV. C'est ce qui permet de refaire un chiffre à la
+main sans lire le code.
+
+Trois décisions nouvelles (D-44 à D-46), issues de quatre arbitrages du propriétaire. La plus
+structurante, [D-45](decisions.md) : **là où l'arithmétique n'a plus de sens, le moteur se tait
+et le dit**. Un actif qui a reçu des parts sans prix connu n'affiche aucun prix de revient —
+200 € pour 13 parts donneraient 15,38 €, un chiffre crédible et faux que rien ne signalerait.
+
+Le format pivot gagne un **second contrat** ([§9](format-pivot.md)) : la photo du portefeuille
+telle que la banque la donne. C'est le seul contrôle qui ne dépend d'aucune lecture de texte, et
+le seul capable de révéler les titres entrés sans événement — la limite connue de D-15.
 
 **Claude :**
 - Implémente les règles D-12 à D-16. Le moteur ne lit **que** le format pivot, jamais les champs
@@ -149,7 +165,7 @@ attendant, ils sont marqués « prix à compléter ».
 
 **Session :** nouvelle session. `/code-review` à la fin.
 
-## Étape 4 · Cours de marché ⏳
+## Étape 4 · Cours de marché 🔜
 **But :** obtenir des cours fiables, actuels et historiques, gratuitement (D-18).
 
 **Claude :**
