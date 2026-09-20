@@ -129,6 +129,12 @@ l'écriture a confirmé, et ce qu'elle a ajouté :
   événement. La photo du portefeuille entre dans le pivot comme **second contrat**
   ([format-pivot §9](format-pivot.md)), pour que le moteur n'ouvre aucun fichier de banque.
   ✅ `rapprochement.py`, `pivot/position_reelle.py`
+- **La photo de la banque ne couvre pas forcément tout** ([D-47](decisions.md)), constaté au
+  premier essai sur de vraies données : `pytr` ne demande les positions que d'un seul
+  compte-titres, et le PEA est dans un autre. Une poche entièrement absente est signalée **une
+  fois** au lieu de lever une alerte par actif. Le rapprochement distingue donc « tout ce qui a
+  pu être comparé concorde » de « tout a pu être comparé ». Suite dans
+  [Q-26](questions-ouvertes.md).
 - TRI et TWRR sur courte durée : fournir aussi un indicateur « peu significatif » à l'interface.
   *(étape 5)*
 

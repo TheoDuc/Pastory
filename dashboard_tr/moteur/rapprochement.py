@@ -13,11 +13,18 @@ Deux règles, arbitrées le 2026-09-20 (D-46) :
 - **la quantité est un contrôle** : tout écart est signalé ;
 - **le prix de revient de la banque est une information** : il est affiché à côté du nôtre,
   jamais comparé automatiquement. On ignore s'il inclut les frais d'achat, que D-13 exclut.
+
+Une troisième, ajoutée le 2026-09-21 après essai sur de vraies données (D-47) : **la photo
+ne couvre pas forcément tout le portefeuille.** `pytr portfolio` ne demande les positions que
+d'un seul compte-titres ; si la banque range le PEA dans un second, aucune de ses lignes ne
+remonte. Une poche dont **aucun** actif n'apparaît est donc déclarée non couverte, signalée
+une fois, et ses actifs sortent en `hors périmètre` — sans quoi chaque ligne de PEA crierait
+au loup à chaque lancement, et on cesserait de lire ce bloc.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import StrEnum
@@ -25,6 +32,7 @@ from enum import StrEnum
 from dashboard_tr import tableur
 from dashboard_tr.moteur.portefeuille import Portefeuille
 from dashboard_tr.moteur.signalement import Signalement
+from dashboard_tr.pivot.operation import Poche
 from dashboard_tr.pivot.position_reelle import PositionReelle
 
 TOLERANCE_QUANTITE = Decimal("0.000001")
@@ -49,6 +57,12 @@ class Accord(StrEnum):
 
     ABSENT_DU_MOTEUR = "absent du moteur"
     """La banque détient des parts dont aucune opération ne parle : **le cas à examiner**."""
+
+    HORS_PERIMETRE = "hors périmètre"
+    """L'actif est dans une poche que la photo de la banque ne couvre pas (D-47).
+
+    Ce n'est **pas** un désaccord : c'est une absence de comparaison. Aucune alerte n'est
+    levée par actif ; la poche entière fait l'objet d'un seul signalement."""
 
 
 @dataclass(frozen=True)
@@ -90,13 +104,37 @@ class Rapprochement:
     banque » peut très bien se trouver dans l'une de ces lignes. Le rapport le dit, pour que
     le désaccord ne soit pas pris pour un diagnostic."""
 
+    poches_non_couvertes: tuple[Poche, ...] = ()
+    """Poches dont **aucun** actif n'apparaît dans la photo de la banque (D-47).
+
+    Leurs actifs ne sont pas comparés : ils sortent en `hors périmètre`, sans alerte."""
+
     @property
     def desaccords(self) -> list[LigneRapprochement]:
-        return [ligne for ligne in self.lignes if not ligne.concorde]
+        """Les vrais désaccords. Un actif hors périmètre n'en est pas un : il n'a pas été
+        comparé du tout."""
+        return [
+            ligne
+            for ligne in self.lignes
+            if not ligne.concorde and ligne.accord is not Accord.HORS_PERIMETRE
+        ]
 
     @property
     def tout_concorde(self) -> bool:
-        return not self.desaccords and not self.lignes_illisibles
+        """Vrai si **tout ce qui a pu être comparé** concorde.
+
+        Distinct de `complet` : la photo peut ne couvrir qu'une partie du portefeuille, et
+        cette partie tomber parfaitement juste."""
+        return not self.desaccords
+
+    @property
+    def complet(self) -> bool:
+        """Vrai si le rapprochement a pu tout comparer.
+
+        Faux dès qu'une poche n'est pas couverte ou qu'une ligne du fichier est illisible :
+        dans les deux cas, un « rien à signaler » serait une fausse impression de contrôle.
+        """
+        return not self.lignes_illisibles and not self.poches_non_couvertes
 
 
 def rapprocher(
@@ -114,18 +152,42 @@ def rapprocher(
     rapprochement les compte pour pouvoir dire qu'il est incomplet, plutôt que de faire
     passer un fichier abîmé pour un désaccord.
     """
-    du_moteur = portefeuille.quantites_par_actif()
     de_la_banque = _par_actif(positions_reelles)
+    non_couvertes = _poches_non_couvertes(portefeuille, de_la_banque)
+    hors_perimetre = _actifs_hors_perimetre(portefeuille, non_couvertes)
+    du_moteur = portefeuille.quantites_par_actif(
+        poches=[poche for poche in Poche if poche not in non_couvertes]
+    )
+    # Ce que le moteur détient vraiment, poches non couvertes comprises. Sert uniquement à
+    # **afficher** la quantité d'un actif hors périmètre : la laisser vide donnerait à
+    # croire qu'on n'en détient plus, alors qu'on n'a simplement pas pu la confronter.
+    tout_le_moteur = portefeuille.quantites_par_actif()
 
     lignes: list[LigneRapprochement] = []
     signalements: list[Signalement] = []
 
-    for actif in sorted(set(du_moteur) | set(de_la_banque)):
+    for poche in non_couvertes:
+        signalements.append(
+            Signalement(
+                categorie="poche non couverte",
+                message=(
+                    f"la photo du portefeuille ne montre aucun actif de la poche "
+                    f"{poche.value} : ces positions ne sont pas comparées, ni confirmées. "
+                    "Ce n'est pas un désaccord, c'est une absence de comparaison"
+                ),
+                poche=poche,
+            )
+        )
+
+    for actif in sorted(set(du_moteur) | set(de_la_banque) | hors_perimetre):
         quantite_moteur = du_moteur.get(actif)
         reelle = de_la_banque.get(actif)
         quantite_banque = reelle.quantite if reelle else None
 
-        if quantite_moteur is not None and quantite_banque is not None:
+        if actif in hors_perimetre and quantite_moteur is None and reelle is None:
+            accord = Accord.HORS_PERIMETRE
+            quantite_moteur = tout_le_moteur.get(actif)
+        elif quantite_moteur is not None and quantite_banque is not None:
             ecart = abs(quantite_moteur - quantite_banque)
             accord = Accord.ACCORD if ecart <= TOLERANCE_QUANTITE else Accord.ECART
         elif quantite_banque is not None:
@@ -189,14 +251,90 @@ def rapprocher(
                         actif=actif,
                     )
                 )
-            case Accord.ACCORD:
+            case Accord.ACCORD | Accord.HORS_PERIMETRE:
                 pass
 
     return Rapprochement(
         lignes=tuple(lignes),
         signalements=tuple(signalements),
         lignes_illisibles=lignes_illisibles,
+        poches_non_couvertes=non_couvertes,
     )
+
+
+def _poches_non_couvertes(
+    portefeuille: Portefeuille, de_la_banque: Mapping[str, PositionReelle]
+) -> tuple[Poche, ...]:
+    """Les poches dont **aucun** actif détenu n'apparaît dans la photo de la banque (D-47).
+
+    Le cas connu : `pytr portfolio` ne demande les positions que d'un seul compte-titres.
+    Si la banque range le PEA dans un second, aucune de ses lignes ne remonte, et chaque
+    actif du PEA ressortirait « absent de la banque » à chaque lancement. Ce n'est pas N
+    désaccords, c'est **un** fait — et un rapport qui crie au loup partout ne sert plus à
+    rien (D-39).
+
+    **Le verdict se fonde sur les actifs exclusifs à la poche.** La photo de la banque ne
+    dit pas dans quelle enveloppe un titre est détenu : un ISIN présent à la fois en PEA et
+    en CTO ne prouve donc la couverture ni de l'un ni de l'autre. Seuls les actifs détenus
+    dans cette poche **et nulle part ailleurs** tranchent.
+
+    **Trois garde-fous**, pour ne pas étouffer une vraie alerte :
+
+    - il faut qu'au moins un actif soit confirmé **ailleurs**. Si la photo ne confirme
+      rien du tout, elle n'est pas « partielle », elle est inutilisable : on ne déclare
+      alors aucune poche non couverte et chaque actif repart en désaccord, comme avant ;
+    - une poche sans aucun actif exclusif n'est **jamais** déclarée non couverte : on ne
+      peut rien en dire, et se taire vaut mieux que deviner ;
+    - la règle ne dit rien de la raison. Une poche qui ne contient **qu'un seul** actif,
+      réellement vendu hors de l'export, entre dans ce cas de figure sans qu'on puisse
+      l'en distinguer. Le rapport donne donc toujours le nombre d'actifs concernés.
+    """
+    par_poche = portefeuille.actifs_par_poche()
+    confirmes = {
+        actif for actifs in par_poche.values() for actif in actifs if actif in de_la_banque
+    }
+    if not confirmes:
+        return ()
+
+    non_couvertes = []
+    for poche in Poche:
+        exclusifs = _actifs_exclusifs(par_poche, poche)
+        if exclusifs and not (exclusifs & set(de_la_banque)):
+            non_couvertes.append(poche)
+    return tuple(non_couvertes)
+
+
+def _actifs_exclusifs(par_poche: Mapping[Poche, set[str]], poche: Poche) -> set[str]:
+    """Les actifs détenus dans cette poche et dans aucune autre."""
+    ailleurs = {
+        actif for autre, actifs in par_poche.items() if autre is not poche for actif in actifs
+    }
+    return par_poche.get(poche, set()) - ailleurs
+
+
+def _actifs_hors_perimetre(
+    portefeuille: Portefeuille, non_couvertes: tuple[Poche, ...]
+) -> set[str]:
+    """Les actifs détenus **uniquement** dans des poches non couvertes.
+
+    Un actif détenu à la fois en PEA et en CTO reste comparé : la photo en montre la part
+    CTO, et c'est à elle seule que le moteur la compare (`quantites_par_actif` restreint
+    aux poches couvertes). Additionner la part PEA créerait un écart de toutes pièces.
+    """
+    if not non_couvertes:
+        return set()
+
+    par_poche = portefeuille.actifs_par_poche()
+    dans_les_non_couvertes = {
+        actif for poche in non_couvertes for actif in par_poche.get(poche, set())
+    }
+    ailleurs = {
+        actif
+        for poche, actifs in par_poche.items()
+        if poche not in non_couvertes
+        for actif in actifs
+    }
+    return dans_les_non_couvertes - ailleurs
 
 
 def _par_actif(positions_reelles: Iterable[PositionReelle]) -> dict[str, PositionReelle]:

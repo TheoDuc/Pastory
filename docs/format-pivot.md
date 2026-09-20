@@ -367,6 +367,14 @@ Les quantités du moteur sont additionnées **toutes poches confondues** : la ba
 ISIN sans dire dans quelle enveloppe ils sont détenus, et un même ETF peut être à la fois en PEA
 et en CTO.
 
+| L'actif est dans une poche dont **aucune** ligne n'apparaît | la photo ne couvre pas cette enveloppe : **ce n'est pas un désaccord** ([D-47](decisions.md)) |
+
+**La photo ne couvre pas forcément tout le portefeuille.** C'est le cas chez Trade Republic :
+l'outil ne demande les positions que d'un seul compte-titres, et le PEA est dans un autre. Une
+poche dont aucun actif n'apparaît est donc signalée **une fois**, et ses actifs sortent en
+« hors périmètre » sans alerte. La couverture se juge sur les actifs **exclusifs** à la poche :
+un ISIN détenu dans deux enveloppes ne prouve la couverture d'aucune des deux.
+
 Un adaptateur qui ne sait pas produire ces lignes reste un adaptateur valable : le rapprochement
 est alors simplement indisponible, et l'application le dit.
 

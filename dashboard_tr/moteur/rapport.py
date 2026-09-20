@@ -26,7 +26,7 @@ from decimal import Decimal
 from dashboard_tr import tableur
 from dashboard_tr.moteur.portefeuille import Portefeuille, Totaux
 from dashboard_tr.moteur.position import Position
-from dashboard_tr.moteur.rapprochement import Rapprochement
+from dashboard_tr.moteur.rapprochement import Accord, Rapprochement
 from dashboard_tr.moteur.signalement import Signalement
 from dashboard_tr.pivot.operation import Poche
 
@@ -253,6 +253,25 @@ def _rapprochement(
         return
 
     titre("Rapprochement avec le portefeuille réel")
+    if rapprochement.poches_non_couvertes:
+        # Le cas connu : pytr ne demande les positions que d'un seul compte-titres, et la
+        # banque range le PEA dans un second (D-47). Le dire une fois vaut mieux que de
+        # lever une alerte par actif à chaque lancement.
+        poches = ", ".join(poche.value for poche in rapprochement.poches_non_couvertes)
+        concernes = [
+            ligne for ligne in rapprochement.lignes if ligne.accord is Accord.HORS_PERIMETRE
+        ]
+        lignes.append(
+            f"  La photo de la banque ne couvre pas : {poches}. "
+            f"{len(concernes)} actif(s) ne sont donc"
+        )
+        lignes.append("  ni comparés, ni confirmés - ils sortent en « hors périmètre »")
+        lignes.append("  ci-dessous, sans alerte. Ce n'est pas un désaccord.")
+        lignes.append("")
+        lignes.append("  Cause connue : l'outil qui interroge Trade Republic ne demande les")
+        lignes.append("  positions que d'un seul compte-titres, et le PEA est dans un autre.")
+        lignes.append("")
+
     if rapprochement.lignes_illisibles:
         # Un actif absent d'une ligne illisible ressortirait « absent de la banque », ce qui
         # est un faux diagnostic : c'est le fichier qui est abîmé, pas le portefeuille.
@@ -265,7 +284,12 @@ def _rapprochement(
         lignes.append("  « dashboard positions-reelles » avant de conclure.")
         lignes.append("")
     elif rapprochement.tout_concorde:
-        lignes.append("  Toutes les quantités concordent avec celles de Trade Republic.")
+        # « comparées » n'est pas une précaution de style : quand une poche n'est pas
+        # couverte, dire « toutes » laisserait croire à un contrôle complet.
+        if rapprochement.complet:
+            lignes.append("  Toutes les quantités concordent avec celles de Trade Republic.")
+        else:
+            lignes.append("  Toutes les quantités comparées concordent avec Trade Republic.")
     else:
         lignes.append("  Des quantités ne concordent pas. Chacune est expliquée ci-dessous.")
 

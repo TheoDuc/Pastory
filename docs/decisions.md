@@ -530,3 +530,44 @@ récupération à `rafraichir`.
 arrivent à point décimal. La convention est imposée à la source plutôt que devinée à la lecture,
 et une écriture qui ne la respecte pas est refusée — c'est exactement le piège qui a coûté le
 plus cher à l'étape 2 ([inventaire §11.1](inventaire-donnees.md)).
+
+---
+
+### D-47 · 2026-09-21 · Une poche que la photo ne couvre pas n'est pas un désaccord · Validée
+**Décision :** si **aucun** actif d'une poche n'apparaît dans le portefeuille réel donné par la
+banque, cette poche est déclarée **non couverte** : elle fait l'objet d'**un seul** signalement,
+et ses actifs sortent en `hors périmètre`, sans alerte individuelle. Leur quantité reste
+affichée — ils sont bien détenus, ils n'ont simplement pas pu être confrontés.
+
+**Raison :** constaté par le propriétaire sur ses vraies données dès le premier essai. `pytr`
+ne demande les positions que d'**un seul** compte-titres — le `securitiesAccountNumber` unique
+renvoyé par `/api/v2/auth/account`, voir `compact_portfolio` dans `pytr/api.py`. Trade Republic
+logeant le PEA dans un second compte-titres, aucune de ses lignes ne remonte, et **chaque actif
+du PEA ressortait « absent de la banque » à chaque lancement**. Ce n'est pas N désaccords, c'est
+un fait, et un rapport qui crie au loup partout ne sert plus à rien — c'est le même raisonnement
+que [D-39](#d-39).
+
+**Comment la couverture est jugée :** sur les actifs **exclusifs** à la poche. La photo ne dit
+pas dans quelle enveloppe un titre est détenu ; un ISIN présent à la fois en PEA et en CTO ne
+prouve donc la couverture ni de l'un ni de l'autre. Quand une poche est déclarée non couverte,
+ses parts sont **retirées de la comparaison** des actifs partagés : sans cela, un ETF détenu dans
+les deux poches verrait ses parts PEA s'ajouter à ses parts CTO et produirait un écart de toutes
+pièces.
+
+**Trois garde-fous**, pour ne pas étouffer une vraie alerte :
+- il faut qu'au moins un actif soit confirmé ailleurs. Une photo qui ne confirme **rien** n'est
+  pas partielle, elle est inutilisable : aucune poche n'est alors mise de côté ;
+- une poche sans aucun actif exclusif n'est **jamais** déclarée non couverte : on ne peut rien en
+  dire, et l'écart s'affiche tel quel plutôt que d'être masqué sans preuve ;
+- la règle ne dit pas *pourquoi* la poche est absente. Une poche ne contenant qu'un seul actif,
+  réellement vendu hors de l'export, entre dans ce cas sans qu'on puisse l'en distinguer. Le
+  rapport donne donc toujours le nombre d'actifs concernés.
+
+**Écarte :** garder une alerte par actif — le propriétaire apprendrait à ne plus lire ce bloc et
+raterait la vraie alerte le jour venu ; refuser tout rapprochement dès qu'une poche manque, ce
+qui ferait perdre le contrôle sur le CTO et la crypto, qui fonctionnent parfaitement.
+**Conséquence :** `Rapprochement` distingue désormais **`tout_concorde`** (tout ce qui a pu être
+comparé concorde) de **`complet`** (tout a pu être comparé). Un « rien à signaler » sur un
+rapprochement incomplet serait une fausse impression de contrôle.
+**Reste ouvert :** [Q-26](questions-ouvertes.md) — faut-il aller chercher ce second compte-titres
+pour que le PEA soit rapproché lui aussi ?

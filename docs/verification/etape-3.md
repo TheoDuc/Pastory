@@ -243,6 +243,7 @@ règle. Soit les quantités tombent juste, soit il manque quelque chose.
 | `écart` | les deux comptent des parts, mais pas le même nombre | une opération manque ou a été mal lue : dis-le |
 | **`absent du moteur`** | **la banque détient des parts dont aucune opération ne parle** | **c'est le cas à examiner** : des titres sont entrés sans événement |
 | `absent de la banque` | le moteur compte des parts que la banque ne montre pas | l'actif a été vendu hors de l'export, ou une opération a été comptée deux fois |
+| `hors périmètre` | l'actif est dans une poche que la photo ne couvre pas du tout | **rien à faire** : ce n'est pas un désaccord, c'est une absence de comparaison |
 
 La ligne **`absent du moteur`** est exactement ce que l'étape 2 ne pouvait pas trouver toute
 seule : c'est la limite connue de [D-15](../decisions.md), et c'est probablement là qu'apparaîtra
@@ -251,6 +252,16 @@ le transfert de PEA sans événement (Q-10).
 > **Si le rapport annonce des lignes du fichier « non lues »**, ne conclus rien : un actif marqué
 > `absent de la banque` peut très bien se trouver dans l'une d'elles. Relance
 > `dashboard positions-reelles` d'abord.
+
+**Ton PEA sort en `hors périmètre`, et c'est normal.** L'outil qui interroge Trade Republic ne
+demande les positions que d'**un seul** compte-titres, et ton PEA est dans un autre : aucune de
+ses lignes ne remonte. Le rapport le dit **une fois**, en tête du bloc, au lieu de lever une
+alerte par actif à chaque lancement ([D-47](../decisions.md)).
+
+Conséquence à garder en tête : **sur le PEA, les quantités ne sont confirmées par personne.**
+Elles ne sont pas fausses — elles sont seulement calculées à partir de tes seules opérations,
+sans second avis. C'est là qu'une vérification à la main dans l'application garde toute sa
+valeur. La question de récupérer ce second compte-titres est ouverte ([Q-26](../questions-ouvertes.md)).
 
 Le rapprochement ne se fait **pas** avec `--au` : la banque ne sait montrer que son portefeuille
 d'aujourd'hui, et le comparer à des chiffres arrêtés dans le passé signalerait à tort tout ce qui
@@ -280,6 +291,7 @@ Chacun doit être lu, et aucun ne doit rester sans explication.
 | `distribution excédentaire` | une distribution de capital a dépassé le capital investi (A.5) |
 | `titres sans opération` | le rapprochement a trouvé des parts inconnues du moteur (B.3) |
 | `écart de quantité` | le moteur et la banque ne comptent pas pareil (B.3) |
+| `poche non couverte` | la photo de la banque ignore une enveloppe entière — ton PEA (B.3) |
 
 ### B.6 — Ce que les fichiers contiennent
 

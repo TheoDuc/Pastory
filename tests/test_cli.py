@@ -267,13 +267,40 @@ class TestPositions:
         self, export, capsys
     ):
         nommer_les_comptes(f'\n[poches]\n"{fictifs.ACTIF_ACTION_B}" = "CTO"\n')
-        deposer_portefeuille_reel(export, f"Action Exemple SA;{fictifs.ACTIF_ACTION};5;40;20;200")
+        # La photo montre l'actif du PEA et un des actifs du CTO : la crypto, elle,
+        # n'apparaît nulle part, donc sa poche n'est pas couverte.
+        deposer_portefeuille_reel(
+            export,
+            f"Action Exemple SA;{fictifs.ACTIF_ACTION};5;40;20;200",
+            f"ETF Exemple Monde;{fictifs.ACTIF_ETF};2;25;25;50",
+        )
 
         cli.main(["positions"])
         affichage = capsys.readouterr().out
 
         assert "Rapprochement avec le portefeuille réel" in affichage
-        assert "titres sans opération" in affichage or "parts non confirmées" in affichage
+        assert "parts non confirmées" in affichage  # les actions gratuites du CTO
+
+    def test_une_poche_entierement_absente_de_la_photo_ne_leve_qu_une_ligne(
+        self, export, capsys
+    ):
+        # Le cas rencontré sur de vraies données : pytr ne demande les positions que d'un
+        # seul compte-titres, et le PEA est dans un autre (D-47).
+        nommer_les_comptes(f'\n[poches]\n"{fictifs.ACTIF_ACTION_B}" = "CTO"\n')
+        deposer_portefeuille_reel(
+            export,
+            f"ETF Exemple Monde;{fictifs.ACTIF_ETF};2;25;25;50",
+            f"Action Exemple B;{fictifs.ACTIF_ACTION_B};5;10;10;50",
+            f"Crypto Exemple;{fictifs.ACTIF_CRYPTO};0.000833;30000;30000;25",
+        )
+
+        cli.main(["positions"])
+        affichage = capsys.readouterr().out
+
+        assert "ne couvre pas : PEA" in affichage
+        assert "hors périmètre" in affichage
+        # L'actif du PEA ne doit plus produire d'alerte individuelle.
+        assert "parts non confirmées" not in affichage
 
     def test_positions_n_ecrit_aucun_fichier(self, export, dossier_personnel):
         nommer_les_comptes(f'\n[poches]\n"{fictifs.ACTIF_ACTION_B}" = "CTO"\n')
