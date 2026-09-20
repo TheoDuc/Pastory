@@ -11,6 +11,38 @@ pas une décision.**
 
 ## En attente
 
+### Q-26 · Faut-il aller chercher le second compte-titres, pour rapprocher le PEA ?
+*Ouverte le 2026-09-21, après le premier essai du rapprochement sur de vraies données.*
+
+**Le constat.** `pytr portfolio` ne demande les positions que d'**un seul** compte-titres : le
+`securitiesAccountNumber` unique que renvoie `/api/v2/auth/account`. Trade Republic logeant le
+PEA dans un second compte-titres, ses positions ne remontent jamais. Le rapprochement fonctionne
+donc sur le CTO et la crypto, mais **pas sur le PEA** ([D-47](decisions.md) évite les fausses
+alertes que cela produisait).
+
+**Ce qui est perdu :** sur le PEA, on ne peut ni confirmer les quantités, ni détecter des titres
+entrés sans événement — la limite connue de [D-15](decisions.md), précisément celle que le
+rapprochement devait lever.
+
+**Ce qu'il faut savoir avant de trancher :** le diagnostic
+[`scripts/diagnostic_comptes_titres.py`](../scripts/diagnostic_comptes_titres.py) affiche, sans
+aucune valeur personnelle, combien de comptes-titres le compte contient. **Plusieurs** confirme
+l'explication ; **un seul** l'infirme, et la cause est ailleurs.
+
+**Options :**
+- (a) **Laisser en l'état.** Le rapprochement couvre le CTO et la crypto ; le PEA est signalé
+  comme non couvert, une fois, sans bruit. Rien à écrire.
+- (b) **Écrire notre propre récupération**, compte-titres par compte-titres, en utilisant pytr
+  comme bibliothèque. Contrepartie sérieuse : c'est nous qui gérerions alors le dialogue de
+  connexion, ce que [D-41](decisions.md) a justement évité pour que le PIN ne transite jamais par
+  cette application.
+- (c) **Le signaler en amont**, à pytr, et attendre que l'outil sache demander tous les
+  comptes-titres. Gratuit pour nous, sans garantie de délai.
+
+**Recommandation :** (a) pour l'instant, puis (c). Le rapprochement du PEA est un confort, pas un
+préalable : les chiffres du PEA sont justes, ils sont seulement non confirmés par une seconde
+source. À reprendre si le diagnostic montre que le second compte est facile à atteindre.
+
 ### Q-21 · Comment présenter les frais et les taxes ?
 *Le découpage en trois niveaux plaît au propriétaire (2026-09-17). À reprendre en détail à
 l'étape 8. Correction apportée : le spread est un coût d'entrée et de sortie, pas un coût

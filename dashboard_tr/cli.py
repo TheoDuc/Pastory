@@ -6,10 +6,13 @@ clairement, avec l'étape où elles arrivent, plutôt que d'échouer sans explic
 L'enchaînement normal, au premier usage :
 
 ```
-dashboard rafraichir      récupérer l'export auprès de Trade Republic
-dashboard comptes         dire à quoi sert chaque compte espèces (une seule fois)
-dashboard lire            vérifier qu'aucun type d'événement n'est inconnu
-dashboard exporter-pivot  écrire les opérations en CSV, pour les vérifier dans un tableur
+dashboard rafraichir          récupérer l'export auprès de Trade Republic
+dashboard comptes             dire à quoi sert chaque compte espèces (une seule fois)
+dashboard lire                vérifier qu'aucun type d'événement n'est inconnu
+dashboard exporter-pivot      écrire les opérations en CSV, à vérifier dans un tableur
+dashboard positions           ce que le moteur en déduit : quantités, capital investi, PRU
+dashboard exporter-positions  écrire les positions et leur journal en CSV
+dashboard positions-reelles   demander à la banque ce qu'elle dit détenir, pour recouper
 ```
 """
 
@@ -19,17 +22,24 @@ import argparse
 import collections
 import contextlib
 import sys
+from datetime import date as Date
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 from dashboard_tr.adaptateurs.trade_republic import evenements as lecture_evenements
+from dashboard_tr.adaptateurs.trade_republic import portefeuille as portefeuille_banque
 from dashboard_tr.adaptateurs.trade_republic import recoupement_csv, source
 from dashboard_tr.adaptateurs.trade_republic.classement import classer
 from dashboard_tr.adaptateurs.trade_republic.lecture import Lecteur
 from dashboard_tr.adaptateurs.trade_republic.rapport import Rapport
 from dashboard_tr.config import comptes as config_comptes
 from dashboard_tr.config import emplacements
+from dashboard_tr.moteur import export_csv as export_moteur
+from dashboard_tr.moteur import rapport as rapport_moteur
+from dashboard_tr.moteur.portefeuille import Portefeuille
+from dashboard_tr.moteur.rapprochement import rapprocher
 from dashboard_tr.pivot import export_csv
+from dashboard_tr.pivot.position_reelle import PositionReelle
 
 NOM = "dashboard"
 
@@ -229,6 +239,188 @@ def commande_exporter_pivot(dossier_export: Path | None) -> int:
     return code
 
 
+# --- Le moteur (étape 3) -------------------------------------------------------------
+
+
+def _etat_de_la_lecture(rapport: Rapport) -> list[str]:
+    """Un résumé en deux lignes de la lecture dont les chiffres sortent.
+
+    Le moteur ne recalcule pas ce que `dashboard lire` a déjà dit, mais il ne peut pas non
+    plus laisser croire que tout va bien : un type inconnu peut cacher des opérations sur
+    les actifs (règle 5 de CLAUDE.md), et alors aucun chiffre ci-dessous n'est complet.
+    """
+    lignes = [f"{len(rapport.operations)} opération(s) lues."]
+    ennuis = []
+    if rapport.types_inconnus:
+        ennuis.append(f"{sum(rapport.types_inconnus.values())} événement(s) de type inconnu")
+    if rapport.operations_non_produites:
+        # Un événement traité dont aucune opération n'est sortie est un trou franc dans les
+        # totaux : des parts ou des montants manquent, et rien d'autre ne le dirait.
+        ennuis.append(
+            f"{rapport.operations_non_produites} événement(s) traités sans opération produite"
+        )
+    if rapport.anomalies:
+        ennuis.append(f"{len(rapport.anomalies)} contrôle(s) de cohérence en échec")
+    if ennuis:
+        lignes.append(
+            "ATTENTION - " + ", ".join(ennuis) + f" : lancez « {NOM} lire » avant de vous "
+            "fier aux chiffres ci-dessous."
+        )
+    return lignes
+
+
+def _charger_positions_reelles(
+    dossier: Path,
+) -> tuple[list[PositionReelle] | None, list[str]]:
+    """Lit le portefeuille réel s'il a déjà été récupéré. Son absence n'est pas une erreur.
+
+    Renvoie `None` quand le fichier n'est pas là — et non une liste vide, qui voudrait dire
+    « la banque ne détient plus rien », ce qui est une information très différente. Le
+    rapport invite alors à lancer `positions-reelles`, plutôt que de faire échouer une
+    commande qui n'a besoin de rien d'autre que de l'export.
+    """
+    fichier = portefeuille_banque.chemin(dossier)
+    if not fichier.exists():
+        return None, []
+    return portefeuille_banque.lire(fichier)
+
+
+def _construire_moteur(
+    dossier: Path, au: Date | None
+) -> tuple[Portefeuille, Rapport, list[str]] | None:
+    """Lecture puis rejeu. Renvoie `None` si la lecture ne permet pas d'aller plus loin."""
+    rapport, _ = _lire(dossier, avec_recoupement=False)
+    if rapport.declarations_attendues:
+        print(rapport.resume())
+        print(
+            "\nAucun chiffre n'a été calculé : il manque des informations que vous seul "
+            "pouvez donner (voir ci-dessus).",
+            file=sys.stderr,
+        )
+        return None
+
+    portefeuille = Portefeuille.construire(rapport.operations)
+    if au is not None:
+        portefeuille = portefeuille.au(au)
+    return portefeuille, rapport, _etat_de_la_lecture(rapport)
+
+
+def commande_positions(dossier_export: Path | None, au: Date | None) -> int:
+    """Affiche les positions calculées par le moteur, sans rien écrire."""
+    dossier = dossier_export or source.dossier_par_defaut()
+    try:
+        construit = _construire_moteur(dossier, au)
+        if construit is None:
+            return CODE_DECLARATION_ATTENDUE
+        portefeuille, _, entete = construit
+        # Le portefeuille de la banque est une photo d'**aujourd'hui** : le comparer à un
+        # portefeuille arrêté à une date passée signalerait à tort tout ce qui a bougé
+        # depuis. Le rapprochement n'a de sens que sur les chiffres à jour.
+        if au is None:
+            positions_reelles, anomalies_du_fichier = _charger_positions_reelles(dossier)
+        else:
+            positions_reelles, anomalies_du_fichier = None, []
+    except source.ExportIntrouvable as erreur:
+        print(erreur, file=sys.stderr)
+        return CODE_ECHEC
+    except config_comptes.ConfigurationInvalide as erreur:
+        print(erreur, file=sys.stderr)
+        return CODE_ECHEC
+    except portefeuille_banque.PortefeuilleIllisible as erreur:
+        print(erreur, file=sys.stderr)
+        return CODE_ECHEC
+
+    for ligne in entete:
+        print(ligne)
+    if au is not None:
+        print(f"Chiffres arrêtés au {au.isoformat()}.")
+
+    rapprochement = (
+        rapprocher(portefeuille, positions_reelles, lignes_illisibles=len(anomalies_du_fichier))
+        if positions_reelles is not None
+        else None
+    )
+    print(rapport_moteur.resume(portefeuille, rapprochement, arrete_au=au))
+
+    for anomalie in anomalies_du_fichier:
+        print(f"  portefeuille réel, {anomalie}", file=sys.stderr)
+
+    return CODE_SUCCES
+
+
+def commande_exporter_positions(dossier_export: Path | None, au: Date | None) -> int:
+    """Écrit `positions.csv` et `journal.csv` dans le dossier personnel."""
+    dossier = dossier_export or source.dossier_par_defaut()
+    try:
+        construit = _construire_moteur(dossier, au)
+        if construit is None:
+            return CODE_DECLARATION_ATTENDUE
+        portefeuille, _, entete = construit
+    except source.ExportIntrouvable as erreur:
+        print(erreur, file=sys.stderr)
+        return CODE_ECHEC
+    except config_comptes.ConfigurationInvalide as erreur:
+        print(erreur, file=sys.stderr)
+        return CODE_ECHEC
+
+    for ligne in entete:
+        print(ligne)
+
+    personnel = emplacements.dossier_personnel()
+    fichier_positions = export_moteur.ecrire_positions(
+        portefeuille, personnel / export_moteur.NOM_POSITIONS
+    )
+    fichier_journal = export_moteur.ecrire_journal(
+        portefeuille, personnel / export_moteur.NOM_JOURNAL
+    )
+
+    print(f"\n{len(portefeuille.positions)} position(s) écrite(s) dans :\n  {fichier_positions}")
+    lignes = sum(len(position.journal) for position in portefeuille.positions)
+    print(f"{lignes} ligne(s) de journal dans :\n  {fichier_journal}")
+    print(
+        "\nLe journal est celui à ouvrir pour refaire un chiffre à la main : une ligne par\n"
+        "opération, avec l'état d'avant et l'état d'après."
+    )
+    return CODE_SUCCES
+
+
+def commande_positions_reelles() -> int:
+    """Demande à Trade Republic ce qu'il dit détenir, et l'enregistre pour le rapprochement.
+
+    Commande à part, et non un morceau de `rafraichir` : comme rien n'est enregistré sur
+    cette machine (D-41), chaque appel à pytr redemande le numéro, le PIN et la confirmation
+    dans l'application. Les réunir obligerait à le faire deux fois à chaque rafraîchissement.
+    """
+    fichier = portefeuille_banque.chemin(source.dossier_par_defaut())
+    print("Récupération du portefeuille actuel auprès de Trade Republic.\n")
+    print("Trade Republic va vous demander votre numéro de téléphone, puis votre code PIN.")
+    print()
+    print("  ATTENTION : en tapant le PIN, vous ne verrez RIEN s'afficher.")
+    print("  C'est normal : la saisie est masquée. Tapez le PIN, puis appuyez sur Entrée.")
+    print()
+
+    code = source.recuperer_portefeuille(fichier)
+    if code != CODE_SUCCES:
+        print(
+            "\nLa récupération a échoué. Le fichier précédent, s'il existait, n'a pas été "
+            "touché.",
+            file=sys.stderr,
+        )
+        return CODE_ECHEC
+
+    try:
+        positions, anomalies = portefeuille_banque.lire(fichier)
+    except portefeuille_banque.PortefeuilleIllisible as erreur:
+        print(erreur, file=sys.stderr)
+        return CODE_ECHEC
+
+    print(f"\n{len(positions)} position(s) enregistrée(s) dans :\n  {fichier}")
+    for anomalie in anomalies:
+        print(f"  non lue : {anomalie}", file=sys.stderr)
+    print(f"\nLancez « {NOM} positions » pour comparer avec les chiffres du moteur.")
+    return CODE_SUCCES
+
+
 def _a_venir(commande: str, etape: str) -> int:
     print(f"La commande « {commande} » sera disponible à l'{etape}.", file=sys.stderr)
     return CODE_ECHEC
@@ -244,11 +436,17 @@ def construire_analyseur() -> argparse.ArgumentParser:
     commandes = analyseur.add_subparsers(dest="commande")
     commandes.add_parser("emplacements", help="où sont rangés les fichiers personnels")
     commandes.add_parser("rafraichir", help="récupérer les données Trade Republic")
+    commandes.add_parser(
+        "positions-reelles", help="demander à la banque ce qu'elle dit détenir"
+    )
 
+    avec_date = {"positions", "exporter-positions"}
     for nom, aide in (
         ("comptes", "dire à quoi sert chaque compte espèces"),
         ("lire", "rapport de lecture, sans rien écrire"),
         ("exporter-pivot", "écrire les opérations en CSV"),
+        ("positions", "quantités, capital investi et prix de revient"),
+        ("exporter-positions", "écrire les positions et leur journal en CSV"),
     ):
         sous_analyseur = commandes.add_parser(nom, help=aide)
         sous_analyseur.add_argument(
@@ -259,9 +457,32 @@ def construire_analyseur() -> argparse.ArgumentParser:
             help="dossier contenant l'export, au lieu du dossier personnel "
             "(pour examiner l'export de quelqu'un d'autre sans le copier dans le projet)",
         )
+        if nom in avec_date:
+            sous_analyseur.add_argument(
+                "--au",
+                type=_jour,
+                default=None,
+                metavar="AAAA-MM-JJ",
+                help="arrêter les chiffres à la fin de ce jour-là, au lieu d'aller "
+                "jusqu'à la dernière opération connue",
+            )
 
     commandes.add_parser("ouvrir", help="ouvrir le tableau de bord (étape 9)")
     return analyseur
+
+
+def _jour(texte: str) -> Date:
+    """Lit une date écrite AAAA-MM-JJ, et refuse toute autre écriture.
+
+    Une seule écriture acceptée, et elle est sans ambiguïté : « 03/04/2026 » ne veut pas
+    dire la même chose des deux côtés de la Manche, et le projet ne devine rien.
+    """
+    try:
+        return Date.fromisoformat(texte)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"« {texte} » n'est pas une date. Écrivez-la comme 2026-03-15 (année-mois-jour)."
+        ) from None
 
 
 def _preparer_la_sortie() -> None:
@@ -297,6 +518,12 @@ def main(arguments: list[str] | None = None) -> int:
             return commande_lire(options.export)
         case "exporter-pivot":
             return commande_exporter_pivot(options.export)
+        case "positions":
+            return commande_positions(options.export, options.au)
+        case "exporter-positions":
+            return commande_exporter_positions(options.export, options.au)
+        case "positions-reelles":
+            return commande_positions_reelles()
         case "ouvrir":
             return _a_venir("ouvrir", "étape 9 (réalisation de l'interface)")
         case _:

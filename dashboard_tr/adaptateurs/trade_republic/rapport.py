@@ -70,6 +70,13 @@ class Rapport:
     anomalies: list[Anomalie] = field(default_factory=list)
     signalements: list[Signalement] = field(default_factory=list)
 
+    operations_non_produites: int = 0
+    """Événements traités dont aucune opération n'a pu être tirée.
+
+    Chacun a son signalement, mais le compte est gardé à part : c'est un **trou** dans les
+    chiffres, et le moteur doit pouvoir prévenir que ses totaux sont incomplets sans avoir
+    à relire les signalements un à un."""
+
     comptes_a_nommer: set[str] = field(default_factory=set)
     actifs_sans_poche: set[str] = field(default_factory=set)
 

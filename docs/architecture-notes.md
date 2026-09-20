@@ -90,20 +90,53 @@ Condition pour qu'un non-développeur puisse vérifier.
   opérations qui le composent.
 - Chaque formule du code renvoie à sa définition du [glossaire](glossaire.md).
 
-## 5. Moteur
+## 5. Moteur — **écrit à l'étape 3** (la partie qui ne dépend pas des cours)
+
+Réalisé dans `dashboard_tr/moteur/`, en couches testables séparément, comme l'adaptateur. Ce que
+l'écriture a confirmé, et ce qu'elle a ajouté :
 
 - Calcule par actif puis agrège par poche et au total. Les filtres (période, poches) s'appliquent
-  à l'agrégation, pas à la lecture.
+  à l'agrégation, pas à la lecture. ✅ `position.py`, `portefeuille.py`
+- La clé d'une position est le couple **(actif, poche)**, jamais l'actif seul : un même ETF peut
+  être détenu en PEA *et* en CTO, avec deux prix de revient et deux fiscalités
+  ([D-44](decisions.md)).
+- **Le moteur tient un journal** ([D-44](decisions.md)) : une ligne par opération, avec l'état
+  d'avant et l'état d'après. C'est ce qui rend un chiffre refaisable à la main sans lire le code,
+  et c'est la pièce centrale du [cahier de l'étape 3](verification/etape-3.md). Exporté en CSV à
+  côté des positions. ✅ `export_csv.py`
+- **L'ordre est imposé, jamais supposé** : horodatage exact, puis identifiant pour départager
+  deux opérations simultanées. L'ordre du fichier d'export ne fait pas foi.
+- Le capital net investi est **arrondi au centime après chaque opération**, et une vente retire
+  `capital × vendues / détenues` plutôt que de multiplier le capital par un complément : les deux
+  morceaux retombent exactement sur le capital d'avant.
 - Deux comptabilités **séparées** dès le moteur ([D-21](decisions.md)) :
   - **performance** sur montants bruts : capital net investi, PRU, gain, TRI, TWRR ;
-  - **coûts** : frais et taxes réels, spread estimé à l'achat et à la vente, TER pendant la détention
-    ([D-30](decisions.md)).
-- **Valeur réelle** = performance − coûts de sortie estimés ([D-23](decisions.md)).
+  - **coûts** : frais et taxes réels — déjà là, rangés par moment (achat, vente, revenus), ce qui
+    prépare les trois niveaux de Q-21 — puis spread estimé à l'achat et à la vente, et TER
+    pendant la détention ([D-30](decisions.md)), à l'étape 6.
+- **Valeur réelle** = performance − coûts de sortie estimés ([D-23](decisions.md)). *(étape 6)*
 - Titres reçus sans achat : prix = cours du jour d'apparition, marqué `deduction`
-  ([D-15](decisions.md)).
-- **Rapprochement avec les positions réelles** (portefeuille actuel via pytr) : tout écart de
-  quantité est signalé. Il révèle les titres entrés sans événement.
+  ([D-15](decisions.md)). Tant qu'il manque, **les parts comptent et le montant non** — et le
+  prix de revient de l'actif est affiché « à compléter » plutôt que dilué
+  ([D-45](decisions.md)).
+- **Trois refus explicites** ([D-45](decisions.md)), chacun accompagné d'un signalement : prix
+  inconnu, vente au-delà du stock compté (la quantité ne devient jamais négative), distribution
+  de capital au-delà du capital investi (plancher à zéro). Le fil commun : **ne jamais afficher
+  un chiffre qui n'a pas de sens, et ne jamais le corriger sans le dire**.
+- **Rapprochement avec les positions réelles** ([D-46](decisions.md)) : la quantité est un
+  contrôle, le prix de revient de la banque une simple information. C'est le seul contrôle qui ne
+  dépend d'aucune lecture de texte, et le seul capable de révéler les titres entrés sans
+  événement. La photo du portefeuille entre dans le pivot comme **second contrat**
+  ([format-pivot §9](format-pivot.md)), pour que le moteur n'ouvre aucun fichier de banque.
+  ✅ `rapprochement.py`, `pivot/position_reelle.py`
+- **La photo de la banque ne couvre pas forcément tout** ([D-47](decisions.md)), constaté au
+  premier essai sur de vraies données : `pytr` ne demande les positions que d'un seul
+  compte-titres, et le PEA est dans un autre. Une poche entièrement absente est signalée **une
+  fois** au lieu de lever une alerte par actif. Le rapprochement distingue donc « tout ce qui a
+  pu être comparé concorde » de « tout a pu être comparé ». Suite dans
+  [Q-26](questions-ouvertes.md).
 - TRI et TWRR sur courte durée : fournir aussi un indicateur « peu significatif » à l'interface.
+  *(étape 5)*
 
 ## 6. Données externes
 

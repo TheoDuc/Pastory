@@ -11,6 +11,7 @@ import json
 import pytest
 
 from dashboard_tr import cli
+from dashboard_tr.adaptateurs.trade_republic import portefeuille as portefeuille_banque
 from dashboard_tr.config import comptes as config_comptes
 from tests.adaptateurs.trade_republic import evenements_fictifs as fictifs
 
@@ -76,6 +77,17 @@ class TestBases:
     def test_une_commande_pas_encore_ecrite_dit_a_quelle_etape_elle_arrive(self, capsys):
         assert cli.main(["ouvrir"]) == 1
         assert "étape 9" in capsys.readouterr().err
+
+
+def deposer_portefeuille_reel(dossier, *lignes: str):
+    """Le fichier qu'aurait écrit « dashboard positions-reelles » (valeurs fictives)."""
+    fichier = portefeuille_banque.chemin(dossier)
+    fichier.parent.mkdir(parents=True, exist_ok=True)
+    fichier.write_text(
+        "\n".join(["Name;ISIN;quantity;price;avgCost;netValue", *lignes]) + "\n",
+        encoding="utf-8",
+    )
+    return fichier
 
 
 class TestExportIntrouvable:
@@ -209,3 +221,225 @@ class TestExporterPivot:
             encoding="utf-8-sig"
         ).strip().splitlines()
         assert len(lignes) == 9  # huit opérations, plus l'en-tête
+
+
+class TestPositions:
+    def test_le_rapport_montre_les_positions_par_poche(self, export, capsys):
+        nommer_les_comptes(f'\n[poches]\n"{fictifs.ACTIF_ACTION_B}" = "CTO"\n')
+
+        code = cli.main(["positions"])
+        affichage = capsys.readouterr().out
+
+        assert code == 0
+        assert "Positions détenues" in affichage
+        # Cinq parts restent sur l'action du PEA : dix achetées, cinq vendues.
+        assert fictifs.ACTIF_ACTION in affichage
+        assert "PEA" in affichage and "crypto" in affichage
+
+    def test_le_rapport_previent_qu_un_type_est_inconnu(self, export, capsys):
+        # L'export fictif en contient un : aucun chiffre ne peut être tenu pour complet
+        # tant qu'on ne l'a pas examiné (règle 5 de CLAUDE.md).
+        nommer_les_comptes(f'\n[poches]\n"{fictifs.ACTIF_ACTION_B}" = "CTO"\n')
+
+        cli.main(["positions"])
+        affichage = capsys.readouterr().out
+
+        assert "type inconnu" in affichage
+        assert "dashboard lire" in affichage
+
+    def test_les_actions_gratuites_sont_comptees_mais_sans_prix(self, export, capsys):
+        nommer_les_comptes(f'\n[poches]\n"{fictifs.ACTIF_ACTION_B}" = "CTO"\n')
+
+        cli.main(["positions"])
+        affichage = capsys.readouterr().out
+
+        assert "histoire est incomplète" in affichage
+        assert "prix à compléter" in affichage
+
+    def test_sans_portefeuille_reel_le_rapport_dit_comment_l_obtenir(self, export, capsys):
+        nommer_les_comptes(f'\n[poches]\n"{fictifs.ACTIF_ACTION_B}" = "CTO"\n')
+
+        cli.main(["positions"])
+
+        assert "positions-reelles" in capsys.readouterr().out
+
+    def test_le_portefeuille_reel_est_rapproche_des_que_le_fichier_existe(
+        self, export, capsys
+    ):
+        nommer_les_comptes(f'\n[poches]\n"{fictifs.ACTIF_ACTION_B}" = "CTO"\n')
+        # La photo montre l'actif du PEA et un des actifs du CTO : la crypto, elle,
+        # n'apparaît nulle part, donc sa poche n'est pas couverte.
+        deposer_portefeuille_reel(
+            export,
+            f"Action Exemple SA;{fictifs.ACTIF_ACTION};5;40;20;200",
+            f"ETF Exemple Monde;{fictifs.ACTIF_ETF};2;25;25;50",
+        )
+
+        cli.main(["positions"])
+        affichage = capsys.readouterr().out
+
+        assert "Rapprochement avec le portefeuille réel" in affichage
+        assert "parts non confirmées" in affichage  # les actions gratuites du CTO
+
+    def test_une_poche_entierement_absente_de_la_photo_ne_leve_qu_une_ligne(
+        self, export, capsys
+    ):
+        # Le cas rencontré sur de vraies données : pytr ne demande les positions que d'un
+        # seul compte-titres, et le PEA est dans un autre (D-47).
+        nommer_les_comptes(f'\n[poches]\n"{fictifs.ACTIF_ACTION_B}" = "CTO"\n')
+        deposer_portefeuille_reel(
+            export,
+            f"ETF Exemple Monde;{fictifs.ACTIF_ETF};2;25;25;50",
+            f"Action Exemple B;{fictifs.ACTIF_ACTION_B};5;10;10;50",
+            f"Crypto Exemple;{fictifs.ACTIF_CRYPTO};0.000833;30000;30000;25",
+        )
+
+        cli.main(["positions"])
+        affichage = capsys.readouterr().out
+
+        assert "ne couvre pas : PEA" in affichage
+        assert "hors périmètre" in affichage
+        # L'actif du PEA ne doit plus produire d'alerte individuelle.
+        assert "parts non confirmées" not in affichage
+
+    def test_positions_n_ecrit_aucun_fichier(self, export, dossier_personnel):
+        nommer_les_comptes(f'\n[poches]\n"{fictifs.ACTIF_ACTION_B}" = "CTO"\n')
+        cli.main(["positions"])
+
+        assert not (dossier_personnel / "positions.csv").exists()
+
+    def test_au_arrete_les_chiffres_a_la_date_demandee(self, export, capsys):
+        nommer_les_comptes(f'\n[poches]\n"{fictifs.ACTIF_ACTION_B}" = "CTO"\n')
+
+        code = cli.main(["positions", "--au", "2026-01-31"])
+        affichage = capsys.readouterr().out
+
+        assert code == 0
+        assert "Chiffres arrêtés au 2026-01-31" in affichage
+        # Seul le plan d'épargne du 2 janvier a eu lieu : l'action du PEA n'existe pas.
+        assert fictifs.ACTIF_ACTION not in affichage
+
+    def test_a_une_date_passee_le_portefeuille_actuel_n_est_pas_rapproche(
+        self, export, capsys
+    ):
+        # La banque ne sait montrer qu'aujourd'hui : comparer une photo d'aujourd'hui à des
+        # chiffres arrêtés en janvier signalerait à tort tout ce qui a bougé depuis.
+        nommer_les_comptes(f'\n[poches]\n"{fictifs.ACTIF_ACTION_B}" = "CTO"\n')
+        deposer_portefeuille_reel(export, f"Action Exemple SA;{fictifs.ACTIF_ACTION};5;40;20;200")
+
+        cli.main(["positions", "--au", "2026-01-31"])
+        affichage = capsys.readouterr().out
+
+        assert "Sans objet" in affichage
+        assert "absent du moteur" not in affichage
+
+    def test_un_evenement_traite_sans_operation_declenche_l_avertissement(
+        self, export, capsys, monkeypatch
+    ):
+        # Un événement traité dont aucune opération n'est sortie est un trou franc dans les
+        # totaux : rien d'autre que cette bannière ne le dirait.
+        nommer_les_comptes(f'\n[poches]\n"{fictifs.ACTIF_ACTION_B}" = "CTO"\n')
+        lecture_reelle = cli.Lecteur.lire
+
+        def lecture_avec_un_refus(self, bruts):
+            rapport = lecture_reelle(self, bruts)
+            rapport.operations_non_produites += 1
+            return rapport
+
+        monkeypatch.setattr(cli.Lecteur, "lire", lecture_avec_un_refus)
+
+        cli.main(["positions"])
+
+        assert "sans opération produite" in capsys.readouterr().out
+
+    def test_un_fichier_de_banque_abime_empeche_de_conclure(self, export, capsys):
+        # Sinon l'actif de la ligne illisible ressortirait « absent de la banque », ce qui
+        # est un faux diagnostic : c'est le fichier qui est abîmé.
+        nommer_les_comptes(f'\n[poches]\n"{fictifs.ACTIF_ACTION_B}" = "CTO"\n')
+        deposer_portefeuille_reel(
+            export,
+            f"Action Exemple SA;{fictifs.ACTIF_ACTION};5;40;20;200",
+            "Ligne Cassee;;;;;",
+        )
+
+        cli.main(["positions"])
+        sortie = capsys.readouterr()
+
+        assert "n'ont pas pu être lues" in sortie.out
+        assert "portefeuille réel" in sortie.err
+
+    def test_une_date_mal_ecrite_explique_comment_l_ecrire(self, export, capsys):
+        with pytest.raises(SystemExit):
+            cli.main(["positions", "--au", "31/01/2026"])
+
+        assert "2026-03-15" in capsys.readouterr().err
+
+    def test_sans_comptes_nommes_aucun_chiffre_n_est_calcule(self, export, capsys):
+        code = cli.main(["positions"])
+
+        assert code == cli.CODE_DECLARATION_ATTENDUE
+        assert "Aucun chiffre n'a été calculé" in capsys.readouterr().err
+
+
+class TestExporterPositions:
+    def test_les_deux_fichiers_sont_ecrits_dans_le_dossier_personnel(
+        self, export, dossier_personnel, capsys
+    ):
+        nommer_les_comptes(f'\n[poches]\n"{fictifs.ACTIF_ACTION_B}" = "CTO"\n')
+
+        code = cli.main(["exporter-positions"])
+        affichage = capsys.readouterr().out
+
+        assert code == 0
+        assert (dossier_personnel / "positions.csv").exists()
+        assert (dossier_personnel / "journal.csv").exists()
+        assert "ligne(s) de journal" in affichage
+
+    def test_le_journal_a_une_ligne_par_operation(self, export, dossier_personnel):
+        nommer_les_comptes(f'\n[poches]\n"{fictifs.ACTIF_ACTION_B}" = "CTO"\n')
+        cli.main(["exporter-positions"])
+
+        lignes = (
+            (dossier_personnel / "journal.csv")
+            .read_text(encoding="utf-8-sig")
+            .strip()
+            .splitlines()
+        )
+        assert len(lignes) == 9  # huit opérations, plus l'en-tête
+
+    def test_rien_n_est_ecrit_tant_qu_il_manque_une_declaration(
+        self, export, dossier_personnel
+    ):
+        assert cli.main(["exporter-positions"]) == cli.CODE_DECLARATION_ATTENDUE
+        assert not (dossier_personnel / "positions.csv").exists()
+
+
+class TestPositionsReelles:
+    def test_la_commande_previent_avant_de_demander_le_pin(self, monkeypatch, capsys):
+        appels = []
+
+        def faux_pytr(fichier, executable=None):
+            appels.append(fichier)
+            fichier.parent.mkdir(parents=True, exist_ok=True)
+            fichier.write_text(
+                "Name;ISIN;quantity;price;avgCost;netValue\n"
+                f"Action Exemple SA;{fictifs.ACTIF_ACTION};5;40;20;200\n",
+                encoding="utf-8",
+            )
+            return 0
+
+        monkeypatch.setattr(cli.source, "recuperer_portefeuille", faux_pytr)
+
+        code = cli.main(["positions-reelles"])
+        affichage = capsys.readouterr().out
+
+        assert code == 0
+        assert len(appels) == 1
+        assert "vous ne verrez RIEN s'afficher" in affichage
+        assert "1 position(s) enregistrée(s)" in affichage
+
+    def test_un_echec_de_pytr_ne_touche_pas_le_fichier_precedent(self, monkeypatch, capsys):
+        monkeypatch.setattr(cli.source, "recuperer_portefeuille", lambda *_, **__: 1)
+
+        assert cli.main(["positions-reelles"]) == cli.CODE_ECHEC
+        assert "n'a pas été touché" in capsys.readouterr().err

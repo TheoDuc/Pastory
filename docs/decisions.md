@@ -442,3 +442,132 @@ la vie du PEA. C'est sans effet sur la valeur des actifs et sur leur évolution 
 « ce que j'ai mis de ma poche » s'en trouve flatté d'un euro.
 **Vérifié :** le solde reconstitué du compte espèces du PEA retombe exactement à zéro, ce qui
 confirme au passage qu'aucune opération PEA ne manque dans l'export.
+
+---
+
+*Étape 3 (moteur de positions). Les trois décisions suivantes répondent à quatre arbitrages
+rendus par le propriétaire le 2026-09-20, avant l'écriture du code.*
+
+### D-44 · 2026-09-20 · Le moteur rejoue les opérations et tient un journal vérifiable · Validée
+**Décision :** le moteur traite les opérations **une par une**, dans l'ordre de leur horodatage
+(puis de leur identifiant pour départager deux opérations simultanées), et conserve **une ligne
+par opération** : l'état d'avant, ce que l'opération ajoute ou retire, l'état d'après. Le capital
+net investi est **arrondi au centime après chaque opération**, et une vente retire
+`capital × quantité vendue / quantité détenue` plutôt que de multiplier le capital par un
+complément. La clé d'une position est le couple **(actif, poche)**, jamais l'actif seul.
+**Raison :** le propriétaire ne code pas, il vérifie les chiffres. Un journal se lit comme un
+relevé bancaire et répond à « d'où sort ce prix de revient ? » sans ouvrir le code. L'arrondi à
+chaque pas est ce qu'une main ferait ; sans lui, une vente au prorata laisse une traînée de
+décimales que personne ne peut refaire. Écrire le retrait plutôt que le reste garantit en prime
+que les deux morceaux retombent exactement sur le capital d'avant, sans centime perdu.
+Le couple (actif, poche) est nécessaire parce qu'un même ETF peut être détenu en PEA **et** en
+CTO, avec deux prix de revient et deux fiscalités différents.
+**Écarte :** un moteur qui ne produirait que l'état final ; un arrondi unique à la fin ; l'ordre
+du fichier d'export comme ordre de traitement.
+**Conséquence assumée :** le prix de revient est arrêté à six décimales, donc
+`prix de revient × quantité` peut s'écarter du capital investi de quelques centièmes de centime.
+**C'est le capital investi qui fait foi.**
+
+### D-45 · 2026-09-20 · Ce que fait le moteur devant une histoire incomplète · Validée
+**Décision :** trois situations où l'arithmétique n'a plus de sens, traitées explicitement et
+jamais en silence. Chacune produit un **signalement** visible dans le rapport et dans l'interface.
+
+| Situation | Ce que fait le moteur |
+|---|---|
+| Des parts entrent **sans prix connu** ([D-15](#d-15)) | les parts sont comptées, leur montant n'entre dans aucun total, et le **prix de revient de l'actif est affiché « à compléter »** au lieu d'un nombre |
+| Une vente porte sur **plus de parts** que le moteur n'en a comptées | la quantité tombe à 0 — jamais négative — le capital investi tombe à 0, et l'actif est marqué « historique incomplet » |
+| Une **distribution de capital dépasse** le capital investi ([D-14](#d-14)) | le capital s'arrête à zéro, l'excédent est signalé, et l'actif est marqué « historique incomplet » |
+
+Dans les trois cas, **le prix de revient de l'actif n'est plus affiché** : le capital investi
+ne décrit plus ce qui a réellement été mis dedans, donc la division ne veut plus rien dire.
+
+**Raison :** arbitrages du propriétaire du 2026-09-20. Le fil commun : **ne jamais afficher un
+chiffre qui n'a pas de sens, et ne jamais le corriger sans le dire.** Le cas du prix de revient
+est le plus insidieux : 200 € de capital connu divisés par 13 parts dont 3 sont entrées sans
+prix donnent 15,38 €, un prix de revient faussement bas et parfaitement crédible — rien, à
+l'écran, ne dirait qu'il est faux. Le laisser vide oblige à se poser la question. Une quantité
+négative, elle, polluerait tous les totaux de la poche. Et une distribution ne peut pas rendre
+plus que ce qui a été mis : au-delà, c'est un gain, pas un remboursement.
+**Écarte :** afficher le prix de revient dilué ; laisser la quantité devenir négative ; faire
+disparaître l'actif des totaux ; appliquer la formule du glossaire à la lettre jusqu'au capital
+négatif.
+**Limite connue, et c'est le sujet de D-46 :** une vente au-delà du stock est le **symptôme** de
+titres entrés sans événement. Le moteur seul ne peut pas les retrouver.
+
+### D-46 · 2026-09-20 · Les positions réelles entrent dans le pivot ; la quantité contrôle, le PRU informe · Validée
+**Décision :**
+- le format pivot reçoit un **second contrat**, la `PositionReelle` : ce que la banque dit
+  détenir aujourd'hui (actif, quantité, nom, prix de revient de la banque). Décrit au
+  [§9 de format-pivot.md](format-pivot.md). Le moteur ne lit aucun fichier de banque
+  ([D-26](#d-26)) ;
+- **la quantité est un contrôle** : tout écart est signalé, et les quantités du moteur sont
+  additionnées toutes poches confondues, la banque ne listant que des ISIN ;
+- **le prix de revient de la banque est une information** : affiché à côté du nôtre, étiqueté,
+  il ne déclenche jamais d'alerte ;
+- la récupération est une **commande à part**, `dashboard positions-reelles`.
+
+Deux précautions, ajoutées après la relecture indépendante de l'étape :
+
+- **avec `--au`, aucun rapprochement.** La banque ne sait montrer que son portefeuille
+  d'aujourd'hui ; le comparer à des chiffres arrêtés à une date passée signalerait à tort
+  tout ce qui a bougé depuis ;
+- **un fichier dont des lignes n'ont pas pu être lues ne permet pas de conclure.** Un actif
+  qui s'y trouvait ressortirait « absent de la banque », exactement le faux diagnostic que
+  le comptage des lignes illisibles sert à éviter. Le rapport le dit avant le tableau.
+
+**Raison :** c'est le contrôle le plus fort du projet — il ne dépend d'aucune lecture de texte,
+d'aucune déduction et d'aucune règle — et **le seul capable de révéler les titres entrés sans
+aucun événement**, limite connue de [D-15](#d-15). Le prix de revient, lui, n'est pas
+comparable : on ignore si Trade Republic y inclut les frais d'achat, que [D-13](#d-13) exclut
+explicitement. En faire un contrôle déclencherait une alerte sur presque chaque actif, à tort —
+et un rapport qui crie au loup partout ne sert plus à rien ([D-39](#d-39)).
+La commande séparée découle de [D-41](#d-41) : comme rien n'est enregistré sur la machine,
+chaque appel à pytr redemande le numéro, le PIN et la confirmation dans l'application. Réunir
+les deux récupérations obligerait à le faire **deux fois à chaque rafraîchissement**.
+**Écarte :** comparer les prix de revient ; ignorer celui de la banque ; intégrer la
+récupération à `rafraichir`.
+**Précision technique :** pytr est appelé **sans** `--decimal-localization`, donc les nombres
+arrivent à point décimal. La convention est imposée à la source plutôt que devinée à la lecture,
+et une écriture qui ne la respecte pas est refusée — c'est exactement le piège qui a coûté le
+plus cher à l'étape 2 ([inventaire §11.1](inventaire-donnees.md)).
+
+---
+
+### D-47 · 2026-09-21 · Une poche que la photo ne couvre pas n'est pas un désaccord · Validée
+**Décision :** si **aucun** actif d'une poche n'apparaît dans le portefeuille réel donné par la
+banque, cette poche est déclarée **non couverte** : elle fait l'objet d'**un seul** signalement,
+et ses actifs sortent en `hors périmètre`, sans alerte individuelle. Leur quantité reste
+affichée — ils sont bien détenus, ils n'ont simplement pas pu être confrontés.
+
+**Raison :** constaté par le propriétaire sur ses vraies données dès le premier essai. `pytr`
+ne demande les positions que d'**un seul** compte-titres — le `securitiesAccountNumber` unique
+renvoyé par `/api/v2/auth/account`, voir `compact_portfolio` dans `pytr/api.py`. Trade Republic
+logeant le PEA dans un second compte-titres, aucune de ses lignes ne remonte, et **chaque actif
+du PEA ressortait « absent de la banque » à chaque lancement**. Ce n'est pas N désaccords, c'est
+un fait, et un rapport qui crie au loup partout ne sert plus à rien — c'est le même raisonnement
+que [D-39](#d-39).
+
+**Comment la couverture est jugée :** sur les actifs **exclusifs** à la poche. La photo ne dit
+pas dans quelle enveloppe un titre est détenu ; un ISIN présent à la fois en PEA et en CTO ne
+prouve donc la couverture ni de l'un ni de l'autre. Quand une poche est déclarée non couverte,
+ses parts sont **retirées de la comparaison** des actifs partagés : sans cela, un ETF détenu dans
+les deux poches verrait ses parts PEA s'ajouter à ses parts CTO et produirait un écart de toutes
+pièces.
+
+**Trois garde-fous**, pour ne pas étouffer une vraie alerte :
+- il faut qu'au moins un actif soit confirmé ailleurs. Une photo qui ne confirme **rien** n'est
+  pas partielle, elle est inutilisable : aucune poche n'est alors mise de côté ;
+- une poche sans aucun actif exclusif n'est **jamais** déclarée non couverte : on ne peut rien en
+  dire, et l'écart s'affiche tel quel plutôt que d'être masqué sans preuve ;
+- la règle ne dit pas *pourquoi* la poche est absente. Une poche ne contenant qu'un seul actif,
+  réellement vendu hors de l'export, entre dans ce cas sans qu'on puisse l'en distinguer. Le
+  rapport donne donc toujours le nombre d'actifs concernés.
+
+**Écarte :** garder une alerte par actif — le propriétaire apprendrait à ne plus lire ce bloc et
+raterait la vraie alerte le jour venu ; refuser tout rapprochement dès qu'une poche manque, ce
+qui ferait perdre le contrôle sur le CTO et la crypto, qui fonctionnent parfaitement.
+**Conséquence :** `Rapprochement` distingue désormais **`tout_concorde`** (tout ce qui a pu être
+comparé concorde) de **`complet`** (tout a pu être comparé). Un « rien à signaler » sur un
+rapprochement incomplet serait une fausse impression de contrôle.
+**Reste ouvert :** [Q-26](questions-ouvertes.md) — faut-il aller chercher ce second compte-titres
+pour que le PEA soit rapproché lui aussi ?
