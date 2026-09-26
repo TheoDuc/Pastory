@@ -151,7 +151,9 @@ class TestRefus:
 
         assert len(leur_fournisseur.refus) == 1
 
-    def test_un_actif_introuvable_n_est_demande_qu_une_fois(self):
+    def test_deux_dates_voisines_ne_font_qu_une_demande(self):
+        # La fenêtre demandée entoure largement la date : une seconde opération quelques jours
+        # plus tard est déjà couverte, et redemander ne donnerait pas autre chose.
         source = SourceFictive()
         leur_fournisseur = fournisseur(source)
 
@@ -159,6 +161,31 @@ class TestRefus:
         leur_fournisseur.cours(ACTIF, LUNDI)
 
         assert len(source.appels) == 1
+
+    def test_deux_dates_eloignees_donnent_bien_deux_demandes(self):
+        # Le piège inverse : deux titres reçus à deux ans d'écart. Ignorer la seconde date
+        # produirait un refus affirmant que la source ne sait rien, alors qu'elle n'a jamais
+        # été interrogée pour cette période.
+        source = SourceFictive({ACTIF: [cours(Date(2024, 3, 6), "50.00")]})
+        leur_fournisseur = fournisseur(source)
+
+        assert leur_fournisseur.cours(ACTIF, VENDREDI) is None
+        trouve = leur_fournisseur.cours(ACTIF, Date(2024, 3, 6))
+
+        assert len(source.appels) == 2
+        assert trouve is not None
+        assert trouve.valeur == Decimal("50.00")
+
+    def test_une_source_en_panne_n_est_pas_harcelee(self):
+        # Ticker faux ou réseau coupé : dix opérations ne doivent pas donner dix appels.
+        source = SourceFictive(erreur=SourceInjoignable("service indisponible"))
+        leur_fournisseur = fournisseur(source)
+
+        leur_fournisseur.cours(ACTIF, VENDREDI)
+        leur_fournisseur.cours(ACTIF, Date(2024, 3, 6))
+
+        assert len(source.appels) == 1
+        assert len(leur_fournisseur.refus) == 1
 
 
 class TestHorsLigne:
@@ -208,6 +235,44 @@ class TestRemplir:
 
         assert leur_fournisseur.remplir(ACTIF, VENDREDI, LUNDI) == 1
         assert leur_fournisseur.remplir(ACTIF, VENDREDI, LUNDI) == 0
+
+    def test_ce_que_le_cache_couvre_deja_n_est_pas_redemande(self):
+        # Le cache empêche de **réécrire** un cours ; ce test porte sur l'autre moitié de la
+        # promesse de D-50 : ne pas le **redemander**. Sans quoi tout l'historique repartirait
+        # à chaque lancement, et la source limite son débit sans prévenir.
+        cache = CacheEnMemoire()
+        cache.ecrire(ACTIF, [cours(VENDREDI, "100.00"), cours(LUNDI, "101.00")])
+        source = SourceFictive({ACTIF: [cours(VENDREDI, "100.00")]})
+
+        assert fournisseur(source, cache=cache).remplir(ACTIF, VENDREDI, LUNDI) == 0
+        assert source.appels == []
+
+    def test_seule_la_suite_manquante_est_demandee(self):
+        cache = CacheEnMemoire()
+        cache.ecrire(ACTIF, [cours(VENDREDI, "100.00")])
+        source = SourceFictive({ACTIF: [cours(LUNDI, "101.00")]})
+        leur_fournisseur = fournisseur(source, cache=cache)
+
+        # La période demandée commence quelques jours avant le premier jour coté connu : c'est
+        # le cas normal d'un relancement, le cache commençant au premier jour **coté**.
+        assert leur_fournisseur.remplir(ACTIF, Date(2026, 3, 1), LUNDI) == 1
+
+        # La demande part du lendemain du dernier jour connu, pas du 1er mars.
+        _, debut, fin = source.appels[0]
+        assert debut == Date(2026, 3, 7)
+        assert fin == LUNDI
+
+    def test_un_jour_plus_ancien_que_le_cache_est_bien_demande(self):
+        # Le cas inverse : un titre reçu avant tout ce qu'on connaît. Réduire la période
+        # priverait cet actif de son cours pour toujours.
+        cache = CacheEnMemoire()
+        cache.ecrire(ACTIF, [cours(LUNDI, "101.00")])
+        source = SourceFictive({ACTIF: [cours(Date(2026, 1, 5), "90.00")]})
+        leur_fournisseur = fournisseur(source, cache=cache)
+
+        # Deux mois avant le premier jour connu : la réduction ne s'applique pas.
+        assert leur_fournisseur.remplir(ACTIF, Date(2026, 1, 1), LUNDI) == 1
+        assert cache.lire(ACTIF)[Date(2026, 1, 5)].valeur == Decimal("90.00")
 
     def test_remplir_un_actif_non_declare_ne_fait_rien(self):
         source = SourceFictive({AUTRE_ACTIF: [cours(VENDREDI, "100.00")]})

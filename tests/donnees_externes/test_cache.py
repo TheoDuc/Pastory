@@ -160,6 +160,31 @@ class TestFichierAbime:
         with pytest.raises(CacheIllisible, match="oublier-cours"):
             cache.lire(ACTIF)
 
+    @pytest.mark.parametrize("valeur", ["nan", "inf", "-inf"])
+    def test_un_nombre_qui_n_en_est_pas_un_est_refuse(self, cache, valeur):
+        # `Decimal` accepte « nan » et « inf ». Les laisser passer serait pire qu'une erreur de
+        # lecture : un total deviendrait « nan » sans que rien ne le signale.
+        cache.ecrire(ACTIF, [cours(Date(2026, 3, 6), "100.00")])
+        fichier = cache.chemin(ACTIF)
+        fichier.write_text(
+            fichier.read_text(encoding=tableur.ENCODAGE).replace("100,00", valeur),
+            encoding=tableur.ENCODAGE,
+        )
+
+        with pytest.raises(CacheIllisible, match="oublier-cours"):
+            cache.lire(ACTIF)
+
+    def test_un_cours_negatif_est_refuse(self, cache):
+        cache.ecrire(ACTIF, [cours(Date(2026, 3, 6), "100.00")])
+        fichier = cache.chemin(ACTIF)
+        fichier.write_text(
+            fichier.read_text(encoding=tableur.ENCODAGE).replace("100,00", "-100,00"),
+            encoding=tableur.ENCODAGE,
+        )
+
+        with pytest.raises(CacheIllisible, match="négatif"):
+            cache.lire(ACTIF)
+
     def test_un_nombre_reenregistre_par_un_tableur_reste_lisible(self, cache):
         # Le propriétaire est invité à ouvrir ces fichiers : s'il en enregistre un depuis un
         # tableur, un séparateur de milliers peut apparaître. Ce n'est pas une raison de tout

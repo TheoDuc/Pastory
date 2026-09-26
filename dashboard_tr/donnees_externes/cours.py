@@ -41,6 +41,13 @@ suspension, et le recul maximal ci-dessus, en un seul appel."""
 MARGE_APRES = timedelta(days=3)
 """Et après : une opération passée le soir peut tomber un jour non encore coté."""
 
+UN_JOUR = timedelta(days=1)
+
+JOURS_SANS_COTATION_TOLERES = 5
+"""Durée à partir de laquelle une période sans aucun cours devient suspecte.
+
+Un week-end prolongé n'a rien d'anormal. Une semaine entière sans le moindre cours, si."""
+
 
 @dataclass(frozen=True)
 class Cours:
@@ -186,7 +193,8 @@ class FournisseurDeCours:
         self.aujourd_hui = aujourd_hui or Date.today()
         self._series: dict[str, dict[Date, Cours]] = {}
         self._refus: dict[tuple[str, str], Refus] = {}
-        self._deja_demande: set[str] = set()
+        self._demandes: dict[str, list[tuple[Date, Date]]] = {}
+        self._en_panne: set[str] = set()
 
     # --- Ce que les appelants utilisent -------------------------------------------------
 
@@ -216,54 +224,78 @@ class FournisseurDeCours:
             )
             return None
 
-        # Un actif dont la source ne sait rien ne doit pas être redemandé à chaque opération :
-        # une seule tentative par actif et par exécution.
-        if actif not in self._deja_demande:
+        # Une date déjà couverte par une demande précédente ne vaut pas un second appel : la
+        # réponse serait la même. Mais une date **ailleurs** en vaut un — deux opérations sans
+        # prix, à deux ans d'écart, ne se trouvent pas dans la même fenêtre, et ignorer la
+        # seconde produirait un refus qui affirmerait à tort que la source ne sait rien.
+        if not self._date_deja_demandee(actif, date):
             self.remplir(actif, date - MARGE_AVANT, min(date + MARGE_APRES, self.aujourd_hui))
             trouve = dernier_jour_cote(self._serie(actif), date)
             if trouve is not None:
                 return trouve
 
-        if not self._a_deja_refuse(actif):
+        # Quand la source est tombée en panne sur cet actif, son motif est déjà enregistré et
+        # dit l'essentiel : ajouter « aucun cours au tel jour » par date ne ferait que noyer
+        # le vrai message.
+        if actif not in self._en_panne:
             self._refuser(
                 actif,
                 "cours indisponible",
-                f"la source ne donne aucun cours au {date.isoformat()}, ni dans les "
-                f"{RECUL_MAXIMAL.days} jours qui précèdent",
+                f"aucun cours au {date.isoformat()} ni dans les {RECUL_MAXIMAL.days} jours "
+                "qui précèdent",
                 date=date,
             )
         return None
 
     def remplir(self, actif: str, debut: Date, fin: Date) -> int:
-        """Demande une période à la source et l'écrit dans le cache. Renvoie le nombre de
-        cours **nouvellement** enregistrés.
+        """Demande à la source **ce qui manque** sur cette période, et l'écrit dans le cache.
 
-        Utilisée par `dashboard cours`, et par `cours()` quand le cache ne suffit pas.
+        Renvoie le nombre de cours **nouvellement** enregistrés. Trois raisons de ne rien
+        demander du tout, et ce sont elles qui donnent son sens au cache (D-50) :
+
+        - le cache couvre déjà la période : aucun appel ;
+        - il en couvre le début : on ne demande que la suite. Relancer `dashboard cours` le
+          lendemain ne redemande donc qu'un jour, pas dix ans d'historique — ce qui compte,
+          parce que la source limite son débit sans prévenir ;
+        - la même période a déjà été demandée pendant cette exécution, ou la source est
+          tombée en panne sur cet actif : on n'insiste pas.
         """
         declaration = self.configuration.declaration(actif)
-        if declaration is None or self.source is None:
+        if declaration is None or self.source is None or actif in self._en_panne:
             return 0
 
-        self._deja_demande.add(actif)
-        if fin < debut:
+        # La séance du jour n'est pas close : la source ne la rend pas, et le cache ne doit pas
+        # la contenir. Demander le jour même ne rapporterait donc rien, et l'absence de réponse
+        # ressemblerait à une panne.
+        fin = min(fin, self.aujourd_hui - UN_JOUR)
+
+        debut, fin = self._ce_qui_manque(actif, debut, fin)
+        if fin < debut or self._deja_demande(actif, debut, fin):
             return 0
+        self._demandes.setdefault(actif, []).append((debut, fin))
 
         try:
             recus = self.source.serie(actif, declaration, debut, fin)
         except ErreurDeSource as erreur:
+            # Ticker faux, devise inattendue, réseau coupé : redemander le même actif dix fois
+            # dans la même exécution ne donnerait rien de plus, et dix messages identiques
+            # noieraient les autres.
+            self._en_panne.add(actif)
             self._refuser(actif, erreur.categorie, str(erreur))
             return 0
 
         if not recus:
-            # La source a répondu, mais elle ne connaît aucun cours sur la période. C'est le
-            # symptôme d'un ticker qui existe sans coter — ou qui n'est pas celui qu'on croit.
-            self._refuser(
-                actif,
-                "cours indisponible",
-                f"la source n'a renvoyé aucun cours entre le {debut.isoformat()} et le "
-                f"{fin.isoformat()} pour « {declaration.ticker} » : vérifiez ce ticker dans "
-                "« actifs.toml »",
-            )
+            # Sur une période courte, une réponse vide est normale : un week-end, un pont, un
+            # jour férié. Ce n'est qu'au-delà qu'elle devient un symptôme — un ticker qui
+            # existe sans coter, ou qui n'est pas celui qu'on croit.
+            if (fin - debut).days >= JOURS_SANS_COTATION_TOLERES:
+                self._refuser(
+                    actif,
+                    "cours indisponible",
+                    f"la source n'a renvoyé aucun cours entre le {debut.isoformat()} et le "
+                    f"{fin.isoformat()} pour « {declaration.ticker} » : vérifiez ce ticker "
+                    "dans « actifs.toml »",
+                )
             return 0
 
         ecrits = self.cache.ecrire(actif, recus)
@@ -290,6 +322,41 @@ class FournisseurDeCours:
             self._series[actif] = self.cache.lire(actif)
         return self._series[actif]
 
+    def _ce_qui_manque(self, actif: str, debut: Date, fin: Date) -> tuple[Date, Date]:
+        """Réduit la période à ce que le cache ne connaît pas encore.
+
+        Le cache empêche de **réécrire** un cours ; c'est ici qu'on évite de le **redemander**.
+        La réduction n'a lieu que si le cache couvre déjà le début de la période : s'il faut
+        un jour plus ancien que tout ce qu'on connaît, il faut bien aller le chercher.
+
+        « Couvre le début » demande une tolérance : la période demandée commence à une date
+        quelconque, alors que le cache commence au premier jour **coté** qui suit. Quelques
+        jours d'écart sont donc normaux — au-delà, c'est que la source ne connaissait rien
+        avant, et il faut redemander.
+        """
+        serie = self._serie(actif)
+        if not serie:
+            return debut, fin
+
+        premier, dernier = min(serie), max(serie)
+        if debut < premier - RECUL_MAXIMAL:
+            return debut, fin
+        if dernier >= fin:
+            return fin, debut  # période vide : le cache couvre tout
+        return max(debut, dernier + UN_JOUR), fin
+
+    def _deja_demande(self, actif: str, debut: Date, fin: Date) -> bool:
+        return any(
+            depuis <= debut and fin <= jusqu_a
+            for depuis, jusqu_a in self._demandes.get(actif, [])
+        )
+
+    def _date_deja_demandee(self, actif: str, date: Date) -> bool:
+        """Vrai si une demande précédente couvrait déjà ce jour-là."""
+        return any(
+            depuis <= date <= jusqu_a for depuis, jusqu_a in self._demandes.get(actif, [])
+        )
+
     def _refuser(self, actif: str, categorie: str, motif: str, date: Date | None = None) -> None:
         # Un seul refus par actif et par catégorie : sur un portefeuille où un actif porte
         # dix opérations, répéter dix fois le même message ferait perdre les autres.
@@ -297,5 +364,4 @@ class FournisseurDeCours:
             (actif, categorie), Refus(actif=actif, categorie=categorie, motif=motif, date=date)
         )
 
-    def _a_deja_refuse(self, actif: str) -> bool:
-        return any(cle[0] == actif for cle in self._refus)
+

@@ -212,7 +212,7 @@ def modele(
     ]
 
     for actif in sorted(set(apercu) | set(propositions) | set(deja_declares)):
-        description = apercu.get(actif, "").strip()
+        description = _commentaire(apercu.get(actif, ""))
         if description:
             lignes.append(f"# {description}")
 
@@ -226,8 +226,28 @@ def modele(
     return "\n".join(lignes)
 
 
+def _texte_toml(valeur: str) -> str:
+    """Échappe une valeur écrite dans une chaîne TOML.
+
+    Un ticker ou un nom d'actif vient d'ailleurs — de la banque, ou d'une source de cours. Un
+    guillemet ou un retour à la ligne suffirait à rendre `actifs.toml` illisible, et c'est
+    précisément l'assistant censé le réparer qui refuserait alors de démarrer.
+    """
+    propre = valeur.replace("\\", "\\\\").replace('"', '\\"')
+    return "".join(caractere for caractere in propre if caractere.isprintable())
+
+
+def _commentaire(texte: str) -> str:
+    """Une ligne de commentaire : tout tient sur une ligne, sinon le reste cesse d'être un
+    commentaire et devient du TOML invalide."""
+    return " ".join(texte.split())
+
+
 def _ligne(actif: str, declaration: Declaration) -> str:
-    return f'"{actif}" = {{ ticker = "{declaration.ticker}", devise = "{declaration.devise}" }}'
+    return (
+        f'"{_texte_toml(actif)}" = {{ ticker = "{_texte_toml(declaration.ticker)}", '
+        f'devise = "{_texte_toml(declaration.devise)}" }}'
+    )
 
 
 def _lignes_a_valider(actif: str, proposition: Proposition | None) -> list[str]:
@@ -238,10 +258,12 @@ def _lignes_a_valider(actif: str, proposition: Proposition | None) -> list[str]:
             f'"{actif}" = ""',
         ]
 
-    trouve = ", ".join(
-        partie
-        for partie in (proposition.nom, proposition.place, proposition.devise)
-        if partie
+    trouve = _commentaire(
+        ", ".join(
+            partie
+            for partie in (proposition.nom, proposition.place, proposition.devise)
+            if partie
+        )
     )
     lignes = [f"# proposé par la source : {trouve}" if trouve else "# proposé par la source"]
 
@@ -249,8 +271,8 @@ def _lignes_a_valider(actif: str, proposition: Proposition | None) -> list[str]:
         # Écrite en commentaire, donc inactive : une cotation dans une autre monnaie ne doit
         # pas pouvoir servir par simple inattention (D-48).
         lignes += [
-            f"# ATTENTION : cette cotation est en {proposition.devise}, pas en "
-            f"{DEVISE_UNIQUE}. Ce n'est probablement pas la bonne place.",
+            f"# ATTENTION : cette cotation est en {_commentaire(proposition.devise or '')}, "
+            f"pas en {DEVISE_UNIQUE}. Ce n'est probablement pas la bonne place.",
             f"#   {_ligne(actif, Declaration(proposition.ticker, proposition.devise or ''))}",
             f'"{actif}" = ""',
         ]

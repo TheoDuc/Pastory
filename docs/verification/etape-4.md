@@ -255,9 +255,12 @@ valorisation.
 
 - **La valeur de tes actifs aujourd'hui**, le gain, le TRI et le TWRR : étape 5. Le cache de cours
   est déjà ce qu'il leur faut.
-- **Un cours du jour en cours de séance.** Pour une crypto, qui cote 24 h sur 24, le cours du jour
-  même est celui d'une journée **non terminée**. Sans conséquence ici — on ne valorise que des
-  jours passés —, mais à reprendre à l'étape 5.
+- **La valorisation « aujourd'hui ».** Le cours du jour en cours n'est pas un cours de clôture :
+  la séance n'est pas finie, et pour une crypto elle ne finit jamais. Comme le cache est définitif
+  ([D-50](../decisions.md)), l'enregistrer figerait un prix intermédiaire pour toujours. La source
+  **s'arrête donc à la dernière séance close**, et le cache ne contient jamais le jour même. C'est
+  sans conséquence ici — on ne valorise que des jours passés — mais l'étape 5, qui voudra la valeur
+  du portefeuille *maintenant*, devra prévoir un chemin à part pour ce cours-là.
 - **Le TER et la composition des ETF** : étapes 6 et 7, avec leurs propres sources.
 - **Un regroupement d'actions** (*split*). Il réécrit toute la série passée d'un actif chez la
   source, alors que le cache est définitif. Le cas est rare, il se voit à l'œil (un cours divisé

@@ -185,6 +185,27 @@ class TestModele:
         assert relu[CRYPTO] == {"ticker": "BBB-EUR", "devise": "EUR"}
         assert relu[AUTRE_ACTIF] == ""
 
+    def test_un_nom_d_actif_biscornu_ne_casse_pas_le_fichier(self):
+        # Le nom vient de la banque, le ticker d'une source : ni l'un ni l'autre n'est sous
+        # notre contrôle. Un guillemet ou un retour à la ligne rendrait le fichier illisible,
+        # et c'est l'assistant censé le réparer qui refuserait alors de démarrer.
+        texte = modele(
+            {ACTIF: 'ETF « Exemple » "spécial"\nsur deux lignes'},
+            {ACTIF: Proposition('AAA".DE', "XETRA", "EUR", 'Nom avec " et\nretour')},
+            Configuration(),
+        )
+
+        relu = tomllib.loads(texte)["actifs"]
+        assert relu[ACTIF]["devise"] == "EUR"
+        assert relu[ACTIF]["ticker"] == 'AAA".DE'
+
+    def test_un_ticker_deja_declare_avec_un_guillemet_se_relit(self):
+        deja = Configuration(declarations={ACTIF: Declaration('AAA".DE', "EUR")})
+
+        texte = modele({}, {}, deja)
+
+        assert tomllib.loads(texte)["actifs"][ACTIF]["ticker"] == 'AAA".DE'
+
     def test_une_declaration_existante_prime_sur_une_proposition(self):
         # L'utilisateur a validé : on ne lui repropose pas autre chose, et surtout on
         # n'écrase pas son choix.

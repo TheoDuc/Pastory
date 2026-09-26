@@ -12,7 +12,7 @@ from decimal import Decimal
 
 import pytest
 
-from dashboard_tr import cli
+from dashboard_tr import cli, tableur
 from dashboard_tr.adaptateurs.trade_republic import portefeuille as portefeuille_banque
 from dashboard_tr.config import actifs as config_actifs
 from dashboard_tr.config import comptes as config_comptes
@@ -602,6 +602,29 @@ class TestDeclarerLesActifs:
         assert code == cli.CODE_DECLARATION_ATTENDUE
         assert "dashboard comptes" in capsys.readouterr().err
 
+    def test_avec_un_export_d_ailleurs_aucune_recherche_n_est_lancee(
+        self, export_ailleurs, monkeypatch, capsys
+    ):
+        # Envoyer les ISIN de quelqu'un d'autre à un service extérieur, ce serait divulguer ce
+        # qu'il détient (règle 2 de CLAUDE.md). Le garde-fou ne doit donc pas se contenter
+        # d'empêcher l'écriture du fichier : aucune requête ne doit partir.
+        interroges = []
+
+        class YahooEspion:
+            nom = "espion"
+
+            def chercher(self, actif):
+                interroges.append(actif)
+                return None
+
+        nommer_les_comptes(POCHE_CORRIGEE)
+        brancher(monkeypatch, YahooEspion())
+
+        assert cli.main(["actifs", "--export", str(export_ailleurs)]) == 0
+
+        assert interroges == []
+        assert "Rien n'a été écrit" in capsys.readouterr().out
+
 
 class TestCours:
     def test_sans_actif_declare_la_commande_dit_quoi_faire(self, export, capsys):
@@ -698,6 +721,15 @@ class TestOublierCours:
         assert cli.main(["oublier-cours", "--tout"]) == 0
         assert "Rien à oublier" in capsys.readouterr().out
 
+    @pytest.mark.parametrize("saisie", ["", "   ", "..."])
+    def test_un_identifiant_inutilisable_donne_un_message_et_non_une_trace(
+        self, saisie, capsys
+    ):
+        # L'ISIN est tapé à la main : une faute de frappe ne doit pas produire une trace
+        # Python à l'écran.
+        assert cli.main(["oublier-cours", "--actif", saisie]) == cli.CODE_ECHEC
+        assert "identifiant d'actif utilisable" in capsys.readouterr().err
+
 
 class TestPositionsAvecCours:
     """Le contrôle qui prouve l'étape : D-15 branché de bout en bout."""
@@ -768,7 +800,7 @@ class TestPositionsAvecCours:
 
         capsys.readouterr().out.encode("cp1252")
 
-    def test_le_journal_marque_le_prix_comme_deduit(self, export, capsys):
+    def test_le_journal_porte_le_montant_deduit(self, export, capsys):
         nommer_les_comptes(POCHE_CORRIGEE)
         declarer_les_actifs(fictifs.ACTIF_ACTION_B)
         deposer_un_cours(fictifs.ACTIF_ACTION_B, Date(2026, 2, 27), "12.50")
@@ -780,3 +812,45 @@ class TestPositionsAvecCours:
             encoding="utf-8-sig"
         )
         assert "37,50" in journal
+
+    def test_le_csv_des_operations_dit_que_le_montant_est_deduit(self, export, capsys):
+        # Le rapport affirme que les CSV marquent ces montants : c'est `operations.csv`, avec
+        # sa colonne de provenance, qui le fait. Sans complétion ici, ce fichier afficherait
+        # « à compléter » là où les positions montrent un montant.
+        nommer_les_comptes(POCHE_CORRIGEE)
+        declarer_les_actifs(fictifs.ACTIF_ACTION_B)
+        deposer_un_cours(fictifs.ACTIF_ACTION_B, Date(2026, 2, 27), "12.50")
+
+        assert cli.main(["exporter-pivot", "--hors-ligne"]) == 0
+        affichage = capsys.readouterr().out
+
+        operations = (emplacements.dossier_personnel() / cli.NOM_EXPORT_PIVOT).read_text(
+            encoding="utf-8-sig"
+        )
+        # L'export fictif contient deux entrées de titres reçus : une action gagnée, dont le
+        # prix est lu dans le texte, et les actions gratuites, qui n'en ont aucun. C'est de
+        # cette seconde qu'il s'agit.
+        ligne_des_titres = next(
+            ligne for ligne in operations.splitlines() if "evt-gratuites-1" in ligne
+        )
+        assert "37,50" in ligne_des_titres
+        assert "deduction" in ligne_des_titres
+        assert tableur.VALEUR_A_COMPLETER not in ligne_des_titres
+        assert "1 prix complété(s)" in affichage
+
+    def test_sans_cours_le_csv_des_operations_dit_a_completer(self, export, capsys):
+        nommer_les_comptes(POCHE_CORRIGEE)
+
+        assert cli.main(["exporter-pivot", "--hors-ligne"]) == 0
+        capsys.readouterr()
+
+        operations = (emplacements.dossier_personnel() / cli.NOM_EXPORT_PIVOT).read_text(
+            encoding="utf-8-sig"
+        )
+        # L'export fictif contient deux entrées de titres reçus : une action gagnée, dont le
+        # prix est lu dans le texte, et les actions gratuites, qui n'en ont aucun. C'est de
+        # cette seconde qu'il s'agit.
+        ligne_des_titres = next(
+            ligne for ligne in operations.splitlines() if "evt-gratuites-1" in ligne
+        )
+        assert tableur.VALEUR_A_COMPLETER in ligne_des_titres

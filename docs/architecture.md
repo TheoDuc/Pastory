@@ -343,10 +343,12 @@ Quatre fichiers, et un principe qui les explique tous : **on refuse plutôt que 
 - **`yahoo.py` — la source** ([D-51](decisions.md)), en bibliothèque standard : `urllib` utilise le
   magasin de certificats de Windows, celui que l'antivirus de la machine ne casse pas, et
   `parse_float=Decimal` fait qu'aucun cours n'existe jamais sous forme de flottant
-  ([D-33](decisions.md)). Trois garde-fous, tous nés d'un piège vérifié : la devise annoncée est
+  ([D-33](decisions.md)). Quatre garde-fous, tous nés d'un piège vérifié : la devise annoncée est
   confrontée à celle déclarée ([D-48](decisions.md)) ; une série trop espacée est refusée (la
   source renvoie du mensuel en annonçant du quotidien) ; le champ `adjclose` n'est **jamais** lu,
-  sinon les dividendes seraient comptés deux fois ([D-29](decisions.md)).
+  sinon les dividendes seraient comptés deux fois ([D-29](decisions.md)) ; et la **séance en
+  cours** n'est pas rendue — son cours n'est pas une clôture, et le cache étant définitif, il
+  figerait un prix intermédiaire pour toujours.
 - **`completion.py` — le branchement de [D-15](decisions.md)**, et le point d'architecture de
   l'étape. Il transforme du pivot en pivot : un `montant_brut` marqué `a_completer` devient un
   montant marqué `deduction`, les deux provenances que

@@ -82,9 +82,10 @@ diversification, l'interface.
      une autre monnaie est refusé, jamais converti ;
   3. une plage nommée (`range=max`) renvoie du **mensuel** en annonçant du quotidien : les périodes
      sont toujours bornées par dates explicites.
-- **Un cours du jour même est celui d'une journée non terminée** pour la crypto, qui cote 24 h sur
-  24. Sans conséquence à l'étape 4, qui ne valorise que des jours passés. **À trancher à l'étape
-  5**, qui valorisera « aujourd'hui ».
+- **Le cache ne contient jamais le jour même**, et c'est volontaire : la séance en cours n'a pas de
+  cours de clôture, et le cache étant définitif, l'y écrire figerait un prix intermédiaire pour
+  toujours. La source s'arrête à la dernière séance close. **L'étape 5 devra donc prévoir un chemin
+  à part** pour valoriser « aujourd'hui » — un cours du jour qu'on affiche sans l'enregistrer.
 - **Ce qui n'est pas valorisé est dit, jamais estimé** ([D-45](decisions.md)). Un actif sans
   correspondance ISIN → ticker, ou sans cours, doit ressortir comme **non valorisé** dans les
   totaux de l'étape 5 — un zéro silencieux ferait un gain faux.

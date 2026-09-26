@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 import urllib.error
 from datetime import date as Date
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
@@ -219,6 +219,54 @@ class TestGardeFous:
         )
 
         assert len(source(texte).serie(ACTIF, EN_EUROS, DEBUT, FIN)) == 3
+
+    def test_un_titre_peu_liquide_n_est_pas_refuse(self):
+        # Un titre qui ne cote qu'une fois par semaine n'est pas une série mensuelle. Le
+        # refuser priverait de cours un actif réellement détenu, avec un motif faux.
+        texte = reponse(
+            [
+                horodatage(2026, 3, 2),
+                horodatage(2026, 3, 9),
+                horodatage(2026, 3, 16),
+                horodatage(2026, 3, 23),
+            ],
+            [100.0, 101.0, 102.0, 103.0],
+        )
+
+        assert len(source(texte).serie(ACTIF, EN_EUROS, DEBUT, FIN)) == 4
+
+
+class TestSeanceEnCours:
+    def test_la_seance_du_jour_n_est_pas_enregistree(self):
+        # Son « cours de clôture » n'en est pas un — la séance n'est pas finie. Comme le cache
+        # est définitif (D-50), l'enregistrer figerait un prix intermédiaire pour toujours.
+        # C'est le cas d'une crypto, qui cote 24 h sur 24, mais aussi d'une action en séance.
+        aujourd_hui = datetime.now(tz=ZoneInfo(FUSEAU_XETRA)).date()
+        hier = aujourd_hui - timedelta(days=1)
+        texte = reponse(
+            [
+                int(
+                    datetime(hier.year, hier.month, hier.day, 9, tzinfo=ZoneInfo(FUSEAU_XETRA)
+                          ).timestamp()
+                ),
+                int(
+                    datetime(
+                        aujourd_hui.year,
+                        aujourd_hui.month,
+                        aujourd_hui.day,
+                        9,
+                        tzinfo=ZoneInfo(FUSEAU_XETRA),
+                    ).timestamp()
+                ),
+            ],
+            [100.0, 101.0],
+        )
+
+        serie = source(texte).serie(
+            ACTIF, EN_EUROS, aujourd_hui - timedelta(days=5), aujourd_hui
+        )
+
+        assert [un_cours.date for un_cours in serie] == [hier]
 
     def test_un_ticker_inconnu_dit_ou_le_corriger(self):
         texte = json.dumps(

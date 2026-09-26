@@ -203,9 +203,18 @@ def _montant(texte: str | None, fichier: Path, numero: int) -> Decimal:
     nettoye = (texte or "").replace(" ", "").replace(" ", "").replace(" ", "")
     nettoye = nettoye.replace(",", ".")
     try:
-        return Decimal(nettoye)
+        valeur = Decimal(nettoye)
     except InvalidOperation as erreur:
         raise _illisible(fichier, numero, f"« {texte} » n'est pas un nombre") from erreur
+
+    # `Decimal` accepte « nan » et « inf ». Les laisser passer serait pire qu'une erreur de
+    # lecture : un total deviendrait « nan » sans que rien ne le signale, ou l'affichage
+    # planterait bien plus loin, sur un fichier qu'on ne soupçonnerait plus.
+    if not valeur.is_finite():
+        raise _illisible(fichier, numero, f"« {texte} » n'est pas un nombre utilisable")
+    if valeur < 0:
+        raise _illisible(fichier, numero, f"« {texte} » est un cours négatif")
+    return valeur
 
 
 def _illisible(fichier: Path, numero: int, probleme: str) -> CacheIllisible:

@@ -62,12 +62,16 @@ NAVIGATEUR = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
 DELAI = 20
 """Secondes avant d'abandonner un appel. Un tableau de bord ne doit pas rester figé."""
 
-ESPACEMENT_MAXIMAL = 6
+ESPACEMENT_MAXIMAL = 20
 """Jours entre deux cours consécutifs au-delà desquels une série n'est plus quotidienne.
 
-Un week-end en laisse trois, un pont un peu plus. Trente veut dire qu'on a reçu du mensuel en
-croyant demander du quotidien : c'est le piège vérifié de l'étape 4, et il ne dit pas son nom
-(le champ de granularité annonce « 1d » dans les deux cas)."""
+Le piège à attraper est une série **mensuelle** présentée comme quotidienne : ses points sont
+espacés de 28 à 31 jours, et le champ de granularité annonce « 1d » dans les deux cas.
+
+Le seuil est volontairement haut. Un week-end laisse trois jours, un pont davantage, et
+surtout un titre **peu liquide** peut ne coter qu'une fois par semaine : le refuser en
+prétendant que « ce n'est pas du quotidien » serait un faux diagnostic, et priverait de cours
+un actif réellement détenu."""
 
 Ouvrir = Callable[[str], str]
 """Comment le texte d'une réponse est obtenu. Remplaçable dans les tests : aucun test du
@@ -99,6 +103,12 @@ class Yahoo:
         fuseau = _fuseau(meta)
         aujourd_hui = Date.today()
 
+        # La séance du jour n'est pas terminée : son « cours de clôture » n'en est pas un, et
+        # le cache étant définitif (D-50), l'enregistrer figerait un prix intermédiaire pour
+        # toujours. On s'arrête donc à la dernière séance close. Valoriser « aujourd'hui »
+        # demandera un chemin à part, à l'étape 5.
+        dernier_jour_clos = datetime.now(tz=fuseau).date() - timedelta(days=1)
+
         jours = _jours(contenu, fuseau)
         _verifier_l_espacement(jours, declaration.ticker)
 
@@ -114,7 +124,7 @@ class Yahoo:
                 ticker=declaration.ticker,
             )
             for jour, valeur in jours
-            if debut <= jour <= fin
+            if debut <= jour <= min(fin, dernier_jour_clos)
         ]
 
     # --- Pour l'assistant `dashboard actifs` seulement -----------------------------------
@@ -351,6 +361,9 @@ def _verifier_l_espacement(jours: list[tuple[Date, Decimal]], ticker: str) -> No
     """
     if len(jours) < 3:
         # Trop peu de points pour conclure : une fenêtre de trois jours en contient deux.
+        return
+    if (jours[-1][0] - jours[0][0]).days < 2 * ESPACEMENT_MAXIMAL:
+        # Période trop courte pour distinguer un mois d'un pont un peu long.
         return
 
     ecarts = [

@@ -226,8 +226,13 @@ def commande_lire(dossier_export: Path | None) -> int:
     return code
 
 
-def commande_exporter_pivot(dossier_export: Path | None) -> int:
-    """Écrit les opérations en CSV, après avoir affiché le rapport de lecture."""
+def commande_exporter_pivot(dossier_export: Path | None, hors_ligne: bool = False) -> int:
+    """Écrit les opérations en CSV, après avoir affiché le rapport de lecture.
+
+    Les prix manquants sont complétés comme pour `positions` : sans cela, ce fichier
+    montrerait « à compléter » là où le rapport des positions montre un montant, et c'est
+    justement le fichier que le propriétaire ouvre pour vérifier.
+    """
     dossier = dossier_export or source.dossier_par_defaut()
     try:
         rapport, code = _lire(dossier, avec_recoupement=True)
@@ -250,11 +255,21 @@ def commande_exporter_pivot(dossier_export: Path | None) -> int:
         )
         return code
 
+    try:
+        completion = completion_cours.completer_les_prix(
+            rapport.operations, _fournisseur_de_cours(hors_ligne)
+        )
+    except CacheIllisible as erreur:
+        print(erreur, file=sys.stderr)
+        return CODE_ECHEC
+
     fichier = export_csv.ecrire(
-        rapport.operations, emplacements.dossier_personnel() / NOM_EXPORT_PIVOT
+        completion.operations, emplacements.dossier_personnel() / NOM_EXPORT_PIVOT
     )
-    print(f"\n{len(rapport.operations)} opération(s) écrite(s) dans :\n  {fichier}")
+    print(f"\n{len(completion.operations)} opération(s) écrite(s) dans :\n  {fichier}")
     print("Ouvrez ce fichier dans un tableur pour comparer avec l'application Trade Republic.")
+    for ligne in _rapport_des_cours(completion):
+        print(ligne)
     return code
 
 
@@ -349,9 +364,12 @@ def _rapport_des_cours(completion: Completion) -> list[str]:
             lignes.append(f"    {'':<14} {'':<7} {origine}, {prix.cours.place}, "
                           f"{prix.cours.source}")
         lignes.append(
-            "  Ces montants sont déduits, pas donnés par la banque : les CSV les marquent"
+            "  Ces montants sont déduits, pas donnés par la banque. Dans operations.csv,"
         )
-        lignes.append("  « deduction ».")
+        lignes.append(
+            "  écrit par « exporter-pivot », la colonne « origine montant_brut » le dit :"
+        )
+        lignes.append("  elle vaut « deduction » au lieu de « donnee ».")
 
     if completion.incompletes:
         lignes.append("")
@@ -599,7 +617,10 @@ def commande_actifs(dossier_export: Path | None, hors_ligne: bool = False) -> in
 
     manquants = configuration.manquants(apercu)
     propositions = {}
-    if manquants and not hors_ligne:
+    # Avec --export, **aucune** recherche n'est lancée : envoyer les ISIN de quelqu'un d'autre
+    # à un service extérieur, ce serait divulguer ce qu'il détient (règle 2 de CLAUDE.md).
+    # L'assistant se contente alors d'afficher ce qu'il a trouvé dans le fichier.
+    if manquants and not hors_ligne and dossier_export is None:
         print(f"Recherche d'un ticker pour {len(manquants)} actif(s) sans correspondance...")
         yahoo = Yahoo()
         for actif in manquants:
@@ -769,7 +790,17 @@ def commande_oublier_cours(actif: str | None, tout: bool) -> int:
         )
         return CODE_ECHEC
 
-    oublies = cache.oublier(actif)
+    try:
+        oublies = cache.oublier(actif)
+    except ValueError:
+        # L'identifiant est tapé à la main : il peut être vide ou n'être que des espaces.
+        print(
+            f"« {actif} » n'est pas un identifiant d'actif utilisable. Donnez l'ISIN tel "
+            "qu'il apparaît dans « dashboard positions ».",
+            file=sys.stderr,
+        )
+        return CODE_ECHEC
+
     if not oublies:
         cible = f"l'actif {actif}" if actif else "le cache"
         print(f"Rien à oublier : aucun cours en cache pour {cible}.")
@@ -800,7 +831,7 @@ def construire_analyseur() -> argparse.ArgumentParser:
     )
 
     avec_date = {"positions", "exporter-positions"}
-    sans_reseau = {"positions", "exporter-positions", "actifs"}
+    sans_reseau = {"positions", "exporter-positions", "exporter-pivot", "actifs"}
     for nom, aide in (
         ("comptes", "dire à quoi sert chaque compte espèces"),
         ("lire", "rapport de lecture, sans rien écrire"),
@@ -902,7 +933,7 @@ def main(arguments: list[str] | None = None) -> int:
         case "lire":
             return commande_lire(options.export)
         case "exporter-pivot":
-            return commande_exporter_pivot(options.export)
+            return commande_exporter_pivot(options.export, options.hors_ligne)
         case "actifs":
             return commande_actifs(options.export, options.hors_ligne)
         case "cours":
