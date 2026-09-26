@@ -571,3 +571,110 @@ comparé concorde) de **`complet`** (tout a pu être comparé). Un « rien à si
 rapprochement incomplet serait une fausse impression de contrôle.
 **Reste ouvert :** [Q-26](questions-ouvertes.md) — faut-il aller chercher ce second compte-titres
 pour que le PEA soit rapproché lui aussi ?
+
+### D-48 · 2026-09-26 · Le cours de référence est celui du marché principal, en euros · Validée
+**Décision :** le cours d'un actif est celui de sa **place principale cotant en euros** — Xetra
+pour un ETF ou une action allemande, Euronext Paris pour une française, et ainsi de suite. La
+**devise attendue est déclarée** dans la correspondance ISIN → ticker, et un cours dont la devise
+ne correspond pas est **refusé et signalé**, jamais converti ni utilisé.
+
+**Raison :** Q-27 (a). Le comparatif ([sources-de-cours.md §4](sources-de-cours.md)) a trouvé un
+ISIN pour lequel la recherche automatique renvoie la cotation **londonienne en dollars** d'un ETF
+qui cote aussi à Xetra en euros. Sans vérification de la devise, cet actif aurait été valorisé en
+dollars sous une étiquette « € » — un chiffre crédible et faux, ce que [D-45](#d-45) interdit.
+Le marché principal est en outre vérifiable dans n'importe quel journal et disponible en
+historique quotidien profond.
+
+**Ce que ça écarte :** la LS Exchange comme référence — l'ancienne place de Trade Republic, encore
+interrogeable mais qui n'exécute plus ses ordres depuis juillet 2026 et dont le volume s'est
+effondré ; et toute conversion de devise, qui ajouterait une source d'erreur pour un besoin que ce
+portefeuille n'a pas.
+
+**Conséquence à assumer devant l'utilisateur :** la valeur affichée **ne sera pas** au centime
+près celle de l'application Trade Republic. Deux places ne cotent jamais exactement pareil au même
+instant, et Trade Republic exécute désormais lui-même. L'interface doit le dire, et **la place et
+la source de chaque cours doivent être visibles**.
+
+**Cas particulier :** la correspondance ISIN → ticker étant un fichier relu et corrigeable par
+l'utilisateur, un actif peut y recevoir une autre place — c'est un choix explicite de sa part,
+ligne par ligne, pas un comportement automatique.
+
+### D-49 · 2026-09-26 · pytr reste l'unique porte d'entrée, et aucun cours ne passe par Trade Republic · Validée
+**Décision :** le projet continue d'utiliser `pytr` pour l'export d'événements, en connaissance de
+la clause ci-dessous, et **aucune source de cours ne passe par Trade Republic** — ni le point
+d'accès `ticker`/`aggregateHistory` de pytr, ni la LS Exchange comme source de production.
+
+**Raison :** Q-28 (a). Les conditions générales de Trade Republic interdisent « l'utilisation de
+voies d'accès, de programmes et/ou d'autres interfaces non fournis par Trade Republic en dehors de
+l'application », avec droit de **résiliation extraordinaire**. Le texte exact et le numéro
+d'article n'ont pas pu être relevés dans le contrat lui-même et **restent à confirmer**. Le
+propriétaire a tranché en connaissance de ce risque, qui porte sur son compte.
+
+**Ce qui limite ce risque, et qui ne doit pas changer :** l'application ne fait que **lire** —
+aucun ordre n'est passé, rien n'est modifié ([D-41](#d-41), [D-46](#d-46)) — et chaque appel reste
+une connexion complète, initiée par l'utilisateur, sans identifiant conservé.
+
+**Deux raisons techniques s'ajoutent** pour écarter pytr des cours : un tableau de bord doit
+pouvoir s'ouvrir et afficher une valeur **sans demander le PIN** (d'où le cache, [D-50](#d-50)) ;
+et le `exchange="LSX"` par défaut de pytr ne désigne plus la place d'exécution réelle.
+
+**Écarte :** demander les cours par ISIN à Trade Republic, ce qui aurait supprimé le besoin d'une
+correspondance ISIN → ticker ; et l'inverse, renoncer à pytr, qui retirerait au projet sa raison
+d'être.
+
+### D-50 · 2026-09-26 · Un cours en cache est définitif, et s'oublie sur demande · Validée
+**Décision :** un cours de clôture écrit dans le cache local n'est **jamais redemandé**. Une
+commande explicite permet de **vider le cache d'un actif** — ou de tous — quand un chiffre paraît
+faux.
+
+**Raison :** Q-29 (a). Un jour passé ne change plus, et le cache est ce qui rend le tableau de bord
+utilisable sans réseau et à l'abri des limitations de débit de la source
+([sources-de-cours.md §7](sources-de-cours.md)). Surtout, c'est ce qui rend les chiffres
+**stables** : le montant vu hier est celui qu'on revoit aujourd'hui, condition d'une vérification
+à la main.
+
+**Ce que ça écarte :** une fenêtre glissante de rafraîchissement, et le rechargement complet à
+chaque ouverture — tous deux plus coûteux en appels et, pire, capables de faire bouger un chiffre
+déjà vérifié sans que rien ne le signale.
+
+**Ce que la commande d'oubli traite :** la correction d'une erreur par la source après coup, et le
+**regroupement d'actions** (*split*), qui réécrit d'un coup toute la série passée d'un actif. Ces
+deux cas sont rares et se voient à l'œil ; les traiter par une commande explicite vaut mieux que
+de rendre le fonctionnement courant imprévisible.
+**À prévoir dans l'interface :** la **date de récupération** de chaque cours reste affichée, sans
+quoi un cache définitif deviendrait un cache opaque.
+
+### D-51 · 2026-09-26 · Les cours viennent de Yahoo Finance, en cours brut · Validée
+**Décision :** la source de cours retenue est **Yahoo Finance**, pour les ETF, les actions **et** la
+crypto — une seule source, un seul cache, un seul mode de panne. Le cours utilisé est le **cours de
+clôture brut**, jamais la série retraitée des dividendes.
+
+**Raison :** Q-14 et [D-18](#d-18), qui demandaient un comparatif écrit avant de choisir ; il est
+dans [sources-de-cours.md](sources-de-cours.md). Yahoo est la seule source gratuite qui couvre à la
+fois Xetra, Euronext Paris et la crypto en euros avec un historique quotidien profond — donc la
+seule compatible avec [D-48](#d-48). Toutes les autres échouent sur un critère rédhibitoire :
+Stooq est fermée aux programmes, `pandas-datareader` a supprimé ses lecteurs, Alpha Vantage limite
+le gratuit à 100 jours, Twelve Data et Finnhub facturent l'Europe, EODHD et Marketstack donnent un
+an, Börse Frankfurt exige un jeton recalculé depuis son propre JavaScript, et Trade Republic est
+écarté par [D-49](#d-49).
+
+**Le cours brut n'est pas un détail :** la valeur par défaut de la bibliothèque réinjecte les
+dividendes dans le cours passé. Comme le moteur les compte déjà ([D-29](#d-29)), ils seraient
+comptés **deux fois**. L'écart mesuré sur une action distribuante dépasse 5 % au début d'une série
+d'un an — et il est **nul sur un ETF capitalisant**, donc invisible tant qu'on ne détient rien de
+distribuant.
+
+**Trois contraintes qui viennent avec cette source**, toutes vérifiées et à traiter dans le code :
+- demander un historique par **dates explicites**, jamais par plage nommée : « tout l'historique »
+  renvoie des points **mensuels** en annonçant du quotidien ;
+- **vérifier la devise** à chaque cours ([D-48](#d-48)) ;
+- accepter les **trous** : un jour sans cours n'est pas une erreur. Le moteur remonte au dernier
+  jour coté **et le dit** ; il n'interpole jamais.
+
+**Écarte :** une source par type d'actif (crypto ailleurs), qui multiplierait les mécanismes pour un
+portefeuille qui tient dans une page ; et toute source payante, contraire à [D-18](#d-18).
+**Fragilité connue et acceptée :** Yahoo n'offre aucune interface officielle et limite le débit
+sans prévenir. C'est la raison d'être du cache définitif ([D-50](#d-50)) et du refus explicite
+([D-45](#d-45)) : l'application doit continuer à afficher les cours déjà connus, et dire clairement
+ce qu'elle ignore. Changer de source ne touchera pas le moteur ([D-26](#d-26)).
+**Deuxième avis** disponible sur demande : la LS Exchange (`ls-tc.de`), hors production.

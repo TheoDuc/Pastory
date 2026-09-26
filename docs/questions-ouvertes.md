@@ -124,3 +124,12 @@ prévalu, à sa demande.
 | Q-23 Frais dans les rendements | **Non** : performance sur montants bruts, frais et taxes à part (recommandation écartée) | D-21 |
 | Q-24 Gain total | Trois chiffres clés : gain en €, TRI, TWRR ; synthèse brute + vue « valeur réelle » | D-22, D-23 |
 | Q-25 Dividendes | **Bruts** dans la performance ; la retenue va dans les coûts | D-29 |
+
+### Lot 3 (2026-09-26) — les cours de marché
+Posées après le [comparatif des sources de cours](sources-de-cours.md), tranchées le même jour.
+
+| Question | Réponse | Retenu | Décision |
+|---|---|---|---|
+| Q-27 Place de cotation de référence | a | **Marché principal en euros** (Xetra, Euronext Paris…). Devise attendue déclarée par actif, et un cours dans une autre devise est refusé et signalé. Écart de quelques centimes avec l'application Trade Republic assumé et affiché | D-48 |
+| Q-28 Interface tierce interdite par les conditions générales | a | **pytr reste l'unique porte d'entrée**, en connaissance de la clause, et **aucun cours** ne passe par Trade Republic. Lecture seule, connexion à l'initiative de l'utilisateur | D-49 |
+| Q-29 Durée de vie d'un cours en cache | a | **Définitif** : un cours écrit n'est jamais redemandé. Une commande explicite vide le cache d'un actif (corrections de la source, *splits*) | D-50 |

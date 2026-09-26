@@ -56,6 +56,29 @@ copier dans le projet : `uv run dashboard lire --export <dossier>`. Avec `--expo
 `comptes` se contente d'**afficher** les comptes trouvés : elle n'enregistre rien, parce que les
 comptes d'un autre export ne sont pas les vôtres.
 
+## Les cours de marché
+
+```bash
+uv run dashboard actifs   # une seule fois : où chercher le cours de chaque actif
+uv run dashboard cours    # récupère les cours et les garde en cache
+```
+
+Votre banque identifie un actif par son **ISIN** ; les sources de cours travaillent au **ticker**,
+place de cotation comprise — et un même titre cote souvent sur plusieurs places, dans plusieurs
+monnaies. `actifs` **propose** une correspondance, **vous la validez** dans un fichier lisible. Un
+actif que vous laissez vide n'est pas valorisé : il est signalé, jamais estimé.
+
+La devise attendue est déclarée à côté du ticker. Un cours qui arrive dans une autre monnaie est
+**refusé, jamais converti** ([D-48](docs/decisions.md)) : c'est ce qui empêche des dollars d'être
+comptés comme des euros.
+
+Un cours enregistré est **définitif** ([D-50](docs/decisions.md)) : le chiffre vu hier est celui
+que vous revoyez aujourd'hui, et l'application s'ouvre sans réseau. Pour reprendre un actif à la
+source — une correction, un regroupement d'actions —, `uv run dashboard oublier-cours --actif
+<ISIN>`.
+
+D'où viennent ces cours et pourquoi cette source : [sources-de-cours.md](docs/sources-de-cours.md).
+
 ## Voir ses positions
 
 ```bash
@@ -64,6 +87,9 @@ uv run dashboard exporter-positions  # positions.csv et journal.csv, pour le tab
 uv run dashboard positions-reelles   # demande à la banque ce qu'elle dit détenir
 ```
 
+`positions` et `exporter-positions` acceptent `--hors-ligne` : les mêmes chiffres, avec les seuls
+cours déjà en cache et aucun appel réseau.
+
 Le **journal** (`journal.csv`) est la pièce à ouvrir pour vérifier : une ligne par opération,
 avec l'état d'avant et l'état d'après. Sur chaque ligne, *capital avant + ajouté − retiré =
 capital après*. C'est ce qui permet de refaire un chiffre à la main, sans lire le code
@@ -71,9 +97,11 @@ capital après*. C'est ce qui permet de refaire un chiffre à la main, sans lire
 [cahier de vérification de l'étape 3](docs/verification/etape-3.md).
 
 **Là où l'arithmétique n'a plus de sens, l'application se tait et le dit**
-([D-45](docs/decisions.md)). Des parts reçues gratuitement dont le cours n'est pas encore connu
-sont bien comptées, mais le prix de revient de l'actif reste « à compléter » : le calculer
-quand même donnerait un chiffre crédible et faux, que rien ne signalerait.
+([D-45](docs/decisions.md)). Des parts reçues gratuitement reçoivent le cours de leur jour
+d'apparition ([D-15](docs/decisions.md)), et le rapport dit lequel, pour que vous puissiez refaire
+la multiplication. Mais tant qu'aucun cours n'est disponible — actif non déclaré, ticker inconnu —
+les parts sont comptées et le prix de revient de l'actif reste « à compléter » : le calculer quand
+même donnerait un chiffre crédible et faux, que rien ne signalerait.
 
 `positions-reelles` compare ensuite ce que l'application a calculé avec ce que la banque affiche.
 C'est le seul contrôle qui ne dépend d'aucune lecture de texte, et le seul capable de révéler des
@@ -107,8 +135,10 @@ demande que d'écrire un nouvel adaptateur ([D-26](docs/decisions.md)).
 | Fichier | Contenu |
 |---|---|
 | [docs/feuille-de-route.md](docs/feuille-de-route.md) | Les étapes du projet et l'étape en cours |
+| [docs/architecture.md](docs/architecture.md) | Comment c'est construit, couche par couche |
 | [docs/format-pivot.md](docs/format-pivot.md) | Le format des opérations, champ par champ |
 | [docs/glossaire.md](docs/glossaire.md) | Chaque notion financière et sa formule |
+| [docs/sources-de-cours.md](docs/sources-de-cours.md) | D'où viennent les cours, et pourquoi cette source |
 | [docs/decisions.md](docs/decisions.md) | Les décisions prises, avec leurs raisons |
 | [docs/inventaire-donnees.md](docs/inventaire-donnees.md) | Ce que contiennent les exports pytr, et leurs pièges |
 | [docs/verification/](docs/verification/) | Comment vérifier les chiffres soi-même, étape par étape |
