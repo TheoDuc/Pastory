@@ -443,10 +443,18 @@ Flux externes observés : `BANK_TRANSACTION_INCOMING` et `CARD_TRANSACTION`. **D
 flux sont hors périmètre** : les rendements se mesurent sur les flux entre espèces et actifs
 (achats, ventes, dividendes).
 
-### 8. « La crypto est identifiée par un code XF » : **cohérent, mais non vérifiable sur plusieurs cas**
+### 8. « La crypto est identifiée par un code XF » : **cohérent, et corroboré hors de ces données**
 Un seul code crypto dans les deux jeux (propriétaire), de forme `XF000` + lettres + 4 chiffres.
-Aucun autre code ne commence par `X`. Le tiers n'a pas de crypto. La règle reste une déduction 🔶
-à confirmer sur d'autres exports (Q-12).
+Aucun autre code ne commence par `X`. Le tiers n'a pas de crypto.
+
+**Complété à l'étape 4 :** la recherche des sources de cours a trouvé, dans des sources publiques
+sans lien avec ces exports, plusieurs codes concordants — un par crypto, tous de la forme `XF000` +
+abréviation lisible + 4 chiffres ([sources-de-cours.md §5](sources-de-cours.md)). Le motif n'est
+donc plus une déduction tirée d'un seul cas, et **l'abréviation contenue dans le code désigne la
+crypto**, ce qui sert à établir la correspondance vers un cours.
+
+Cela reste une lecture de texte, isolée et corrigeable par l'utilisateur (règle 4 de CLAUDE.md), et
+la confirmation sur un export contenant **plusieurs** cryptos manque toujours 🔶 (Q-12).
 
 ### 9. « Frais nuls ≠ absence de coût » : **vrai en principe, non mesurable dans ces données**
 Les plans d'épargne crypto et ETF affichent tous deux « Kostenlos ». Aucun champ ne donne l'écart

@@ -174,8 +174,28 @@ attendant, ils sont marqués « prix à compléter ».
 
 **Session :** nouvelle session. `/code-review` à la fin.
 
-## Étape 4 · Cours de marché 🔜
+## Étape 4 · Cours de marché ✅
 **But :** obtenir des cours fiables, actuels et historiques, gratuitement (D-18).
+
+**Fait :** le [comparatif des sources](sources-de-cours.md) — quatorze sources, 134 requêtes web —
+puis la couche `dashboard_tr/donnees_externes/`, trois commandes (`actifs`, `cours`,
+`oublier-cours`) et le [cahier de vérification](verification/etape-4.md).
+
+**Quatre décisions** : la source est Yahoo Finance en cours brut ([D-51](decisions.md)), la
+référence est le marché principal en euros avec vérification de la devise ([D-48](decisions.md)),
+aucun cours ne passe par Trade Republic ([D-49](decisions.md)), un cours en cache est définitif
+([D-50](decisions.md)).
+
+Le premier branchement est fait : les **titres reçus sans prix** ([D-15](decisions.md)) ont
+désormais un prix, donc un capital investi et un prix de revient. **Le moteur n'a pas changé d'une
+ligne** — la complétion transforme du pivot en pivot, et le moteur ignore toujours qu'une source
+de cours existe.
+
+Trois pièges trouvés en interrogeant réellement le service, chacun capable de produire un chiffre
+crédible et faux, chacun désormais couvert par un test : le cours **retraité des dividendes**
+(qui les compterait deux fois, et qui est invisible sur un ETF capitalisant) ; la **devise** qui
+change avec la place, dont un cas où la recherche par ISIN renvoie des dollars ; et la série
+**mensuelle** qui se présente comme quotidienne.
 
 **Claude :**
 - Lance un **agent de recherche** qui compare les sources Python gratuites selon des critères
@@ -193,7 +213,7 @@ attendant, ils sont marqués « prix à compléter ».
 
 **Session :** nouvelle session : recherche d'abord, code ensuite.
 
-## Étape 5 · Valorisation et rendements ⏳
+## Étape 5 · Valorisation et rendements 🔜
 **But :** capital brut dans le temps et les trois chiffres clés (D-22) : **gain en €**, **TRI**,
 **TWRR**. Par actif, par poche et au total, selon la période choisie. Tout en montants bruts, sans
 frais ni taxes (D-21).

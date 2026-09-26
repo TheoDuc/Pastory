@@ -7,7 +7,7 @@ commencer.
 > **À mettre à jour par l'instance qui termine une étape**, avant la fusion dans `main`. La
 > dernière section dit comment.
 >
-> Dernière mise à jour : **2026-09-21**, fin de l'étape 3.
+> Dernière mise à jour : **2026-09-26**, fin de l'étape 4.
 
 ---
 
@@ -15,19 +15,19 @@ commencer.
 
 ```
 Lis CLAUDE.md puis docs/feuille-de-route.md, et docs/prompt-session-suivante.md.
-On attaque l'étape 4 : les cours de marché.
+On attaque l'étape 5 : la valorisation et les rendements.
 ```
 
 ---
 
 ## Où en est le projet
 
-- **Étapes 0 à 3 terminées.** L'application lit un export Trade Republic, en sort des opérations
-  au format pivot, et en déduit **quantité détenue, capital net investi, prix de revient, frais,
-  taxes, dividendes et plus-values réalisées**. Elle peut aussi comparer ses quantités avec ce
-  que la banque dit détenir.
-- **Prochaine : étape 4**, les cours de marché. C'est ce qui débloque le reste : la valeur des
-  actifs, puis le gain, le TRI et le TWRR (étape 5).
+- **Étapes 0 à 4 terminées.** L'application lit un export Trade Republic, en sort des opérations
+  au format pivot, va chercher les **cours de marché**, et en déduit **quantité détenue, capital
+  net investi, prix de revient, frais, taxes, dividendes et plus-values réalisées**. Elle peut
+  aussi comparer ses quantités avec ce que la banque dit détenir.
+- **Prochaine : étape 5**, la valorisation et les rendements — la valeur des actifs aujourd'hui et
+  dans le temps, puis le **gain en €**, le **TRI** et le **TWRR** (D-22).
 - Deux questions ouvertes : **Q-21** (présentation des frais), qui attend l'étape 8, et
   **Q-26** (rapprocher le PEA, voir plus bas), qui n'est pas bloquante.
 
@@ -36,62 +36,82 @@ On attaque l'étape 4 : les cours de marché.
 | Où | Quoi |
 |---|---|
 | [format-pivot.md](format-pivot.md) | **Le contrat**, en deux parties : les opérations (§1 à §8) et la photo du portefeuille (§9) |
+| [architecture.md](architecture.md) | **Comment c'est construit** : les couches, leurs frontières, le trajet d'un chiffre |
 | `dashboard_tr/pivot/` | `Operation`, `PositionReelle`, les contrôles de cohérence et l'export CSV |
 | `dashboard_tr/adaptateurs/trade_republic/` | L'adaptateur complet, en couches testables |
+| `dashboard_tr/donnees_externes/` | `cours.py` (le contrat), `cache.py`, `yahoo.py`, `completion.py` |
 | `dashboard_tr/moteur/` | `position.py` (le rejeu), `portefeuille.py`, `rapprochement.py`, `export_csv.py`, `rapport.py` |
 | `dashboard_tr/tableur.py` | Les conventions d'écriture des nombres, communes à tous les CSV |
-| `dashboard_tr/cli.py` | 7 commandes ; `ouvrir` arrive à l'étape 9 |
-| [decisions.md](decisions.md) | D-01 à D-47. L'étape 3 a ajouté D-44 à D-47 |
-| [verification/etape-3.md](verification/etape-3.md) | Le cahier de vérification du moteur |
+| `dashboard_tr/cli.py` | 10 commandes ; `ouvrir` arrive à l'étape 9 |
+| [decisions.md](decisions.md) | D-01 à D-51. L'étape 4 a ajouté D-48 à D-51 |
+| [sources-de-cours.md](sources-de-cours.md) | Le comparatif des sources de cours, et les pièges vérifiés |
+| [verification/etape-4.md](verification/etape-4.md) | Le cahier de vérification des cours |
 | [scripts/diagnostic_comptes_titres.py](../scripts/diagnostic_comptes_titres.py) | Diagnostic structurel pour Q-26. **Jamais lancé pour l'instant** |
 
-**Ce qui n'existe pas encore :** les cours, les rendements, l'interface.
+**Ce qui n'existe pas encore :** les rendements, les coûts estimés (TER, spread), la
+diversification, l'interface.
 
 ---
 
-## Ce que l'étape 4 doit savoir de l'étape 3
+## Ce que l'étape 5 doit savoir de l'étape 4
 
-- **Le moteur est prêt à recevoir des cours.** Il ne leur demande qu'une chose :
-  `cours(actif, date)`. La date à utiliser est `Operation.date`, déjà en heure de Paris (D-36).
-- **`Portefeuille.au(date)` donne l'état à n'importe quel jour passé**, en coupant le journal.
-  C'est le mécanisme sur lequel la valorisation dans le temps s'appuiera à l'étape 5 : rien à
-  rejouer.
-- **Deux endroits attendent les cours, et un seul est bloquant :**
-  1. **les titres reçus sans prix** (D-15) : leur `montant_brut` est `a_completer`. Dès qu'un
-     cours du jour d'apparition existe, le capital investi de l'actif cesse d'être sous-estimé
-     et son prix de revient redevient un nombre (D-45). **C'est la première chose à brancher** ;
-  2. la valeur de marché des positions, qui est l'objet de l'étape 5.
-- **Un actif est identifié par son ISIN** — ou par un code commençant par `XF` pour la crypto
-  (D-16). La correspondance ISIN → ticker est le point délicat de l'étape 4, annoncé dans la
-  feuille de route.
-- **La clé d'une position est le couple (actif, poche)**, pas l'actif seul (D-44) : un même ETF
-  peut être en PEA et en CTO. Un cours, lui, ne dépend que de l'actif.
-- **Le moteur ne lit que le pivot** (D-26). Une source de cours doit donc passer par une
-  interface propre, comme les banques : `dashboard_tr/donnees_externes/` l'attend, vide.
-- **Le prix de revient est arrêté à six décimales** (D-44) : c'est un résultat de division, et
-  `prix de revient × quantité` peut s'écarter du capital de quelques centièmes de centime. **Le
-  capital investi fait foi.**
-- **Le rapprochement ne couvre pas le PEA** (D-47), et ce n'est pas un défaut du moteur : `pytr`
-  ne demande les positions que d'**un seul** compte-titres, et Trade Republic loge le PEA dans un
-  second. Une poche entièrement absente de la photo est signalée **une fois** et ses actifs
-  sortent en « hors périmètre », sans alerte. **Conséquence pour la suite : sur le PEA, aucune
-  seconde source ne confirme les quantités.** Q-26 reste ouverte, et le
-  [diagnostic](../scripts/diagnostic_comptes_titres.py) écrit pour la trancher **n'a pas encore
-  été lancé** — le proposer au propriétaire quand l'occasion se présente, il ne prend qu'une
-  minute et n'affiche aucune valeur personnelle.
+- **Un cours se demande en une ligne.** `FournisseurDeCours.cours(actif, date)` rend un `Cours` ou
+  `None`. Il ne lève jamais d'exception sur un cours manquant : il accumule des `Refus` avec leur
+  motif, que l'appelant affiche. Le construire se fait par `cli._fournisseur_de_cours()`, **le seul
+  endroit de l'application qui nomme Yahoo**.
+- **Un `Cours` porte sa propre date**, qui peut être **antérieure** à celle demandée : un samedi
+  prend le cours du vendredi (jusqu'à dix jours de recul, au-delà c'est un refus). Rien n'est
+  interpolé. La valorisation devra donc afficher *quel jour* elle a utilisé, comme le fait déjà le
+  bloc « Cours de marché » du rapport.
+- **Le cache est déjà rempli jour par jour** depuis la première opération de chaque actif, moins
+  trente jours. `dashboard cours` le complète, et un cours écrit n'est jamais redemandé
+  ([D-50](decisions.md)). Une valorisation sur toute la durée de détention ne demandera donc aucun
+  appel réseau supplémentaire.
+- **`Portefeuille.au(date)` existe depuis l'étape 3** : l'état à n'importe quel jour passé s'obtient
+  en coupant le journal, sans rien rejouer. Avec le cache, la valeur du portefeuille jour par jour
+  est à portée.
+- **Le moteur ne connaît pas les cours, et cela doit rester vrai.** Les prix manquants sont
+  complétés **avant** lui, dans `donnees_externes/completion.py`, qui transforme du pivot en pivot
+  ([architecture.md §5.7](architecture.md)). Si l'étape 5 a besoin d'un cours dans `moteur/`, la
+  bonne façon est de **lui passer les cours en paramètre** — pas d'importer `donnees_externes`
+  depuis le moteur, ce qui casserait [D-26](decisions.md).
+- **Trois pièges de la source sont déjà neutralisés**, et il ne faut pas les réintroduire :
+  1. `adjclose` n'est **jamais** lu — il réinjecte les dividendes, que le moteur compte déjà
+     ([D-29](decisions.md)). L'erreur est **invisible sur un ETF capitalisant** ;
+  2. la **devise** annoncée est confrontée à celle déclarée ([D-48](decisions.md)) ; un cours dans
+     une autre monnaie est refusé, jamais converti ;
+  3. une plage nommée (`range=max`) renvoie du **mensuel** en annonçant du quotidien : les périodes
+     sont toujours bornées par dates explicites.
+- **Un cours du jour même est celui d'une journée non terminée** pour la crypto, qui cote 24 h sur
+  24. Sans conséquence à l'étape 4, qui ne valorise que des jours passés. **À trancher à l'étape
+  5**, qui valorisera « aujourd'hui ».
+- **Ce qui n'est pas valorisé est dit, jamais estimé** ([D-45](decisions.md)). Un actif sans
+  correspondance ISIN → ticker, ou sans cours, doit ressortir comme **non valorisé** dans les
+  totaux de l'étape 5 — un zéro silencieux ferait un gain faux.
+- **Le rapprochement ne couvre pas le PEA** ([D-47](decisions.md)), et ce n'est pas un défaut du
+  moteur : `pytr` ne demande les positions que d'**un seul** compte-titres, et Trade Republic loge
+  le PEA dans un second. **Conséquence pour la suite : sur le PEA, aucune seconde source ne
+  confirme les quantités.** Q-26 reste ouverte, et le
+  [diagnostic](../scripts/diagnostic_comptes_titres.py) écrit pour la trancher **n'a pas encore été
+  lancé** — le proposer au propriétaire quand l'occasion se présente, il ne prend qu'une minute et
+  n'affiche aucune valeur personnelle.
 
-**Ce que le propriétaire a vérifié à l'étape 3 (2026-09-21) :** il a lancé le moteur sur ses
-données et **confirme que les chiffres sont bons**. Un seul écart, expliqué et corrigé depuis :
-tous ses actifs de PEA ressortaient « absent de la banque » au rapprochement, ce qui a donné
-D-47 et Q-26.
+**Ce que le propriétaire a vérifié à l'étape 3 (2026-09-21) :** il a lancé le moteur sur ses données
+et **confirme que les chiffres sont bons**. Un seul écart, expliqué et corrigé depuis : tous ses
+actifs de PEA ressortaient « absent de la banque » au rapprochement, ce qui a donné D-47 et Q-26.
 
-**Ce qu'il n'a pas pu vérifier, et c'est à garder en tête :** son portefeuille est **jeune**. Peu
-de ventes, peu de dividendes, pas de distribution de capital, aucun recul dans le temps. Les
-règles les plus délicates du moteur — vente partielle au prorata, plus-values réalisées — sont
-donc validées par les cas fictifs du cahier, **pas par ses données**. Les étapes suivantes ne
-doivent pas prendre « vérifié sur les vraies données » pour acquis au-delà de ce qui l'a
-réellement été. C'est aussi pour cela que le rapprochement compte : c'est le seul contrôle qui
-ne dépende pas de ce que le portefeuille contient.
+**Ce qu'il reste à vérifier de l'étape 4 :** le [cahier](verification/etape-4.md) est écrit mais
+**le propriétaire ne l'a pas encore parcouru**. Les cours n'ont donc été confrontés à son
+application sur **aucun** actif réel. Le contrôle B.2 (trois cours, en face de l'application) est
+le premier à lui proposer.
+
+**Ce qu'il n'a pas pu vérifier, et c'est à garder en tête :** son portefeuille est **jeune**. Peu de
+ventes, peu de dividendes, pas de distribution de capital, aucun recul dans le temps. Les règles les
+plus délicates du moteur — vente partielle au prorata, plus-values réalisées — sont donc validées
+par les cas fictifs du cahier, **pas par ses données**. Cela vaut aussi pour l'étape 5 : un TRI et
+un TWRR sur un portefeuille de quelques mois ne diront pas grand-chose, et les cas fictifs
+refaisables dans un tableur seront la seule vraie preuve. Les étapes suivantes ne doivent pas
+prendre « vérifié sur les vraies données » pour acquis au-delà de ce qui l'a réellement été.
 
 ---
 

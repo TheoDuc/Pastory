@@ -36,5 +36,7 @@ lisible et vérifiable à la main.
 8. **Principes d'architecture** (détail dans `docs/decisions.md`) :
    - les espèces ne sont jamais suivies (D-11) ;
    - la performance est calculée en montants bruts, les frais et taxes à part (D-21) ;
-   - le moteur ne lit que le format pivot, Trade Republic n'étant qu'un adaptateur (D-26).
+   - le moteur ne lit que le format pivot, Trade Republic n'étant qu'un adaptateur (D-26) ;
+   - les cours sont **bruts** (jamais retraités des dividendes) et leur **devise est vérifiée**,
+     jamais convertie (D-48, D-51). Aucun cours ne passe par Trade Republic (D-49).
 9. Toute décision structurante est ajoutée à `docs/decisions.md`. Tout point d'architecture qui apparaît en discussion est noté dans `docs/architecture-notes.md`. Les notes initiales évoluent quand le propriétaire change de cap.

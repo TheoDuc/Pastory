@@ -13,9 +13,9 @@ choix dans [decisions.md](decisions.md) ; le détail du contrat entre couches da
 [format-pivot.md](format-pivot.md). Ici, aucune raison n'est réexpliquée : elle est citée
 (`D-xx`).
 
-> État à la dernière mise à jour (fin de l'étape 3) : les couches **adaptateur**, **pivot** et
-> **moteur** sont écrites. Les couches **données externes** et **vues** existent comme dossiers
-> vides, avec leur place déjà définie. Le §10 dit ce qui s'y branchera.
+> État à la dernière mise à jour (fin de l'étape 4) : les couches **adaptateur**, **pivot**,
+> **moteur** et **données externes** sont écrites. La couche **vues** existe comme dossier vide,
+> avec sa place déjà définie. Le §10 dit ce qui s'y branchera.
 
 ---
 
@@ -44,15 +44,18 @@ choix dans [decisions.md](decisions.md) ; le détail du contrat entre couches da
    │  PIVOT  pivot/            ◄── le contrat, figé (D-35)     │
    │  Operation · PositionReelle · contrôles de cohérence      │
    └───────────────────────┬───────────────────────────────────┘
-                           │  et rien d'autre
-                           ▼
+                           │                  ▲
+                           │                  └── DONNÉES EXTERNES  donnees_externes/
+                           │                      cours (D-51) · cache (D-50)
+                           │                      complète les prix manquants (D-15)
+                           │                      et rend du pivot
+                           ▼  et rien d'autre
    ┌───────────────────────────────────────────────────────────┐
    │  MOTEUR  moteur/                                          │
    │  rejeu par actif · journal · agrégation · rapprochement   │
    └───────────────────────┬───────────────────────────────────┘
-                           │                  ▲
-                           │                  └── DONNÉES EXTERNES (étape 4)
-                           ▼                      cours, TER, fiscalité
+                           │  positions, totaux, signalements
+                           ▼
    ┌───────────────────────────────────────────────────────────┐
    │  SORTIES   cli.py (aujourd'hui) · vues/ (étape 9)         │
    │  rapports en français · CSV pour le tableur               │
@@ -64,7 +67,7 @@ de banque ne demande d'écrire qu'un adaptateur.
 
 ---
 
-## 2. Les cinq couches, et ce que chacune s'interdit
+## 2. Les six couches, et ce que chacune s'interdit
 
 L'interdiction compte autant que le rôle : c'est elle qui garantit qu'un défaut reste local.
 
@@ -73,7 +76,8 @@ L'interdiction compte autant que le rôle : c'est elle qui garantit qu'un défau
 | `config/` | Où sont les fichiers personnels ; ce que seul l'utilisateur peut dire (le rôle de chaque compte) | Ce qu'on fera de ces réponses |
 | `adaptateurs/` | Comprendre les fichiers d'**une** banque et les traduire en pivot | Ce qu'est un prix de revient, un gain, un rendement |
 | `pivot/` | Décrire une opération et une position réelle, et vérifier qu'une ligne se tient | Qui l'a produite, qui va la lire |
-| `moteur/` | Rejouer les opérations, tenir le journal, agréger, rapprocher | Le nom d'un champ Trade Republic, l'emplacement d'un fichier |
+| `donnees_externes/` | Aller chercher un cours, le garder, et **compléter un prix manquant** | Ce qu'est une position, un prix de revient, une plus-value |
+| `moteur/` | Rejouer les opérations, tenir le journal, agréger, rapprocher | Le nom d'un champ Trade Republic, l'emplacement d'un fichier, **d'où viennent les cours** |
 | `vues/` (étape 9) | Montrer, expliquer, laisser filtrer | Tout calcul — elle n'appelle que le moteur |
 
 Deux conséquences pratiques :
@@ -82,7 +86,9 @@ Deux conséquences pratiques :
   adaptateur. Mal cumulé d'un achat à l'autre → moteur. Les deux ne se mélangent jamais ;
 - **le moteur est testable sans aucune banque.** Ses tests partent d'opérations pivot fictives
   écrites à la main ([tests/moteur/operations_fictives.py](../tests/moteur/operations_fictives.py)),
-  jamais d'un export.
+  jamais d'un export ;
+- **la couche des cours est testable sans réseau.** Ses tests partent de réponses écrites à la
+  main et d'une source factice en mémoire, jamais d'un appel réel.
 
 ---
 
@@ -95,7 +101,8 @@ qu'elles sortent des `import` :
 config/  ──────────────┐
                        ▼
 adaptateurs/  ──────► pivot/  ◄────── moteur/
-                       │                │
+       donnees_externes/ ──┘           │
+                       │               │
                        └──► tableur.py ◄┘
 
 cli.py ──► tout ce qui précède
@@ -109,7 +116,10 @@ Ce qui en découle, et qui se vérifie en lisant les imports :
   de ses deux usagers, sinon il cesserait d'en être un ;
 - **`moteur/` n'importe que `pivot/`, `tableur.py` et lui-même.** C'est la propriété la plus
   importante du projet, et la plus facile à casser par inadvertance : un seul import
-  d'adaptateur dans `moteur/` annulerait l'ouverture aux autres banques.
+  d'adaptateur dans `moteur/` annulerait l'ouverture aux autres banques ;
+- **`moteur/` n'importe pas `donnees_externes/` non plus**, et c'est ce qui surprend le plus.
+  Les cours n'entrent pas par le moteur : ils **complètent des opérations pivot avant lui**
+  (§5.7). Le moteur ne sait donc pas qu'une source de cours existe.
 
 Deux flèches surprennent à la lecture, et sont voulues :
 
@@ -131,7 +141,8 @@ dashboard_tr/
 ├── tableur.py                 comment on écrit un nombre (CSV et phrases)
 ├── config/
 │   ├── emplacements.py        où vivent les fichiers personnels (D-37)
-│   └── comptes.py             le rôle de chaque compte espèces, déclaré par l'utilisateur (D-10)
+│   ├── comptes.py             le rôle de chaque compte espèces, déclaré par l'utilisateur (D-10)
+│   └── actifs.py              de l'ISIN au ticker, et la devise attendue (D-48, D-51)
 ├── adaptateurs/
 │   └── trade_republic/
 │       ├── source.py          où sont les fichiers, et comment les rafraîchir via pytr
@@ -156,7 +167,11 @@ dashboard_tr/
 │   ├── signalement.py         ce que le moteur n'a pas pu calculer normalement (D-45)
 │   ├── rapport.py             le rapport de « dashboard positions »
 │   └── export_csv.py          positions.csv et journal.csv
-├── donnees_externes/          vide — cours, TER, fiscalité (étape 4)
+├── donnees_externes/
+│   ├── cours.py               le contrat : un cours, un refus, une source interchangeable
+│   ├── cache.py               un CSV par actif, définitif et oubliable (D-50)
+│   ├── yahoo.py               la source retenue, et ses trois garde-fous (D-51)
+│   └── completion.py          les prix manquants complétés, du pivot vers du pivot (D-15)
 └── vues/                      vide — l'interface Dash (étapes 8 et 9)
 
 scripts/
@@ -314,10 +329,31 @@ Deux options traversent plusieurs commandes : `--export <dossier>` pour examiner
 ailleurs sans le copier dans le projet, et `--au AAAA-MM-JJ` pour arrêter les chiffres à une
 date.
 
-### 5.7 Les deux dossiers vides
+### 5.7 `donnees_externes/` — les cours, et ce qu'on refuse d'inventer
 
-`donnees_externes/` et `vues/` existent déjà, avec leur place définie et rien dedans. C'est
-volontaire : leur absence dit où le travail suivant se branchera, et le §10 dit à quoi.
+Quatre fichiers, et un principe qui les explique tous : **on refuse plutôt que d'estimer**.
+
+- **`cours.py` — le contrat.** Un `Cours` porte sa valeur, le **jour qu'il décrit**, sa place, sa
+  source et le jour où il a été récupéré : sans cela, un cache définitif ([D-50](decisions.md))
+  deviendrait un cache opaque. Un `Refus` porte son motif, en français. `SourceDeCours` est le
+  protocole d'une source ; `FournisseurDeCours` réunit la configuration, le cache et la source, et
+  **n'échoue jamais** — il rend `None` avec un motif.
+- **`cache.py` — un CSV par actif**, aux conventions de `tableur.py`, donc relisible dans un
+  tableur. Un cours déjà écrit n'est **jamais** réécrit ; `oublier()` est la seule sortie.
+- **`yahoo.py` — la source** ([D-51](decisions.md)), en bibliothèque standard : `urllib` utilise le
+  magasin de certificats de Windows, celui que l'antivirus de la machine ne casse pas, et
+  `parse_float=Decimal` fait qu'aucun cours n'existe jamais sous forme de flottant
+  ([D-33](decisions.md)). Trois garde-fous, tous nés d'un piège vérifié : la devise annoncée est
+  confrontée à celle déclarée ([D-48](decisions.md)) ; une série trop espacée est refusée (la
+  source renvoie du mensuel en annonçant du quotidien) ; le champ `adjclose` n'est **jamais** lu,
+  sinon les dividendes seraient comptés deux fois ([D-29](decisions.md)).
+- **`completion.py` — le branchement de [D-15](decisions.md)**, et le point d'architecture de
+  l'étape. Il transforme du pivot en pivot : un `montant_brut` marqué `a_completer` devient un
+  montant marqué `deduction`, les deux provenances que
+  [format-pivot §4](format-pivot.md) avait prévues. **Le moteur n'a pas gagné une ligne** : il
+  savait déjà traiter les deux cas.
+
+Ce qui reste vide : `vues/`, dont le §10 dit ce qui s'y branchera.
 
 ---
 
@@ -385,6 +421,7 @@ précédente :
 | `tests/adaptateurs/` | Événements fictifs (`evenements_fictifs.py`) | La lecture comprend l'export, et signale ce qu'elle ne comprend pas |
 | `tests/pivot/` | Opérations écrites à la main (`exemples.py`) | Les contrôles de cohérence attrapent ce qu'ils doivent |
 | `tests/moteur/` | Opérations pivot fictives (`operations_fictives.py`) | Les calculs sont justes — **sans aucune banque** |
+| `tests/donnees_externes/` | Réponses écrites à la main, source factice (`cours_fictifs.py`) | Les pièges de la source sont attrapés — **sans aucun réseau** |
 | `tests/test_cli.py` | Un dossier d'export temporaire | Les commandes s'enchaînent, et les rapports s'affichent en cp1252 |
 
 **Aucune donnée réelle dans les tests** ([D-38](decisions.md)). La vérification sur vraies
@@ -397,17 +434,19 @@ données est un exercice séparé, fait par le propriétaire, guidé par un
 
 | À venir | Où | Ce qui ne changera pas |
 |---|---|---|
-| Cours de marché *(étape 4)* | `donnees_externes/`, derrière une interface interchangeable comme les banques | Le moteur ne demande qu'une chose : `cours(actif, date)`. La date est `Operation.date`, déjà en heure de Paris ([D-36](decisions.md)) |
-| Valeur, gain, TRI, TWRR *(étape 5)* | `moteur/` | `Portefeuille.au(date)` existe déjà : rien à rejouer |
+| Valeur, gain, TRI, TWRR *(étape 5)* | `moteur/` | `Portefeuille.au(date)` existe déjà : rien à rejouer, et le cache de cours est déjà rempli jour par jour |
 | Spread, TER, valeur réelle *(étape 6)* | `moteur/`, côté **coûts** | La séparation performance / coûts est déjà en place ([D-21](decisions.md)) |
 | Diversification *(étape 7)* | `donnees_externes/` + `moteur/` | — |
 | Interface Dash *(étapes 8 et 9)* | `vues/` | Les vues n'appellent que le moteur — jamais l'adaptateur ni une source externe |
 | Monte-Carlo *(étape 12)* | Module indépendant, branché sur les résultats du moteur | Rien ne dépendra de lui ([D-27](decisions.md)) |
 
-Le premier branchement des cours est connu d'avance : les **titres reçus sans prix**
-([D-15](decisions.md)) portent un `montant_brut` en `a_completer`. Dès qu'un cours du jour
-d'apparition existe, le capital investi de l'actif cesse d'être sous-estimé et son prix de
-revient redevient un nombre au lieu d'un « à compléter » ([D-45](decisions.md)).
+Le premier branchement des cours est **fait** : les **titres reçus sans prix**
+([D-15](decisions.md)) reçoivent le cours de leur jour d'apparition, leur capital investi cesse
+d'être sous-estimé et leur prix de revient redevient un nombre ([D-45](decisions.md)).
+
+Ce que l'étape 5 trouvera en place : `FournisseurDeCours.cours(actif, date)`, un cache déjà rempli
+jour par jour depuis la première opération de chaque actif, et le repli sur le dernier jour coté.
+Il lui restera à décider **quelle** date valoriser, et à quoi comparer.
 
 ---
 
@@ -422,9 +461,12 @@ revient redevient un nombre au lieu d'un « à compléter » ([D-45](decisions.m
 Rien d'autre. Si l'ajout demande de toucher `moteur/`, c'est le signe que le pivot manque d'un
 champ : voir [format-pivot §8](format-pivot.md), qui dit comment le format évolue.
 
-**Ajouter une source de cours** : un module dans `donnees_externes/` derrière l'interface
-commune, un cache local daté, et la correspondance ISIN → identifiant de la source dans la
-configuration de l'utilisateur — vérifiable et corrigeable par lui.
+**Ajouter ou remplacer une source de cours** : un module dans `donnees_externes/` qui suit le
+protocole `SourceDeCours` (une méthode, `serie`), et une ligne dans `cli._fournisseur_de_cours` —
+le seul endroit de l'application qui nomme Yahoo. Le cache, la correspondance ISIN → ticker et
+tout le reste sont déjà communs. Une source doit **lever** une `ErreurDeSource` plutôt que de
+rendre une valeur approchée : c'est ce qui garantit qu'un cours douteux devient un refus visible
+et non un chiffre.
 
 **Ajouter un type d'opération** : le pivot est une liste **fermée**. Ajouter un type se décide
 d'abord ([format-pivot §8](format-pivot.md) et une entrée dans `decisions.md`), puis se propage
