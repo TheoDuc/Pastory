@@ -107,8 +107,10 @@ demande que d'écrire un nouvel adaptateur ([D-26](docs/decisions.md)).
 | Fichier | Contenu |
 |---|---|
 | [docs/feuille-de-route.md](docs/feuille-de-route.md) | Les étapes du projet et l'étape en cours |
+| [docs/architecture.md](docs/architecture.md) | Comment c'est construit, couche par couche |
 | [docs/format-pivot.md](docs/format-pivot.md) | Le format des opérations, champ par champ |
 | [docs/glossaire.md](docs/glossaire.md) | Chaque notion financière et sa formule |
+| [docs/sources-de-cours.md](docs/sources-de-cours.md) | D'où viennent les cours, et pourquoi cette source |
 | [docs/decisions.md](docs/decisions.md) | Les décisions prises, avec leurs raisons |
 | [docs/inventaire-donnees.md](docs/inventaire-donnees.md) | Ce que contiennent les exports pytr, et leurs pièges |
 | [docs/verification/](docs/verification/) | Comment vérifier les chiffres soi-même, étape par étape |

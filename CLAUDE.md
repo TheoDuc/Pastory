@@ -13,9 +13,11 @@ lisible et vérifiable à la main.
 | [docs/feuille-de-route.md](docs/feuille-de-route.md) | **Étapes du projet**, étape en cours, méthode de travail |
 | [docs/notes-initiales.md](docs/notes-initiales.md) | **Référence** des intentions du propriétaire (notes + évolutions de cap) |
 | [docs/format-pivot.md](docs/format-pivot.md) | **Le format des opérations** : le contrat entre les adaptateurs et le moteur |
+| [docs/architecture.md](docs/architecture.md) | **Comment c'est construit** : les couches, leurs frontières, et le trajet d'un chiffre de bout en bout |
 | [docs/architecture-notes.md](docs/architecture-notes.md) | Points d'architecture notés en chemin |
 | [docs/contexte-produit.md](docs/contexte-produit.md) | Objectif, public, contraintes, hors périmètre |
 | [docs/glossaire.md](docs/glossaire.md) | Notions financières : définition et formule retenue |
+| [docs/sources-de-cours.md](docs/sources-de-cours.md) | **Comparatif des sources de cours** (étape 4) : ce qui est vérifié, ce qui est écarté, et les pièges |
 | [docs/inventaire-donnees.md](docs/inventaire-donnees.md) | Structure des données pytr, type par type, et pièges. **Le §11 recense ceux trouvés en écrivant l'adaptateur** |
 | [docs/verification/](docs/verification/) | Cahiers de vérification : cas fictifs refaisables à la main, et contrôles sur les vraies données |
 | [docs/decisions.md](docs/decisions.md) | Journal des décisions (raison + ce qui est écarté) |

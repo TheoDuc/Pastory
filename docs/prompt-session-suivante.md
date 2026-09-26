@@ -99,6 +99,21 @@ ne dépende pas de ce que le portefeuille contient.
 
 - **`uv` a besoin de `--native-tls`** : l'antivirus Norton inspecte le trafic chiffré, et le jeu
   de certificats par défaut ne le reconnaît pas. `uv sync --native-tls`.
+- **L'antivirus peut couper Claude Code en pleine session.** Le 2026-09-26, **Avast WebShield** a
+  bloqué `api.anthropic.com` en annonçant un contenu « malveillant » — un faux positif de son
+  inspection HTTPS, même mécanisme que le point précédent. Conséquences en chaîne, à reconnaître
+  du premier coup d'œil :
+  1. une erreur **403 « blocked by Avast WebShield »** apparaît ;
+  2. les agents de recherche en cours meurent tous en même temps, laissant le tour de conversation
+     **incomplet** ;
+  3. chaque relance renvoie alors cet état invalide et répond **400 Bad Request**, indéfiniment.
+     Se reconnecter ne sert à rien : **il faut ouvrir une nouvelle session.** Le travail déjà
+     écrit sur le disque est intact, et les résultats des recherches restent récupérables dans les
+     journaux de la session (`~/.claude/projects/<projet>/<session>/subagents/`).
+
+  **Prévention :** ajouter `api.anthropic.com` aux exclusions d'Avast (*Menu → Paramètres →
+  Protection → Web Shield*). Et pour toute recherche en ligne longue : écrire les trouvailles dans
+  un fichier au fur et à mesure, plutôt que de les garder dans la conversation.
 - **OneDrive synchronise le projet** (D-24). Si une commande échoue avec un « accès refusé »
   inexpliqué, c'est la première piste. Le `.venv` a déjà dû être recréé pour cette raison.
 - **La console Windows écrit en cp1252** : elle ne sait afficher ni les traits de tableau, ni les

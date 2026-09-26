@@ -4,6 +4,9 @@ Points d'architecture relevés au fil des sessions. L'**étape 1** en a repris u
 figée : le format pivot (§2) et les choix d'outillage (D-31 à D-38). Le reste attend l'étape qui
 le concerne.
 
+Ce fichier est un **carnet** : il garde les points au fur et à mesure qu'ils apparaissent.
+La description d'ensemble de ce qui est construit est dans [architecture.md](architecture.md).
+
 - Un point qui renvoie à une décision (`D-xx`) est **acquis**.
 - Un point marqué *(à étudier)* est une piste ou une contrainte à traiter.
 - Les outils retenus sont dans [decisions.md](decisions.md) : Dash (D-31), uv (D-32), Python
@@ -146,6 +149,14 @@ l'écriture a confirmé, et ce qu'elle a ajouté :
   fournisseur de cours ne touche pas le moteur. *(à étudier)*
 - **Correspondance ISIN → identifiant de la source** (ticker, place de cotation), stockée dans la
   configuration locale, vérifiable et corrigeable par l'utilisateur.
+- **La devise se vérifie à chaque cours, et n'est jamais supposée.** Le comparatif de l'étape 4
+  ([sources-de-cours.md §4](sources-de-cours.md)) a trouvé un ISIN pour lequel la recherche
+  automatique renvoie une cotation **en dollars** : un cours dont la devise n'est pas attendue doit
+  être **refusé et signalé**, jamais utilisé ([D-45](decisions.md)). C'est le garde-fou principal
+  de cette couche. *(à étudier : où il vit exactement)*
+- **Un cours brut, jamais retraité des dividendes** : le moteur les compte déjà
+  ([D-29](decisions.md)). Une série « ajustée » les compterait deux fois, de façon invisible sur un
+  ETF capitalisant.
 - **Cache local** des cours, TER et compositions, avec la date de récupération. L'application doit
   s'ouvrir sans réseau, sur les dernières données connues, et afficher leur date.
 - **Paramètres datés et sourcés**, dans des fichiers lisibles, mis à jour sans toucher au code : taux
