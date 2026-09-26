@@ -101,10 +101,18 @@ diversification, l'interface.
 et **confirme que les chiffres sont bons**. Un seul écart, expliqué et corrigé depuis : tous ses
 actifs de PEA ressortaient « absent de la banque » au rapprochement, ce qui a donné D-47 et Q-26.
 
-**Ce qu'il reste à vérifier de l'étape 4 :** le [cahier](verification/etape-4.md) est écrit mais
-**le propriétaire ne l'a pas encore parcouru**. Les cours n'ont donc été confrontés à son
-application sur **aucun** actif réel. Le contrôle B.2 (trois cours, en face de l'application) est
-le premier à lui proposer.
+**Ce que le propriétaire a vérifié à l'étape 4 (2026-09-26) :** il a confronté les cours du cache à
+son application, sur plusieurs actifs. Les écarts sont **de l'ordre du demi-pour-cent**, et il les
+accepte : Trade Republic a sa propre source. C'est le contrôle B.2 du cahier, et il valide ce qu'il
+devait valider — la correspondance ISIN → ticker est juste, car une mauvaise ligne de cotation
+donnerait un écart de plusieurs pour cent, ou un facteur.
+
+**Conséquence pour l'étape 5, et il faut l'assumer dès la conception :** la valeur du portefeuille
+affichée par cette application **ne tombera pas** sur celle de l'application Trade Republic. Un
+demi-pour-cent d'écart sur chaque cours se retrouvera sur le total, et donc sur le gain. Ce n'est
+pas un défaut ([D-48](decisions.md)), mais c'est le premier chiffre que le propriétaire comparera :
+l'interface doit **dire** d'où viennent les cours et à quelle date, sans quoi il croira à une
+erreur de calcul.
 
 **Ce qu'il n'a pas pu vérifier, et c'est à garder en tête :** son portefeuille est **jeune**. Peu de
 ventes, peu de dividendes, pas de distribution de capital, aucun recul dans le temps. Les règles les

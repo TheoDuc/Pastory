@@ -196,13 +196,23 @@ Ouvre le cache : un fichier CSV par actif, dans le dossier `cache/cours` que
       le site de la place (Xetra, Euronext) ;
 - [ ] vérifie que la **devise** et la **place** écrites dans le fichier sont celles attendues.
 
-> **Un écart de quelques centimes est normal** : Trade Republic exécute désormais lui-même tes
-> ordres et n'affiche pas forcément le cours de clôture de Xetra. Ce que tu vérifies ici, c'est
-> qu'on est sur **le bon titre**, **la bonne place** et **le bon ordre de grandeur** — pas le
-> centime.
+> **Un écart de quelques dixièmes de pour cent est normal**, et il vaut mieux le lire en
+> pourcentage qu'en centimes : trois centimes sur un ETF à 6 € ne sont pas du même ordre que
+> trois centimes sur une action à 200 €. Deux causes s'additionnent — Trade Republic exécute
+> lui-même tes ordres depuis juillet 2026 et affiche son propre prix, et le chiffre que
+> l'application montre à l'écran est souvent le prix **courant**, pas la clôture du jour que tu
+> compares. Pour une comparaison propre, prends la clôture du même jour dans l'historique de
+> l'application, pas le prix affiché sur la fiche.
 >
-> **Un écart important, en revanche, doit être signalé** : mauvais ticker, mauvaise place, ou
-> mauvaise monnaie.
+> Ce que tu vérifies ici, c'est qu'on est sur **le bon titre**, **la bonne place** et **le bon
+> ordre de grandeur**.
+>
+> **Ce qui doit t'alerter**, en revanche : un écart de plusieurs pour cent, un rapport constant
+> entre les deux chiffres (souvent une autre devise), ou un ordre de grandeur différent (souvent
+> une autre classe de parts, ou un ETF distribuant confondu avec son jumeau capitalisant).
+>
+> *Constaté par le propriétaire le 2026-09-26, sur plusieurs actifs : des écarts de l'ordre du
+> demi-pour-cent, jugés sans conséquence.*
 
 ### B.3 — Le contrôle qui prouve l'étape : un prix retrouvé
 
