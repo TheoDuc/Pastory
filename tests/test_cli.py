@@ -7,12 +7,19 @@ doit écrire dans le vrai dossier personnel** de la personne qui lance la suite.
 from __future__ import annotations
 
 import json
+from datetime import date as Date
+from decimal import Decimal
 
 import pytest
 
 from dashboard_tr import cli
 from dashboard_tr.adaptateurs.trade_republic import portefeuille as portefeuille_banque
+from dashboard_tr.config import actifs as config_actifs
 from dashboard_tr.config import comptes as config_comptes
+from dashboard_tr.config import emplacements
+from dashboard_tr.config.actifs import Proposition
+from dashboard_tr.donnees_externes.cache import Cache
+from dashboard_tr.donnees_externes.cours import Cours
 from tests.adaptateurs.trade_republic import evenements_fictifs as fictifs
 
 
@@ -443,3 +450,333 @@ class TestPositionsReelles:
 
         assert cli.main(["positions-reelles"]) == cli.CODE_ECHEC
         assert "n'a pas été touché" in capsys.readouterr().err
+
+
+# --- Étape 4 : les cours de marché -----------------------------------------------------
+
+POCHE_CORRIGEE = '\n[poches]\n"XX0000000004" = "CTO"\n'
+"""La correction de poche que l'export fictif réclame, écrite une fois pour toutes."""
+
+
+def declarer_les_actifs(*actifs: str) -> None:
+    """Le fichier qu'aurait laissé « dashboard actifs » après relecture (valeurs fictives)."""
+    fichier = config_actifs.chemin()
+    fichier.parent.mkdir(parents=True, exist_ok=True)
+    lignes = ["[actifs]"] + [
+        f'"{actif}" = {{ ticker = "T{numero}.DE", devise = "EUR" }}'
+        for numero, actif in enumerate(actifs, start=1)
+    ]
+    fichier.write_text("\n".join(lignes) + "\n", encoding="utf-8")
+
+
+def deposer_un_cours(actif: str, jour: Date, valeur: str) -> None:
+    """Écrit un cours dans le cache, comme si la source l'avait déjà donné."""
+    Cache().ecrire(
+        actif,
+        [
+            Cours(
+                actif=actif,
+                date=jour,
+                valeur=Decimal(valeur),
+                devise="EUR",
+                place="XETRA",
+                source="Source de test",
+                recupere_le=Date(2026, 9, 26),
+                ticker="T1.DE",
+            )
+        ],
+    )
+
+
+class FauxYahoo:
+    """Une source qui ne sort pas de la machine. Aucun test n'appelle le vrai service."""
+
+    nom = "Source de test"
+
+    def __init__(self, propositions=None, series=None):
+        self._propositions = propositions or {}
+        self._series = series or {}
+
+    def chercher(self, actif):
+        return self._propositions.get(actif)
+
+    def serie(self, actif, declaration, debut, fin):
+        return [
+            Cours(
+                actif=actif,
+                date=jour,
+                valeur=Decimal(valeur),
+                devise="EUR",
+                place="XETRA",
+                source=self.nom,
+                recupere_le=Date(2026, 9, 26),
+                ticker=declaration.ticker,
+            )
+            for jour, valeur in self._series.get(actif, [])
+            if debut <= jour <= fin
+        ]
+
+
+def brancher(monkeypatch, faux):
+    """Remplace la source Yahoo par une fausse, partout où le CLI la construit."""
+    monkeypatch.setattr(cli, "Yahoo", lambda *args, **kwargs: faux)
+
+
+class TestDeclarerLesActifs:
+    def test_l_assistant_ecrit_un_fichier_a_completer(self, export, capsys):
+        nommer_les_comptes(POCHE_CORRIGEE)
+
+        code = cli.main(["actifs", "--hors-ligne"])
+        affichage = capsys.readouterr().out
+
+        assert code == 0
+        assert "sans correspondance" in affichage
+        assert "attendent votre validation" in affichage
+        contenu = config_actifs.chemin().read_text(encoding="utf-8")
+        assert fictifs.ACTIF_ETF in contenu
+        assert fictifs.ACTIF_CRYPTO in contenu
+
+    def test_le_fichier_rappelle_les_poches_de_chaque_actif(self, export):
+        nommer_les_comptes(POCHE_CORRIGEE)
+
+        cli.main(["actifs", "--hors-ligne"])
+
+        contenu = config_actifs.chemin().read_text(encoding="utf-8")
+        assert "PEA" in contenu
+        assert "crypto" in contenu
+
+    def test_une_proposition_en_euros_est_ecrite_telle_quelle(
+        self, export, monkeypatch, capsys
+    ):
+        nommer_les_comptes(POCHE_CORRIGEE)
+        brancher(
+            monkeypatch,
+            FauxYahoo(
+                propositions={
+                    fictifs.ACTIF_ETF: Proposition("AAAA.DE", "XETRA", "EUR", "ETF Exemple")
+                }
+            ),
+        )
+
+        cli.main(["actifs"])
+
+        contenu = config_actifs.chemin().read_text(encoding="utf-8")
+        assert '{ ticker = "AAAA.DE", devise = "EUR" }' in contenu
+        assert "proposé : AAAA.DE" in capsys.readouterr().out
+
+    def test_une_proposition_en_dollars_est_signalee_et_reste_inactive(
+        self, export, monkeypatch, capsys
+    ):
+        # Le piège de D-48 : la cotation londonienne en dollars d'un ETF qui cote aussi en
+        # euros. Elle doit être visible et **pas** utilisable par inadvertance.
+        nommer_les_comptes(POCHE_CORRIGEE)
+        brancher(
+            monkeypatch,
+            FauxYahoo(
+                propositions={fictifs.ACTIF_ETF: Proposition("BBBB.L", "London", "USD")}
+            ),
+        )
+
+        cli.main(["actifs"])
+
+        affichage = capsys.readouterr().out
+        contenu = config_actifs.chemin().read_text(encoding="utf-8")
+        assert "pas en euros" in affichage
+        assert "ATTENTION" in contenu
+        assert f'"{fictifs.ACTIF_ETF}" = ""' in contenu
+
+    def test_avec_un_export_d_ailleurs_rien_n_est_ecrit(self, export_ailleurs, capsys):
+        # Les actifs de quelqu'un d'autre ne s'écrivent pas dans notre configuration
+        # (règle 2 de CLAUDE.md), pas plus que ses numéros de compte.
+        nommer_les_comptes(POCHE_CORRIGEE)
+
+        code = cli.main(["actifs", "--hors-ligne", "--export", str(export_ailleurs)])
+
+        assert code == 0
+        assert "Rien n'a été écrit" in capsys.readouterr().out
+        assert not config_actifs.chemin().exists()
+
+    def test_sans_les_comptes_nommes_l_assistant_renvoie_a_comptes(self, export, capsys):
+        code = cli.main(["actifs", "--hors-ligne"])
+
+        assert code == cli.CODE_DECLARATION_ATTENDUE
+        assert "dashboard comptes" in capsys.readouterr().err
+
+
+class TestCours:
+    def test_sans_actif_declare_la_commande_dit_quoi_faire(self, export, capsys):
+        nommer_les_comptes(POCHE_CORRIGEE)
+
+        code = cli.main(["cours"])
+
+        assert code == cli.CODE_DECLARATION_ATTENDUE
+        assert "dashboard actifs" in capsys.readouterr().err
+
+    def test_les_cours_sont_recuperes_et_mis_en_cache(self, export, monkeypatch, capsys):
+        nommer_les_comptes(POCHE_CORRIGEE)
+        declarer_les_actifs(fictifs.ACTIF_ACTION_B)
+        brancher(
+            monkeypatch,
+            FauxYahoo(
+                series={
+                    fictifs.ACTIF_ACTION_B: [
+                        (Date(2026, 2, 26), "20.00"),
+                        (Date(2026, 2, 27), "21.00"),
+                    ]
+                }
+            ),
+        )
+
+        code = cli.main(["cours"])
+        affichage = capsys.readouterr().out
+
+        assert code == 0
+        assert "2 cours ajouté(s) au cache" in affichage
+        serie = Cache().lire(fictifs.ACTIF_ACTION_B)
+        assert serie[Date(2026, 2, 27)].valeur == Decimal("21.00")
+
+    def test_relancer_la_commande_ne_redemande_rien(self, export, monkeypatch, capsys):
+        # D-50 : un cours en cache est définitif. La seconde exécution n'ajoute rien.
+        nommer_les_comptes(POCHE_CORRIGEE)
+        declarer_les_actifs(fictifs.ACTIF_ACTION_B)
+        brancher(
+            monkeypatch,
+            FauxYahoo(series={fictifs.ACTIF_ACTION_B: [(Date(2026, 2, 27), "21.00")]}),
+        )
+
+        cli.main(["cours"])
+        capsys.readouterr()
+        cli.main(["cours"])
+
+        assert "0 cours ajouté(s) au cache" in capsys.readouterr().out
+
+    def test_un_actif_non_declare_demande_explicitement_est_refuse(self, export, capsys):
+        nommer_les_comptes(POCHE_CORRIGEE)
+        declarer_les_actifs(fictifs.ACTIF_ACTION_B)
+
+        code = cli.main(["cours", "--actif", fictifs.ACTIF_ETF])
+
+        assert code == cli.CODE_DECLARATION_ATTENDUE
+        assert "n'est pas déclaré" in capsys.readouterr().err
+
+    def test_un_actif_sans_aucun_cours_est_signale(self, export, monkeypatch, capsys):
+        nommer_les_comptes(POCHE_CORRIGEE)
+        declarer_les_actifs(fictifs.ACTIF_ACTION_B)
+        brancher(monkeypatch, FauxYahoo())
+
+        code = cli.main(["cours"])
+
+        assert code == cli.CODE_DECLARATION_ATTENDUE
+        assert "sans cours" in capsys.readouterr().err
+
+
+class TestOublierCours:
+    def test_sans_precision_la_commande_refuse_d_agir(self, capsys):
+        assert cli.main(["oublier-cours"]) == cli.CODE_ECHEC
+        assert "--tout" in capsys.readouterr().err
+
+    def test_un_actif_s_oublie_seul(self, capsys):
+        deposer_un_cours(fictifs.ACTIF_ETF, Date(2026, 2, 27), "10.00")
+        deposer_un_cours(fictifs.ACTIF_ACTION, Date(2026, 2, 27), "20.00")
+
+        code = cli.main(["oublier-cours", "--actif", fictifs.ACTIF_ETF])
+
+        assert code == 0
+        assert "1 actif(s) oublié(s)" in capsys.readouterr().out
+        assert Cache().lire(fictifs.ACTIF_ETF) == {}
+        assert Cache().lire(fictifs.ACTIF_ACTION) != {}
+
+    def test_tout_le_cache_s_oublie_sur_demande_explicite(self, capsys):
+        deposer_un_cours(fictifs.ACTIF_ETF, Date(2026, 2, 27), "10.00")
+        deposer_un_cours(fictifs.ACTIF_ACTION, Date(2026, 2, 27), "20.00")
+
+        assert cli.main(["oublier-cours", "--tout"]) == 0
+        assert Cache().actifs() == []
+        assert "oublié(s)" in capsys.readouterr().out
+
+    def test_un_cache_vide_ne_fait_pas_echouer_la_commande(self, capsys):
+        assert cli.main(["oublier-cours", "--tout"]) == 0
+        assert "Rien à oublier" in capsys.readouterr().out
+
+
+class TestPositionsAvecCours:
+    """Le contrôle qui prouve l'étape : D-15 branché de bout en bout."""
+
+    def test_un_titre_recu_sans_prix_est_valorise_au_dernier_jour_cote(self, export, capsys):
+        # Les actions gratuites de l'export fictif tombent un dimanche (2026-03-01) : le cours
+        # retenu est celui du vendredi, et le rapport doit le dire.
+        nommer_les_comptes(POCHE_CORRIGEE)
+        declarer_les_actifs(fictifs.ACTIF_ACTION_B)
+        deposer_un_cours(fictifs.ACTIF_ACTION_B, Date(2026, 2, 27), "12.50")
+
+        code = cli.main(["positions", "--hors-ligne"])
+        affichage = capsys.readouterr().out
+
+        assert code == 0
+        assert "1 prix complété(s)" in affichage
+        # 3 parts x 12,50 = 37,50
+        assert "37,50" in affichage
+        assert "dernier jour coté avant le 2026-03-01" in affichage
+        # Le moteur ne réclame plus de prix pour cet actif : c'est le signe que D-15 est
+        # branché. (L'export fictif garde une position incomplète pour une autre raison —
+        # une distribution de capital sur un actif jamais acheté — que les cours ne peuvent
+        # pas réparer.)
+        assert "prix à compléter" not in affichage
+
+    def test_sans_cours_le_rapport_explique_ce_qui_manque(self, export, capsys):
+        nommer_les_comptes(POCHE_CORRIGEE)
+
+        code = cli.main(["positions", "--hors-ligne"])
+        affichage = capsys.readouterr().out
+
+        assert code == 0
+        assert "attendent toujours un prix" in affichage
+        assert "dashboard actifs" in affichage
+        # Le moteur continue de dire que le capital est sous-estimé (D-45).
+        assert "histoire est incomplète" in affichage
+
+    def test_hors_ligne_aucun_appel_n_est_fait(self, export, monkeypatch, capsys):
+        appels = []
+
+        class YahooInterdit:
+            nom = "interdit"
+
+            def __init__(self, *args, **kwargs):
+                appels.append("construit")
+
+            def serie(self, *args, **kwargs):  # pragma: no cover - ne doit pas être appelé
+                appels.append("serie")
+                raise AssertionError("aucun appel réseau ne doit partir en hors-ligne")
+
+        nommer_les_comptes(POCHE_CORRIGEE)
+        declarer_les_actifs(fictifs.ACTIF_ACTION_B)
+        monkeypatch.setattr(cli, "Yahoo", YahooInterdit)
+
+        assert cli.main(["positions", "--hors-ligne"]) == 0
+        assert "serie" not in appels
+        assert "dashboard cours" in capsys.readouterr().out
+
+    def test_le_rapport_des_cours_s_affiche_en_cp1252(self, export, capsys):
+        # La console Windows écrit en cp1252 : un rapport juste mais inaffichable ferait
+        # échouer la commande au moment de l'imprimer. Un test par rapport, comme pour la
+        # lecture et le moteur.
+        nommer_les_comptes(POCHE_CORRIGEE)
+        declarer_les_actifs(fictifs.ACTIF_ACTION_B)
+        deposer_un_cours(fictifs.ACTIF_ACTION_B, Date(2026, 2, 27), "12.50")
+
+        cli.main(["positions", "--hors-ligne"])
+
+        capsys.readouterr().out.encode("cp1252")
+
+    def test_le_journal_marque_le_prix_comme_deduit(self, export, capsys):
+        nommer_les_comptes(POCHE_CORRIGEE)
+        declarer_les_actifs(fictifs.ACTIF_ACTION_B)
+        deposer_un_cours(fictifs.ACTIF_ACTION_B, Date(2026, 2, 27), "12.50")
+
+        assert cli.main(["exporter-positions", "--hors-ligne"]) == 0
+        capsys.readouterr()
+
+        journal = (emplacements.dossier_personnel() / "journal.csv").read_text(
+            encoding="utf-8-sig"
+        )
+        assert "37,50" in journal

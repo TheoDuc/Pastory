@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 
-from dashboard_tr.config import emplacements
+from dashboard_tr.config import ConfigurationInvalide, emplacements
 from dashboard_tr.pivot.operation import Poche
 
 NOM_FICHIER = "comptes.toml"
@@ -39,10 +39,6 @@ class RoleCompte(StrEnum):
 
 
 ROLES_ACCEPTES = tuple(role.value for role in RoleCompte)
-
-
-class ConfigurationInvalide(Exception):
-    """Le fichier de configuration existe mais ne peut pas être utilisé tel quel."""
 
 
 @dataclass(frozen=True)
