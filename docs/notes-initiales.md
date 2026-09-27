@@ -7,7 +7,7 @@
 >
 > Les passages entre crochets `[…]` sont des remarques de retranscription, pas le texte original.
 
-Dernière mise à jour : 2026-09-17 (précisions du propriétaire après l'inventaire).
+Dernière mise à jour : 2026-09-27 (le public visé : l'utilisateur type, et non le seul propriétaire).
 
 ---
 
@@ -74,6 +74,27 @@ Ces précisions **priment** sur le texte d'origine ci-dessous.
 > Pas de PIN en argument de commande. À l'installation, l'utilisateur choisit, avec les risques
 > expliqués : rien d'enregistré (le plus sûr), PIN dans le gestionnaire d'identifiants du système,
 > ou seulement la session pytr. Jamais de PIN en clair dans le projet, un `.env` ou OneDrive.
+
+### 2026-09-27 · Les fonctionnalités visent l'utilisateur type, pas mon portefeuille ([D-62](decisions.md))
+> L'objectif du projet n'est pas seulement que l'application soit *installable* par un autre
+> investisseur (étape 10) : les **choix de fonctionnalités** doivent être faits pour l'utilisateur
+> type de Trade Republic, pas pour mon portefeuille du moment. Je compte partager l'application.
+>
+> Ce que ça implique :
+> - les **actions détenues en direct** entrent dans les répartitions géographique et sectorielle,
+>   même si je n'en détiens aucune : l'achat d'actions à l'unité est très courant chez Trade
+>   Republic, et une répartition qui ne saurait pas les traiter serait inutilisable pour beaucoup.
+>   La réserve sur la règle de pays — siège social pour une action, pays d'activité pour un ETF —
+>   doit être écrite à l'écran ;
+> - le volet **classe d'actifs** (actions / obligations / liquidités) est confirmé : les
+>   portefeuilles mixtes sont fréquents ;
+> - les **zones d'investisseur** (Amérique du Nord, Europe, Japon, Asie-Pacifique développée,
+>   émergents) sont confirmées : c'est le vocabulaire de tous les outils du marché, et la liste
+>   datée et sourcée reste corrigeable par qui voudra ;
+> - les messages d'absence doivent être **soignés** : « cet actif n'est pas couvert » sera lu par
+>   des gens qui n'ont pas suivi la construction du projet. Même chose pour la crypto — le libellé
+>   doit expliquer que les actifs numériques n'ont ni pays ni secteur, pour qu'on ne croie pas à un
+>   oubli.
 
 ---
 

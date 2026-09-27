@@ -1,0 +1,442 @@
+# Les pays et leur regroupement en zones (D-66, D-67, D-58).
+#
+# Deux choses différentes vivent ici, et il faut les distinguer :
+#
+# 1. le **nom français d'un pays**, à partir de son code ISO 3166-1 alpha-2. C'est une norme :
+#    stable, gratuite, vérifiable. C'est la clé de tout le calcul géographique, et jamais un
+#    libellé venu d'une source (D-66) ;
+# 2. sa **zone**, qui n'est PAS une donnée mais une **convention** (D-67). Il n'existe aucune norme
+#    pour « développé » et « émergent » : seuls des fournisseurs d'indices en publient, et ils ne
+#    sont pas d'accord entre eux. D'où la date et le fournisseur ci-dessous, et la liberté de
+#    corriger ce fichier sans toucher au code.
+#
+# LES DÉSACCORDS ACTIFS, à connaître avant de s'étonner d'un chiffre :
+#   - la CORÉE DU SUD est émergente chez MSCI, développée chez FTSE. Elle est ici en émergents ;
+#   - la POLOGNE, de même ;
+#   - la GRÈCE est développée chez FTSE depuis le 21/09/2026, et ne le sera chez MSCI qu'en
+#     mai 2027. Elle est ici en émergents ;
+#   - la BULGARIE a adopté l'euro le 01/01/2026, ce qui ne change pas sa zone mais change les
+#     agrégats « zone euro » publiés ailleurs.
+#
+# CONVENTION DE LECTURE, la même que chez MSCI et chez tous les outils du marché :
+# « Europe » désigne l'**Europe développée**. L'Europe émergente (Pologne, Grèce, Hongrie,
+# Tchéquie, Turquie…) est comptée dans « marchés émergents », pas dans « Europe ». Et le Mexique
+# n'est jamais en Amérique du Nord, malgré la géographie.
+#
+# Un code pays absent de ce fichier n'est pas une erreur et n'est jamais deviné : il est affiché
+# tel quel, avec sa zone inconnue, et signalé (règle 5 de CLAUDE.md).
+
+[meta]
+source = "Codes et noms de pays : ISO 3166-1 alpha-2, https://www.iso.org/iso-3166-country-codes.html. Regroupement en zones : MSCI Market Classification, https://www.msci.com/our-solutions/indexes/market-classification"
+fournisseur_des_zones = "MSCI Market Classification"
+verifie_le = 2026-09-27
+note = "Les zones sont une convention de fournisseur, pas une norme. Corriger ce fichier ne demande aucune ligne de code."
+
+# --- Les zones -------------------------------------------------------------------------
+
+[zone.amerique_du_nord]
+libelle = "Amérique du Nord"
+rang = 1
+
+[zone.europe]
+libelle = "Europe développée"
+rang = 2
+
+[zone.japon]
+libelle = "Japon"
+rang = 3
+
+[zone.asie_pacifique_developpee]
+libelle = "Asie-Pacifique développée"
+rang = 4
+
+[zone.marches_emergents]
+libelle = "Marchés émergents"
+rang = 5
+
+[zone.autres]
+libelle = "Autres pays et territoires"
+rang = 6
+note = "Israël, marché développé qui n'entre dans aucune des zones ci-dessus, et les territoires qui servent surtout de domiciliation juridique (Bermudes, îles Caïmans…)."
+
+# --- Amérique du Nord ------------------------------------------------------------------
+
+[pays.US]
+libelle = "États-Unis"
+zone = "amerique_du_nord"
+
+[pays.CA]
+libelle = "Canada"
+zone = "amerique_du_nord"
+
+# --- Europe développée -----------------------------------------------------------------
+
+[pays.GB]
+libelle = "Royaume-Uni"
+zone = "europe"
+
+[pays.FR]
+libelle = "France"
+zone = "europe"
+
+[pays.DE]
+libelle = "Allemagne"
+zone = "europe"
+
+[pays.CH]
+libelle = "Suisse"
+zone = "europe"
+
+[pays.NL]
+libelle = "Pays-Bas"
+zone = "europe"
+
+[pays.SE]
+libelle = "Suède"
+zone = "europe"
+
+[pays.DK]
+libelle = "Danemark"
+zone = "europe"
+
+[pays.IT]
+libelle = "Italie"
+zone = "europe"
+
+[pays.ES]
+libelle = "Espagne"
+zone = "europe"
+
+[pays.FI]
+libelle = "Finlande"
+zone = "europe"
+
+[pays.NO]
+libelle = "Norvège"
+zone = "europe"
+
+[pays.BE]
+libelle = "Belgique"
+zone = "europe"
+
+[pays.AT]
+libelle = "Autriche"
+zone = "europe"
+
+[pays.IE]
+libelle = "Irlande"
+zone = "europe"
+
+[pays.PT]
+libelle = "Portugal"
+zone = "europe"
+
+[pays.LU]
+libelle = "Luxembourg"
+zone = "europe"
+
+[pays.IS]
+libelle = "Islande"
+zone = "europe"
+
+[pays.MT]
+libelle = "Malte"
+zone = "europe"
+
+[pays.MC]
+libelle = "Monaco"
+zone = "europe"
+
+[pays.LI]
+libelle = "Liechtenstein"
+zone = "europe"
+
+[pays.JE]
+libelle = "Jersey"
+zone = "europe"
+
+[pays.GG]
+libelle = "Guernesey"
+zone = "europe"
+
+[pays.IM]
+libelle = "Île de Man"
+zone = "europe"
+
+[pays.GI]
+libelle = "Gibraltar"
+zone = "europe"
+
+# --- Japon -----------------------------------------------------------------------------
+
+[pays.JP]
+libelle = "Japon"
+zone = "japon"
+
+# --- Asie-Pacifique développée ---------------------------------------------------------
+
+[pays.AU]
+libelle = "Australie"
+zone = "asie_pacifique_developpee"
+
+[pays.HK]
+libelle = "Hong Kong"
+zone = "asie_pacifique_developpee"
+
+[pays.SG]
+libelle = "Singapour"
+zone = "asie_pacifique_developpee"
+
+[pays.NZ]
+libelle = "Nouvelle-Zélande"
+zone = "asie_pacifique_developpee"
+
+# --- Marchés émergents -----------------------------------------------------------------
+# Les 24 pays de MSCI Emerging Markets, puis les marchés frontières et les autres pays
+# émergents qu'on rencontre dans la composition d'un ETF mondial.
+
+[pays.CN]
+libelle = "Chine"
+zone = "marches_emergents"
+
+[pays.TW]
+libelle = "Taïwan"
+zone = "marches_emergents"
+note = "ISO 3166-1 l'appelle « Taiwan, Province of China » ; les émetteurs d'ETF écrivent « Taiwan ». Le calcul se fait sur le code TW."
+
+[pays.IN]
+libelle = "Inde"
+zone = "marches_emergents"
+
+[pays.KR]
+libelle = "Corée du Sud"
+zone = "marches_emergents"
+note = "Développée chez FTSE, émergente chez MSCI. Désaccord actif."
+
+[pays.BR]
+libelle = "Brésil"
+zone = "marches_emergents"
+
+[pays.ZA]
+libelle = "Afrique du Sud"
+zone = "marches_emergents"
+
+[pays.MX]
+libelle = "Mexique"
+zone = "marches_emergents"
+note = "Jamais compté en Amérique du Nord dans ces classifications, malgré la géographie."
+
+[pays.SA]
+libelle = "Arabie saoudite"
+zone = "marches_emergents"
+
+[pays.ID]
+libelle = "Indonésie"
+zone = "marches_emergents"
+
+[pays.TH]
+libelle = "Thaïlande"
+zone = "marches_emergents"
+
+[pays.MY]
+libelle = "Malaisie"
+zone = "marches_emergents"
+
+[pays.PH]
+libelle = "Philippines"
+zone = "marches_emergents"
+
+[pays.TR]
+libelle = "Turquie"
+zone = "marches_emergents"
+note = "ISO 3166-1 l'écrit « Türkiye » depuis 2022 ; les sources emploient encore « Turkey »."
+
+[pays.PL]
+libelle = "Pologne"
+zone = "marches_emergents"
+note = "Développée chez FTSE, émergente chez MSCI. Désaccord actif."
+
+[pays.CL]
+libelle = "Chili"
+zone = "marches_emergents"
+
+[pays.GR]
+libelle = "Grèce"
+zone = "marches_emergents"
+note = "Développée chez FTSE depuis le 21/09/2026 ; ne le sera chez MSCI qu'en mai 2027."
+
+[pays.HU]
+libelle = "Hongrie"
+zone = "marches_emergents"
+
+[pays.CZ]
+libelle = "Tchéquie"
+zone = "marches_emergents"
+
+[pays.QA]
+libelle = "Qatar"
+zone = "marches_emergents"
+
+[pays.AE]
+libelle = "Émirats arabes unis"
+zone = "marches_emergents"
+
+[pays.KW]
+libelle = "Koweït"
+zone = "marches_emergents"
+
+[pays.EG]
+libelle = "Égypte"
+zone = "marches_emergents"
+
+[pays.PE]
+libelle = "Pérou"
+zone = "marches_emergents"
+
+[pays.CO]
+libelle = "Colombie"
+zone = "marches_emergents"
+
+[pays.VN]
+libelle = "Viêt Nam"
+zone = "marches_emergents"
+
+[pays.AR]
+libelle = "Argentine"
+zone = "marches_emergents"
+
+[pays.RO]
+libelle = "Roumanie"
+zone = "marches_emergents"
+
+[pays.SI]
+libelle = "Slovénie"
+zone = "marches_emergents"
+
+[pays.SK]
+libelle = "Slovaquie"
+zone = "marches_emergents"
+
+[pays.EE]
+libelle = "Estonie"
+zone = "marches_emergents"
+
+[pays.LT]
+libelle = "Lituanie"
+zone = "marches_emergents"
+
+[pays.LV]
+libelle = "Lettonie"
+zone = "marches_emergents"
+
+[pays.HR]
+libelle = "Croatie"
+zone = "marches_emergents"
+
+[pays.BG]
+libelle = "Bulgarie"
+zone = "marches_emergents"
+
+[pays.CY]
+libelle = "Chypre"
+zone = "marches_emergents"
+
+[pays.UA]
+libelle = "Ukraine"
+zone = "marches_emergents"
+
+[pays.RU]
+libelle = "Russie"
+zone = "marches_emergents"
+
+[pays.KZ]
+libelle = "Kazakhstan"
+zone = "marches_emergents"
+
+[pays.PK]
+libelle = "Pakistan"
+zone = "marches_emergents"
+
+[pays.BD]
+libelle = "Bangladesh"
+zone = "marches_emergents"
+
+[pays.LK]
+libelle = "Sri Lanka"
+zone = "marches_emergents"
+
+[pays.NG]
+libelle = "Nigéria"
+zone = "marches_emergents"
+
+[pays.KE]
+libelle = "Kenya"
+zone = "marches_emergents"
+
+[pays.MA]
+libelle = "Maroc"
+zone = "marches_emergents"
+
+[pays.TN]
+libelle = "Tunisie"
+zone = "marches_emergents"
+
+[pays.MU]
+libelle = "Maurice"
+zone = "marches_emergents"
+
+[pays.JO]
+libelle = "Jordanie"
+zone = "marches_emergents"
+
+[pays.OM]
+libelle = "Oman"
+zone = "marches_emergents"
+
+[pays.BH]
+libelle = "Bahreïn"
+zone = "marches_emergents"
+
+[pays.UY]
+libelle = "Uruguay"
+zone = "marches_emergents"
+
+# --- Autres pays et territoires --------------------------------------------------------
+
+[pays.IL]
+libelle = "Israël"
+zone = "autres"
+note = "Marché développé chez MSCI comme chez FTSE, mais rattaché à aucune des zones retenues ici."
+
+[pays.MO]
+libelle = "Macao"
+zone = "autres"
+
+[pays.BM]
+libelle = "Bermudes"
+zone = "autres"
+note = "Territoire de domiciliation : une société qui y est enregistrée exerce souvent ailleurs."
+
+[pays.KY]
+libelle = "Îles Caïmans"
+zone = "autres"
+
+[pays.VG]
+libelle = "Îles Vierges britanniques"
+zone = "autres"
+
+[pays.CW]
+libelle = "Curaçao"
+zone = "autres"
+
+[pays.PA]
+libelle = "Panama"
+zone = "autres"
+
+[pays.PR]
+libelle = "Porto Rico"
+zone = "autres"
+
+[pays.GT]
+libelle = "Guatemala"
+zone = "autres"

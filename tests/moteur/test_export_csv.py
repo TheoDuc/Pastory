@@ -12,10 +12,17 @@ from datetime import date
 from decimal import Decimal
 
 from dashboard_tr import tableur
-from dashboard_tr.moteur import export_csv, valorisation
+from dashboard_tr.moteur import diversification, export_csv, valorisation
 from dashboard_tr.moteur.portefeuille import Portefeuille
 from dashboard_tr.moteur.rendements import Periode, synthese
+from dashboard_tr.parametres import referentiels
 from dashboard_tr.pivot.operation import Poche, TypeOperation
+from tests.moteur.compositions_fictives import (
+    CompositionFictive,
+    SourceDeCompositionFictive,
+    etf_synthetique_pea,
+    parts,
+)
 from tests.moteur.cours_fictifs import SourceFixe, cours_constant
 from tests.moteur.operations_fictives import ACTIF, enchainement_du_glossaire, operation
 
@@ -385,3 +392,95 @@ def test_le_journal_porte_le_prix_de_revient_fiscal(tmp_path):
     assert nombre(premier["capital_fiscal_apres"]) == Decimal("201.00")
     assert premier["prix_de_revient_apres"] == "20,000000"
     assert premier["prix_de_revient_fiscal_apres"] == "20,100000"
+
+
+# --- La répartition (étape 7) ----------------------------------------------------------
+
+
+def _diversification_de_test(composition=None):
+    """Le portefeuille du glossaire, avec la composition fictive de son actif."""
+    portefeuille = Portefeuille.construire(enchainement_du_glossaire())
+    fin = date(2026, 3, 31)
+    source_de_cours = SourceFixe(cours_constant(ACTIF, "40.00", date(2026, 1, 1), fin))
+    la_synthese = synthese(portefeuille, Periode(fin=fin), source_de_cours)
+    table = {ACTIF: composition if composition is not None else etf_synthetique_pea()}
+    return diversification.diversifier(
+        la_synthese.valorisation,
+        SourceDeCompositionFictive(table),
+        referentiels.charger_tout(),
+    )
+
+
+class TestLaRepartition:
+    def test_la_somme_des_montants_vaut_la_base(self, tmp_path):
+        """La propriété qui rend le fichier vérifiable à la main (D-69).
+
+        Sans les lignes de « reste », le fichier donnerait l'illusion d'une répartition
+        complète : ici l'ETF n'attribue que 90 % de ses pays, et les 10 % restants doivent
+        figurer sous leur propre nom.
+        """
+        resultat = _diversification_de_test()
+        fichier = export_csv.ecrire_repartition(
+            resultat, diversification.Rubrique.PAYS, tmp_path / "repartition_pays.csv"
+        )
+
+        lignes = relire(fichier)
+        total = sum(nombre(ligne["montant"]) for ligne in lignes)
+
+        assert total == nombre(lignes[0]["base"])
+        assert total == resultat.pays.base
+
+    def test_les_restes_portent_leur_nature_et_un_libelle_en_clair(self, tmp_path):
+        resultat = _diversification_de_test()
+        fichier = export_csv.ecrire_repartition(
+            resultat, diversification.Rubrique.PAYS, tmp_path / "repartition_pays.csv"
+        )
+
+        restes = [
+            ligne for ligne in relire(fichier) if ligne["nature"] == export_csv.NATURE_RESTE
+        ]
+
+        assert [ligne["code"] for ligne in restes] == ["non_attribue"]
+        assert restes[0]["libelle"] == "Non attribué par la source"
+
+    def test_la_zone_figure_pour_un_pays_et_pas_pour_un_secteur(self, tmp_path):
+        resultat = _diversification_de_test()
+        pays = relire(
+            export_csv.ecrire_repartition(
+                resultat, diversification.Rubrique.PAYS, tmp_path / "pays.csv"
+            )
+        )
+        secteurs = relire(
+            export_csv.ecrire_repartition(
+                resultat, diversification.Rubrique.SECTEUR, tmp_path / "secteurs.csv"
+            )
+        )
+
+        assert pays[0]["zone"] == "Amérique du Nord"
+        assert secteurs[0]["zone"] == tableur.VALEUR_SANS_OBJET
+
+    def test_un_code_non_reconnu_est_marque_comme_tel(self, tmp_path):
+        composition = CompositionFictive(
+            pays=parts(ZZ="100"), secteurs=parts(technology="100"), classes=parts(stock="100")
+        )
+        resultat = _diversification_de_test(composition)
+        fichier = export_csv.ecrire_repartition(
+            resultat, diversification.Rubrique.PAYS, tmp_path / "pays.csv"
+        )
+
+        (ligne,) = [
+            une for une in relire(fichier) if une["nature"] == export_csv.NATURE_POSTE
+        ]
+
+        assert ligne["code"] == "ZZ"
+        assert ligne["code_reconnu"] == "non"
+
+    def test_aucune_case_n_est_laissee_vide(self, tmp_path):
+        resultat = _diversification_de_test()
+        fichier = export_csv.ecrire_repartition(
+            resultat, diversification.Rubrique.CLASSE, tmp_path / "classes.csv"
+        )
+
+        for ligne in relire(fichier):
+            for colonne, valeur in ligne.items():
+                assert valeur != "", colonne

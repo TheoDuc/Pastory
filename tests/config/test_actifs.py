@@ -18,7 +18,9 @@ import pytest
 
 from dashboard_tr.config import ConfigurationInvalide
 from dashboard_tr.config.actifs import (
+    CONTENUS_ACCEPTES,
     Configuration,
+    ContenuActif,
     Declaration,
     FraisCourantsProposes,
     Proposition,
@@ -26,6 +28,7 @@ from dashboard_tr.config.actifs import (
     charger,
     modele,
 )
+from dashboard_tr.parametres.referentiels import charger_classes
 
 ACTIF = "XX0000000001"
 AUTRE_ACTIF = "XX0000000002"
@@ -409,3 +412,53 @@ class TestPropositionSansTicker:
         # Relu par la vraie lecture, l'actif reste non déclaré — et le fichier le dit.
         assert charger(ecrire(tmp_path, texte)).declaration(ACTIF) is None
         assert "à compléter à la main" in texte
+
+
+class TestLeContenuDeclare:
+    """D-71 : de quoi l'actif est fait, à ne pas confondre avec ce qu'on détient."""
+
+    def test_un_contenu_valide_est_lu(self, tmp_path):
+        fichier = tmp_path / "actifs.toml"
+        fichier.write_text(
+            '[actifs]\n"XX0000000001" = { ticker = "T1.DE", devise = "EUR", type = "etf", '
+            'contenu = "obligations" }\n',
+            encoding="utf-8",
+        )
+
+        declaration = charger(fichier).declaration("XX0000000001")
+
+        assert declaration.contenu is ContenuActif.OBLIGATIONS
+        # Le type reste « etf » : c'est lui qui décide du spread et du TER attendu (D-55, D-61).
+        assert declaration.type is TypeActif.ETF
+
+    def test_un_contenu_absent_laisse_la_source_decider(self, tmp_path):
+        fichier = tmp_path / "actifs.toml"
+        fichier.write_text(
+            '[actifs]\n"XX0000000001" = { ticker = "T1.DE", devise = "EUR", type = "etf" }\n',
+            encoding="utf-8",
+        )
+
+        assert charger(fichier).declaration("XX0000000001").contenu is None
+
+    def test_un_contenu_inconnu_explique_la_difference_avec_le_type(self, tmp_path):
+        fichier = tmp_path / "actifs.toml"
+        fichier.write_text(
+            '[actifs]\n"XX0000000001" = { ticker = "T1.DE", devise = "EUR", '
+            'contenu = "obligation" }\n',
+            encoding="utf-8",
+        )
+
+        with pytest.raises(ConfigurationInvalide) as erreur:
+            charger(fichier)
+
+        message = str(erreur.value)
+        assert "obligations" in message
+        assert "matieres_premieres" in message
+        assert "ce que vous détenez" in message
+
+    def test_les_contenus_acceptes_sont_les_cles_des_classes_d_actifs(self):
+        # C'est ce qui permet à un contenu déclaré d'être nommé comme celui d'une source.
+        classes = charger_classes()
+
+        for contenu in CONTENUS_ACCEPTES:
+            assert classes.classe(contenu) is not None, contenu

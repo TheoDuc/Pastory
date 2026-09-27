@@ -355,16 +355,67 @@ rapprocher d'une autre source est un chiffre qu'on ne croit pas.**
 - Valider les spreads par défaut et les règles fiscales retenues (idéalement, avec une personne à
   l'aise avec la fiscalité).
 
-## Étape 7 · Diversification 🔜
+## Étape 7 · Diversification ✅
 **But :** répartition géographique et sectorielle réelle, en regardant à l'intérieur des ETF
 (Q-22).
+
+**Fait :** trois recherches ([composition-des-etf.md](composition-des-etf.md) — quatorze familles de
+sources examinées, onze interrogées réellement), puis `moteur/diversification.py`, trois
+référentiels datés et sourcés (`parametres/secteurs.toml`, `zones.toml`, `classes_actifs.toml`),
+deux sources de composition (`donnees_externes/extraetf.py` pour les fonds,
+`donnees_externes/actions.py` pour les sociétés), un cache **remplaçable**, un bloc de plus dans
+`dashboard positions`, trois CSV de plus, deux commandes (`composition`, `oublier-composition`) et
+le [cahier de vérification](verification/etape-7.md).
+
+**Neuf décisions** (D-62 à D-70). La plus large dépasse l'étape : [D-62](decisions.md), **les
+choix de fonctionnalités visent l'utilisateur type de Trade Republic**, et non le portefeuille du
+propriétaire — qui compte partager l'application. Elle est née d'un arbitrage rendu **contre** la
+recommandation : traiter les actions détenues en direct, alors qu'il n'en détient aucune, parce que
+l'achat d'actions à l'unité est courant sur cette banque.
+
+La recherche a trouvé ce qu'aucune mémoire n'aurait donné, et c'est le piège central de l'étape :
+**un ETF synthétique ne détient pas son indice**. Mesuré sur un ETF *MSCI World* à swap éligible au
+PEA : son panier donne **Allemagne 38,5 %** et États-Unis 15,6 %, son indice **États-Unis 72,9 %**.
+Ses lignes réelles sont Airbus, ASML, Siemens Energy — pour un fonds monde. Et tout ETF « PEA » sur
+un indice non européen est synthétique **par construction**. L'application affiche donc l'indice
+([D-64](decisions.md)), en marquant le fonds.
+
+Deuxième trouvaille, et elle gouverne tout l'affichage : **une répartition géographique n'est pas
+une grandeur définie de façon unique**. BlackRock l'écrit dans ses propres fiches — l'exposition
+géographique se rapporte « principalement » au domicile de l'émetteur, « mais, dans certains cas,
+elle peut refléter le lieu où l'émetteur réalise l'essentiel de son activité ». Deux sources
+sérieuses donnent 70,00 % et 72,04 % d'États-Unis sur le même fonds au même arrêté. La règle
+retenue est donc **affichée** ([D-66](decisions.md)), et une seule source sert par graphique.
+
+**Aucune source gratuite interrogeable par ISIN ne donne du GICS** : la nomenclature est celle de
+Morningstar, nommée comme telle et jamais appelée « GICS » ([D-65](decisions.md)). Les codes — ISO
+3166-1 pour les pays, codes machine pour les secteurs — permettent de calculer **sans lire un seul
+libellé affiché**, ce qui satisfait la règle 4.
 
 **Claude :** agent de recherche sur les sources **gratuites et fiables** de composition des ETF
 (D-28), avec critères écrits et comparatif. Puis implémentation, avec la date des données affichée.
 
 **Toi :** choisir la source et comparer le résultat avec la fiche émetteur d'un ETF.
 
-## Étape 8 · Conception de l'interface ⏳
+**Le propriétaire a vérifié ses chiffres et les confirme (2026-09-28).** Sa vérification a produit
+les deux dernières corrections de l'étape, et elles se ressemblent : **l'application disait
+« inconnu » là où la réponse était « sans objet »**. Un ETF d'obligations et un ETF de matières
+premières étaient annoncés « non couvert : composition inconnue » alors qu'ils ont bien une
+composition — elle n'a simplement ni pays ni secteur au sens des actions, comme un actif numérique.
+D'où le **contenu déclaré** ([D-71](decisions.md)), les matières premières promues en classe
+d'actifs, et des montants hors géographie affichés **classe par classe** au lieu d'un fourre-tout
+qui faisait passer de l'or pour de la dette. Sur ses données, « non couvert » est passé de 35,3 % à
+17,9 %.
+
+Il a aussi demandé d'investiguer le seul fonds d'**actions** resté sans composition, plutôt que de
+le masquer par une déclaration. Le diagnostic a écarté trois fausses pistes — ce n'est pas un
+problème de **part**, rien n'est récupérable par **région**, et la source **couvre bien** les fonds
+émergents à réplication **physique** (35 et 28 pays sur deux fonds testés). La lacune porte sur
+certains fonds **à swap**, fonds par fonds. Il a tranché une **source de secours par actif, nommée à
+l'écran** ([D-72](decisions.md)), à réaliser à l'étape 8 parce que c'est d'abord un problème de
+présentation.
+
+## Étape 8 · Conception de l'interface 🔜
 **But :** concevoir l'application à neuf. La maquette du PDF n'est pas un modèle (D-20).
 
 **Claude :**
@@ -377,6 +428,20 @@ rapprocher d'une autre source est un chiffre qu'on ne croit pas.**
 - Fait trancher Q-21 (présentation des frais).
 - Propose plusieurs prototypes visuels cliquables **avant tout code**. Chaque déduction et chaque
   estimation y est signalée visuellement.
+- **Réalise la source de secours par actif** ([D-72](decisions.md)), reportée ici depuis l'étape 7
+  parce qu'elle est d'abord un problème de présentation : deux sources n'ont pas la même
+  nomenclature, donc la source de chaque chiffre doit être **visible ligne par ligne**. C'est ce qui
+  fera disparaître les fonds « non couverts » du portefeuille du propriétaire.
+- **Conçoit pour l'utilisateur type, pas pour le portefeuille du propriétaire** ([D-62](decisions.md),
+  décidé pendant l'étape 7). Trois conséquences concrètes pour la conception :
+  - les prototypes se testent sur des cas que le propriétaire **ne détient pas** : des actions en
+    direct, un ETF obligataire, un actif non couvert par les sources, un portefeuille à une seule
+    ligne, un portefeuille sans PEA ;
+  - les **messages d'absence** sont du contenu d'interface à part entière, pas des notes
+    techniques : « non couvert », « non attribué », « non transparisé », « synthétique », « minoré »
+    doivent s'expliquer là où ils s'affichent, pour un lecteur qui découvre l'application ;
+  - **deux règles de pays cohabitent** dans la répartition géographique ([D-66](decisions.md)) : la
+    conception doit trouver comment le dire sans alourdir l'écran.
 
 **Toi :** choisir et corriger les prototypes. C'est l'étape où ton avis compte le plus.
 

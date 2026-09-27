@@ -443,3 +443,97 @@ le code, documentée, et **signalée dans l'interface**.
 
 ### Fragilité
 Dépendance à un texte affiché (libellé en langue de l'application, montant formaté).
+
+---
+
+## 8. Diversification
+
+Tout ce paragraphe porte sur **une date** : celle de la valorisation. Une répartition est une photo,
+jamais une moyenne sur une période.
+
+### Composition d'un actif
+Ce qu'il y a à l'intérieur : la part de sa valeur attribuée à chaque **pays** et à chaque
+**secteur**, plus sa ventilation par **classe d'actifs** (actions, obligations, liquidités). Elle
+porte toujours **sa source, sa nomenclature et sa date d'arrêté** ([D-63](decisions.md)).
+
+Pour un **ETF synthétique**, la composition retenue est celle de l'**indice suivi**, et non celle du
+panier détenu ([D-64](decisions.md)).
+
+Pour une **action détenue en direct**, la composition est triviale : un seul pays et un seul
+secteur, à 100 %.
+
+Une **crypto** n'a pas de composition : ni pays, ni secteur ([D-68](decisions.md)).
+
+### Poids d'un pays (d'un secteur, d'une classe d'actifs)
+La somme, sur toutes les positions détenues, de la valeur de la position multipliée par la part que
+sa composition attribue à ce pays.
+
+```
+poids du pays P (en €) = Σ sur les positions  valeur de la position × part de P dans sa composition
+```
+
+La **valeur de la position** est celle du §3 : quantité × cours de clôture. Une position sans cours
+n'a pas de valeur, donc ne pèse nulle part ([D-53](decisions.md)).
+
+Le pourcentage affiché rapporte ce poids à la **valeur totale des actifs valorisés** — jamais à la
+somme des poids attribués, ce qui reviendrait à renormaliser ([D-69](decisions.md)).
+
+```
+pourcentage du pays P = poids du pays P / valeur totale des actifs valorisés
+```
+
+### Non attribué
+La part de la valeur d'un actif que sa composition **n'attribue à rien** : liquidités du fonds,
+dérivés, lignes non classées. Aucune composition ne somme à 100 % (99,43 % à 99,96 % mesuré selon
+le fonds), et le prêt de titres peut même la faire dépasser. Cette part est **affichée comme
+telle**, jamais répartie sur les autres postes.
+
+```
+non attribué (en €) = Σ sur les positions  valeur × (100 % − somme des parts attribuées)
+```
+
+### Non couvert
+La valeur des actifs pour lesquels l'application **n'a aucune composition** : source muette sur cet
+ISIN, actif dont l'application ignore le type, ou refus d'un contrôle de vraisemblance. Ces actifs
+sortent des totaux, qui sont alors marqués **partiels**, et la liste de ce qui manque est affichée
+avec son montant ([D-69](decisions.md)).
+
+Un **ETF obligataire** n'est pas « non couvert » : il est **hors périmètre** de la géographie et des
+secteurs, où ces notions n'ont pas le même sens, tout en comptant normalement dans la répartition
+par classe d'actifs ([D-68](decisions.md)).
+
+### Contenu déclaré
+De quoi un actif est fait — **actions**, **obligations** ou **matières premières** — quand
+l'utilisateur le déclare lui-même dans `actifs.toml` ([D-71](decisions.md)). À distinguer du
+**type** (ETF, action, crypto), qui dit ce qu'on détient et porte les frais.
+
+Un contenu déclaré suffit à ranger l'actif : il compte à 100 % dans sa classe, et il sort de la
+géographie et des secteurs **sans être annoncé « inconnu »**. Un ETF d'obligations et un ETF de
+matières premières n'ont ni pays ni secteur au sens des actions : c'est leur nature, pas une donnée
+manquante.
+
+### Hors actions
+La part d'un fonds qui n'est pas investie en actions : obligations, matières premières, liquidités.
+Elle sort de la géographie et des secteurs, et elle y est affichée **classe par classe** — jamais
+sous un libellé unique, qui ferait passer de l'or pour de la dette.
+
+### Non transparisé
+Un **fonds de fonds** : un ETF dont les lignes sont elles-mêmes des fonds. L'application ne
+transparise qu'**un** niveau ; au-delà, l'actif est affiché « non transparisé » plutôt que deviné.
+
+### Zone
+Un regroupement de pays — Amérique du Nord, Europe, Japon, Asie-Pacifique développée, marchés
+émergents. **Ce n'est pas une donnée, c'est une convention** : la liste vit dans un fichier de
+paramètres avec sa source et sa date, et elle est corrigeable ([D-67](decisions.md)). Les zones
+« développé » et « émergent » ne font l'objet d'**aucune norme**, et les deux fournisseurs de
+référence sont en désaccord sur plusieurs pays.
+
+### Règle de pays
+La question « de quel pays est cette société ? » a plusieurs réponses justes : pays de
+domiciliation juridique, pays d'activité, pays de cotation principale. L'application emploie le
+**pays d'activité** pour les ETF (celui de sa source) et le **siège social** pour les actions
+détenues en direct, et **affiche cette différence** ([D-66](decisions.md)).
+
+Ce n'est pas une imprécision de nos sources : un émetteur écrit lui-même que son exposition
+géographique se rapporte « principalement » au domicile de l'émetteur, « mais, dans certains cas,
+elle peut refléter le lieu où l'émetteur réalise l'essentiel de son activité ».

@@ -124,7 +124,7 @@ prévalu, à sa demande.
 | Q-18 PIN | PIN retiré de la ligne de commande ; trois modes de stockage au choix, jamais en clair ; vérifier d'abord ce que stocke pytr ; à l'étape 10 | D-25 |
 | Q-19 Hors périmètre | Euro seul, lecture seule, pas de conseil ni de déclaration ; autres banques non prises en charge mais possibles via un format pivot et des adaptateurs | D-26 |
 | Q-20 Monte-Carlo | Fonctionnalité indépendante, reportée | D-27 |
-| Q-22 Diversification | Sources gratuites et fiables, à rechercher | D-28 |
+| Q-22 Diversification | Sources gratuites et fiables, à rechercher. **Close par le lot 6** (2026-09-27) : extraETF, les 11 secteurs Morningstar, les pays par code ISO | D-28, D-63 |
 | Q-23 Frais dans les rendements | **Non** : performance sur montants bruts, frais et taxes à part (recommandation écartée) | D-21 |
 | Q-24 Gain total | Trois chiffres clés : gain en €, TRI, TWRR ; synthèse brute + vue « valeur réelle » | D-22, D-23 |
 | Q-25 Dividendes | **Bruts** dans la performance ; la retenue va dans les coûts | D-29 |
@@ -172,3 +172,61 @@ ouvrir la **liste des prix française** dans son application (le document public
 téléchargements automatiques) pour confirmer les quatre montants retenus — 1 € par ordre à l'achat
 comme à la vente, 0 € par exécution de plan, 1 € par ordre crypto. C'est écrit dans le
 [cahier de l'étape 6](verification/etape-6.md) §B.7.
+
+### Lot 6 (2026-09-27) — la diversification
+Posées après le [comparatif des sources de composition](composition-des-etf.md) — quatorze familles
+de sources examinées, onze interrogées réellement — et tranchées le même jour. **Q-22** est close
+par ce lot.
+
+Le propriétaire a d'abord répondu à quatre questions de cadrage, avant la recherche : son
+portefeuille contient des **ETF d'actions, des ETF obligataires et de la crypto**, la crypto doit
+figurer sur une **ligne à part** hors géographie et hors secteur, les pays doivent être **regroupés
+en zones**, et la composition doit se mettre à jour **automatiquement**, sans relecture préalable,
+avec sa date et sa source toujours affichées.
+
+| Question | Retenu | Décision |
+|---|---|---|
+| Q-39 Quelle source de composition ? | **extraETF**, par ISIN, en lisant les **répartitions agrégées** et jamais les lignes détenues. Les émetteurs et justETF servent à **vérifier**, pas à compléter. Limite acceptée : API interne non documentée, usage personnel toléré, échec propre si elle ferme | D-63 |
+| Q-40 Pour un ETF synthétique : l'indice ou le panier ? | **L'indice suivi** — l'exposition économique réelle — l'actif étant marqué « synthétique » à l'écran | D-64 |
+| Q-41 Quelle nomenclature sectorielle ? | Les **11 secteurs Morningstar**, nommés comme tels et **jamais** « GICS ». Aucune source gratuite par ISIN ne donne du GICS, et deux nomenclatures ne s'additionnent pas | D-65 |
+| Q-42 Quelle règle de pays ? | Celle de la source (**pays d'activité**) pour un ETF, le **siège social** pour une action en direct. Les deux cohabitent et l'écran le dit : une répartition géographique n'est pas une grandeur unique | D-66 |
+| Q-43 Quelles zones ? | Les **zones d'investisseur** (Amérique du Nord, Europe, Japon, Asie-Pacifique développée, émergents), dans un fichier **daté et sourcé**. Le découpage neutre de l'ONU est écarté : il met la Chine et le Japon dans la même case | D-67 |
+| Q-44 Les actions en direct et les ETF obligataires ? | Les actions entrent dans **les deux** répartitions, malgré la règle de pays différente, parce que l'achat d'actions à l'unité est courant sur cette banque. Les ETF obligataires comptent dans une **troisième** répartition, par classe d'actifs, et restent hors des deux autres | D-62, D-68 |
+| Q-45 Un actif dont on ne voit pas l'intérieur ? | Affiché **« non couvert »** avec son montant, la répartition étant marquée partielle. Jamais estimé, jamais masqué, jamais renormalisé. Le cas est réel : BNP Paribas Easy, deuxième émetteur d'ETF éligibles au PEA, ne publie rien d'exploitable | D-69 |
+
+**Un arbitrage rendu contre la recommandation, et pour une bonne raison.** Il était recommandé de
+**ne pas** traiter les actions en direct, le propriétaire n'en détenant aucune. Il a répondu
+l'inverse, en expliquant que le projet doit viser **l'utilisateur type de Trade Republic** et non
+son propre portefeuille, puisqu'il compte partager l'application. C'est devenu une évolution de cap
+([D-62](decisions.md)), plus large que l'étape 7, et elle vaut désormais pour toutes les étapes
+suivantes.
+
+**Ce qui reste à la charge du propriétaire :** ouvrir la **fiche de l'émetteur** de deux ou trois de
+ses ETF et comparer ses pays et ses secteurs avec ceux qu'affiche l'application. L'écart attendu
+n'est **pas nul** — c'est tout l'objet de Q-41 et de Q-42 — et le
+[cahier de l'étape 7](verification/etape-7.md) dit quoi regarder.
+
+### Lot 7 (2026-09-28) — ce que la vérification du propriétaire a soulevé
+Posées par le propriétaire en regardant ses propres chiffres, et tranchées le même jour. Les deux
+partent du même constat — des actifs annoncés « non couvert » — mais **ce sont deux problèmes de
+nature différente**, et les confondre aurait donné une mauvaise correction.
+
+| Question | Retenu | Décision |
+|---|---|---|
+| Q-46 Un actif qui n'a ni pays ni secteur **par nature** (obligations, matières premières) | Ce n'est **pas** un manque : le propriétaire déclare le **contenu** de l'actif dans `actifs.toml`, à côté du `type` qui reste « etf ». L'actif compte dans sa classe et sort de la géographie et des secteurs, avec un libellé qui l'explique. Les matières premières deviennent une classe à part entière | D-71 |
+| Q-47 Un fonds d'**actions** que la source ne sait pas ouvrir | Une **source de secours par actif, nommée à l'écran**. À réaliser à l'**étape 8**, quand la présentation sera conçue : mélanger deux nomenclatures dans un même graphique est interdit (piège n° 16), donc la source doit être visible ligne par ligne | D-72 |
+
+**Le diagnostic qui a séparé les deux cas** (2026-09-28), et qui vaut d'être gardé parce qu'il a
+écarté trois fausses pistes :
+
+- ce **n'est pas** un problème de **part** : l'autre part du même compartiment est tout aussi vide ;
+- ce **n'est pas** récupérable par une répartition moins fine : les listes par **région** et par
+  **marché développé / émergent** sont vides elles aussi pour ces fonds ;
+- ce **n'est pas** une lacune générale de la source sur les marchés émergents : deux fonds émergents
+  à réplication **physique** ont été testés, avec 35 et 28 pays. La lacune porte sur certains fonds
+  **à swap**, fonds par fonds.
+
+**Et une fausse piste écartée dans l'autre sens :** la source publie un champ numérique
+`asset_class` qui semblait pouvoir distinguer actions, obligations et matières premières sans rien
+déclarer. Le rapprochement s'est révélé **faux sur deux actifs sur trois**. Une déclaration se
+vérifie, un code non documenté deviné non ([D-71](decisions.md)).

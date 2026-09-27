@@ -11,13 +11,24 @@ from datetime import date
 from decimal import Decimal
 
 from dashboard_tr.moteur import couts as couts_moteur
+from dashboard_tr.moteur import diversification as diversification_moteur
 from dashboard_tr.moteur import rapport as rapport_moteur
 from dashboard_tr.moteur import valeur_reelle as valeur_reelle_moteur
 from dashboard_tr.moteur.portefeuille import Portefeuille
 from dashboard_tr.moteur.rapprochement import rapprocher
 from dashboard_tr.moteur.rendements import Periode, Synthese, synthese
+from dashboard_tr.parametres import referentiels as parametres_referentiels
+from dashboard_tr.parametres.referentiels import charger_tout as referentiels_du_projet
 from dashboard_tr.pivot.operation import Poche, TypeOperation
 from dashboard_tr.pivot.position_reelle import PositionReelle
+from tests.moteur.compositions_fictives import (
+    CompositionFictive,
+    SourceDeCompositionFictive,
+    etf_monde,
+    etf_obligataire,
+    etf_synthetique_pea,
+    parts,
+)
 from tests.moteur.cours_fictifs import SourceFixe, cours_constant
 from tests.moteur.operations_fictives import ACTIF, enchainement_du_glossaire, operation
 from tests.moteur.parametres_fictifs import ParametresFictifs, regles
@@ -403,6 +414,110 @@ def rapport_complet(**kwargs):
     )
 
 
+def rapport_avec_repartition(composition=None, **kwargs):
+    """Le rapport complet, plus le bloc de l'étape 7."""
+    portefeuille, la_synthese, detail, valeur = detail_et_valeur(**kwargs)
+    table = {ACTIF: composition if composition is not None else etf_monde()}
+    la_diversification = diversification_moteur.diversifier(
+        la_synthese.valorisation,
+        SourceDeCompositionFictive(table),
+        parametres_referentiels.charger_tout(),
+    )
+    return rapport_moteur.resume(
+        portefeuille,
+        synthese=la_synthese,
+        detail_des_couts=detail,
+        valeur_reelle_estimee=valeur,
+        diversification_estimee=la_diversification,
+    )
+
+
+class TestLeBlocDeRepartitionDeLEtape7:
+    def test_les_trois_repartitions_sont_titrees(self):
+        texte = rapport_avec_repartition()
+
+        assert "REPARTITION DU PORTEFEUILLE" in texte
+        assert "Par classe d'actifs" in texte
+        assert "Par zone et par pays" in texte
+        assert "Par secteur" in texte
+
+    def test_la_date_d_arrete_des_compositions_est_donnee(self):
+        texte = rapport_avec_repartition()
+
+        assert "Compositions arrêtées au 2026-08-31" in texte
+
+    def test_la_regle_de_pays_et_la_convention_des_zones_sont_ecrites(self):
+        # D-66 et D-67 : sans elles, aucun pourcentage n'est comparable à une fiche d'émetteur.
+        texte = rapport_avec_repartition()
+
+        assert "plusieurs réponses justes" in texte
+        assert "pour un fonds, c'est" in texte.lower()
+        assert "convention" in texte
+
+    def test_il_est_dit_que_rien_n_est_ramene_a_cent(self):
+        texte = rapport_avec_repartition()
+
+        assert "ne font donc pas 100 %" in texte
+
+    def test_un_fonds_synthetique_est_signale_avec_la_raison(self):
+        texte = rapport_avec_repartition(composition=etf_synthetique_pea())
+
+        assert "réplication synthétique" in texte
+        assert "pas celle des titres qu'ils" in texte
+
+    def test_le_non_attribue_est_visible(self):
+        texte = rapport_avec_repartition(composition=etf_synthetique_pea())
+
+        assert "Non attribué par la source" in texte
+
+    def test_un_etf_obligataire_apparait_hors_perimetre_et_non_pas_manquant(self):
+        texte = rapport_avec_repartition(composition=etf_obligataire())
+
+        assert "Obligations (hors actions)" in texte
+        assert "Non couvert" not in texte
+
+    def test_un_actif_sans_composition_dit_quoi_faire(self):
+        # D-62 : le message est lu par quelqu'un qui n'a pas suivi la construction du projet.
+        portefeuille, la_synthese, detail, valeur = detail_et_valeur()
+        la_diversification = diversification_moteur.diversifier(
+            la_synthese.valorisation,
+            SourceDeCompositionFictive({}),
+            parametres_referentiels.charger_tout(),
+        )
+
+        texte = rapport_moteur.resume(
+            portefeuille,
+            synthese=la_synthese,
+            diversification_estimee=la_diversification,
+        )
+
+        assert "Non couvert : composition inconnue" in texte
+        assert "rien\n      n'est estimé" in texte or "rien n'est estimé" in texte
+        assert "actifs.toml" in texte
+
+
+class TestLeBlocDeRepartitionSAfficheSurUneConsoleWindows:
+    def test_il_s_ecrit_en_cp1252(self):
+        rapport_avec_repartition().encode("cp1252")
+
+    def test_aucune_ligne_ne_depasse_la_largeur_du_rapport(self):
+        # Une répartition en colonnes est précisément le genre de bloc qui déborde.
+        texte = rapport_avec_repartition()
+
+        for ligne in texte.splitlines():
+            assert len(ligne) <= 100, ligne
+
+    def test_un_pays_au_nom_long_ne_fait_pas_deborder_la_ligne(self):
+        composition = CompositionFictive(
+            pays=parts(VG="100"), secteurs=parts(technology="100"), classes=parts(stock="100")
+        )
+        texte = rapport_avec_repartition(composition=composition)
+
+        assert "Îles Vierges" in texte
+        for ligne in texte.splitlines():
+            assert len(ligne) <= 100, ligne
+
+
 class TestLesTroisBlocsDeLEtape6:
     def test_les_couts_payes_sont_detailles_avec_leur_poids(self):
         texte = rapport_complet()
@@ -522,4 +637,84 @@ class TestLesNouveauxBlocsSAffichentSurUneConsoleWindows:
         debut = texte.index("Coûts payés du")
 
         for ligne in texte[debut:].splitlines():
+            assert len(ligne) <= 100, ligne
+
+
+class TestLesPartsDeLaRepartitionSontEcritesJuste:
+    """Un pourcentage multiplié par cent est un chiffre faux, et il se voit tout de suite."""
+
+    def test_une_part_est_ecrite_en_pour_cent_et_non_en_taux(self):
+        # L'ETF fictif attribue 60 % aux États-Unis : la ligne doit dire 60,00 %, pas 6000,00 %.
+        texte = rapport_avec_repartition()
+
+        assert "60,00 %" in texte
+        assert "6000,00 %" not in texte
+
+    def test_aucune_part_du_bloc_ne_depasse_cent_pour_cent(self):
+        texte = rapport_avec_repartition()
+
+        debut = texte.index("REPARTITION DU PORTEFEUILLE")
+        for ligne in texte[debut:].splitlines():
+            if not ligne.strip().endswith("%"):
+                continue
+            part = ligne.strip().rsplit(" ", 1)[0].rsplit(" ", 1)[-1]
+            assert Decimal(part.replace(",", ".")) <= Decimal("100"), ligne
+
+
+class TestAucunLibelleDuBlocNEstTronque:
+    """Un libellé coupé au milieu n'explique plus rien, et c'est arrivé une fois."""
+
+    def test_les_libelles_des_restes_tiennent_dans_la_colonne(self):
+        classes = referentiels_du_projet().classes_dactifs.ordonnees()
+        libelles = [
+            rapport_moteur.LIBELLE_NUMERIQUES,
+            rapport_moteur.LIBELLE_NON_ATTRIBUE,
+            rapport_moteur.LIBELLE_NON_COUVERT,
+            # Chaque classe d'actifs peut apparaitre suivie du suffixe « hors actions » : c'est
+            # le libellé complet qui doit tenir, pas seulement le nom de la classe.
+            *[
+                f"{classe.libelle} {rapport_moteur.SUFFIXE_HORS_ACTIONS}"
+                for classe in classes
+            ],
+        ]
+        for libelle in libelles:
+            assert len(libelle) <= rapport_moteur.LARGEUR_LIBELLE_REPARTITION, libelle
+
+    def test_aucun_libelle_affiche_ne_finit_par_un_point_de_troncature(self):
+        texte = rapport_avec_repartition(composition=etf_obligataire())
+
+        debut = texte.index("REPARTITION DU PORTEFEUILLE")
+        for ligne in texte[debut:].splitlines():
+            assert "liqu. " not in ligne, ligne
+
+
+class TestLesSignalementsDeLaRepartitionSontAffiches:
+    """Un signalement calculé mais jamais montré ne sert à rien (règle 6 de CLAUDE.md)."""
+
+    def test_un_depassement_est_explique_a_l_ecran(self):
+        composition = CompositionFictive(
+            pays=parts(US="100"),
+            secteurs=parts(technology="100"),
+            classes=parts(stock="50", bond="50"),
+        )
+        texte = rapport_avec_repartition(composition=composition)
+
+        assert "Ce qui cloche dans ces chiffres" in texte
+        assert "dépasse donc la valeur du portefeuille" in texte
+
+    def test_sans_signalement_le_bloc_n_apparait_pas(self):
+        texte = rapport_avec_repartition()
+
+        assert "Ce qui cloche dans ces chiffres" not in texte
+
+    def test_le_bloc_des_signalements_reste_affichable_sur_une_console_windows(self):
+        composition = CompositionFictive(
+            pays=parts(US="100"),
+            secteurs=parts(technology="100"),
+            classes=parts(stock="50", bond="50"),
+        )
+        texte = rapport_avec_repartition(composition=composition)
+
+        texte.encode("cp1252")
+        for ligne in texte.splitlines():
             assert len(ligne) <= 100, ligne

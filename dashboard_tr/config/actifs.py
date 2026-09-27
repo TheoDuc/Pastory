@@ -52,6 +52,17 @@ pour 0,20 % vaudrait 20 % par an (`docs/couts-et-fiscalite.md` §2.4)."""
 SPREAD_MAXIMUM = Decimal("5")
 """En pour cent, par côté. Au-delà, l'actif n'est plus négociable, ou l'unité est fausse."""
 
+FORME_REPARTITION = 'pays = { US = 70.0, FR = 2.1 }  (et de même pour  secteurs )'
+"""Comment corriger à la main la composition d'un actif (D-70)."""
+
+TOTAL_MAXIMAL = Decimal("105")
+"""Le total accepté pour une répartition déclarée, en pour cent.
+
+Pourquoi pas 100 : le prêt de titres peut faire dépasser légèrement 100 % dans les données des
+fonds (`docs/composition-des-etf.md` §8.3), et une répartition déclarée peut légitimement recopier
+une telle source. Au-delà de 105, c'est une erreur de saisie.
+"""
+
 
 class TypeActif(StrEnum):
     """Ce qui choisit le taux de spread par défaut, et dit si un TER est attendu (D-55)."""
@@ -62,6 +73,28 @@ class TypeActif(StrEnum):
 
 
 TYPES_ACCEPTES = tuple(type_actif.value for type_actif in TypeActif)
+
+
+class ContenuActif(StrEnum):
+    """**De quoi l'actif est fait à l'intérieur** (D-71). À ne pas confondre avec son `type`.
+
+    Le `type` dit ce qu'on détient — un ETF, une action, une crypto — et c'est lui qui choisit le
+    taux de spread et décide si un TER est attendu ([D-55](../../docs/decisions.md),
+    [D-61](../../docs/decisions.md)). Le `contenu`, lui, dit ce qu'il y a dedans, et c'est lui qui
+    décide de la place de l'actif dans les répartitions : un ETF obligataire reste un **ETF** avec
+    ses frais courants, mais son contenu n'a ni pays ni secteur au sens des actions
+    ([D-68](../../docs/decisions.md)).
+
+    Les valeurs sont **les clés de `parametres/classes_actifs.toml`** : c'est ce qui permet au
+    contenu déclaré d'être nommé et rangé comme celui qu'une source aurait annoncé.
+    """
+
+    ACTIONS = "actions"
+    OBLIGATIONS = "obligations"
+    MATIERES_PREMIERES = "matieres_premieres"
+
+
+CONTENUS_ACCEPTES = tuple(contenu.value for contenu in ContenuActif)
 
 
 @dataclass(frozen=True)
@@ -83,6 +116,26 @@ class Declaration:
 
     spread_pour_cent: Decimal | None = None
     """Un taux de spread par côté propre à cet actif, qui remplace celui de son type."""
+
+    contenu: ContenuActif | None = None
+    """De quoi l'actif est fait : actions, obligations, matières premières (D-71).
+
+    Déclaré par l'utilisateur quand la source ne sait pas le dire. Sans lui, un ETF obligataire ou
+    un ETF de matières premières serait annoncé « composition inconnue », alors que la vérité est
+    qu'il n'a **ni pays ni secteur** — ce qui n'est pas un manque de données.
+    """
+
+    pays: Mapping[str, Decimal] | None = None
+    """Répartition par pays **déclarée à la main**, qui l'emporte sur la source (D-70).
+
+    La porte de sortie du choix « mise à jour automatique » : si la source se trompe sur un
+    actif, on corrige ici sans attendre qu'elle se corrige. Les clés sont des codes ISO 3166-1
+    alpha-2, les valeurs des pourcentages.
+    """
+
+    secteurs: Mapping[str, Decimal] | None = None
+    """Répartition par secteur déclarée à la main. Mêmes règles ; les clés sont les codes de la
+    nomenclature retenue (`parametres/secteurs.toml`)."""
 
 
 @dataclass(frozen=True)
@@ -220,8 +273,77 @@ def _lire_declarations(brut: object, fichier: Path) -> dict[str, Declaration]:
                 valeur.get("spread_pour_cent"), "spread_pour_cent", Decimal("0"),
                 SPREAD_MAXIMUM, actif, fichier,
             ),
+            contenu=_lire_contenu(valeur.get("contenu"), actif, fichier),
+            pays=_lire_repartition(valeur.get("pays"), "pays", actif, fichier),
+            secteurs=_lire_repartition(valeur.get("secteurs"), "secteurs", actif, fichier),
         )
     return declarations
+
+
+def _lire_contenu(valeur: object, actif: str, fichier: Path) -> ContenuActif | None:
+    """Le contenu, facultatif : absent, c'est la source qui décide (D-71)."""
+    if valeur is None or (isinstance(valeur, str) and valeur.strip() == ""):
+        return None
+    if not isinstance(valeur, str) or valeur.strip().lower() not in CONTENUS_ACCEPTES:
+        raise ConfigurationInvalide(
+            f"{fichier} : l'actif {actif} a un « contenu » que je ne connais pas : {valeur!r}. "
+            f"Contenus acceptés : {', '.join(CONTENUS_ACCEPTES)}. Le contenu dit de quoi l'actif "
+            f"est fait à l'intérieur ; le « type », lui, dit ce que vous détenez (etf, action, "
+            f"crypto)."
+        )
+    return ContenuActif(valeur.strip().lower())
+
+
+def _lire_repartition(
+    valeur: object, champ: str, actif: str, fichier: Path
+) -> dict[str, Decimal] | None:
+    """Une répartition déclarée à la main, facultative, qui l'emporte sur la source (D-70).
+
+    Trois refus, et chacun protège d'un chiffre faux et crédible :
+
+    - un poids qui n'est pas un nombre, ou négatif ;
+    - un total au-delà de `TOTAL_MAXIMAL` : c'est presque toujours une ligne oubliée en double,
+      ou des fractions écrites pour des pourcentages ;
+    - un total nul, qui ferait disparaître l'actif des totaux sans le dire.
+
+    Un total **inférieur** à 100 est en revanche accepté tel quel : le reste devient du « non
+    attribué », exactement comme pour une source (D-69). On ne complète jamais à 100.
+    """
+    if valeur is None:
+        return None
+    if not isinstance(valeur, dict) or not valeur:
+        raise ConfigurationInvalide(
+            f"{fichier} : l'actif {actif} déclare un « {champ} » que je ne comprends pas. "
+            f"Écrivez  {FORME_REPARTITION}"
+        )
+
+    repartition: dict[str, Decimal] = {}
+    for code, poids in valeur.items():
+        if isinstance(poids, bool) or not isinstance(poids, int | float):
+            raise ConfigurationInvalide(
+                f"{fichier} : l'actif {actif} déclare {champ}.{code} = {poids!r}, qui n'est pas "
+                f"un nombre. Écrivez un pourcentage, par exemple  {code} = 12.5"
+            )
+        part = Decimal(str(poids))
+        if part < 0:
+            raise ConfigurationInvalide(
+                f"{fichier} : l'actif {actif} déclare {champ}.{code} = {poids}, un poids négatif."
+            )
+        repartition[str(code).strip()] = part
+
+    total = sum(repartition.values(), Decimal("0"))
+    if total <= 0:
+        raise ConfigurationInvalide(
+            f"{fichier} : l'actif {actif} déclare un « {champ} » dont le total est nul. L'actif "
+            f"disparaîtrait de la répartition sans que rien ne le dise. Retirez la ligne plutôt."
+        )
+    if total > TOTAL_MAXIMAL:
+        raise ConfigurationInvalide(
+            f"{fichier} : l'actif {actif} déclare un « {champ} » dont le total fait {total} %, "
+            f"au-delà de {TOTAL_MAXIMAL} %. C'est presque toujours une ligne comptée deux fois, "
+            f"ou des fractions écrites pour des pourcentages (0.72 au lieu de 72)."
+        )
+    return repartition
 
 
 def _lire_devise(valeur: object, actif: str, fichier: Path) -> str:
@@ -329,6 +451,16 @@ def modele(
         "#            frais courant n'est estimé.",
         "#   spread_pour_cent : facultatif, un taux par côté propre à cet actif (ETF de niche,",
         "#            petite capitalisation, altcoin), qui remplace celui de son type.",
+        "#",
+        f"#   contenu : facultatif — {', '.join(CONTENUS_ACCEPTES)}. Dit de quoi l'actif est",
+        "#            fait à l'intérieur, là où « type » dit ce que vous détenez. Un ETF",
+        "#            d'obligations ou de matières premières n'a ni pays ni secteur : le",
+        "#            déclarer ici le range à sa place, au lieu de l'annoncer « composition",
+        "#            inconnue ». Sans contenu, c'est la source qui décide.",
+        "#   pays, secteurs : facultatifs, pour corriger une composition que la source donne",
+        f"#            fausse ou ne donne pas :  {FORME_REPARTITION}",
+        "#            Ce que vous écrivez l'emporte sur la source. Les totaux n'ont pas besoin",
+        "#            de faire 100 : le reste devient du « non attribué », jamais comblé.",
         "#",
         "# Un actif laissé vide n'est pas valorisé — il est signalé, jamais estimé.",
         "# Ce fichier reste sur votre machine : il n'entre jamais dans git.",

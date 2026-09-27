@@ -868,3 +868,216 @@ adaptateur par émetteur) ; Trade Republic ([D-49](#d-49)).
 son adresse change à chaque publication, donc elle est relue sur la page ; la valeur est une
 **fraction** avec du bruit de flottant, arrondie à quatre décimales ; un ISIN apparaît une fois
 par devise de négociation.
+
+### D-62 · 2026-09-27 · Les fonctionnalités visent l'utilisateur type, pas le portefeuille du propriétaire · Validée
+**Décision :** le **choix des fonctionnalités** se fait pour un investisseur type de Trade
+Republic, et non pour le portefeuille du propriétaire à un instant donné. Un cas de figure
+courant chez Trade Republic est traité **même si le propriétaire n'est pas concerné
+aujourd'hui** ; à l'inverse, un cas rare reste hors périmètre même s'il le concerne.
+**Raison :** évolution de cap du propriétaire, qui compte partager l'application. Jusqu'ici, seule
+l'**installation** par un tiers était un objectif ([étape 10](feuille-de-route.md)) ; le contenu,
+lui, suivait ses propres actifs. Premier effet concret : les **actions détenues en direct**
+entrent dans les répartitions de l'étape 7 alors qu'il n'en détient aucune, parce que l'achat
+d'actions à l'unité est courant sur cette banque.
+**Conséquence sur la rédaction :** tout message d'absence, de déduction ou d'estimation est écrit
+pour quelqu'un qui **n'a pas suivi la construction du projet**. « Cet actif n'est pas couvert »
+doit dire pourquoi et ce qu'il faut faire.
+**Écarte :** dimensionner les fonctionnalités sur le portefeuille du propriétaire. **N'écarte
+pas** la règle inverse, qui reste vraie : les **valeurs** vérifiées restent les siennes, et les
+choix de calcul se valident sur ses chiffres ([D-03](#d-03)).
+
+### D-63 · 2026-09-27 · La composition d'un ETF vient d'extraETF, par ISIN, en lisant les répartitions agrégées · Validée
+**Décision :** la répartition par pays et par secteur d'un ETF est obtenue auprès d'**extraETF**
+(`api-v2/detail/?isin=`), interrogé par **ISIN**, en lisant **les répartitions agrégées** et
+**jamais les lignes détenues**. Les pays arrivent en **code ISO 3166-1**, les secteurs en **code
+machine** : aucun calcul ne repose sur un libellé affiché (règle 4 de `CLAUDE.md`).
+**Raison :** [Q-39](questions-ouvertes.md), après le
+[comparatif des sources](composition-des-etf.md). Quatorze familles de sources examinées, onze
+interrogées. C'est la seule source gratuite, sans clé, interrogeable par ISIN en un appel, qui
+donne **les deux répartitions avec des codes**, et qui réponde correctement sur un **ETF PEA
+synthétique**.
+**Écarte :** les émetteurs comme source de calcul — trois nomenclatures dont deux non déclarées,
+agrégats tronqués à neuf postes, et **rien d'exploitable chez BNP Paribas Easy ni Xtrackers**, donc
+un PEA partiellement invisible ; justETF (libellés sans code, classification différente) ; Yahoo
+Finance (**aucune** répartition par pays, aucune date) ; fondsweb (dix premières lignes sans
+reliquat) ; Trackinsight et Morningstar (captcha) ; les API à clé (palier gratuit américain, et la
+dépendance que [D-18](#d-18) refuse) ; l'EET et la base des DIC (n'existent pas sous forme
+interrogeable).
+**Limite assumée :** c'est une **API interne non documentée**, dont l'usage n'est pas explicitement
+autorisé — usage personnel toléré, pas un droit. Même forme de question que [D-49](#d-49) pour
+pytr. Elle peut fermer sans préavis : l'application doit alors le dire et continuer sans
+répartition, jamais afficher un chiffre faute de données.
+**Pièges traités :** le swap d'un ETF synthétique porte le pays « USA » dans les lignes détenues,
+ce qui afficherait **100 % États-Unis pour un ETF monde** ; les libellés sont en allemand même sur
+`/en/` ; aucune répartition ne somme à 100 %.
+
+### D-64 · 2026-09-27 · Pour un ETF synthétique, on affiche l'indice suivi · Validée
+**Décision :** la répartition d'un ETF **synthétique** est celle de l'**indice suivi**, pas celle
+du panier détenu. L'actif est marqué **« synthétique »** à l'écran, pour que l'écart avec les
+titres listés sur la fiche de l'émetteur soit compréhensible.
+**Raison :** [Q-40](questions-ouvertes.md). C'est l'**exposition économique** réelle : si l'indice
+monte, l'ETF monte, quoi qu'il détienne. Mesuré le 2026-09-27 sur un ETF *MSCI World* à swap
+éligible au PEA : son panier donne **Allemagne 38,5 %** et **États-Unis 15,6 %**, son indice
+**États-Unis 72,9 %**. Afficher le panier décrirait un risque que l'utilisateur ne porte pas. Et
+tout ETF « PEA » sur un indice non européen est synthétique **par construction**, puisqu'il doit
+détenir au moins 75 % de titres éligibles au PEA.
+**Écarte :** le panier détenu (la détention juridique) ; l'affichage des deux côte à côte, qui
+double la lecture et repose sur l'utilisateur la question « lequel est le bon chiffre ».
+**Conséquence de code :** on ne lit **jamais** les lignes détenues ([D-63](#d-63)). Un actif dont
+on ne connaîtrait que les lignes n'est pas affiché.
+
+### D-65 · 2026-09-27 · Une seule nomenclature sectorielle, nommée : les 11 secteurs Morningstar · Validée
+**Décision :** les secteurs sont les **11 secteurs de niveau 1 de Morningstar**, désignés comme
+tels à l'écran — **jamais** le mot « GICS ». La table code → libellé français vit dans
+`dashboard_tr/parametres/secteurs.toml`, avec sa source et sa date ([D-58](#d-58)). **Aucun
+rapprochement par libellé**, et aucune addition de deux nomenclatures.
+**Raison :** [Q-41](questions-ouvertes.md). **Aucune source gratuite interrogeable par ISIN ne
+donne du GICS**, alors que les indices suivis sont bâtis sur GICS ou sur ICB. Morningstar est la
+classification accessible, et c'est aussi celle que l'utilisateur verra en vérifiant (Yahoo,
+Morningstar, justETF). Mélanger deux nomenclatures donne un total juste et une répartition fausse :
+mesuré sur un même fonds à une même date, la technologie vaut **35,71 %** chez l'un et **30,61 %**
+chez l'autre, l'écart étant exactement Alphabet et Meta, qui changent de camp. Le code 10 lui-même
+vaut *Technology* chez ICB et *Energy* chez GICS.
+**Écarte :** GICS (inaccessible gratuitement par ISIN) ; ICB ; toute table de passage entre les
+deux, qui n'existe pas officiellement et ne pourrait pas être bijective.
+**À surveiller, sans rien coder :** une consultation GICS est ouverte du 17/07/2026 au 30/10/2026,
+avec des changements annoncés avant novembre 2026 et une date d'effet non publiée.
+
+### D-66 · 2026-09-27 · Les pays ont pour clé leur code ISO, et la règle de pays est affichée · Validée
+**Décision :** un pays est identifié par son **code ISO 3166-1 alpha-2**, jamais par un libellé, et
+**jamais déduit du préfixe de l'ISIN**. La **règle de pays** employée est affichée avec les
+chiffres : pour un ETF, le pays d'activité au sens de la source ; pour une **action détenue en
+direct**, le **siège social**. Les deux règles cohabitent dans la même répartition, et l'écran
+**le dit**.
+**Raison :** [Q-42](questions-ouvertes.md). Une répartition géographique n'est **pas une grandeur
+définie de façon unique** : BlackRock écrit lui-même que son exposition géographique se rapporte
+« principalement » au domicile de l'émetteur, « mais, dans certains cas, elle peut refléter le lieu
+où l'émetteur réalise l'essentiel de son activité ». L'écart mesuré entre les deux règles, sur un
+même fonds à une même date, est de **2 points sur les États-Unis** (70,00 % contre 72,04 %) et d'un
+facteur huit sur l'Irlande. Un chiffre dont on ignore la règle n'est pas vérifiable, et
+l'expérience de l'étape 6 dit qu'un chiffre non vérifiable n'est pas cru.
+**Écarte :** convertir une règle dans l'autre (impossible sans les lignes) ; taire la différence ;
+renoncer aux actions en direct, courantes sur cette banque ([D-62](#d-62)).
+**Piège traité :** Taiwan Semiconductor se négocie sous un ISIN commençant par `US` et n'est pas
+américain — même famille d'erreur qu'un ISIN lu dans la colonne du nom, à l'étape 6.
+
+### D-67 · 2026-09-27 · Les zones sont une liste datée et sourcée, pas une notion · Validée
+**Décision :** les pays sont regroupés en **zones d'investisseur** — Amérique du Nord, Europe,
+Japon, Asie-Pacifique développée, marchés émergents — et la liste des pays de chaque zone vit dans
+`dashboard_tr/parametres/zones.toml`, avec sa **source et sa date**. Elle est corrigeable sans
+toucher au code.
+**Raison :** [Q-43](questions-ouvertes.md). C'est le vocabulaire des outils du marché, donc celui
+dont l'utilisateur a besoin pour juger sa diversification. Le découpage « neutre » des Nations
+unies a été écarté parce qu'il place la **Chine et le Japon dans la même case**, ce qui ne décrit
+aucune décision d'investissement.
+**Limite affichée :** il n'existe **aucune norme** pour « développé » et « émergent ». MSCI et FTSE
+ne sont pas d'accord, et le désaccord est actif : la **Corée du Sud** et la **Pologne** changent de
+camp selon le fournisseur, et la **Grèce** est développée chez FTSE depuis le 21/09/2026 mais ne le
+sera chez MSCI qu'en mai 2027. Le fichier nomme donc son fournisseur et sa date, et l'écran signale
+que la zone est une convention.
+**Écarte :** ONU M49 seul ; les pays sans regroupement (30 à 55 lignes, la plupart sous 1 %).
+
+### D-68 · 2026-09-27 · Trois répartitions, et l'obligataire hors de la géographie et des secteurs · Validée
+**Décision :** l'application affiche **trois** répartitions : par **classe d'actifs** (actions,
+obligations, liquidités), puis par **pays** et par **secteur** de la **seule partie actions**. Un
+ETF obligataire compte dans la première et reste **hors** des deux autres, son montant affiché.
+Une **crypto** reste hors des trois classifications, sur une ligne à part.
+**Raison :** [Q-44](questions-ouvertes.md) et le point de cap ([D-62](#d-62)) : les portefeuilles
+mixtes actions/obligations sont fréquents. Et sur un ETF obligataire, « secteur » ne veut pas dire
+la même chose (Trésor, entreprises, titrisé — la méthodologie GICS n'attribue aucun secteur à un
+emprunt d'État), tandis que « pays » peut vouloir dire **devise** : « Bonds are included in US bond
+indices when the securities are denominated in U.S. dollars **regardless of the domicile of the
+issuer** » (fiche iShares, 31/08/2026). Fusionner les deux fabriquerait des postes « Trésor 18 % »
+à côté de « Technologie 25 % », qui ne sont pas de même nature.
+**Raison de forme :** c'est la logique de [D-11](#d-11) — on ne force pas une grandeur dans une
+catégorie où elle n'a pas de sens.
+**Écarte :** un camembert sectoriel unique mêlant actions et obligations ; ranger la crypto dans un
+secteur « technologie » ; l'exclure sans le dire.
+
+### D-69 · 2026-09-27 · Le reliquat reste visible, et rien n'est renormalisé à 100 % · Validée
+**Décision :** ce qu'une composition n'attribue pas est affiché sous le nom **« non attribué »**, et
+ce que l'application ne sait pas ouvrir est affiché **« non couvert »**, avec son montant. **Aucune
+renormalisation à 100 %**, jamais.
+**Raison :** application directe de [D-53](#d-53) à la diversification. Et une mesure : **aucune
+répartition ne somme à 100 %** (99,43 % à 99,96 % selon le fonds), et les deux vues d'un même fonds
+ne somment pas au même total — 0,87 point d'écart mesuré entre ses pays et ses secteurs. Un
+contrôle « ça fait 100 » échouerait donc à tort, et une renormalisation cacherait précisément ce
+qu'on ignore. Le prêt de titres peut même faire **dépasser** 100 % : le contrôle de vraisemblance
+l'accepte.
+**Écarte :** compléter un poste manquant depuis une autre source (ce serait mélanger deux
+nomenclatures, [D-65](#d-65)) ; répartir le reliquat au prorata ; masquer un actif non couvert.
+**Conséquence de rédaction :** ces deux libellés sont lus par quelqu'un qui n'a pas suivi le projet
+([D-62](#d-62)). Ils disent **pourquoi** et **ce qu'il faut faire**.
+
+### D-70 · 2026-09-27 · Une composition est datée et remplaçable, contrôlée, et corrigeable à la main · Validée
+**Décision :** contrairement à un cours, définitif en cache ([D-50](#d-50)), une **composition est
+datée et remplaçable** : elle porte sa date d'arrêté et sa source, une commande la rafraîchit, une
+autre l'oublie. Chaque composition reçue passe des **contrôles de vraisemblance** — somme des poids
+dans une fourchette, code ISO connu, code secteur connu, aucune lecture des lignes détenues — et
+tout code inconnu est **affiché**, jamais rangé par défaut (règle 5 de `CLAUDE.md`). Une
+**correction manuelle** est possible dans `actifs.toml` et l'emporte sur la source.
+**Raison :** un portefeuille d'ETF change de composition chaque mois, alors qu'un cours de clôture
+passé ne change jamais. Et le propriétaire a choisi la mise à jour **automatique**, sans relecture
+préalable ([Q-39](questions-ouvertes.md)) : sans contrôles ni porte de sortie, ce choix serait sans
+filet. La date est affichée telle que la source la donne, avec la réserve du
+[comparatif §3.1](composition-des-etf.md) : le champ employé parle de l'**indice**, et on n'en
+affirme pas plus.
+**Écarte :** le cache définitif ([D-50](#d-50)) pour ce type de donnée ; la validation préalable
+obligatoire, écartée par le propriétaire ; une composition sans date, refusée.
+**Le contrôle ajouté après l'avoir constaté sur de vraies données (2026-09-27) :** pour certains
+fonds, la source **répond normalement** — date, drapeau de réplication — mais range **100 % du fonds
+dans « autres »** et ne donne ni pays ni secteur. Ce n'est pas un fonds fait d'« autres choses » :
+c'est un fonds dont elle ignore le contenu. Sans garde-fou, ces actifs tombaient dans « obligations,
+liquidités et autres », c'est-à-dire présentés comme de la dette et des liquidités — **un chiffre
+faux et crédible**, exactement ce que ce projet traque. Une composition dont les classes d'actifs
+**renseignées** (actions, obligations, titres assimilés) pèsent moins de **50 %** est donc refusée,
+et l'actif devient **non couvert**. Le contrôle vit dans le module de la source, seul endroit qui
+connaît son vocabulaire.
+
+### D-71 · 2026-09-28 · Le contenu d'un actif se déclare, et n'avoir ni pays ni secteur n'est pas un manque · Validée
+**Décision :** l'utilisateur peut déclarer le **contenu** d'un actif dans `actifs.toml` —
+`contenu = "obligations"`, `"matieres_premieres"` ou `"actions"`. Un actif dont le contenu est
+déclaré compte **à 100 % dans sa classe** et reste **hors** de la géographie et des secteurs, sans
+être annoncé « composition inconnue ». Les **matières premières** deviennent une classe d'actifs à
+part entière dans `parametres/classes_actifs.toml`, et non un cas de « autres ». Et chaque montant
+sorti de la géographie porte **le nom de sa classe** — « Obligations (hors actions) », « Matières
+premières (hors actions) » — au lieu d'un fourre-tout unique.
+**Raison :** une observation du propriétaire sur ses propres actifs. Un ETF d'obligations et un ETF
+de matières premières s'affichaient **« non couvert : composition inconnue »**, ce qui est faux :
+ils ont bien une composition, elle n'a simplement ni pays ni secteur **au sens des actions** —
+exactement comme un actif numérique ([D-68](#d-68)). Dire « inconnu » là où la réponse est « sans
+objet » fabrique un doute pour rien, et le libellé unique « obligations, liquidités et autres »
+faisait de surcroît passer de l'or pour de la dette.
+**Pourquoi un champ nouveau et non le `type` existant :** le `type` dit **ce qu'on détient**, et
+c'est lui qui choisit le spread et décide si un TER est attendu ([D-55](#d-55), [D-61](#d-61)). Un
+ETF obligataire reste un **ETF** : lui changer son type pour décrire son contenu lui ferait perdre
+ses frais courants estimés. Les deux questions sont distinctes, elles ont désormais deux champs.
+**Écarte :** déduire le contenu du champ numérique `asset_class` de la source. Il existe et il est
+tentant, mais il n'est pas documenté, et le rapprochement tenté le 2026-09-28 s'est révélé **faux
+sur deux actifs sur trois**. Une déclaration se vérifie, un code deviné non.
+**Conséquence de forme :** une composition déclarée n'a **pas** de date d'arrêté, et n'entre donc pas
+dans la fourchette de dates affichée en tête du bloc — sans quoi elle la tirerait jusqu'à
+aujourd'hui. Le rapport nomme ces actifs et prévient que leurs chiffres ne vieillissent pas tout
+seuls.
+
+### D-72 · 2026-09-28 · Une source de secours par actif, nommée à l'écran · Validée, à réaliser à l'étape 8
+**Décision :** quand la source principale ne sait pas ouvrir un fonds **d'actions**, l'application
+pourra aller chercher sa composition auprès d'une **source de secours choisie par actif**, à
+condition que **la source de chaque chiffre soit visible à l'écran**. Amundi, par exemple, publie
+pour ses ISIN français la répartition de l'**indice suivi** — exactement ce que [D-64](#d-64)
+demande.
+**Raison :** [Q-47](questions-ouvertes.md). La lacune est réelle et documentée : la source retenue
+n'a pas la transparence de certains fonds **à swap**, fonds par fonds. Le diagnostic du 2026-09-28 a
+écarté les explications faciles — ce n'est ni un problème de part, ni un défaut rattrapable par une
+répartition par région, ni une lacune générale sur les marchés émergents (deux fonds émergents
+**physiques** testés donnent 35 et 28 pays).
+**La contrainte qui commande la forme, et non l'inverse :** deux sources n'ont ni la même
+nomenclature sectorielle ni la même règle de pays. Les mélanger dans un même graphique est le
+**piège n° 16** du [comparatif](composition-des-etf.md) : 5 points d'écart mesurés sur la
+technologie. La source doit donc être affichée **ligne par ligne**, ce qui est un choix de
+présentation — d'où le report à l'étape 8, où l'écran sera conçu.
+**Écarte :** compléter en silence un camembert avec une seconde source ; renoncer et laisser le trou
+sans recours. **N'écarte pas** la déclaration à la main ([D-70](#d-70)), qui reste disponible et qui
+est le seul recours d'ici là.
+**En attendant :** l'actif reste **non couvert**, avec son montant affiché, et la répartition est
+marquée partielle ([D-69](#d-69)).

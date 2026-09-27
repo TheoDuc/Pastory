@@ -17,8 +17,10 @@ dashboard positions           ce que le moteur en déduit : quantités, capital 
 dashboard exporter-positions  écrire les positions, le journal, la valorisation, les flux,
                               les sous-périodes du TWRR, l'évolution, les coûts et la
                               valeur réelle en CSV
+dashboard composition         ce qu'il y a à l'intérieur de chaque actif détenu
 dashboard positions-reelles   demander à la banque ce qu'elle dit détenir, pour recouper
 dashboard oublier-cours       effacer des cours en cache, pour les reprendre à la source
+dashboard oublier-composition effacer des compositions, pour les reprendre à la source
 ```
 
 `positions` et `exporter-positions` acceptent `--au AAAA-MM-JJ` (la fin de la période, et la
@@ -56,14 +58,18 @@ from dashboard_tr.config import ConfigurationInvalide, emplacements
 from dashboard_tr.config import actifs as config_actifs
 from dashboard_tr.config import comptes as config_comptes
 from dashboard_tr.config import fiscalite as config_fiscalite
+from dashboard_tr.donnees_externes import actions as source_actions
 from dashboard_tr.donnees_externes import completion as completion_cours
+from dashboard_tr.donnees_externes import composition as composition_externe
 from dashboard_tr.donnees_externes import cours as cours_module
-from dashboard_tr.donnees_externes import xetra
+from dashboard_tr.donnees_externes import extraetf, xetra
 from dashboard_tr.donnees_externes.cache import Cache, CacheIllisible
+from dashboard_tr.donnees_externes.cache_compositions import CacheDeCompositions
 from dashboard_tr.donnees_externes.completion import Completion
 from dashboard_tr.donnees_externes.cours import ErreurDeSource, FournisseurDeCours, Refus
 from dashboard_tr.donnees_externes.yahoo import Yahoo
 from dashboard_tr.moteur import couts as couts_moteur
+from dashboard_tr.moteur import diversification as diversification_moteur
 from dashboard_tr.moteur import export_csv as export_moteur
 from dashboard_tr.moteur import rapport as rapport_moteur
 from dashboard_tr.moteur import rendements as rendements_moteur
@@ -74,6 +80,7 @@ from dashboard_tr.moteur.rapprochement import rapprocher
 from dashboard_tr.parametres import ParametresInvalides
 from dashboard_tr.parametres import couts as parametres_couts
 from dashboard_tr.parametres import fiscalite as parametres_fiscalite
+from dashboard_tr.parametres import referentiels as parametres_referentiels
 from dashboard_tr.pivot import export_csv
 from dashboard_tr.pivot.operation import Poche
 from dashboard_tr.pivot.position_reelle import PositionReelle
@@ -373,11 +380,56 @@ def _parametres_des_couts() -> couts_moteur.ParametresDeCouts:
     )
 
 
+def _fournisseur_de_compositions(
+    hors_ligne: bool = False,
+) -> composition_externe.FournisseurDeCompositions:
+    """Réunit le cache local, la source des fonds et celle des actions (D-63, D-70).
+
+    **C'est le seul endroit de l'application qui nomme extraETF et GLEIF.** Le moteur ne sait pas
+    d'où viennent les compositions : il déclare un protocole, et changer de source ne toucherait
+    que cette fonction (D-26).
+
+    Le type déclaré de chaque actif décide de la source interrogée : un ETF et une action ne se
+    regardent pas au même endroit, et une crypto ne se regarde nulle part (D-68).
+    """
+    return composition_externe.FournisseurDeCompositions(
+        cache=CacheDeCompositions(),
+        source_etf=None if hors_ligne else extraetf.SourceExtraEtf(),
+        source_action=None if hors_ligne else source_actions.SourceDActions(),
+        actifs=config_actifs.charger(),
+        hors_ligne=hors_ligne,
+    )
+
+
+def _referentiels() -> parametres_referentiels.Referentiels:
+    """Les secteurs, les pays et leurs zones, avec leur source et leur date (D-65 à D-67)."""
+    return parametres_referentiels.charger_tout()
+
+
 def _regles_fiscales() -> parametres_fiscalite.ReglesFiscales:
     """Les taux datés et sourcés, plus la date du premier versement du PEA (D-58, D-59)."""
     return parametres_fiscalite.charger(
         premier_versement_pea=config_fiscalite.charger().premier_versement_pea
     )
+
+
+def _rapport_des_compositions(
+    fournisseur: composition_externe.FournisseurDeCompositions | None,
+) -> list[str]:
+    """Ce qui a empêché de connaître la composition d'un actif, dit en clair.
+
+    Bloc à part, comme celui des cours : un actif absent d'une répartition doit trouver son
+    explication quelque part, sinon l'utilisateur croit à un oubli du programme (D-62, D-69).
+    """
+    if fournisseur is None or not fournisseur.refus:
+        return []
+
+    lignes = ["", "Compositions", "-" * 12]
+    for categorie, refus in composition_externe.grouper_refus(fournisseur.refus):
+        lignes.append(f"  {categorie} : {len(refus)} actif(s)")
+        for un in refus:
+            lignes += _enveloppe_cours(un.motif, un.actif)
+    return lignes
 
 
 def _rapport_des_cours(completion: Completion, refus: Sequence[Refus]) -> list[str]:
@@ -468,6 +520,12 @@ class Construit:
     valeur_reelle: valeur_reelle_moteur.ValeurReelle
     """Ce qu'on récupérerait en vendant tout à la date de valorisation (D-23)."""
 
+    diversification: diversification_moteur.Diversification | None = None
+    """Les trois répartitions (étape 7). `None` si aucune composition n'est disponible."""
+
+    compositions: composition_externe.FournisseurDeCompositions | None = None
+    """Gardé pour que les refus de compositions soient affichés après les chiffres."""
+
 
 def _periode(au: Date | None, depuis: Date | None) -> rendements_moteur.Periode | None:
     """La période des chiffres clés, ou `None` avec un message si elle est à l'envers.
@@ -521,6 +579,13 @@ def _construire_moteur(
     valeur = valeur_reelle_moteur.valeur_reelle(
         portefeuille, synthese.valorisation, parametres, _regles_fiscales()
     )
+
+    # La répartition part de la **même** valorisation que tout le reste : c'est elle qui fournit
+    # les poids, et deux valorisations du même jour pourraient différer d'un centime.
+    compositions = _fournisseur_de_compositions(hors_ligne)
+    diversification = diversification_moteur.diversifier(
+        synthese.valorisation, compositions, _referentiels()
+    )
     return Construit(
         portefeuille=portefeuille,
         rapport=rapport,
@@ -531,6 +596,8 @@ def _construire_moteur(
         synthese=synthese,
         detail_des_couts=detail,
         valeur_reelle=valeur,
+        diversification=diversification,
+        compositions=compositions,
     )
 
 
@@ -593,12 +660,15 @@ def commande_positions(
             synthese=construit.synthese,
             detail_des_couts=construit.detail_des_couts,
             valeur_reelle_estimee=construit.valeur_reelle,
+            diversification_estimee=construit.diversification,
         )
     )
 
     # Après les chiffres, et non avant : le rapport du moteur porte en tête l'avertissement
     # qu'il contient de vraies valeurs, et rien ne doit s'intercaler devant.
     for ligne in _rapport_des_cours(construit.completion, construit.fournisseur.refus):
+        print(ligne)
+    for ligne in _rapport_des_compositions(construit.compositions):
         print(ligne)
 
     for anomalie in anomalies_du_fichier:
@@ -682,6 +752,19 @@ def commande_exporter_positions(
         personnel / export_moteur.NOM_VALEUR_REELLE,
     )
 
+    fichiers_repartition: list[Path] = []
+    if construit.diversification is not None:
+        for rubrique, nom in (
+            (diversification_moteur.Rubrique.CLASSE, export_moteur.NOM_REPARTITION_CLASSES),
+            (diversification_moteur.Rubrique.PAYS, export_moteur.NOM_REPARTITION_PAYS),
+            (diversification_moteur.Rubrique.SECTEUR, export_moteur.NOM_REPARTITION_SECTEURS),
+        ):
+            fichiers_repartition.append(
+                export_moteur.ecrire_repartition(
+                    construit.diversification, rubrique, personnel / nom
+                )
+            )
+
     # Après l'évolution, et non avant : elle demande un cours par jour, et ses refus doivent
     # figurer dans ce bloc — sans quoi une colonne « positions_non_valorisees » à 1 n'aurait
     # d'explication nulle part.
@@ -703,10 +786,18 @@ def commande_exporter_positions(
         f"\n  {fichier_couts}"
     )
     print(f"La valeur réelle et l'impôt estimé, poche par poche :\n  {fichier_valeur_reelle}")
+    for fichier in fichiers_repartition:
+        print(f"Répartition, avec ce qui n'y entre pas :\n  {fichier}")
+
+    for ligne in _rapport_des_compositions(construit.compositions):
+        print(ligne)
+
     print(
         "\nLe journal est celui à ouvrir pour refaire un chiffre à la main : une ligne par\n"
         "opération, avec l'état d'avant et l'état d'après. Pour le TRI, c'est flux.csv ;\n"
-        "pour les coûts, couts.csv ; pour l'impôt estimé, valeur_reelle.csv."
+        "pour les coûts, couts.csv ; pour l'impôt estimé, valeur_reelle.csv ; pour la\n"
+        "répartition, repartition_pays.csv, dont la colonne « montant » somme à la colonne\n"
+        "« base »."
     )
     return CODE_SUCCES
 
@@ -1111,6 +1202,108 @@ def commande_oublier_cours(actif: str | None, tout: bool) -> int:
     return CODE_SUCCES
 
 
+def commande_composition(dossier_export: Path | None, hors_ligne: bool = False) -> int:
+    """Montre ce que l'application sait de l'intérieur de chaque actif détenu.
+
+    Commande à part, et non un bout de `positions`, pour la même raison qui a séparé
+    `cours` : elle **demande** les compositions manquantes, donc elle parle au réseau, et
+    l'utilisateur doit savoir quand cela arrive (D-63).
+    """
+    dossier = dossier_export or source.dossier_par_defaut()
+    try:
+        rapport, _ = _lire(dossier, avec_recoupement=False)
+        portefeuille = Portefeuille.construire(rapport.operations)
+        fournisseur = _fournisseur_de_compositions(hors_ligne)
+        referentiels = _referentiels()
+    except source.ExportIntrouvable as erreur:
+        print(erreur, file=sys.stderr)
+        return CODE_ECHEC
+    except (ParametresInvalides, ConfigurationInvalide) as erreur:
+        print(erreur, file=sys.stderr)
+        return CODE_ECHEC
+    except CacheIllisible as erreur:
+        print(erreur, file=sys.stderr)
+        return CODE_ECHEC
+
+    detenues = portefeuille.positions_detenues
+    if not detenues:
+        print("Aucune position détenue : il n'y a aucune composition à chercher.")
+        return CODE_SUCCES
+
+    print(f"{len(detenues)} position(s) détenue(s). Nomenclature : {referentiels.nomenclature}.")
+    print("")
+    for position in sorted(detenues, key=lambda une: une.actif):
+        if position.poche is Poche.CRYPTO:
+            print(
+                f"  {position.actif:<16} actif numérique : ni pays ni secteur, présenté à part "
+                "(ce n'est pas une donnée manquante)"
+            )
+            continue
+        composition = fournisseur.composition(position.actif)
+        if composition is None:
+            print(f"  {position.actif:<16} aucune composition (voir le motif ci-dessous)")
+            continue
+        replication = f", {composition.replication}" if composition.replication else ""
+        if not composition.pays and not composition.secteurs:
+            # Un ETF d'obligations ou de matières premières : il a bien une composition, elle
+            # n'a simplement ni pays ni secteur. Le dire ainsi, et non « 0 pays », évite de
+            # faire passer une nature d'actif pour une donnée manquante (D-71).
+            classes = ", ".join(
+                referentiels.classe(part.code).libelle
+                if referentiels.classe(part.code) is not None
+                else part.code
+                for part in composition.classes
+            )
+            print(
+                f"  {position.actif:<16} {classes or 'classe inconnue'} : ni pays ni secteur "
+                f"au sens des actions (ce n'est pas une donnée manquante)"
+            )
+        else:
+            print(
+                f"  {position.actif:<16} {len(composition.pays)} pays, "
+                f"{len(composition.secteurs)} secteur(s), arrêté au "
+                f"{composition.arrete_le.isoformat()}{replication}"
+            )
+        if composition.document is not None:
+            print(f"  {'':<16} à vérifier sur : {composition.document}")
+
+    for ligne in _rapport_des_compositions(fournisseur):
+        print(ligne)
+
+    print("")
+    for origine in referentiels.origines:
+        print(f"  {origine}")
+    print(f"\nLancez « {NOM} positions » pour voir la répartition du portefeuille.")
+    return CODE_SUCCES
+
+
+def commande_oublier_composition(actif: str | None, tout: bool) -> int:
+    """Efface des compositions en cache pour les reprendre à la source (D-70).
+
+    Contrairement aux cours, une composition n'est **pas** définitive : celle d'un ETF change
+    chaque mois. Cette commande sert donc régulièrement, et pas seulement en cas d'erreur —
+    c'est elle qui rafraîchit une répartition devenue vieille.
+    """
+    cache = CacheDeCompositions()
+    if actif is None and not tout:
+        print(
+            "Précisez ce qu'il faut oublier : « --actif <ISIN> » pour un seul actif, ou "
+            "« --tout » pour l'ensemble des compositions.",
+            file=sys.stderr,
+        )
+        return CODE_ECHEC
+
+    oublies = cache.oublier(actif)
+    if not oublies:
+        cible = f"l'actif {actif}" if actif else "le cache"
+        print(f"Rien à oublier : aucune composition en mémoire pour {cible}.")
+        return CODE_SUCCES
+
+    print(f"{len(oublies)} composition(s) oubliée(s) : {', '.join(oublies)}")
+    print(f"Lancez « {NOM} composition » pour les reprendre à la source.")
+    return CODE_SUCCES
+
+
 def _a_venir(commande: str, etape: str) -> int:
     print(f"La commande « {commande} » sera disponible à l'{etape}.", file=sys.stderr)
     return CODE_ECHEC
@@ -1131,13 +1324,20 @@ def construire_analyseur() -> argparse.ArgumentParser:
     )
 
     avec_date = {"positions", "exporter-positions"}
-    sans_reseau = {"positions", "exporter-positions", "exporter-pivot", "actifs"}
+    sans_reseau = {
+        "positions",
+        "exporter-positions",
+        "exporter-pivot",
+        "actifs",
+        "composition",
+    }
     for nom, aide in (
         ("comptes", "dire à quoi sert chaque compte espèces"),
         ("lire", "rapport de lecture, sans rien écrire"),
         ("exporter-pivot", "écrire les opérations en CSV"),
         ("actifs", "dire où chercher le cours de chaque actif"),
         ("cours", "récupérer les cours de marché et les mettre en cache"),
+        ("composition", "ce qu'il y a à l'intérieur de chaque actif détenu"),
         ("positions", "quantités, capital investi et prix de revient"),
         ("exporter-positions", "écrire les positions et leur journal en CSV"),
     ):
@@ -1189,6 +1389,20 @@ def construire_analyseur() -> argparse.ArgumentParser:
     )
     oublier.add_argument(
         "--tout", action="store_true", help="oublier le cache de tous les actifs"
+    )
+
+    oublier_composition = commandes.add_parser(
+        "oublier-composition",
+        help="effacer des compositions en cache, pour les reprendre à la source",
+    )
+    oublier_composition.add_argument(
+        "--actif",
+        default=None,
+        metavar="ISIN",
+        help="n'oublier que la composition de cet actif",
+    )
+    oublier_composition.add_argument(
+        "--tout", action="store_true", help="oublier les compositions de tous les actifs"
     )
 
     commandes.add_parser("ouvrir", help="ouvrir le tableau de bord (étape 9)")
@@ -1256,8 +1470,12 @@ def main(arguments: list[str] | None = None) -> int:
             )
         case "positions-reelles":
             return commande_positions_reelles()
+        case "composition":
+            return commande_composition(options.export, options.hors_ligne)
         case "oublier-cours":
             return commande_oublier_cours(options.actif, options.tout)
+        case "oublier-composition":
+            return commande_oublier_composition(options.actif, options.tout)
         case "ouvrir":
             return _a_venir("ouvrir", "étape 9 (réalisation de l'interface)")
         case _:

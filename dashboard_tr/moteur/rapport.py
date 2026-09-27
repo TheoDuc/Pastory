@@ -25,6 +25,7 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from dashboard_tr import tableur
 from dashboard_tr.moteur.couts import DetailDesCouts
+from dashboard_tr.moteur.diversification import Diversification, Repartition
 from dashboard_tr.moteur.portefeuille import Portefeuille, Totaux
 from dashboard_tr.moteur.position import Position
 from dashboard_tr.moteur.rapprochement import Accord, Rapprochement
@@ -94,6 +95,7 @@ def resume(
     synthese: Synthese | None = None,
     detail_des_couts: DetailDesCouts | None = None,
     valeur_reelle_estimee: ValeurReelle | None = None,
+    diversification_estimee: Diversification | None = None,
 ) -> str:
     """Le rapport complet, prêt à être affiché.
 
@@ -129,6 +131,8 @@ def resume(
         _couts_estimes(lignes, titre, detail_des_couts)
     if valeur_reelle_estimee is not None:
         _valeur_reelle(lignes, titre, valeur_reelle_estimee)
+    if diversification_estimee is not None:
+        _diversification(lignes, titre, diversification_estimee)
     _a_surveiller(lignes, titre, portefeuille)
     _rapprochement(lignes, titre, rapprochement, arrete_au)
 
@@ -728,6 +732,238 @@ def _sources_et_hypotheses(lignes: list[str], valeur: ValeurReelle) -> None:
     lignes.append("  Ne sont pas comptés : l'impôt sur les dividendes déjà reçus et sur les")
     lignes.append("  ventes déjà faites. Ils sont dus quoi qu'il arrive, ce ne sont pas des")
     lignes.append("  coûts de sortie. L'application estime, elle ne déclare pas (D-26).")
+
+
+# --- La répartition du portefeuille ----------------------------------------------------
+
+LARGEUR_LIBELLE_REPARTITION = 44
+LARGEUR_MONTANT_REPARTITION = 14
+LARGEUR_PART_REPARTITION = 9
+
+ZERO_RAPPORT = Decimal("0")
+"""Un reste nul n'est pas affiché : une ligne « non couvert : 0,00 » ferait douter pour rien."""
+
+LIBELLE_NUMERIQUES = "Actifs numériques, ni pays ni secteur"
+SUFFIXE_HORS_ACTIONS = "(hors actions)"
+"""Ce qui suit le nom d'une classe sortie de la géographie et des secteurs.
+
+« Obligations (hors actions) » et « Matières premières (hors actions) » s'expliquent d'eux-mêmes,
+là où un fourre-tout unique laissait croire à une donnée manquante (D-71). Le suffixe est court
+exprès : le libellé complet doit tenir dans la colonne, sinon il est tronqué et n'explique plus
+rien.
+"""
+LIBELLE_NON_ATTRIBUE = "Non attribué par la source"
+LIBELLE_NON_COUVERT = "Non couvert : composition inconnue"
+
+
+def _part_en_clair(part: Decimal | None) -> str:
+    """Une part **déjà exprimée en pour cent**, écrite « 62,64 % ».
+
+    Volontairement distinct de `_pourcentage`, qui attend un **taux** (0,1064 pour 10,64 %) :
+    `Repartition.pour_cent()` rend déjà des pour cent, parce que c'est ce nombre-là que le
+    propriétaire refait à la main et qu'on écrit dans les CSV. Les confondre multipliait par cent.
+    """
+    if part is None:
+        return SANS_OBJET
+    return f"{_lisible(part)} %"
+
+
+def _ligne_repartition(
+    libelle: str, montant: Decimal, repartition: Repartition, marge: str = "    "
+) -> str:
+    """Une ligne « libellé … montant … part », alignée et sous la limite de largeur."""
+    largeur = LARGEUR_LIBELLE_REPARTITION - (len(marge) - 4)
+    return (
+        f"{marge}{_nom_court(libelle, largeur):<{largeur}} "
+        f"{_lisible(montant):>{LARGEUR_MONTANT_REPARTITION}} "
+        f"{_part_en_clair(repartition.pour_cent(montant)):>{LARGEUR_PART_REPARTITION}}"
+    )
+
+
+def _restes(lignes: list[str], repartition: Repartition, avec_perimetre: bool) -> None:
+    """Les montants qui n'entrent dans aucun poste, et qui doivent rester visibles (D-69).
+
+    Chaque libellé est écrit pour quelqu'un qui découvre l'application (D-62) : il dit ce que
+    le montant est, pas seulement qu'il manque.
+    """
+    if avec_perimetre:
+        # Une ligne par classe d'actifs, nommée : « Obligations (hors actions) », « Matières
+        # premières (hors actions) ». Un seul fourre-tout laisserait croire à une donnée
+        # manquante, et s'il s'appelait « obligations » il ferait passer de l'or pour de la
+        # dette (D-71).
+        for poste in repartition.hors_perimetre_postes:
+            if poste.montant <= ZERO_RAPPORT:
+                continue
+            nom = _libelle(poste) if not poste.reconnu else poste.libelle
+            lignes.append(
+                _ligne_repartition(f"{nom} {SUFFIXE_HORS_ACTIONS}", poste.montant, repartition)
+            )
+    if repartition.hors_classification > ZERO_RAPPORT:
+        lignes.append(
+            _ligne_repartition(
+                LIBELLE_NUMERIQUES, repartition.hors_classification, repartition
+            )
+        )
+    if repartition.non_attribue > ZERO_RAPPORT:
+        lignes.append(
+            _ligne_repartition(LIBELLE_NON_ATTRIBUE, repartition.non_attribue, repartition)
+        )
+    if repartition.non_couvert > ZERO_RAPPORT:
+        lignes.append(
+            _ligne_repartition(LIBELLE_NON_COUVERT, repartition.non_couvert, repartition)
+        )
+
+
+def _diversification(lignes: list[str], titre: Titre, diversification: Diversification) -> None:
+    """Les trois répartitions, et tout ce qui empêche de les lire de travers.
+
+    Le titre est écrit sans accent sur les capitales, comme les autres blocs : la console
+    Windows écrit en cp1252, et un rapport juste ne doit pas faire échouer son propre affichage.
+    """
+    titre(f"REPARTITION DU PORTEFEUILLE au {diversification.date.isoformat()}")
+
+    if diversification.arrete_du is not None:
+        lignes.append(f"  {_arretes_en_clair(diversification)}")
+    lignes.append("")
+
+    lignes.append("  Par classe d'actifs")
+    for poste in diversification.classes.postes:
+        lignes.append(_ligne_repartition(_libelle(poste), poste.montant, diversification.classes))
+    _restes(lignes, diversification.classes, avec_perimetre=False)
+
+    lignes.append("")
+    lignes.append("  Par zone et par pays")
+    for zone, montant, postes in diversification.pays.par_zone():
+        lignes.append(_ligne_repartition(zone.libelle, montant, diversification.pays))
+        for poste in postes:
+            lignes.append(
+                _ligne_repartition(
+                    _libelle(poste), poste.montant, diversification.pays, marge="      "
+                )
+            )
+    _restes(lignes, diversification.pays, avec_perimetre=True)
+
+    lignes.append("")
+    lignes.append("  Par secteur")
+    for poste in diversification.secteurs.postes:
+        lignes.append(
+            _ligne_repartition(_libelle(poste), poste.montant, diversification.secteurs)
+        )
+    _restes(lignes, diversification.secteurs, avec_perimetre=True)
+
+    _ce_qui_cloche_dans_la_repartition(lignes, diversification)
+    _lecture_de_la_repartition(lignes, diversification)
+
+
+def _ce_qui_cloche_dans_la_repartition(
+    lignes: list[str], diversification: Diversification
+) -> None:
+    """Ce que le moteur n'a pas pu calculer normalement, dit ici et pas seulement calculé.
+
+    Le moteur produit ces signalements pour être lus : un total de répartition qui dépasse la
+    valeur de l'actif doit s'expliquer à l'écran, sinon l'utilisateur voit un chiffre impossible
+    sans savoir pourquoi (règle 6 de `CLAUDE.md`, et [D-45](../../docs/decisions.md)).
+    """
+    if not diversification.signalements:
+        return
+
+    lignes.append("")
+    lignes.append("  Ce qui cloche dans ces chiffres")
+    for categorie, signalements in _grouper(diversification.signalements):
+        lignes.append(f"    {categorie} ({len(signalements)})")
+        for signalement in signalements:
+            lignes += _enveloppe(str(signalement), "      - ", "        ")
+
+
+def _libelle(poste) -> str:
+    """Le nom d'un poste, et son code quand le référentiel ne le connaît pas (règle 5)."""
+    return poste.libelle if poste.reconnu else f"{poste.code} (code non reconnu)"
+
+
+def _arretes_en_clair(diversification: Diversification) -> str:
+    debut = diversification.arrete_du
+    fin = diversification.arrete_au
+    if debut == fin:
+        return f"Compositions arrêtées au {debut.isoformat()}."
+    return (
+        f"Compositions arrêtées entre le {debut.isoformat()} et le {fin.isoformat()} : "
+        f"une photo prise à plusieurs instants."
+    )
+
+
+def _lecture_de_la_repartition(lignes: list[str], diversification: Diversification) -> None:
+    """Ce qu'il faut savoir pour ne pas se tromper en lisant les chiffres ci-dessus.
+
+    Ce n'est pas du remplissage : sans la règle de pays et le nom de la nomenclature, aucun de
+    ces pourcentages n'est comparable à une fiche d'émetteur (D-65, D-66).
+    """
+    lignes.append("")
+    lignes.append("  Comment lire ces chiffres")
+    lignes += _enveloppe(
+        "Les pourcentages sont calculés sur la valeur totale des actifs valorisés, et non sur "
+        "la somme des postes : ils ne font donc pas 100 % quand une partie du portefeuille "
+        "n'est pas couverte. Rien n'est jamais ramené à 100 %.",
+        "    - ",
+        "      ",
+    )
+    lignes += _enveloppe(
+        "« De quel pays est une société » a plusieurs réponses justes. Pour un fonds, c'est "
+        "son pays d'activité ; pour une action détenue en direct, c'est son siège social. Les "
+        "deux cohabitent ci-dessus, et un même titre peut changer de pays selon la règle.",
+        "    - ",
+        "      ",
+    )
+    lignes += _enveloppe(
+        "Une zone est une convention, pas une donnée : la Corée du Sud, la Pologne et la Grèce "
+        "changent de zone selon le fournisseur d'indices.",
+        "    - ",
+        "      ",
+    )
+    if any(
+        repartition.hors_perimetre_postes
+        for repartition in (diversification.pays, diversification.secteurs)
+    ):
+        lignes += _enveloppe(
+            "Les lignes « hors actions » ne sont pas des données manquantes : des obligations, "
+            "des matières premières ou les liquidités d'un fonds n'ont ni pays ni secteur au sens "
+            "des actions. Sur un indice obligataire, « secteur » veut dire Trésor ou entreprises, "
+            "et « pays » peut même vouloir dire devise d'émission. Ces montants comptent "
+            "normalement dans la répartition par classe d'actifs, ci-dessus.",
+            "    - ",
+            "      ",
+        )
+    if diversification.pays.actifs_synthetiques:
+        lignes += _enveloppe(
+            "Fonds à réplication synthétique : "
+            + ", ".join(diversification.pays.actifs_synthetiques)
+            + ". Leur répartition est celle de l'indice suivi, pas celle des titres qu'ils "
+            "détiennent — ces titres n'ont aucun rapport avec l'indice. La fiche de l'émetteur "
+            "montrera donc autre chose.",
+            "    - ",
+            "      ",
+        )
+    if diversification.pays.actifs_non_couverts:
+        lignes += _enveloppe(
+            "Aucune composition pour : "
+            + ", ".join(diversification.pays.actifs_non_couverts)
+            + ". Ces actifs sortent des répartitions, leur montant est affiché à part, et rien "
+            "n'est estimé à leur place. Vous pouvez les déclarer à la main dans actifs.toml.",
+            "    - ",
+            "      ",
+        )
+    if diversification.declarees_a_la_main:
+        lignes += _enveloppe(
+            "Composition déclarée par vous, et non trouvée par une source : "
+            + ", ".join(diversification.declarees_a_la_main)
+            + ". Ces chiffres n'ont pas de date d'arrêté et ne vieillissent pas tout seuls : "
+            "c'est à vous de les revoir si la composition de l'actif change.",
+            "    - ",
+            "      ",
+        )
+    for source in diversification.sources:
+        lignes += _enveloppe(f"Source : {source}", "    - ", "      ")
+    for intitule in diversification.intitules_de_date:
+        lignes += _enveloppe(f"La date affichée est le {intitule}", "    - ", "      ")
 
 
 # --- Ce qui demande l'attention de l'utilisateur ---------------------------------------

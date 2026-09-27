@@ -19,6 +19,7 @@ lisible et vérifiable à la main.
 | [docs/glossaire.md](docs/glossaire.md) | Notions financières : définition et formule retenue |
 | [docs/sources-de-cours.md](docs/sources-de-cours.md) | **Comparatif des sources de cours** (étape 4) : ce qui est vérifié, ce qui est écarté, et les pièges |
 | [docs/couts-et-fiscalite.md](docs/couts-et-fiscalite.md) | **Comparatif des coûts estimés et des règles fiscales** (étape 6) : TER, spreads, impôt par poche, avec les sources officielles |
+| [docs/composition-des-etf.md](docs/composition-des-etf.md) | **Comparatif des sources de composition d'ETF** (étape 7) : ce qui est retenu, ce qui est écarté, et les 19 pièges vérifiés |
 | [docs/inventaire-donnees.md](docs/inventaire-donnees.md) | Structure des données pytr, type par type, et pièges. **Le §11 recense ceux trouvés en écrivant l'adaptateur** |
 | [docs/verification/](docs/verification/) | Cahiers de vérification : cas fictifs refaisables à la main, et contrôles sur les vraies données |
 | [docs/decisions.md](docs/decisions.md) | Journal des décisions (raison + ce qui est écarté) |
@@ -42,5 +43,14 @@ lisible et vérifiable à la main.
      jamais convertie (D-48, D-51). Aucun cours ne passe par Trade Republic (D-49) ;
    - **un taux estimé (spread, TER, impôt) porte sa valeur, sa date et sa source**, dans un
      fichier de `dashboard_tr/parametres/` ; sans date ni source, il est refusé (D-58). Les
-     estimations ne se mélangent jamais aux coûts payés ni à la performance (D-17).
+     estimations ne se mélangent jamais aux coûts payés ni à la performance (D-17) ;
+   - **une répartition se calcule sur des codes, jamais sur des libellés** (pays en ISO 3166-1,
+     secteurs en code de nomenclature), avec **une seule nomenclature nommée à l'écran** — jamais
+     « GICS » (D-65, D-66). On lit les **agrégats** d'un fonds, jamais ses lignes détenues : un ETF
+     synthétique ne détient pas son indice (D-63, D-64). Ce qui n'est pas attribué reste visible, et
+     rien n'est jamais renormalisé à 100 % (D-69).
 9. Toute décision structurante est ajoutée à `docs/decisions.md`. Tout point d'architecture qui apparaît en discussion est noté dans `docs/architecture-notes.md`. Les notes initiales évoluent quand le propriétaire change de cap.
+10. **Les choix de fonctionnalités visent l'utilisateur type de Trade Republic**, pas le
+    portefeuille du propriétaire (D-62). Un cas courant chez cette banque est traité même s'il ne le
+    concerne pas ; et tout message d'absence, de déduction ou d'estimation est écrit pour quelqu'un
+    qui n'a pas suivi la construction du projet.

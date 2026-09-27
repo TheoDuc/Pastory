@@ -1,0 +1,77 @@
+# Les 11 secteurs de la classification Morningstar, niveau 1 (D-65, D-58).
+#
+# C'est une **nomenclature**, pas une donnée de marché : elle ne change pas d'un portefeuille à
+# l'autre, et elle est livrée avec l'application. Elle porte quand même sa source et sa date,
+# pour la même raison qu'un taux (D-58) : sans elles, un secteur affiché n'est plus vérifiable.
+#
+# Pourquoi Morningstar et pas GICS : aucune source gratuite interrogeable par ISIN ne donne du
+# GICS (docs/composition-des-etf.md §6). Morningstar est aussi la classification que l'utilisateur
+# verra en vérifiant sur Yahoo Finance, Morningstar ou justETF.
+#
+# ATTENTION, et c'est tout l'objet de ce fichier : **deux nomenclatures ne s'additionnent jamais**.
+# Alphabet et Meta sont en « Communication » ici et en « Technology » chez ICB ; le code 10 vaut
+# « Technology » chez ICB et « Energy » chez GICS. Les `alias` ci-dessous ne rapprochent que des
+# écritures **de la même nomenclature** (tirets contre soulignés, « defense » contre « defensive »),
+# jamais deux classifications différentes. Un alias inconnu est refusé et affiché, jamais rangé
+# par défaut (règle 5 de CLAUDE.md).
+
+[meta]
+nomenclature = "Morningstar Global Equity Classification, niveau 1 (11 secteurs)"
+source = "The Morningstar Global Equity Classification Structure ; https://www.morningstar.com/content/dam/marketing/apac/au/pdfs/Legal/GlobalEquityClassStructure.pdf"
+verifie_le = 2026-09-27
+note = "Les 11 secteurs de niveau 1 sont stables depuis le 15/10/2010. Les niveaux inférieurs, eux, ont changé (69 groupes d'industries en 2011, 145 industries aujourd'hui) : l'application ne s'en sert pas. Le document Morningstar ne mentionne jamais GICS : tout rapprochement entre les deux serait une déduction."
+
+[secteur.101]
+libelle = "Matériaux de base"
+super_secteur = "Cyclique"
+alias = ["basic_materials", "basic-materials", "basicmaterials"]
+
+[secteur.102]
+libelle = "Consommation cyclique"
+super_secteur = "Cyclique"
+alias = ["consumer_cyclical", "consumer-cyclical", "consumercyclical"]
+
+[secteur.103]
+libelle = "Services financiers"
+super_secteur = "Cyclique"
+alias = ["financial_services", "financial-services", "financialservices"]
+
+[secteur.104]
+libelle = "Immobilier"
+super_secteur = "Cyclique"
+alias = ["real_estate", "real-estate", "realestate"]
+
+[secteur.205]
+libelle = "Consommation de base"
+super_secteur = "Défensif"
+alias = ["consumer_defense", "consumer_defensive", "consumer-defensive", "consumerdefensive"]
+
+[secteur.206]
+libelle = "Santé"
+super_secteur = "Défensif"
+alias = ["healthcare", "health_care", "health-care"]
+
+[secteur.207]
+libelle = "Services aux collectivités"
+super_secteur = "Défensif"
+alias = ["utilities"]
+
+[secteur.308]
+libelle = "Communication"
+super_secteur = "Sensible"
+alias = ["communication_services", "communication-services", "communicationservices"]
+
+[secteur.309]
+libelle = "Énergie"
+super_secteur = "Sensible"
+alias = ["energy"]
+
+[secteur.310]
+libelle = "Industrie"
+super_secteur = "Sensible"
+alias = ["industrials", "industrial"]
+
+[secteur.311]
+libelle = "Technologie"
+super_secteur = "Sensible"
+alias = ["technology"]
