@@ -399,7 +399,7 @@ Et pour un actif qui n'a **ni pays ni secteur** par nature, il n'y a rien à rel
 mention suffit ([D-71](../decisions.md)).
 
 ```toml
-"<ISIN>" = { ticker = "OBLI.PA", devise = "EUR", type = "etf", ter_pour_cent = 0.25,
+"<ISIN>" = { ticker = "AAAA.PA", devise = "EUR", type = "etf", ter_pour_cent = 0.20,
              contenu = "obligations" }
 ```
 
