@@ -1033,3 +1033,51 @@ faux et crédible**, exactement ce que ce projet traque. Une composition dont le
 **renseignées** (actions, obligations, titres assimilés) pèsent moins de **50 %** est donc refusée,
 et l'actif devient **non couvert**. Le contrôle vit dans le module de la source, seul endroit qui
 connaît son vocabulaire.
+
+### D-71 · 2026-09-28 · Le contenu d'un actif se déclare, et n'avoir ni pays ni secteur n'est pas un manque · Validée
+**Décision :** l'utilisateur peut déclarer le **contenu** d'un actif dans `actifs.toml` —
+`contenu = "obligations"`, `"matieres_premieres"` ou `"actions"`. Un actif dont le contenu est
+déclaré compte **à 100 % dans sa classe** et reste **hors** de la géographie et des secteurs, sans
+être annoncé « composition inconnue ». Les **matières premières** deviennent une classe d'actifs à
+part entière dans `parametres/classes_actifs.toml`, et non un cas de « autres ». Et chaque montant
+sorti de la géographie porte **le nom de sa classe** — « Obligations (hors actions) », « Matières
+premières (hors actions) » — au lieu d'un fourre-tout unique.
+**Raison :** une observation du propriétaire sur ses propres actifs. Un ETF d'obligations et un ETF
+de matières premières s'affichaient **« non couvert : composition inconnue »**, ce qui est faux :
+ils ont bien une composition, elle n'a simplement ni pays ni secteur **au sens des actions** —
+exactement comme un actif numérique ([D-68](#d-68)). Dire « inconnu » là où la réponse est « sans
+objet » fabrique un doute pour rien, et le libellé unique « obligations, liquidités et autres »
+faisait de surcroît passer de l'or pour de la dette.
+**Pourquoi un champ nouveau et non le `type` existant :** le `type` dit **ce qu'on détient**, et
+c'est lui qui choisit le spread et décide si un TER est attendu ([D-55](#d-55), [D-61](#d-61)). Un
+ETF obligataire reste un **ETF** : lui changer son type pour décrire son contenu lui ferait perdre
+ses frais courants estimés. Les deux questions sont distinctes, elles ont désormais deux champs.
+**Écarte :** déduire le contenu du champ numérique `asset_class` de la source. Il existe et il est
+tentant, mais il n'est pas documenté, et le rapprochement tenté le 2026-09-28 s'est révélé **faux
+sur deux actifs sur trois**. Une déclaration se vérifie, un code deviné non.
+**Conséquence de forme :** une composition déclarée n'a **pas** de date d'arrêté, et n'entre donc pas
+dans la fourchette de dates affichée en tête du bloc — sans quoi elle la tirerait jusqu'à
+aujourd'hui. Le rapport nomme ces actifs et prévient que leurs chiffres ne vieillissent pas tout
+seuls.
+
+### D-72 · 2026-09-28 · Une source de secours par actif, nommée à l'écran · Validée, à réaliser à l'étape 8
+**Décision :** quand la source principale ne sait pas ouvrir un fonds **d'actions**, l'application
+pourra aller chercher sa composition auprès d'une **source de secours choisie par actif**, à
+condition que **la source de chaque chiffre soit visible à l'écran**. Amundi, par exemple, publie
+pour ses ISIN français la répartition de l'**indice suivi** — exactement ce que [D-64](#d-64)
+demande.
+**Raison :** [Q-47](questions-ouvertes.md). La lacune est réelle et documentée : la source retenue
+n'a pas la transparence de certains fonds **à swap**, fonds par fonds. Le diagnostic du 2026-09-28 a
+écarté les explications faciles — ce n'est ni un problème de part, ni un défaut rattrapable par une
+répartition par région, ni une lacune générale sur les marchés émergents (deux fonds émergents
+**physiques** testés donnent 35 et 28 pays).
+**La contrainte qui commande la forme, et non l'inverse :** deux sources n'ont ni la même
+nomenclature sectorielle ni la même règle de pays. Les mélanger dans un même graphique est le
+**piège n° 16** du [comparatif](composition-des-etf.md) : 5 points d'écart mesurés sur la
+technologie. La source doit donc être affichée **ligne par ligne**, ce qui est un choix de
+présentation — d'où le report à l'étape 8, où l'écran sera conçu.
+**Écarte :** compléter en silence un camembert avec une seconde source ; renoncer et laisser le trou
+sans recours. **N'écarte pas** la déclaration à la main ([D-70](#d-70)), qui reste disponible et qui
+est le seul recours d'ici là.
+**En attendant :** l'actif reste **non couvert**, avec son montant affiché, et la répartition est
+marquée partielle ([D-69](#d-69)).

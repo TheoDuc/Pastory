@@ -35,14 +35,21 @@ rang = 2
 actions = false
 alias = ["bond", "bonds", "fixed_income", "convertible", "convertibles"]
 
+[classe.matieres_premieres]
+libelle = "Matières premières"
+rang = 3
+actions = false
+alias = ["commodity", "commodities", "broad_commodity", "matiere_premiere"]
+note = "Une classe à part entière, et non un cas de « autres » : l'or et le pétrole n'ont ni pays ni secteur, mais ce n'est pas pour autant une inconnue — c'est une nature d'actif que l'utilisateur reconnaît."
+
 [classe.liquidites]
 libelle = "Liquidités"
-rang = 3
+rang = 4
 actions = false
 alias = ["cash", "cash_and_equivalents", "money_market", "liquidity"]
 
 [classe.autres]
 libelle = "Autres"
-rang = 4
+rang = 5
 actions = false
-alias = ["other", "others", "derivative", "derivatives", "commodity", "commodities"]
+alias = ["other", "others", "derivative", "derivatives"]

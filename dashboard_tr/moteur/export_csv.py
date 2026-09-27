@@ -763,13 +763,18 @@ def _lignes_de_repartition(
             reconnu=poste.reconnu,
         )
 
-    restes = (
-        ("hors_perimetre", "Obligations, liquidités et autres", repartition.hors_perimetre),
+    # Le hors périmètre est détaillé classe par classe, comme à l'écran : une ligne « obligations »
+    # et une ligne « matières premières » se vérifient, un fourre-tout non (D-71).
+    restes = [
+        (f"hors_actions_{poste.code}", f"{poste.libelle} (hors actions)", poste.montant)
+        for poste in repartition.hors_perimetre_postes
+    ]
+    restes += [
         ("hors_classification", "Actifs numériques, ni pays ni secteur",
          repartition.hors_classification),
         ("non_attribue", "Non attribué par la source", repartition.non_attribue),
         ("non_couvert", "Non couvert : composition inconnue", repartition.non_couvert),
-    )
+    ]
     for code, libelle, montant in restes:
         if montant > 0:
             yield _ligne_repartition(

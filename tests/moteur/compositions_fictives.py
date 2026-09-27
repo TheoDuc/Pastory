@@ -29,6 +29,7 @@ class CompositionFictive:
     classes: tuple[PartFictive, ...] = ()
     arrete_le: Date = ARRETE_LE
     intitule_de_la_date: str = "date annoncée par la source fictive"
+    date_est_un_arrete: bool = True
     source: str = "source fictive"
     replication: str | None = None
 

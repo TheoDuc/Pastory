@@ -205,3 +205,28 @@ suivantes.
 ses ETF et comparer ses pays et ses secteurs avec ceux qu'affiche l'application. L'écart attendu
 n'est **pas nul** — c'est tout l'objet de Q-41 et de Q-42 — et le
 [cahier de l'étape 7](verification/etape-7.md) dit quoi regarder.
+
+### Lot 7 (2026-09-28) — ce que la vérification du propriétaire a soulevé
+Posées par le propriétaire en regardant ses propres chiffres, et tranchées le même jour. Les deux
+partent du même constat — des actifs annoncés « non couvert » — mais **ce sont deux problèmes de
+nature différente**, et les confondre aurait donné une mauvaise correction.
+
+| Question | Retenu | Décision |
+|---|---|---|
+| Q-46 Un actif qui n'a ni pays ni secteur **par nature** (obligations, matières premières) | Ce n'est **pas** un manque : le propriétaire déclare le **contenu** de l'actif dans `actifs.toml`, à côté du `type` qui reste « etf ». L'actif compte dans sa classe et sort de la géographie et des secteurs, avec un libellé qui l'explique. Les matières premières deviennent une classe à part entière | D-71 |
+| Q-47 Un fonds d'**actions** que la source ne sait pas ouvrir | Une **source de secours par actif, nommée à l'écran**. À réaliser à l'**étape 8**, quand la présentation sera conçue : mélanger deux nomenclatures dans un même graphique est interdit (piège n° 16), donc la source doit être visible ligne par ligne | D-72 |
+
+**Le diagnostic qui a séparé les deux cas** (2026-09-28), et qui vaut d'être gardé parce qu'il a
+écarté trois fausses pistes :
+
+- ce **n'est pas** un problème de **part** : l'autre part du même compartiment est tout aussi vide ;
+- ce **n'est pas** récupérable par une répartition moins fine : les listes par **région** et par
+  **marché développé / émergent** sont vides elles aussi pour ces fonds ;
+- ce **n'est pas** une lacune générale de la source sur les marchés émergents : deux fonds émergents
+  à réplication **physique** ont été testés, avec 35 et 28 pays. La lacune porte sur certains fonds
+  **à swap**, fonds par fonds.
+
+**Et une fausse piste écartée dans l'autre sens :** la source publie un champ numérique
+`asset_class` qui semblait pouvoir distinguer actions, obligations et matières premières sans rien
+déclarer. Le rapprochement s'est révélé **faux sur deux actifs sur trois**. Une déclaration se
+vérifie, un code non documenté deviné non ([D-71](decisions.md)).

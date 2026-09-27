@@ -75,6 +75,28 @@ class TypeActif(StrEnum):
 TYPES_ACCEPTES = tuple(type_actif.value for type_actif in TypeActif)
 
 
+class ContenuActif(StrEnum):
+    """**De quoi l'actif est fait à l'intérieur** (D-71). À ne pas confondre avec son `type`.
+
+    Le `type` dit ce qu'on détient — un ETF, une action, une crypto — et c'est lui qui choisit le
+    taux de spread et décide si un TER est attendu ([D-55](../../docs/decisions.md),
+    [D-61](../../docs/decisions.md)). Le `contenu`, lui, dit ce qu'il y a dedans, et c'est lui qui
+    décide de la place de l'actif dans les répartitions : un ETF obligataire reste un **ETF** avec
+    ses frais courants, mais son contenu n'a ni pays ni secteur au sens des actions
+    ([D-68](../../docs/decisions.md)).
+
+    Les valeurs sont **les clés de `parametres/classes_actifs.toml`** : c'est ce qui permet au
+    contenu déclaré d'être nommé et rangé comme celui qu'une source aurait annoncé.
+    """
+
+    ACTIONS = "actions"
+    OBLIGATIONS = "obligations"
+    MATIERES_PREMIERES = "matieres_premieres"
+
+
+CONTENUS_ACCEPTES = tuple(contenu.value for contenu in ContenuActif)
+
+
 @dataclass(frozen=True)
 class Declaration:
     """Ce que l'utilisateur déclare pour un actif : où chercher son cours, en quoi, et ce
@@ -94,6 +116,14 @@ class Declaration:
 
     spread_pour_cent: Decimal | None = None
     """Un taux de spread par côté propre à cet actif, qui remplace celui de son type."""
+
+    contenu: ContenuActif | None = None
+    """De quoi l'actif est fait : actions, obligations, matières premières (D-71).
+
+    Déclaré par l'utilisateur quand la source ne sait pas le dire. Sans lui, un ETF obligataire ou
+    un ETF de matières premières serait annoncé « composition inconnue », alors que la vérité est
+    qu'il n'a **ni pays ni secteur** — ce qui n'est pas un manque de données.
+    """
 
     pays: Mapping[str, Decimal] | None = None
     """Répartition par pays **déclarée à la main**, qui l'emporte sur la source (D-70).
@@ -243,10 +273,25 @@ def _lire_declarations(brut: object, fichier: Path) -> dict[str, Declaration]:
                 valeur.get("spread_pour_cent"), "spread_pour_cent", Decimal("0"),
                 SPREAD_MAXIMUM, actif, fichier,
             ),
+            contenu=_lire_contenu(valeur.get("contenu"), actif, fichier),
             pays=_lire_repartition(valeur.get("pays"), "pays", actif, fichier),
             secteurs=_lire_repartition(valeur.get("secteurs"), "secteurs", actif, fichier),
         )
     return declarations
+
+
+def _lire_contenu(valeur: object, actif: str, fichier: Path) -> ContenuActif | None:
+    """Le contenu, facultatif : absent, c'est la source qui décide (D-71)."""
+    if valeur is None or (isinstance(valeur, str) and valeur.strip() == ""):
+        return None
+    if not isinstance(valeur, str) or valeur.strip().lower() not in CONTENUS_ACCEPTES:
+        raise ConfigurationInvalide(
+            f"{fichier} : l'actif {actif} a un « contenu » que je ne connais pas : {valeur!r}. "
+            f"Contenus acceptés : {', '.join(CONTENUS_ACCEPTES)}. Le contenu dit de quoi l'actif "
+            f"est fait à l'intérieur ; le « type », lui, dit ce que vous détenez (etf, action, "
+            f"crypto)."
+        )
+    return ContenuActif(valeur.strip().lower())
 
 
 def _lire_repartition(
@@ -406,6 +451,16 @@ def modele(
         "#            frais courant n'est estimé.",
         "#   spread_pour_cent : facultatif, un taux par côté propre à cet actif (ETF de niche,",
         "#            petite capitalisation, altcoin), qui remplace celui de son type.",
+        "#",
+        f"#   contenu : facultatif — {', '.join(CONTENUS_ACCEPTES)}. Dit de quoi l'actif est",
+        "#            fait à l'intérieur, là où « type » dit ce que vous détenez. Un ETF",
+        "#            d'obligations ou de matières premières n'a ni pays ni secteur : le",
+        "#            déclarer ici le range à sa place, au lieu de l'annoncer « composition",
+        "#            inconnue ». Sans contenu, c'est la source qui décide.",
+        "#   pays, secteurs : facultatifs, pour corriger une composition que la source donne",
+        f"#            fausse ou ne donne pas :  {FORME_REPARTITION}",
+        "#            Ce que vous écrivez l'emporte sur la source. Les totaux n'ont pas besoin",
+        "#            de faire 100 : le reste devient du « non attribué », jamais comblé.",
         "#",
         "# Un actif laissé vide n'est pas valorisé — il est signalé, jamais estimé.",
         "# Ce fichier reste sur votre machine : il n'entre jamais dans git.",

@@ -7,17 +7,21 @@ n'est fiable. Il est écrit avant les autres pour cette raison.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date as Date
 from decimal import Decimal
 
 import pytest
 
+from dashboard_tr.config.actifs import Configuration, ContenuActif, Declaration, TypeActif
+from dashboard_tr.donnees_externes.composition import FournisseurDeCompositions
 from dashboard_tr.moteur import diversification as dv
 from dashboard_tr.moteur.portefeuille import Portefeuille
 from dashboard_tr.moteur.valorisation import valoriser
 from dashboard_tr.parametres import referentiels as parametres_referentiels
 from dashboard_tr.pivot.operation import Poche, TypeOperation
 from tests.moteur.compositions_fictives import (
+    ARRETE_LE,
     CompositionFictive,
     SourceDeCompositionFictive,
     action_en_direct,
@@ -456,3 +460,142 @@ class TestLesQuatreDefautsDeLaRelecture:
         assert resultat.classes.attribue == Decimal("1030.00")
         messages = [signalement.message for signalement in resultat.signalements]
         assert any("de 30,00" in message for message in messages), messages
+
+
+class TestLeContenuDeclareRangeLActifSansLeDireManquant:
+    """D-71 : un ETF obligataire ou de matières premières n'a pas de pays, et ce n'est pas un trou.
+
+    Le défaut corrigé ici : ces actifs s'affichaient « non couvert : composition inconnue », ce qui
+    est **faux**. Ils ont bien une composition — elle n'a simplement ni pays ni secteur.
+    """
+
+    def _valorisation_et_source(self, contenu: str):
+        declaration = Declaration(ticker="T1.DE", devise="EUR", type=TypeActif.ETF)
+        declaration = replace(declaration, contenu=ContenuActif(contenu))
+        fournisseur = FournisseurDeCompositions(
+            cache=_CacheVide(),
+            actifs=Configuration(declarations={ETF: declaration}),
+            aujourd_hui=AU,
+        )
+        valorisation = _valorisation(_achat(ETF, "5", "100.00"), cours={ETF: "100.00"})
+        return valorisation, fournisseur
+
+    def test_un_contenu_obligations_compte_en_obligations_et_sort_de_la_geographie(
+        self, referentiels
+    ):
+        valorisation, fournisseur = self._valorisation_et_source("obligations")
+
+        resultat = dv.diversifier(valorisation, fournisseur, referentiels)
+
+        assert [(poste.libelle, poste.montant) for poste in resultat.classes.postes] == [
+            ("Obligations", Decimal("500.00"))
+        ]
+        assert resultat.pays.non_couvert == Decimal("0.00")
+        assert [
+            (poste.libelle, poste.montant) for poste in resultat.pays.hors_perimetre_postes
+        ] == [("Obligations", Decimal("500.00"))]
+
+    def test_un_contenu_matieres_premieres_a_sa_propre_ligne_nommee(self, referentiels):
+        valorisation, fournisseur = self._valorisation_et_source("matieres_premieres")
+
+        resultat = dv.diversifier(valorisation, fournisseur, referentiels)
+
+        assert [(poste.libelle, poste.montant) for poste in resultat.classes.postes] == [
+            ("Matières premières", Decimal("500.00"))
+        ]
+        assert [
+            poste.libelle for poste in resultat.secteurs.hors_perimetre_postes
+        ] == ["Matières premières"]
+        assert resultat.secteurs.non_couvert == Decimal("0.00")
+
+    def test_l_invariant_tient_toujours_au_centime(self, referentiels):
+        valorisation, fournisseur = self._valorisation_et_source("matieres_premieres")
+
+        resultat = dv.diversifier(valorisation, fournisseur, referentiels)
+
+        for repartition in resultat.repartitions:
+            total = (
+                repartition.attribue
+                + repartition.non_attribue
+                + repartition.hors_perimetre
+                + repartition.hors_classification
+                + repartition.non_couvert
+            )
+            assert total == Decimal("500.00"), repartition.rubrique
+
+
+class TestDeuxClassesHorsActionsSontDeuxLignesDistinctes:
+    def test_obligations_et_matieres_premieres_ne_sont_pas_fondues(self, referentiels):
+        # Un seul fourre-tout ferait passer de l'or pour de la dette.
+        composition = CompositionFictive(
+            pays=parts(US="50"),
+            secteurs=parts(technology="50"),
+            classes=parts(stock="50", bond="30", commodity="20"),
+        )
+        valorisation = _valorisation(_achat(ETF, "10", "100.00"), cours={ETF: "100.00"})
+        source = SourceDeCompositionFictive({ETF: composition})
+
+        resultat = dv.diversifier(valorisation, source, referentiels)
+
+        assert [
+            (poste.libelle, poste.montant) for poste in resultat.pays.hors_perimetre_postes
+        ] == [
+            ("Obligations", Decimal("300.00")),
+            ("Matières premières", Decimal("200.00")),
+        ]
+        assert resultat.pays.hors_perimetre == Decimal("500.00")
+
+
+class _CacheVide:
+    """Un cache qui ne sait rien : la déclaration de l'utilisateur doit suffire."""
+
+    def lire(self, actif):
+        return None
+
+    def ecrire(self, composition):
+        raise AssertionError("rien ne doit être mis en cache : la déclaration passe avant")
+
+    def oublier(self, actif=None):
+        return []
+
+
+class TestUneDeclarationNAPasDeDateDArrete:
+    """Sinon la fourchette affichée en tête serait tirée jusqu'à aujourd'hui (D-71)."""
+
+    def test_la_fourchette_ignore_les_compositions_declarees(self, referentiels):
+        declaration = replace(
+            Declaration(ticker="T2.DE", devise="EUR", type=TypeActif.ETF),
+            contenu=ContenuActif.OBLIGATIONS,
+        )
+        fournisseur = FournisseurDeCompositions(
+            cache=_CacheVide(),
+            actifs=Configuration(declarations={OBLIG: declaration}),
+            aujourd_hui=AU,
+        )
+        source = _SourceMixte(
+            declaree=fournisseur, table={ETF: etf_monde()}
+        )
+        valorisation = _valorisation(
+            _achat(ETF, "10", "100.00"),
+            _achat(OBLIG, "5", "100.00"),
+            cours={ETF: "100.00", OBLIG: "100.00"},
+        )
+
+        resultat = dv.diversifier(valorisation, source, referentiels)
+
+        # L'ETF a un arrêté au 31/08 ; la déclaration, elle, n'en a pas.
+        assert resultat.arrete_du == ARRETE_LE
+        assert resultat.arrete_au == ARRETE_LE
+        assert resultat.declarees_a_la_main == (OBLIG,)
+
+
+class _SourceMixte:
+    """Une source qui rend des compositions fictives, et une déclarée pour un actif."""
+
+    def __init__(self, declaree, table):
+        self.declaree = declaree
+        self.table = table
+
+    def composition(self, actif):
+        trouvee = self.declaree.composition(actif)
+        return trouvee if trouvee is not None else self.table.get(actif)

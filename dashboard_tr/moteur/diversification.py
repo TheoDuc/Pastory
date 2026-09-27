@@ -83,6 +83,7 @@ class CompositionDUnActif(Protocol):
     classes: Sequence[PartDeComposition]
     arrete_le: Date
     intitule_de_la_date: str
+    date_est_un_arrete: bool
     source: str
     replication: str | None
 
@@ -173,7 +174,14 @@ class Repartition:
     """Part actions que la composition n'attribue à rien (D-69)."""
 
     hors_perimetre: Decimal = ZERO
-    """Part non-actions des fonds : obligations, liquidités (D-68)."""
+    """Part non-actions des fonds : obligations, matières premières, liquidités (D-68).
+
+    Le **total**. Le détail, classe par classe, est dans `hors_perimetre_postes` : c'est lui qu'on
+    affiche, parce qu'un montant sorti de la géographie doit dire ce qu'il est (D-71).
+    """
+
+    hors_perimetre_postes: tuple[Poste, ...] = ()
+    """Le détail du précédent, une ligne par classe d'actifs, nommée et triée."""
 
     hors_classification: Decimal = ZERO
     """Crypto : ni pays ni secteur, et ce n'est pas un manque (D-68)."""
@@ -262,6 +270,12 @@ class Diversification:
 
     sources: tuple[str, ...] = ()
     intitules_de_date: tuple[str, ...] = ()
+    declarees_a_la_main: tuple[str, ...] = ()
+    """Les actifs dont la composition vient du fichier de l'utilisateur, et non d'une source.
+
+    Ils n'ont pas de date d'arrêté, et l'écran doit le dire : leurs chiffres ne vieillissent pas
+    tout seuls (D-70, D-71).
+    """
     signalements: tuple[Signalement, ...] = ()
 
     @property
@@ -277,45 +291,69 @@ class _Cumul:
     """Un accumulateur de travail : les montants par code, et les restes."""
 
     montants: dict[str, Decimal]
+    hors_perimetre_par_classe: dict[str, Decimal]
     non_attribue: Decimal = ZERO
-    hors_perimetre: Decimal = ZERO
     hors_classification: Decimal = ZERO
     non_couvert: Decimal = ZERO
 
     @classmethod
     def vide(cls) -> _Cumul:
-        return cls(montants={})
+        return cls(montants={}, hors_perimetre_par_classe={})
 
     def ajouter(self, code: str, montant: Decimal) -> None:
         self.montants[code] = self.montants.get(code, ZERO) + montant
+
+    def ajouter_hors_perimetre(self, cle: str, montant: Decimal) -> None:
+        courant = self.hors_perimetre_par_classe.get(cle, ZERO)
+        self.hors_perimetre_par_classe[cle] = courant + montant
+
+    @property
+    def hors_perimetre(self) -> Decimal:
+        return sum(self.hors_perimetre_par_classe.values(), ZERO)
 
 
 def _arrondi(montant: Decimal) -> Decimal:
     return montant.quantize(CENTIME, rounding=ROUND_HALF_UP)
 
 
-def _part_actions(
-    composition: CompositionDUnActif, referentiels: Referentiels
-) -> Decimal | None:
-    """Le pourcentage du fonds investi en actions, ou `None` si la source ne le dit pas.
+def _hors_actions(
+    composition: CompositionDUnActif, referentiels: Referentiels, valeur: Decimal
+) -> tuple[dict[str, Decimal], Decimal]:
+    """Ce qui n'est pas des actions, **classe par classe**, et la valeur de la part actions.
 
-    C'est lui qui décide de ce qui est **hors périmètre** de la géographie et des secteurs. Sans
-    lui, on ne suppose rien : tout le fonds est traité comme des actions, et le non attribué
-    absorbera l'écart. Ne rien supposer donne un chiffre prudent ; supposer donnerait un chiffre
-    faux.
+    Pourquoi classe par classe, et non un seul total : un montant sorti de la géographie doit dire
+    **ce qu'il est**. « Obligations 500,00 » et « Matières premières 200,00 » s'expliquent d'
+    eux-mêmes ; un fourre-tout de 700,00 € laisse croire à une donnée manquante, et s'il s'appelle
+    « obligations » il fait passer de l'or pour de la dette (D-71).
+
+    Sans liste de classes, on ne suppose rien : tout le fonds est traité comme des actions, et le
+    non attribué absorbera l'écart. Ne rien supposer donne un chiffre prudent ; supposer donnerait
+    un chiffre faux.
     """
     if not composition.classes:
-        return None
-    total = ZERO
+        return {}, valeur
+
+    poids_actions = ZERO
+    montants: dict[str, Decimal] = {}
     connu = False
     for part in composition.classes:
         classe = referentiels.classe(part.code)
-        if classe is None:
+        if classe is not None and classe.actions:
+            connu = True
+            poids_actions += part.pour_cent
+            continue
+        montant = _arrondi(valeur * part.pour_cent / CENT)
+        if montant == ZERO:
             continue
         connu = True
-        if classe.actions:
-            total += part.pour_cent
-    return total if connu else None
+        # Une classe que le référentiel ne connaît pas garde son code : elle sera affichée comme
+        # non reconnue, jamais fondue dans « autres » (règle 5 de `CLAUDE.md`).
+        cle = classe.cle if classe is not None else part.code.strip().lower()
+        montants[cle] = montants.get(cle, ZERO) + montant
+
+    if not connu:
+        return {}, valeur
+    return montants, _arrondi(valeur * min(poids_actions, CENT) / CENT)
 
 
 def _repartir(
@@ -368,18 +406,19 @@ def _repartir(
                 )
             continue
 
-        part_actions = _part_actions(composition, referentiels)
-        if part_actions is None:
-            valeur_actions = valeur
-        else:
-            # Plafonnée à 100 % : une composition peut annoncer plus (le contrôle en accepte
-            # jusqu'à 105 %, parce que le prêt de titres fait légitimement dépasser 100). Sans ce
-            # plafond, la part hors périmètre devenait **négative**, le filtre d'affichage la
-            # cachait, et la somme des lignes dépassait la valeur du portefeuille — en ruinant
-            # justement l'invariant que le CSV promet de respecter.
-            part_actions = min(part_actions, CENT)
-            valeur_actions = _arrondi(valeur * part_actions / CENT)
-        cumul.hors_perimetre += max(ZERO, _arrondi(valeur - valeur_actions))
+        # La part actions est plafonnée à 100 % dans `_hors_actions` : une composition peut
+        # annoncer plus (le contrôle en accepte jusqu'à 105 %, parce que le prêt de titres fait
+        # légitimement dépasser 100). Sans ce plafond, la part hors périmètre devenait
+        # **négative**, le filtre d'affichage la cachait, et la somme des lignes dépassait la
+        # valeur du portefeuille — en ruinant justement l'invariant que le CSV promet.
+        hors_actions, valeur_actions = _hors_actions(composition, referentiels, valeur)
+        for cle, montant in hors_actions.items():
+            cumul.ajouter_hors_perimetre(cle, montant)
+
+        # Ce que la répartition par classes n'attribue ni aux actions ni à une autre classe : on
+        # ne sait pas ce que c'est, donc « non attribué », et non « hors périmètre ».
+        somme_hors_actions = sum(hors_actions.values(), ZERO)
+        cumul.non_attribue += max(ZERO, _arrondi(valeur - valeur_actions - somme_hors_actions))
 
         attribue = _accumuler(cumul, parts, valeur, rubrique, referentiels)
         reste = _arrondi(valeur_actions - attribue)
@@ -526,6 +565,33 @@ def _postes(
     return tuple(sorted(postes, key=lambda poste: (-poste.montant, poste.libelle)))
 
 
+def _postes_hors_perimetre(
+    cumul: _Cumul, referentiels: Referentiels
+) -> tuple[Poste, ...]:
+    """Les montants sortis de la géographie, nommés par leur classe d'actifs.
+
+    C'est ce qui remplace le fourre-tout : chaque ligne dit ce qu'elle est, et l'utilisateur
+    comprend qu'un ETF d'obligations ou de matières premières n'a **pas** de pays sans que ce soit
+    une donnée manquante (D-71).
+    """
+    postes: list[Poste] = []
+    for cle, montant in cumul.hors_perimetre_par_classe.items():
+        classe = referentiels.classe(cle)
+        postes.append(
+            Poste(
+                code=cle,
+                libelle=classe.libelle if classe is not None else cle,
+                montant=montant,
+                reconnu=classe is not None,
+                rang=classe.rang if classe is not None else None,
+            )
+        )
+    return tuple(
+        sorted(postes, key=lambda poste: (poste.rang if poste.rang is not None else 99,
+                                         poste.libelle))
+    )
+
+
 def repartir(
     valorisation: Valorisation,
     rubrique: Rubrique,
@@ -543,6 +609,7 @@ def repartir(
         base=valorisation.total.valeur,
         non_attribue=_arrondi(cumul.non_attribue),
         hors_perimetre=_arrondi(cumul.hors_perimetre),
+        hors_perimetre_postes=_postes_hors_perimetre(cumul, referentiels),
         hors_classification=_arrondi(cumul.hors_classification),
         non_couvert=_arrondi(cumul.non_couvert),
         actifs_non_couverts=tuple(sorted(set(non_couverts))),
@@ -577,7 +644,25 @@ def diversifier(
         if position.poche is not Poche.CRYPTO
         and (composition := source.composition(position.actif)) is not None
     ]
-    arretes = sorted({composition.arrete_le for composition in compositions})
+    # Seules les compositions qui portent un **vrai** arrêté entrent dans la fourchette : une
+    # composition déclarée à la main n'en a pas, et la faire entrer tirerait la fourchette
+    # jusqu'à aujourd'hui (D-71).
+    arretes = sorted(
+        {
+            composition.arrete_le
+            for composition in compositions
+            if composition.date_est_un_arrete
+        }
+    )
+    declarees = sorted(
+        {
+            position.actif
+            for position in valorisation.valorisees
+            if position.poche is not Poche.CRYPTO
+            and (une := source.composition(position.actif)) is not None
+            and not une.date_est_un_arrete
+        }
+    )
     sources = []
     intitules = []
     for composition in compositions:
@@ -595,6 +680,7 @@ def diversifier(
         arrete_au=arretes[-1] if arretes else None,
         sources=tuple(sources),
         intitules_de_date=tuple(intitules),
+        declarees_a_la_main=tuple(declarees),
         signalements=tuple(signalements),
     )
 

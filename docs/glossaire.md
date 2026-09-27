@@ -502,6 +502,21 @@ Un **ETF obligataire** n'est pas « non couvert » : il est **hors périmètre**
 secteurs, où ces notions n'ont pas le même sens, tout en comptant normalement dans la répartition
 par classe d'actifs ([D-68](decisions.md)).
 
+### Contenu déclaré
+De quoi un actif est fait — **actions**, **obligations** ou **matières premières** — quand
+l'utilisateur le déclare lui-même dans `actifs.toml` ([D-71](decisions.md)). À distinguer du
+**type** (ETF, action, crypto), qui dit ce qu'on détient et porte les frais.
+
+Un contenu déclaré suffit à ranger l'actif : il compte à 100 % dans sa classe, et il sort de la
+géographie et des secteurs **sans être annoncé « inconnu »**. Un ETF d'obligations et un ETF de
+matières premières n'ont ni pays ni secteur au sens des actions : c'est leur nature, pas une donnée
+manquante.
+
+### Hors actions
+La part d'un fonds qui n'est pas investie en actions : obligations, matières premières, liquidités.
+Elle sort de la géographie et des secteurs, et elle y est affichée **classe par classe** — jamais
+sous un libellé unique, qui ferait passer de l'or pour de la dette.
+
 ### Non transparisé
 Un **fonds de fonds** : un ETF dont les lignes sont elles-mêmes des fonds. L'application ne
 transparise qu'**un** niveau ; au-delà, l'actif est affiché « non transparisé » plutôt que deviné.

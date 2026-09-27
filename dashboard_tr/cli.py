@@ -1244,11 +1244,26 @@ def commande_composition(dossier_export: Path | None, hors_ligne: bool = False) 
             print(f"  {position.actif:<16} aucune composition (voir le motif ci-dessous)")
             continue
         replication = f", {composition.replication}" if composition.replication else ""
-        print(
-            f"  {position.actif:<16} {len(composition.pays)} pays, "
-            f"{len(composition.secteurs)} secteur(s), arrêté au "
-            f"{composition.arrete_le.isoformat()}{replication}"
-        )
+        if not composition.pays and not composition.secteurs:
+            # Un ETF d'obligations ou de matières premières : il a bien une composition, elle
+            # n'a simplement ni pays ni secteur. Le dire ainsi, et non « 0 pays », évite de
+            # faire passer une nature d'actif pour une donnée manquante (D-71).
+            classes = ", ".join(
+                referentiels.classe(part.code).libelle
+                if referentiels.classe(part.code) is not None
+                else part.code
+                for part in composition.classes
+            )
+            print(
+                f"  {position.actif:<16} {classes or 'classe inconnue'} : ni pays ni secteur "
+                f"au sens des actions (ce n'est pas une donnée manquante)"
+            )
+        else:
+            print(
+                f"  {position.actif:<16} {len(composition.pays)} pays, "
+                f"{len(composition.secteurs)} secteur(s), arrêté au "
+                f"{composition.arrete_le.isoformat()}{replication}"
+            )
         if composition.document is not None:
             print(f"  {'':<16} à vérifier sur : {composition.document}")
 

@@ -18,6 +18,7 @@ from dashboard_tr.moteur.portefeuille import Portefeuille
 from dashboard_tr.moteur.rapprochement import rapprocher
 from dashboard_tr.moteur.rendements import Periode, Synthese, synthese
 from dashboard_tr.parametres import referentiels as parametres_referentiels
+from dashboard_tr.parametres.referentiels import charger_tout as referentiels_du_projet
 from dashboard_tr.pivot.operation import Poche, TypeOperation
 from dashboard_tr.pivot.position_reelle import PositionReelle
 from tests.moteur.compositions_fictives import (
@@ -472,7 +473,7 @@ class TestLeBlocDeRepartitionDeLEtape7:
     def test_un_etf_obligataire_apparait_hors_perimetre_et_non_pas_manquant(self):
         texte = rapport_avec_repartition(composition=etf_obligataire())
 
-        assert "Obligations, liquidités et autres" in texte
+        assert "Obligations (hors actions)" in texte
         assert "Non couvert" not in texte
 
     def test_un_actif_sans_composition_dit_quoi_faire(self):
@@ -664,12 +665,19 @@ class TestAucunLibelleDuBlocNEstTronque:
     """Un libellé coupé au milieu n'explique plus rien, et c'est arrivé une fois."""
 
     def test_les_libelles_des_restes_tiennent_dans_la_colonne(self):
-        for libelle in (
+        classes = referentiels_du_projet().classes_dactifs.ordonnees()
+        libelles = [
             rapport_moteur.LIBELLE_NUMERIQUES,
-            rapport_moteur.LIBELLE_HORS_PERIMETRE,
             rapport_moteur.LIBELLE_NON_ATTRIBUE,
             rapport_moteur.LIBELLE_NON_COUVERT,
-        ):
+            # Chaque classe d'actifs peut apparaitre suivie du suffixe « hors actions » : c'est
+            # le libellé complet qui doit tenir, pas seulement le nom de la classe.
+            *[
+                f"{classe.libelle} {rapport_moteur.SUFFIXE_HORS_ACTIONS}"
+                for classe in classes
+            ],
+        ]
+        for libelle in libelles:
             assert len(libelle) <= rapport_moteur.LARGEUR_LIBELLE_REPARTITION, libelle
 
     def test_aucun_libelle_affiche_ne_finit_par_un_point_de_troncature(self):

@@ -7,7 +7,7 @@ commencer.
 > **À mettre à jour par l'instance qui termine une étape**, avant la fusion dans `main`. La
 > dernière section dit comment.
 >
-> Dernière mise à jour : **2026-09-27**, fin de l'étape 7.
+> Dernière mise à jour : **2026-09-28**, fin de l'étape 7.
 
 ---
 
@@ -31,8 +31,8 @@ On attaque l'étape 8 : la conception de l'interface.
   **secteur**, en regardant à l'intérieur des ETF (D-63 à D-70).
 - **Prochaine : étape 8**, la conception de l'interface. **Session dédiée, avec des prototypes
   visuels à comparer avant tout code.** C'est l'étape où l'avis du propriétaire compte le plus.
-- **Questions ouvertes** : **Q-26** (rapprocher le PEA), non bloquante, et **Q-21** (présentation des
-  frais), qui attend précisément l'étape 8.
+- **Questions ouvertes** : **Q-26** (rapprocher le PEA), non bloquante ; **Q-21** (présentation des
+  frais) et **Q-47** (la source de secours), qui attendent toutes deux l'étape 8.
 
 **Ce qui existe déjà :**
 
@@ -48,7 +48,7 @@ On attaque l'étape 8 : la conception de l'interface.
 | `dashboard_tr/parametres/` | Les taux datés et sourcés (`fiscalite.toml`, `couts.toml`) et les **référentiels** (`secteurs.toml`, `zones.toml`, `classes_actifs.toml`) |
 | `dashboard_tr/moteur/` | `position.py`, `portefeuille.py`, `valorisation.py`, `rendements.py`, `couts.py`, `fiscalite.py`, `valeur_reelle.py`, `diversification.py`, `rapprochement.py`, `export_csv.py` (onze CSV), `rapport.py` |
 | `dashboard_tr/cli.py` | 12 commandes, options `--au`, `--depuis`, `--hors-ligne` ; `ouvrir` arrive à l'étape 9 |
-| [decisions.md](decisions.md) | D-01 à D-70. L'étape 7 a ajouté D-62 à D-70 |
+| [decisions.md](decisions.md) | D-01 à D-72. L'étape 7 a ajouté D-62 à D-72 |
 | [verification/etape-7.md](verification/etape-7.md) | Le cahier de la diversification |
 
 **Ce qui n'existe pas encore :** l'interface. C'est tout ce qui reste du cœur.
@@ -74,6 +74,12 @@ Trois conséquences concrètes, déjà écrites dans la [feuille de route](feuil
    s'expliquer **là où ils s'affichent** ;
 3. **deux règles de pays cohabitent** dans la répartition géographique ([D-66](decisions.md)) : la
    conception doit trouver comment le dire sans alourdir l'écran.
+
+**Et un travail de fond qui attend l'étape 8 : la source de secours par actif**
+([D-72](decisions.md)). Elle est reportée ici parce qu'elle est d'abord un problème de
+**présentation** : deux sources n'ont ni la même nomenclature sectorielle ni la même règle de pays,
+donc la source de chaque chiffre doit être **visible ligne par ligne**. C'est elle qui fera
+disparaître les fonds « non couverts ».
 
 ### Ce sur quoi la conception peut s'appuyer sans se méfier
 
@@ -113,7 +119,14 @@ de bas de page.
 Morningstar, et **jamais** le mot « GICS ». Deux nomenclatures ne s'additionnent pas — l'écart
 mesuré est de 5 points sur la technologie, et ce sont Alphabet et Meta qui changent de camp.
 
-**5. Les codes, pas les libellés.** Pays en ISO 3166-1, secteurs en code de nomenclature. Le seul
+**5. « Inconnu » et « sans objet » ne sont pas la même chose**, et les confondre a produit le
+dernier défaut de l'étape. Un ETF d'obligations et un ETF de matières premières s'affichaient
+« non couvert : composition inconnue » alors qu'ils ont bien une composition — elle n'a simplement ni
+pays ni secteur, comme un actif numérique. D'où le **contenu déclaré** ([D-71](decisions.md)), et
+des montants hors géographie affichés **classe par classe** au lieu d'un fourre-tout qui faisait
+passer de l'or pour de la dette.
+
+**6. Les codes, pas les libellés.** Pays en ISO 3166-1, secteurs en code de nomenclature. Le seul
 endroit où un libellé de source est lu est isolé dans `donnees_externes/actions.py`, signalé comme
 fragilité, et incapable de produire un chiffre faux — seulement un poste visiblement non reconnu.
 

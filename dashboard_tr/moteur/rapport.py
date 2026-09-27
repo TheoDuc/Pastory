@@ -744,11 +744,13 @@ ZERO_RAPPORT = Decimal("0")
 """Un reste nul n'est pas affiché : une ligne « non couvert : 0,00 » ferait douter pour rien."""
 
 LIBELLE_NUMERIQUES = "Actifs numériques, ni pays ni secteur"
-LIBELLE_HORS_PERIMETRE = "Obligations, liquidités et autres"
-"""Nommé ainsi, et non « obligations » seul, parce que ce poste réunit tout ce qui n'est pas des
-actions dans un fonds. L'appeler « obligations » ferait passer des liquidités pour de la dette.
+SUFFIXE_HORS_ACTIONS = "(hors actions)"
+"""Ce qui suit le nom d'une classe sortie de la géographie et des secteurs.
 
-Et il tient dans la largeur de la colonne : un libellé tronqué à l'affichage n'explique plus rien.
+« Obligations (hors actions) » et « Matières premières (hors actions) » s'expliquent d'eux-mêmes,
+là où un fourre-tout unique laissait croire à une donnée manquante (D-71). Le suffixe est court
+exprès : le libellé complet doit tenir dans la colonne, sinon il est tronqué et n'explique plus
+rien.
 """
 LIBELLE_NON_ATTRIBUE = "Non attribué par la source"
 LIBELLE_NON_COUVERT = "Non couvert : composition inconnue"
@@ -784,10 +786,18 @@ def _restes(lignes: list[str], repartition: Repartition, avec_perimetre: bool) -
     Chaque libellé est écrit pour quelqu'un qui découvre l'application (D-62) : il dit ce que
     le montant est, pas seulement qu'il manque.
     """
-    if avec_perimetre and repartition.hors_perimetre > ZERO_RAPPORT:
-        lignes.append(
-            _ligne_repartition(LIBELLE_HORS_PERIMETRE, repartition.hors_perimetre, repartition)
-        )
+    if avec_perimetre:
+        # Une ligne par classe d'actifs, nommée : « Obligations (hors actions) », « Matières
+        # premières (hors actions) ». Un seul fourre-tout laisserait croire à une donnée
+        # manquante, et s'il s'appelait « obligations » il ferait passer de l'or pour de la
+        # dette (D-71).
+        for poste in repartition.hors_perimetre_postes:
+            if poste.montant <= ZERO_RAPPORT:
+                continue
+            nom = _libelle(poste) if not poste.reconnu else poste.libelle
+            lignes.append(
+                _ligne_repartition(f"{nom} {SUFFIXE_HORS_ACTIONS}", poste.montant, repartition)
+            )
     if repartition.hors_classification > ZERO_RAPPORT:
         lignes.append(
             _ligne_repartition(
@@ -909,6 +919,19 @@ def _lecture_de_la_repartition(lignes: list[str], diversification: Diversificati
         "    - ",
         "      ",
     )
+    if any(
+        repartition.hors_perimetre_postes
+        for repartition in (diversification.pays, diversification.secteurs)
+    ):
+        lignes += _enveloppe(
+            "Les lignes « hors actions » ne sont pas des données manquantes : des obligations, "
+            "des matières premières ou les liquidités d'un fonds n'ont ni pays ni secteur au sens "
+            "des actions. Sur un indice obligataire, « secteur » veut dire Trésor ou entreprises, "
+            "et « pays » peut même vouloir dire devise d'émission. Ces montants comptent "
+            "normalement dans la répartition par classe d'actifs, ci-dessus.",
+            "    - ",
+            "      ",
+        )
     if diversification.pays.actifs_synthetiques:
         lignes += _enveloppe(
             "Fonds à réplication synthétique : "
@@ -925,6 +948,15 @@ def _lecture_de_la_repartition(lignes: list[str], diversification: Diversificati
             + ", ".join(diversification.pays.actifs_non_couverts)
             + ". Ces actifs sortent des répartitions, leur montant est affiché à part, et rien "
             "n'est estimé à leur place. Vous pouvez les déclarer à la main dans actifs.toml.",
+            "    - ",
+            "      ",
+        )
+    if diversification.declarees_a_la_main:
+        lignes += _enveloppe(
+            "Composition déclarée par vous, et non trouvée par une source : "
+            + ", ".join(diversification.declarees_a_la_main)
+            + ". Ces chiffres n'ont pas de date d'arrêté et ne vieillissent pas tout seuls : "
+            "c'est à vous de les revoir si la composition de l'actif change.",
             "    - ",
             "      ",
         )

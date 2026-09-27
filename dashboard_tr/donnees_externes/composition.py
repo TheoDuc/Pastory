@@ -34,7 +34,7 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import Protocol
 
-from dashboard_tr.config.actifs import Configuration, TypeActif
+from dashboard_tr.config.actifs import Configuration, Declaration, TypeActif
 from dashboard_tr.donnees_externes.cours import ErreurDeSource, Refus
 
 TOTAL_MAXIMAL = Decimal("105")
@@ -99,6 +99,14 @@ class Composition:
 
     source: str
     recupere_le: Date
+
+    date_est_un_arrete: bool = True
+    """Faux quand `arrete_le` n'est **pas** un arrêté de portefeuille (D-71).
+
+    Une composition déclarée à la main n'a pas d'arrêté : sa date est celle où le fichier a été
+    lu. La faire entrer dans la fourchette affichée en tête du rapport la tirerait jusqu'à
+    aujourd'hui, et laisserait croire que la source a publié des chiffres du jour.
+    """
 
     replication: str | None = None
     """« physique » ou « synthétique », quand la source le dit. Pour un fonds synthétique,
@@ -374,27 +382,36 @@ class FournisseurDeCompositions:
         return None
 
     def _declaree(self, actif: str) -> Composition | None:
-        """La répartition corrigée à la main, s'il y en a une (D-70)."""
+        """Ce que l'utilisateur a déclaré lui-même, s'il a déclaré quelque chose (D-70, D-71).
+
+        Deux déclarations différentes vivent ici, et la seconde est souvent la seule nécessaire :
+
+        - **le contenu** (`contenu = "obligations"`) : il suffit à ranger l'actif dans la bonne
+          classe et à le sortir de la géographie et des secteurs, sans rien saisir de plus. C'est
+          la réponse à « la source ne connaît pas mon ETF obligataire » ;
+        - **les pays et les secteurs**, saisis à la main quand on veut vraiment la finesse.
+        """
         declaration = self.actifs.declaration(actif)
         if declaration is None:
             return None
-        if declaration.pays is None and declaration.secteurs is None:
+        if (
+            declaration.pays is None
+            and declaration.secteurs is None
+            and declaration.contenu is None
+        ):
             return None
+
         jour = self.aujourd_hui if self.aujourd_hui is not None else Date.today()
         return Composition(
             actif=actif,
             pays=_parts(declaration.pays),
             secteurs=_parts(declaration.secteurs),
-            # Déclarer des pays ou des secteurs, c'est décrire des **actions** : ces deux
-            # répartitions n'ont pas d'autre sens (D-68). Sans cette ligne, un actif corrigé à la
-            # main pesait 0 € dans la répartition par classe d'actifs et tombait entièrement en
-            # « non attribué » — la porte de sortie de D-70 fabriquait donc le trou qu'elle est
-            # censée combler.
-            classes=(Part(code=CLASSE_ACTIONS, pour_cent=CENT),),
+            classes=(Part(code=_classe_declaree(declaration), pour_cent=CENT),),
             arrete_le=jour,
             intitule_de_la_date="date de lecture du fichier (une déclaration n'a pas d'arrêté)",
             source=SOURCE_DECLAREE,
             recupere_le=jour,
+            date_est_un_arrete=False,
         )
 
     def oublier(self, actif: str | None = None) -> list[str]:
@@ -404,6 +421,17 @@ class FournisseurDeCompositions:
 
     def _refuser(self, actif: str, categorie: str, motif: str) -> None:
         self._refus.append(Refus(actif=actif, categorie=categorie, motif=motif))
+
+
+def _classe_declaree(declaration: Declaration) -> str:
+    """La classe d'actifs d'une composition déclarée à la main.
+
+    Le contenu déclaré s'il y en a un ; sinon **actions**, parce que déclarer des pays ou des
+    secteurs, c'est décrire des actions : ces deux répartitions n'ont pas d'autre sens (D-68).
+    """
+    if declaration.contenu is not None:
+        return declaration.contenu.value
+    return CLASSE_ACTIONS
 
 
 def _parts(repartition: Mapping[str, Decimal] | None) -> tuple[Part, ...]:

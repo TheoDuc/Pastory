@@ -276,19 +276,32 @@ n'en ont pas, et lesquels.
 > eux, il est possible qu'il apparaisse « non couvert ». Ce n'est pas une panne, c'est la limite
 > écrite dans [D-63](../decisions.md).
 
-> ⚠️ **Et le trou constaté en lançant la commande, le 2026-09-27.** Une **partie** des ETF suivis
-> n'a aucune composition chez la source. Elle répond pourtant normalement pour eux — avec une date
-> et un drapeau de réplication — mais range **100 % du fonds dans « autres »**, ce qui veut dire
-> qu'elle n'en connaît pas le contenu. L'application refuse cette réponse et les déclare **non
-> couverts**, avec leur montant. Le nombre exact est à noter dans ton fichier local.
+> ⚠️ **Et le trou constaté en lançant la commande, le 2026-09-27, puis diagnostiqué le 2026-09-28.**
+> Une partie des ETF suivis n'a aucune composition chez la source. Elle répond pourtant normalement
+> pour eux — avec une date et un drapeau de réplication — mais range **100 % du fonds dans
+> « autres »**, ce qui veut dire qu'elle n'en connaît pas le contenu. L'application refuse cette
+> réponse plutôt que de la présenter comme de l'obligataire et des liquidités, ce qui serait faux.
 >
-> **Pourquoi ce refus compte.** Sans lui, ces fonds seraient tombés dans « Obligations, liquidités
-> et autres » : tu aurais lu qu'une bonne part de ton portefeuille est de l'obligataire et des
-> liquidités, ce qui est **faux**. Le refus transforme un chiffre faux en trou visible.
+> **Il faut distinguer deux situations très différentes, et la commande le fait maintenant :**
 >
-> **Ce que tu peux faire**, si tu veux les voir dans la répartition : relever leur exposition
-> géographique et sectorielle sur la fiche de leur émetteur, et la déclarer à la main (voir B.6).
-> C'est du travail, et c'est le seul moyen honnête tant qu'aucune source gratuite ne les couvre.
+> 1. **l'actif n'a réellement ni pays ni secteur** — un ETF d'obligations, un ETF de matières
+>    premières. Ce n'est **pas** un manque de données : c'est sa nature, comme pour un actif
+>    numérique. Déclare son **contenu** dans `actifs.toml` (`contenu = "obligations"` ou
+>    `contenu = "matieres_premieres"`) et il sera rangé dans sa classe, hors géographie et hors
+>    secteurs, avec un libellé qui l'explique. Ce champ ne remplace pas le `type`, qui reste
+>    « etf » : c'est lui qui porte le TER et le spread ([D-71](../decisions.md)) ;
+> 2. **l'actif est un fonds d'actions dont la source ignore la composition.** Là, c'est un vrai
+>    trou. Diagnostiqué le 2026-09-28 : ce n'est ni un problème de **part** (l'autre part du même
+>    compartiment est tout aussi vide), ni un problème de **région** (les répartitions par région et
+>    par marché développé/émergent sont vides aussi). La source **couvre bien** ce genre de fonds
+>    quand il est à **réplication physique** — 35 et 28 pays sur deux fonds émergents testés — et
+>    ne couvre pas certains fonds **à swap**. C'est une lacune fonds par fonds de la source.
+>
+> **Ce que tu peux faire dans le second cas** : relever l'exposition géographique et sectorielle sur
+> la fiche de l'émetteur et la déclarer à la main (voir B.6). C'est du travail, et c'est le seul
+> moyen honnête tant qu'aucune source gratuite unique ne le couvre.
+>
+> Note dans ton fichier local combien d'actifs relèvent de chaque cas.
 
 ### B.2 — Le contrôle principal : la somme doit tomber juste
 
@@ -381,6 +394,23 @@ Et si la composition d'un actif te paraît fausse, tu peux **la corriger à la m
 
 Ce que tu écris **l'emporte sur la source** ([D-70](../decisions.md)). Les totaux n'ont pas besoin
 de faire 100 : ce qui manque devient du « non attribué », comme pour une source.
+
+Et pour un actif qui n'a **ni pays ni secteur** par nature, il n'y a rien à relever : une seule
+mention suffit ([D-71](../decisions.md)).
+
+```toml
+"<ISIN>" = { ticker = "OBLI.PA", devise = "EUR", type = "etf", ter_pour_cent = 0.25,
+             contenu = "obligations" }
+```
+
+- [ ] après avoir déclaré un contenu, `dashboard composition` dit « Obligations : ni pays ni secteur
+      au sens des actions (ce n'est pas une donnée manquante) » au lieu d'un motif d'échec ;
+- [ ] et le bloc de répartition montre une ligne « Obligations (hors actions) » plutôt qu'un
+      « Non couvert ».
+
+> **Une composition déclarée n'a pas de date d'arrêté.** Elle n'entre donc pas dans la fourchette de
+> dates affichée en tête du bloc, et le rapport te nomme les actifs concernés : leurs chiffres ne
+> vieillissent pas tout seuls, c'est à toi de les revoir si la composition change.
 
 ### B.7 — Ce que toi seul peux vérifier
 

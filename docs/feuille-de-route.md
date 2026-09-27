@@ -412,6 +412,10 @@ libellé affiché**, ce qui satisfait la règle 4.
 - Fait trancher Q-21 (présentation des frais).
 - Propose plusieurs prototypes visuels cliquables **avant tout code**. Chaque déduction et chaque
   estimation y est signalée visuellement.
+- **Réalise la source de secours par actif** ([D-72](decisions.md)), reportée ici depuis l'étape 7
+  parce qu'elle est d'abord un problème de présentation : deux sources n'ont pas la même
+  nomenclature, donc la source de chaque chiffre doit être **visible ligne par ligne**. C'est ce qui
+  fera disparaître les fonds « non couverts » du portefeuille du propriétaire.
 - **Conçoit pour l'utilisateur type, pas pour le portefeuille du propriétaire** ([D-62](decisions.md),
   décidé pendant l'étape 7). Trois conséquences concrètes pour la conception :
   - les prototypes se testent sur des cas que le propriétaire **ne détient pas** : des actions en
