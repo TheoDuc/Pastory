@@ -21,13 +21,15 @@ from __future__ import annotations
 import textwrap
 from collections.abc import Callable, Iterable
 from datetime import date as Date
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 from dashboard_tr import tableur
 from dashboard_tr.moteur.portefeuille import Portefeuille, Totaux
 from dashboard_tr.moteur.position import Position
 from dashboard_tr.moteur.rapprochement import Accord, Rapprochement
+from dashboard_tr.moteur.rendements import Rendements, Synthese
 from dashboard_tr.moteur.signalement import Signalement
+from dashboard_tr.moteur.valorisation import PositionValorisee
 from dashboard_tr.pivot.operation import Poche
 
 Titre = Callable[[str], None]
@@ -49,6 +51,17 @@ A_COMPLETER = "a completer"
 def _lisible(valeur: Decimal | None, absent: str = SANS_OBJET) -> str:
     """Un nombre écrit comme dans les messages du moteur (`tableur.nombre_lisible`)."""
     return tableur.nombre_lisible(valeur, absent=absent)
+
+
+def _pourcentage(taux: Decimal | None, absent: str = SANS_OBJET) -> str:
+    """Un taux écrit en pour cent, à deux décimales : « 10,00 % ».
+
+    Arrondi « comme à la main » (`ROUND_HALF_UP`), comme partout dans le projet : 10,125 %
+    s'écrit 10,13 %, pas 10,12 %.
+    """
+    if taux is None:
+        return absent
+    return f"{_lisible((taux * 100).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))} %"
 
 
 def _enveloppe(texte: str, marge: str, suite: str) -> list[str]:
@@ -76,12 +89,16 @@ def resume(
     portefeuille: Portefeuille,
     rapprochement: Rapprochement | None = None,
     arrete_au: Date | None = None,
+    synthese: Synthese | None = None,
 ) -> str:
     """Le rapport complet, prêt à être affiché.
 
     `arrete_au` dit que les chiffres s'arrêtent à une date passée. Le rapprochement est alors
     hors sujet — la banque ne sait montrer qu'aujourd'hui — et le rapport l'explique au lieu
     de réclamer un fichier qui ne servirait à rien.
+
+    `synthese` apporte ce que les cours permettent : la valeur des actifs, et les trois
+    chiffres clés (D-22). Sans elle, le rapport dit qu'ils manquent.
     """
     lignes: list[str] = []
 
@@ -93,7 +110,11 @@ def resume(
     lignes.append("Ces chiffres sont les vôtres : ce rapport n'est pas fait pour être partagé.")
 
     _positions(lignes, titre, portefeuille)
-    _performance(lignes, titre, portefeuille.total)
+    if synthese is not None:
+        _valeur(lignes, titre, synthese)
+    _performance(lignes, titre, portefeuille.total, synthese)
+    if synthese is not None:
+        _chiffres_cles(lignes, titre, synthese)
     _couts(lignes, titre, portefeuille)
     _a_surveiller(lignes, titre, portefeuille)
     _rapprochement(lignes, titre, rapprochement, arrete_au)
@@ -147,10 +168,107 @@ def _positions(lignes: list[str], titre: Titre, portefeuille: Portefeuille) -> N
             )
 
 
+# --- La valeur des actifs, aux cours de clôture (glossaire §3) ---------------------------
+
+LARGEUR_NOM_VALEUR = 24
+"""Un peu plus étroit que dans le tableau des positions : il faut loger le cours et le gain."""
+
+LARGEUR_LIBELLE_VALEUR = 14 + 1 + LARGEUR_NOM_VALEUR + 1 + 10 + 1 + 12
+"""Actif, nom, quantité et cours, séparateurs compris : un sous-total écrit sur cette largeur
+tombe exactement sous la colonne « valeur »."""
+
+ENTETE_VALEUR = (
+    f"  {'actif':<14} {'nom':<{LARGEUR_NOM_VALEUR}} {'quantité':>10} {'cours':>12} "
+    f"{'valeur':>14} {'gain':>12}"
+)
+
+
+def _nom_court(nom: str | None, largeur: int) -> str:
+    nom = nom or ""
+    if len(nom) > largeur:
+        return nom[: largeur - 1] + "."
+    return nom
+
+
+def _valeur(lignes: list[str], titre: Titre, synthese: Synthese) -> None:
+    valorisation = synthese.valorisation
+    titre(f"Valeur des actifs au {valorisation.date.isoformat()}")
+
+    if not valorisation.positions:
+        lignes.append("  Aucune part détenue à cette date : rien à valoriser.")
+        return
+
+    sources = ", ".join(valorisation.sources) or "aucune"
+    lignes.append(f"  Cours de clôture du marché principal en euros, source : {sources}.")
+    lignes.append("  Ce ne sont pas les cours de Trade Republic : un écart de quelques dixièmes")
+    lignes.append("  de pour cent est normal (D-48). Un cours d'un autre jour est signalé.")
+    lignes.append("  La colonne « gain » est celle de la période des trois chiffres clés.")
+
+    par_poche = valorisation.par_poche()
+    for poche in Poche:
+        du_groupe = [position for position in valorisation.positions if position.poche is poche]
+        if not du_groupe:
+            continue
+
+        lignes.append("")
+        lignes.append(f"  {poche.value}")
+        lignes.append(ENTETE_VALEUR)
+        for position in du_groupe:
+            _ligne_valeur(lignes, position, synthese.de(position.position))
+        totaux = par_poche[poche]
+        lignes.append(
+            f"  {'valeur de la poche':<{LARGEUR_LIBELLE_VALEUR}} {_lisible(totaux.valeur):>14}"
+        )
+        if not totaux.complet:
+            lignes.append(
+                f"    (partielle : {totaux.nombre_de_positions - totaux.nombre_valorisees} "
+                "actif(s) de cette poche sans cours, voir ci-dessous)"
+            )
+
+    total = valorisation.total
+    lignes.append("")
+    lignes.append(f"  {'valeur totale':<{LARGEUR_LIBELLE_VALEUR}} {_lisible(total.valeur):>14}")
+
+    if valorisation.non_valorisees:
+        lignes.append("")
+        combien = len(valorisation.non_valorisees)
+        lignes.append(f"  Non valorisés, exclus de tous les totaux (D-53) : {combien}")
+        for position in valorisation.non_valorisees:
+            lignes += _enveloppe(
+                f"{position.actif}  {position.poche.value}  {position.motif}", "    ", "      "
+            )
+
+
+def _ligne_valeur(
+    lignes: list[str], position: PositionValorisee, rendements: Rendements | None
+) -> None:
+    gain = rendements.gain if rendements is not None else None
+    if position.cours is None:
+        cours = valeur = SANS_OBJET
+    else:
+        cours = _lisible(position.cours.valeur)
+        valeur = _lisible(position.valeur)
+    nom = _nom_court(position.position.nom_actif, LARGEUR_NOM_VALEUR)
+    lignes.append(
+        f"  {position.actif:<14} {nom:<{LARGEUR_NOM_VALEUR}} "
+        f"{_lisible(position.quantite):>10} {cours:>12} {valeur:>14} {_lisible(gain):>12}"
+    )
+    if position.jour_decale:
+        assert position.cours is not None
+        lignes.append(
+            f"  {'':<14} cours du {position.cours.date.isoformat()} "
+            f"(dernier jour coté avant le {position.date.isoformat()}), {position.cours.place}"
+        )
+    if rendements is not None and not rendements.calculable and position.valorisee:
+        lignes += _enveloppe(f"gain non calculable : {rendements.motif}", "    ", "      ")
+
+
 # --- La performance, en montants bruts (D-21) -----------------------------------------
 
 
-def _performance(lignes: list[str], titre: Titre, total: Totaux) -> None:
+def _performance(
+    lignes: list[str], titre: Titre, total: Totaux, synthese: Synthese | None = None
+) -> None:
     titre("Ce qui est placé, et ce que ça a rapporté")
     lignes.append("  Tout en montants bruts : ni les frais ni les taxes n'y entrent (D-21).")
     lignes.append("")
@@ -166,9 +284,105 @@ def _performance(lignes: list[str], titre: Titre, total: Totaux) -> None:
     ):
         lignes.append(f"  {libelle:<46} {_lisible(valeur):>16}")
 
+    if synthese is None:
+        lignes.append("")
+        lignes.append("  La valeur des actifs, le gain, le TRI et le TWRR ne sont pas dans ce")
+        lignes.append("  rapport : ils ont besoin des cours de marché.")
+
+
+# --- Les trois chiffres clés (D-22) ----------------------------------------------------
+
+LARGEUR_LIBELLE_CLES = 34
+LARGEUR_COLONNE_CLES = 13
+
+
+def _periode_en_clair(synthese: Synthese) -> str:
+    periode = synthese.periode
+    total = synthese.total
+    if periode.debut is None:
+        origine = total.origine
+        depuis = (
+            f"depuis la première opération ({origine.isoformat()})"
+            if origine is not None
+            else "depuis le début"
+        )
+    else:
+        depuis = f"du {periode.debut.isoformat()}"
+    duree = f", soit {total.duree_jours} jours" if total.duree_jours is not None else ""
+    return f"{depuis} jusqu'au {periode.fin.isoformat()}{duree}"
+
+
+def _chiffres_cles(lignes: list[str], titre: Titre, synthese: Synthese) -> None:
+    titre("Les trois chiffres clés (D-22)")
+    lignes.append(f"  Période : {_periode_en_clair(synthese)}.")
+    lignes.append("  Montants bruts : ni les frais ni les taxes n'y entrent (D-21).")
     lignes.append("")
-    lignes.append("  La valeur actuelle des actifs, le gain, le TRI et le TWRR ont besoin des")
-    lignes.append("  cours de marché : ils arrivent aux étapes 4 et 5.")
+
+    colonnes: list[tuple[str, Rendements]] = [("total", synthese.total)] + [
+        (poche.value, rendements) for poche, rendements in synthese.par_poche.items()
+    ]
+
+    def cellule(rendements: Rendements, valeur: Callable[[Rendements], str]) -> str:
+        # Un groupe dont rien n'est calculable — une poche entière sans cours, par exemple —
+        # n'affiche **aucun** chiffre, pas même un « 0,00 » d'achats : ce zéro serait lu comme
+        # « rien n'a été investi », alors qu'on ne sait simplement pas ce que ça vaut (D-53).
+        return valeur(rendements) if rendements.calculable else SANS_OBJET
+
+    def ligne(libelle: str, valeur: Callable[[Rendements], str]) -> None:
+        cellules = "".join(f" {cellule(r, valeur):>{LARGEUR_COLONNE_CLES}}" for _, r in colonnes)
+        lignes.append(f"  {libelle:<{LARGEUR_LIBELLE_CLES}}{cellules}")
+
+    # L'en-tête : le nom de chaque colonne, aligné comme ses chiffres.
+    entete = "".join(f" {nom:>{LARGEUR_COLONNE_CLES}}" for nom, _ in colonnes)
+    lignes.append(f"  {'':<{LARGEUR_LIBELLE_CLES}}{entete}")
+    ligne("valeur au début", lambda r: _lisible(r.valeur_debut))
+    ligne("achats (titres reçus compris)", lambda r: _lisible(r.achats))
+    ligne("ventes", lambda r: _lisible(r.ventes))
+    ligne("dividendes (brut)", lambda r: _lisible(r.dividendes))
+    ligne("distributions de capital", lambda r: _lisible(r.distributions))
+    ligne("valeur à la fin", lambda r: _lisible(r.valeur_fin))
+    ligne("GAIN en euros", lambda r: _lisible(r.gain))
+    ligne("TRI (annuel)", lambda r: _pourcentage(r.tri))
+    ligne("TWRR (sur la période)", lambda r: _pourcentage(r.twrr.taux))
+    ligne("TWRR annualisé", lambda r: _pourcentage(r.twrr.annualise))
+
+    lignes.append("")
+    lignes.append("  gain = valeur à la fin - valeur au début - achats + ventes + dividendes")
+    lignes.append("  + distributions. Le TRI est celui de TRI.PAIEMENTS dans un tableur ;")
+    lignes.append("  flux.csv (« exporter-positions ») en donne la table. Le TWRR annualisé")
+    lignes.append("  n'est écrit que si la période dépasse un an.")
+
+    if synthese.total.peu_significatif:
+        lignes.append("")
+        lignes.append("  TRI et TWRR portent sur moins d'un an : peu significatifs (glossaire §5).")
+
+    if synthese.total.partiel:
+        lignes.append("")
+        lignes.append(
+            f"  PARTIEL : {len(synthese.total.exclues)} actif(s) détenu(s) sans cours sont exclus "
+            "de ces chiffres (D-53),"
+        )
+        lignes.append("  achats compris. Voir « Non valorisés » ci-dessus.")
+
+    if not synthese.total.fiable:
+        lignes.append("")
+        lignes.append("  NON FIABLE : au moins une position repose sur une histoire incomplète")
+        lignes.append("  (vente au-delà du stock ou distribution excédentaire, D-45).")
+
+    for nom, rendements in colonnes:
+        if not rendements.calculable:
+            lignes += _enveloppe(
+                f"{nom} : gain et TRI non calculables. {rendements.motif}", "  ", "    "
+            )
+            continue
+        if rendements.tri is None:
+            lignes += _enveloppe(
+                f"{nom} : TRI non calculable. {rendements.motif_tri}", "  ", "    "
+            )
+        if rendements.twrr.taux is None:
+            lignes += _enveloppe(
+                f"{nom} : TWRR non calculable. {rendements.twrr.motif}", "  ", "    "
+            )
 
 
 # --- Les coûts, tenus à part ----------------------------------------------------------

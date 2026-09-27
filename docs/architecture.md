@@ -13,9 +13,10 @@ choix dans [decisions.md](decisions.md) ; le détail du contrat entre couches da
 [format-pivot.md](format-pivot.md). Ici, aucune raison n'est réexpliquée : elle est citée
 (`D-xx`).
 
-> État à la dernière mise à jour (fin de l'étape 4) : les couches **adaptateur**, **pivot**,
-> **moteur** et **données externes** sont écrites. La couche **vues** existe comme dossier vide,
-> avec sa place déjà définie. Le §10 dit ce qui s'y branchera.
+> État à la dernière mise à jour (fin de l'étape 5) : les couches **adaptateur**, **pivot**,
+> **moteur** (rejeu, valorisation et rendements compris) et **données externes** sont écrites.
+> La couche **vues** existe comme dossier vide, avec sa place déjà définie. Le §10 dit ce qui
+> s'y branchera.
 
 ---
 
@@ -48,13 +49,16 @@ choix dans [decisions.md](decisions.md) ; le détail du contrat entre couches da
                            │                  └── DONNÉES EXTERNES  donnees_externes/
                            │                      cours (D-51) · cache (D-50)
                            │                      complète les prix manquants (D-15)
-                           │                      et rend du pivot
+                           │                      et rend du pivot ; sert aussi de
+                           │                      source de cours au moteur, **par
+                           │                      paramètre** (cli.py fait le lien)
                            ▼  et rien d'autre
    ┌───────────────────────────────────────────────────────────┐
    │  MOTEUR  moteur/                                          │
    │  rejeu par actif · journal · agrégation · rapprochement   │
+   │  valorisation · gain, TRI, TWRR (D-22)                    │
    └───────────────────────┬───────────────────────────────────┘
-                           │  positions, totaux, signalements
+                           │  positions, valeurs, rendements, signalements
                            ▼
    ┌───────────────────────────────────────────────────────────┐
    │  SORTIES   cli.py (aujourd'hui) · vues/ (étape 9)         │
@@ -77,7 +81,7 @@ L'interdiction compte autant que le rôle : c'est elle qui garantit qu'un défau
 | `adaptateurs/` | Comprendre les fichiers d'**une** banque et les traduire en pivot | Ce qu'est un prix de revient, un gain, un rendement |
 | `pivot/` | Décrire une opération et une position réelle, et vérifier qu'une ligne se tient | Qui l'a produite, qui va la lire |
 | `donnees_externes/` | Aller chercher un cours, le garder, et **compléter un prix manquant** | Ce qu'est une position, un prix de revient, une plus-value |
-| `moteur/` | Rejouer les opérations, tenir le journal, agréger, rapprocher | Le nom d'un champ Trade Republic, l'emplacement d'un fichier, **d'où viennent les cours** |
+| `moteur/` | Rejouer les opérations, tenir le journal, agréger, rapprocher, **valoriser** et calculer gain, TRI et TWRR | Le nom d'un champ Trade Republic, l'emplacement d'un fichier, **d'où viennent les cours** — il dit seulement la forme qu'il en attend |
 | `vues/` (étape 9) | Montrer, expliquer, laisser filtrer | Tout calcul — elle n'appelle que le moteur |
 
 Deux conséquences pratiques :
@@ -118,8 +122,13 @@ Ce qui en découle, et qui se vérifie en lisant les imports :
   importante du projet, et la plus facile à casser par inadvertance : un seul import
   d'adaptateur dans `moteur/` annulerait l'ouverture aux autres banques ;
 - **`moteur/` n'importe pas `donnees_externes/` non plus**, et c'est ce qui surprend le plus.
-  Les cours n'entrent pas par le moteur : ils **complètent des opérations pivot avant lui**
-  (§5.7). Le moteur ne sait donc pas qu'une source de cours existe.
+  Les cours y entrent de deux façons, et aucune n'est un import : les prix manquants
+  **complètent des opérations pivot avant lui** (§5.7) ; et pour valoriser, le moteur
+  **déclare ce qu'il attend** d'une source — un protocole d'une méthode, `cours(actif, date)`,
+  dans `moteur/valorisation.py` — que le fournisseur de `donnees_externes/` satisfait sans le
+  savoir. C'est `cli.py` qui passe l'un à l'autre, et un test (`tests/moteur/test_valorisation.py`)
+  prouve que les deux s'emboîtent. Changer de source de cours ne toucherait donc toujours que
+  `cli.py`.
 
 Deux flèches surprennent à la lecture, et sont voulues :
 
@@ -164,9 +173,13 @@ dashboard_tr/
 │   ├── position.py            le rejeu, opération par opération, et le journal (D-44)
 │   ├── portefeuille.py        toutes les positions : par poche, et au total
 │   ├── rapprochement.py       nos quantités contre celles de la banque (D-46, D-47)
+│   ├── valorisation.py        ce que valent les actifs à une date, et ce qu'il attend d'une
+│   │                          source de cours (D-52, D-53)
+│   ├── rendements.py          gain, TRI, TWRR par actif, poche et total (D-22, D-54)
 │   ├── signalement.py         ce que le moteur n'a pas pu calculer normalement (D-45)
 │   ├── rapport.py             le rapport de « dashboard positions »
-│   └── export_csv.py          positions.csv et journal.csv
+│   └── export_csv.py          les six CSV : positions, journal, valorisation, flux,
+│                              sous-périodes du TWRR, évolution
 ├── donnees_externes/
 │   ├── cours.py               le contrat : un cours, un refus, une source interchangeable
 │   ├── cache.py               un CSV par actif, définitif et oubliable (D-50)
@@ -281,8 +294,25 @@ net investi. Quatre propriétés le rendent vérifiable :
 
 `portefeuille.py` **agrège, il ne calcule pas** : chaque total se retrouve en additionnant une
 colonne du tableau des positions. `Portefeuille.au(date)` donne l'état de n'importe quel jour
-passé en coupant le journal — rien n'est rejoué, et c'est là-dessus que s'appuiera la
-valorisation dans le temps (étape 5).
+passé en coupant le journal — rien n'est rejoué, et c'est là-dessus que s'appuient la
+valorisation et les rendements.
+
+`valorisation.py` **multiplie, et dit ce qu'il n'a pas pu multiplier** : parts détenues à une
+date × cours de clôture retenu, au centime. Il déclare la forme d'un cours (`CoursDeMarche`) et
+d'une source (`SourceDeValorisation`, une méthode) sans nommer aucune source. Une position sans
+cours utilisable est **non valorisée**, sort des totaux, et les totaux sont marqués partiels
+([D-53](decisions.md)). La valeur d'« aujourd'hui » est celle de la dernière clôture connue, et
+chaque position dit quel jour l'a fournie ([D-52](decisions.md)). `evolution()` répète cela jour
+par jour.
+
+`rendements.py` **enchaîne, dans l'ordre où on le refait** : la valeur à la fin (et qui n'en a
+pas), les flux signés de la période, la valeur au début, puis le gain, le TRI et le TWRR
+([D-54](decisions.md)). Le TRI est cherché par dichotomie sur la même table que celle que
+`flux.csv` donne au tableur ; le TWRR garde chacune de ses sous-périodes, avec la valeur qui
+l'ouvre et celle qui la ferme. Tout se calcule par **groupe de positions** — un actif, une poche,
+le portefeuille — et `Synthese` réunit les trois niveaux. Ce qui n'a pas de sens porte un
+**motif** au lieu d'un nombre : montant encore à compléter, cours manquant un jour de flux,
+flux tous du même signe.
 
 `rapprochement.py` est **le contrôle le plus fort du projet** : il ne dépend d'aucune lecture de
 texte ni d'aucune déduction. La quantité est un contrôle, le prix de revient de la banque une
@@ -303,10 +333,13 @@ Trois conventions, au même endroit pour qu'aucun export n'en oublie une : point
 virgule décimale, pas de séparateur de milliers, UTF-8 **avec BOM**. Sans quoi Excel en français
 lit « 25.00 » comme du texte ou comme une date, et affiche les accents de travers.
 
-Trois fichiers en sortent : les opérations du pivot, `positions.csv` et `journal.csv`. **Le
-journal est la pièce à ouvrir pour vérifier un chiffre** sans lire une ligne de code. Tous
-contiennent de vraies valeurs : ils sont écrits dans le dossier personnel, hors du dossier
-synchronisé, et n'entrent jamais dans git ([D-01](decisions.md), [D-37](decisions.md)).
+Sept fichiers en sortent : les opérations du pivot, puis les six du moteur — `positions.csv`,
+`journal.csv`, `valorisation.csv`, `flux.csv`, `sous_periodes_twrr.csv`, `evolution.csv`. **Le
+journal est la pièce à ouvrir pour vérifier un chiffre** sans lire une ligne de code ;
+`flux.csv` joue le même rôle pour le TRI (c'est la table de `TRI.PAIEMENTS`), et
+`sous_periodes_twrr.csv` pour le TWRR. Tous contiennent de vraies valeurs : ils sont écrits dans
+le dossier personnel, hors du dossier synchronisé, et n'entrent jamais dans git
+([D-01](decisions.md), [D-37](decisions.md)).
 
 ### 5.6 `cli.py` — le seul assembleur
 
@@ -320,14 +353,20 @@ l'adaptateur sur le moteur. Aucune couche n'appelle l'autre d'elle-même.
 | `comptes` | adaptateur → `config` | le TOML des rôles de comptes |
 | `lire` | adaptateur | **non** — un rapport à l'écran |
 | `exporter-pivot` | adaptateur → `pivot` | les opérations en CSV |
-| `positions` | adaptateur → `pivot` → moteur | **non** — un rapport à l'écran |
-| `exporter-positions` | adaptateur → `pivot` → moteur | `positions.csv`, `journal.csv` |
+| `positions` | adaptateur → `pivot` → `donnees_externes` → moteur | **non** — un rapport à l'écran |
+| `exporter-positions` | adaptateur → `pivot` → `donnees_externes` → moteur | les six CSV du moteur |
 | `positions-reelles` | `pytr` → adaptateur → moteur | **non** — le rapprochement à l'écran |
 | `ouvrir` | *(étape 9)* | — |
 
-Deux options traversent plusieurs commandes : `--export <dossier>` pour examiner un export rangé
-ailleurs sans le copier dans le projet, et `--au AAAA-MM-JJ` pour arrêter les chiffres à une
-date.
+Trois options traversent plusieurs commandes : `--export <dossier>` pour examiner un export
+rangé ailleurs sans le copier dans le projet ; `--au AAAA-MM-JJ` pour arrêter les chiffres à une
+date, qui est aussi la date de valorisation et la fin de la période des rendements (sans elle :
+aujourd'hui, à la dernière clôture connue, [D-52](decisions.md)) ; `--depuis AAAA-MM-JJ` pour
+faire commencer cette période ailleurs qu'à la première opération.
+
+Pour `positions` et `exporter-positions`, **un seul** `FournisseurDeCours` sert à la fois à la
+complétion des prix manquants et à la valorisation : ses refus couvrent les deux, et le bloc
+« Cours de marché » du rapport les liste tous.
 
 ### 5.7 `donnees_externes/` — les cours, et ce qu'on refuse d'inventer
 
@@ -436,19 +475,19 @@ données est un exercice séparé, fait par le propriétaire, guidé par un
 
 | À venir | Où | Ce qui ne changera pas |
 |---|---|---|
-| Valeur, gain, TRI, TWRR *(étape 5)* | `moteur/` | `Portefeuille.au(date)` existe déjà : rien à rejouer, et le cache de cours est déjà rempli jour par jour |
-| Spread, TER, valeur réelle *(étape 6)* | `moteur/`, côté **coûts** | La séparation performance / coûts est déjà en place ([D-21](decisions.md)) |
+| Spread, TER, valeur réelle *(étape 6)* | `moteur/`, côté **coûts** | La séparation performance / coûts est déjà en place ([D-21](decisions.md)) ; la valeur brute de `valorisation.py` est le point de départ de la valeur réelle ([D-23](decisions.md)) |
 | Diversification *(étape 7)* | `donnees_externes/` + `moteur/` | — |
 | Interface Dash *(étapes 8 et 9)* | `vues/` | Les vues n'appellent que le moteur — jamais l'adaptateur ni une source externe |
 | Monte-Carlo *(étape 12)* | Module indépendant, branché sur les résultats du moteur | Rien ne dépendra de lui ([D-27](decisions.md)) |
 
-Le premier branchement des cours est **fait** : les **titres reçus sans prix**
-([D-15](decisions.md)) reçoivent le cours de leur jour d'apparition, leur capital investi cesse
-d'être sous-estimé et leur prix de revient redevient un nombre ([D-45](decisions.md)).
+Les deux branchements des cours sont **faits** : les **titres reçus sans prix**
+([D-15](decisions.md)) reçoivent le cours de leur jour d'apparition (étape 4), et le moteur
+**valorise** et calcule les rendements en recevant la source de cours en paramètre (étape 5).
 
-Ce que l'étape 5 trouvera en place : `FournisseurDeCours.cours(actif, date)`, un cache déjà rempli
-jour par jour depuis la première opération de chaque actif, et le repli sur le dernier jour coté.
-Il lui restera à décider **quelle** date valoriser, et à quoi comparer.
+Ce que l'étape 6 trouvera en place : la valeur brute de chaque position à une date, ses
+plus-values latentes et réalisées, ses coûts payés rangés par moment — tout ce qu'il faut pour
+poser à côté les coûts **estimés** (spread, TER) et la **valeur réelle** ([D-23](decisions.md)),
+sans toucher à la performance brute.
 
 ---
 
@@ -505,4 +544,14 @@ fier à un chiffre.
 - **Les règles les plus délicates du moteur ne sont validées que par des cas fictifs.** Le
   portefeuille du propriétaire est jeune : peu de ventes, peu de dividendes, aucune distribution
   de capital. La vente partielle au prorata et les plus-values réalisées sont donc prouvées par
-  le [cahier de l'étape 3](verification/etape-3.md), **pas par de vraies données**.
+  le [cahier de l'étape 3](verification/etape-3.md), **pas par de vraies données**. Il en va de
+  même du TRI et du TWRR ([cahier de l'étape 5](verification/etape-5.md)) : sur quelques mois,
+  ils sont exacts et peu significatifs.
+- **La valeur affichée n'est pas celle de Trade Republic**, par construction
+  ([D-48](decisions.md)) : cours du marché principal, à la clôture, contre un prix courant de la
+  banque. Le demi-pour-cent mesuré par cours se retrouve sur le total et sur le gain.
+- **Le TWRR est calculé aux cours de clôture**, la valeur après un flux étant prise « parts après
+  × clôture du jour » et non « valeur avant + montant du flux » ([D-54](decisions.md)). L'écart
+  entre prix d'exécution et clôture n'est donc attribué à aucune sous-période. C'est un choix, et
+  il est écrit ; un autre calculateur peut donner un TWRR légèrement différent sur les jours de
+  flux.

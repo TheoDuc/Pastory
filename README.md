@@ -82,13 +82,28 @@ D'où viennent ces cours et pourquoi cette source : [sources-de-cours.md](docs/s
 ## Voir ses positions
 
 ```bash
-uv run dashboard positions           # quantités, capital investi, prix de revient
-uv run dashboard exporter-positions  # positions.csv et journal.csv, pour le tableur
+uv run dashboard positions           # quantités, capital investi, prix de revient,
+                                     # valeur des actifs, gain, TRI et TWRR
+uv run dashboard exporter-positions  # six CSV pour le tableur, dont le journal et les flux
 uv run dashboard positions-reelles   # demande à la banque ce qu'elle dit détenir
 ```
 
 `positions` et `exporter-positions` acceptent `--hors-ligne` : les mêmes chiffres, avec les seuls
 cours déjà en cache et aucun appel réseau.
+
+**La valeur des actifs et les trois chiffres clés** ([D-22](docs/decisions.md)) — gain en euros,
+TRI, TWRR — sont calculés en montants bruts, frais et taxes à part ([D-21](docs/decisions.md)),
+sur une période choisie : `--depuis AAAA-MM-JJ` pour le début (sinon la première opération),
+`--au AAAA-MM-JJ` pour la fin (sinon aujourd'hui). La valeur d'aujourd'hui est celle de la
+**dernière clôture connue**, et le rapport dit laquelle ([D-52](docs/decisions.md)). Les cours
+sont ceux du marché principal en euros, pas ceux de Trade Republic : un écart de quelques
+dixièmes de pour cent est normal ([D-48](docs/decisions.md)). Un actif sans cours n'est pas
+valorisé et sort des totaux, qui sont alors marqués **partiels** ([D-53](docs/decisions.md)).
+Sur moins d'un an, TRI et TWRR sont affichés comme **peu significatifs**.
+
+Pour refaire un taux dans un tableur : `flux.csv` est la table de `TRI.PAIEMENTS`, et
+`sous_periodes_twrr.csv` donne chaque morceau du TWRR. La démarche est dans le
+[cahier de vérification de l'étape 5](docs/verification/etape-5.md).
 
 Le **journal** (`journal.csv`) est la pièce à ouvrir pour vérifier : une ligne par opération,
 avec l'état d'avant et l'état d'après. Sur chaque ligne, *capital avant + ajouté − retiré =
@@ -115,10 +130,8 @@ d'un seul compte-titres, et le PEA est dans un autre ([D-47](docs/decisions.md))
 du PEA restent justes — ils sont seulement calculés à partir des seules opérations, sans second
 avis.
 
-Les deux premières commandes acceptent `--au AAAA-MM-JJ` pour arrêter les chiffres à une date.
-
-La valeur des actifs, le gain, le TRI et le TWRR ont besoin des cours de marché : ils arrivent
-aux étapes 4 et 5.
+Les deux premières commandes acceptent `--au AAAA-MM-JJ` pour arrêter les chiffres à une date,
+qui devient aussi la date de valorisation.
 
 ## Comment c'est construit
 

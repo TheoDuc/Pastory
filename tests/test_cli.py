@@ -536,6 +536,26 @@ class TestDeclarerLesActifs:
         assert fictifs.ACTIF_ETF in contenu
         assert fictifs.ACTIF_CRYPTO in contenu
 
+    def test_une_crypto_est_dite_a_completer_a_la_main_avec_la_forme_du_ticker(
+        self, export, capsys
+    ):
+        # Une crypto n'a pas d'ISIN : aucune source ne connaît son code interne, et l'assistant
+        # doit le dire au lieu de laisser croire à un échec passager de la recherche.
+        nommer_les_comptes(POCHE_CORRIGEE)
+
+        cli.main(["actifs", "--hors-ligne"])
+        affichage = capsys.readouterr().out
+
+        def ligne_de(actif: str) -> str:
+            return next(
+                ligne for ligne in affichage.splitlines() if ligne.strip().startswith(actif)
+            )
+
+        assert "à compléter à la main" in ligne_de(fictifs.ACTIF_CRYPTO)
+        assert "BTC-EUR" in ligne_de(fictifs.ACTIF_CRYPTO)
+        # Les autres actifs, eux, n'ont pas ce message : la recherche pourrait les trouver.
+        assert "BTC-EUR" not in ligne_de(fictifs.ACTIF_ETF)
+
     def test_le_fichier_rappelle_les_poches_de_chaque_actif(self, export):
         nommer_les_comptes(POCHE_CORRIGEE)
 
@@ -854,3 +874,121 @@ class TestPositionsAvecCours:
             ligne for ligne in operations.splitlines() if "evt-gratuites-1" in ligne
         )
         assert tableur.VALEUR_A_COMPLETER in ligne_des_titres
+
+
+# --- Étape 5 : la valorisation et les rendements ------------------------------------------
+
+
+class TestValorisationEtRendements:
+    """Les deux blocs de l'étape 5 dans « positions », et les quatre CSV de plus."""
+
+    def preparer(self) -> None:
+        nommer_les_comptes(POCHE_CORRIGEE)
+        declarer_les_actifs(fictifs.ACTIF_ACTION_B)
+        # Le cours qui complète les actions gratuites du 1er mars (D-15)...
+        deposer_un_cours(fictifs.ACTIF_ACTION_B, Date(2026, 2, 27), "12.50")
+        # ...et celui qui valorise la position à la fin de la période.
+        deposer_un_cours(fictifs.ACTIF_ACTION_B, Date(2026, 3, 27), "13.00")
+
+    def test_la_valeur_et_les_chiffres_cles_s_affichent(self, export, capsys):
+        self.preparer()
+
+        code = cli.main(["positions", "--hors-ligne", "--au", "2026-03-31"])
+        affichage = capsys.readouterr().out
+
+        assert code == 0
+        assert "Valeur des actifs au 2026-03-31" in affichage
+        # 3 actions gratuites x 13,00, au cours du vendredi 27 mars.
+        assert "39,00" in affichage
+        assert "cours du 2026-03-27 (dernier jour coté avant le 2026-03-31)" in affichage
+        assert "Les trois chiffres clés (D-22)" in affichage
+        assert "GAIN en euros" in affichage
+
+    def test_les_actifs_non_declares_sortent_des_totaux_et_les_refus_sont_listes(
+        self, export, capsys
+    ):
+        self.preparer()
+
+        cli.main(["positions", "--hors-ligne", "--au", "2026-03-31"])
+        affichage = capsys.readouterr().out
+
+        assert "Non valorisés, exclus de tous les totaux (D-53)" in affichage
+        assert "PARTIEL" in affichage
+        # Le bloc « Cours de marché » explique pourquoi : ces actifs n'ont pas de ticker.
+        assert "actif non déclaré" in affichage
+        assert "dashboard actifs" in affichage
+
+    def test_depuis_borne_la_periode(self, export, capsys):
+        self.preparer()
+
+        code = cli.main(
+            ["positions", "--hors-ligne", "--depuis", "2026-03-01", "--au", "2026-03-31"]
+        )
+        affichage = capsys.readouterr().out
+
+        assert code == 0
+        assert "du 2026-03-01 jusqu'au 2026-03-31" in affichage
+
+    def test_une_periode_a_l_envers_est_refusee_avant_toute_lecture(self, export, capsys):
+        self.preparer()
+
+        code = cli.main(
+            ["positions", "--hors-ligne", "--depuis", "2026-06-01", "--au", "2026-03-31"]
+        )
+        sortie = capsys.readouterr()
+
+        assert code == 1
+        assert "après la fin" in sortie.err
+        # Rien n'a été lu ni calculé : une période impossible se refuse tout de suite.
+        assert sortie.out == ""
+
+    def test_exporter_positions_ecrit_les_six_fichiers(self, export, capsys):
+        self.preparer()
+
+        code = cli.main(["exporter-positions", "--hors-ligne", "--au", "2026-03-31"])
+        affichage = capsys.readouterr().out
+
+        assert code == 0
+        personnel = emplacements.dossier_personnel()
+        for nom in (
+            "positions.csv",
+            "journal.csv",
+            "valorisation.csv",
+            "flux.csv",
+            "sous_periodes_twrr.csv",
+            "evolution.csv",
+        ):
+            assert (personnel / nom).exists(), nom
+        assert "TRI.PAIEMENTS" in affichage
+
+        valorisation = (personnel / "valorisation.csv").read_text(encoding="utf-8-sig")
+        assert "39,00" in valorisation
+        # Le bloc « Cours de marché » est écrit après la construction de l'évolution : les
+        # refus qu'elle rencontre y figurent. Ici, entre le 27 février et le 27 mars, il n'y a
+        # aucun cours : dès le 10 mars, le dernier connu a plus de dix jours, et l'évolution le
+        # dit — ce que ni la complétion ni la valorisation au 31 mars n'auraient signalé.
+        assert "cours indisponible" in affichage
+        assert "2026-03-10" in affichage
+        evolution = (personnel / "evolution.csv").read_text(encoding="utf-8-sig").splitlines()
+        # Un jour par ligne, de la première opération (2 janvier) au 31 mars : 89 jours.
+        assert len(evolution) == 1 + 89
+        assert evolution[-1].startswith("2026-03-31;")
+
+    def test_les_deux_blocs_s_affichent_en_cp1252(self, export, capsys):
+        self.preparer()
+
+        cli.main(["positions", "--hors-ligne", "--au", "2026-03-31"])
+
+        capsys.readouterr().out.encode("cp1252")
+
+    def test_sans_au_la_valeur_est_celle_de_la_derniere_cloture_connue(self, export, capsys):
+        # Le cache ne contient jamais le jour même (D-52) : sans cours récent, la position
+        # n'est simplement pas valorisée, et le rapport le dit — jamais un zéro.
+        self.preparer()
+
+        code = cli.main(["positions", "--hors-ligne"])
+        affichage = capsys.readouterr().out
+
+        assert code == 0
+        assert f"Valeur des actifs au {Date.today().isoformat()}" in affichage
+        assert "Non valorisés" in affichage

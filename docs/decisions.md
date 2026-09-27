@@ -678,3 +678,58 @@ sans prévenir. C'est la raison d'être du cache définitif ([D-50](#d-50)) et d
 ([D-45](#d-45)) : l'application doit continuer à afficher les cours déjà connus, et dire clairement
 ce qu'elle ignore. Changer de source ne touchera pas le moteur ([D-26](#d-26)).
 **Deuxième avis** disponible sur demande : la LS Exchange (`ls-tc.de`), hors production.
+
+### D-52 · 2026-09-27 · La valeur d'« aujourd'hui » est celle de la dernière clôture connue · Validée
+**Décision :** la valeur du portefeuille sans date demandée est prise aux **cours de clôture de
+la dernière séance close**, et le rapport écrit **quel jour** il a valorisé (« Valeur des actifs
+au 2026-09-26 »). Aucun prix de la séance en cours n'est demandé ni affiché.
+**Raison :** Q-30 (a). Le cache est définitif ([D-50](#d-50)) et ne contient jamais le jour même :
+un prix intermédiaire y figerait pour toujours une valeur qui n'est pas une clôture. Un cours
+courant hors cache, lui, changerait à chaque lancement — et un chiffre qui bouge tout seul n'est
+pas vérifiable, alors que c'est le premier que le propriétaire comparera à son application. Le
+fournisseur de l'étape 4 fait déjà ce repli sur le dernier jour coté : rien à écrire de plus,
+rien à inventer.
+**Écarte :** aller chercher le prix courant chez la source sans le mettre en cache (Q-30 b). À
+reconsidérer pour l'interface (étape 9), pas avant.
+**Conséquence :** la valeur affichée a jusqu'à trois jours d'âge un lundi matin. C'est écrit
+dans le rapport, jamais deviné par le lecteur.
+
+### D-53 · 2026-09-27 · Un actif sans cours sort des totaux, qui sont marqués partiels · Validée
+**Décision :** une position détenue dont aucun cours n'est utilisable — actif non déclaré, ticker
+inconnu, devise inattendue, dernier cours trop ancien — n'est **pas valorisée**. Elle sort de la
+valeur totale **et** des trois chiffres clés, **achats compris**, et ces totaux sont marqués
+**partiels**, avec la liste de ce qui manque et pourquoi. Elle n'est jamais comptée pour zéro.
+**Raison :** Q-31 (a), et [D-45](#d-45) : un zéro silencieux ferait un gain faux, et un total muet
+dès qu'un ticker manque cacherait tout le reste. Le chiffre partiel décrit exactement ce qu'il
+dit décrire — les actifs valorisés — et le lecteur voit ce qui n'y est pas.
+**Écarte :** aucun total tant qu'un actif manque (Q-31 b) ; compter l'actif à son capital investi
+ou à zéro.
+**Conséquence :** le gain partiel exclut aussi les achats de l'actif manquant. Sans cela, on
+retrancherait des achats sans la valeur qu'ils ont produite, et le gain serait faux d'un autre
+côté.
+
+### D-54 · 2026-09-27 · Conventions de calcul des rendements : ce qui les rend refaisables · Validée
+**Décision :** quatre conventions, écrites dans le [glossaire](glossaire.md) §4 et §5 :
+1. **Période** `[début, fin]`, bornes comprises ; `V_début` = capital brut au soir de la veille du
+   début, 0 sans début ; `V_fin` = capital brut au soir de la fin.
+2. **Flux** = montants bruts signés selon le [format pivot §3](format-pivot.md) : achats et titres
+   reçus négatifs, ventes, dividendes **et distributions de capital** positifs. La formule du gain
+   compte les distributions, ce que le glossaire omettait : sans elles, gain ≠ plus-values latentes
+   + réalisées + dividendes.
+3. **TRI** par dichotomie, années de 365 jours, entre −99 % et +100 000 % par an, six décimales.
+   C'est la convention de `TRI.PAIEMENTS`, et `flux.csv` en donne la table.
+4. **TWRR** découpé à chaque jour de flux ; la valeur qui ouvre une sous-période est prise
+   **après le flux, aux cours de clôture du jour** (parts après × clôture), celle qui la ferme
+   **avant le flux suivant** (parts de la veille × clôture). Annualisé seulement au-delà de
+   365 jours.
+**Raison :** le propriétaire doit pouvoir refaire chaque chiffre dans un tableur, et le seul
+moyen est que la convention soit écrite et unique. Le point 4 s'écarte de la formule littérale du
+glossaire d'origine (`V_avant + F`) parce que celle-ci, avec des cours de clôture et un flux au
+prix d'exécution, donne une **base négative** dès qu'on vend tout légèrement au-dessus de la
+clôture — et un TWRR de −100 % sur un actif gagnant. L'écriture retenue n'invente rien entre
+exécution et clôture, et se refait à partir des seules quantités et clôtures.
+**Écarte :** la journée de 365,25 jours ; l'interpolation des cours manquants ; un TWRR aux prix
+d'exécution ; un TRI par la méthode de Newton (plus rapide, mais qui peut ne pas converger sans le
+dire).
+**Limite connue :** un taux annuel sur trois mois est exact et ne veut rien dire ; c'est le
+drapeau « peu significatif » (sous 365 jours) qui porte ce jugement, pas une borne de calcul.

@@ -133,3 +133,15 @@ Posées après le [comparatif des sources de cours](sources-de-cours.md), tranch
 | Q-27 Place de cotation de référence | a | **Marché principal en euros** (Xetra, Euronext Paris…). Devise attendue déclarée par actif, et un cours dans une autre devise est refusé et signalé. Écart de quelques centimes avec l'application Trade Republic assumé et affiché | D-48 |
 | Q-28 Interface tierce interdite par les conditions générales | a | **pytr reste l'unique porte d'entrée**, en connaissance de la clause, et **aucun cours** ne passe par Trade Republic. Lecture seule, connexion à l'initiative de l'utilisateur | D-49 |
 | Q-29 Durée de vie d'un cours en cache | a | **Définitif** : un cours écrit n'est jamais redemandé. Une commande explicite vide le cache d'un actif (corrections de la source, *splits*) | D-50 |
+
+### Lot 4 (2026-09-27) — la valorisation et les rendements
+Posées dans le plan de l'étape 5, tranchées avec lui.
+
+| Question | Réponse | Retenu | Décision |
+|---|---|---|---|
+| Q-30 Valoriser « aujourd'hui » | a | **La dernière clôture connue, datée** dans le rapport. Aucun prix de séance en cours, rien hors du cache. Le prix courant est à reconsidérer pour l'interface (étape 9) | D-52 |
+| Q-31 Un actif sans cours dans les totaux | a | **Totaux sur les actifs valorisés seulement, marqués partiels**, avec la liste de ce qui manque. Jamais un zéro, jamais un total muet pour un seul ticker manquant | D-53 |
+
+Ce que le pivot avait déjà tranché, et que l'étape a seulement aligné dans le glossaire : la
+distribution de capital est un **flux positif** dans le gain, le TRI et le TWRR
+([format-pivot §3](format-pivot.md), [D-54](decisions.md)).

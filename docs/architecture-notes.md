@@ -138,8 +138,17 @@ l'écriture a confirmé, et ce qu'elle a ajouté :
   fois** au lieu de lever une alerte par actif. Le rapprochement distingue donc « tout ce qui a
   pu être comparé concorde » de « tout a pu être comparé ». Suite dans
   [Q-26](questions-ouvertes.md).
-- TRI et TWRR sur courte durée : fournir aussi un indicateur « peu significatif » à l'interface.
-  *(étape 5)*
+- **Valorisation et rendements — écrits à l'étape 5.** ✅ `valorisation.py`, `rendements.py`.
+  Le moteur **déclare** ce qu'il attend d'une source de cours (un protocole d'une méthode,
+  `cours(actif, date)`) et c'est `cli.py` qui lui passe le fournisseur de l'étape 4 : aucun
+  import entre `moteur/` et `donnees_externes/`, dans aucun sens, et un test prouve que les deux
+  s'emboîtent. Le gain, le TRI et le TWRR se calculent par groupe de positions (un actif, une
+  poche, le tout) sur une période `[début, fin]` ([D-54](decisions.md)). Ce qui n'a pas de cours
+  sort des totaux, marqués partiels ([D-53](decisions.md)) ; la valeur « aujourd'hui » est celle
+  de la dernière clôture ([D-52](decisions.md)). Chaque taux a sa pièce de vérification :
+  `flux.csv` pour le TRI (la table de `TRI.PAIEMENTS`), `sous_periodes_twrr.csv` pour le TWRR.
+- TRI et TWRR sur courte durée : l'indicateur « peu significatif » existe (`Rendements.
+  peu_significatif`, sous 365 jours) et le rapport l'affiche ; l'interface le reprendra. ✅
 
 ## 6. Données externes
 

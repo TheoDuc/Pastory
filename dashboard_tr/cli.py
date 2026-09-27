@@ -12,11 +12,17 @@ dashboard lire                vérifier qu'aucun type d'événement n'est inconn
 dashboard exporter-pivot      écrire les opérations en CSV, à vérifier dans un tableur
 dashboard actifs              dire où chercher le cours de chaque actif (une seule fois)
 dashboard cours               récupérer les cours de marché et les garder en cache
-dashboard positions           ce que le moteur en déduit : quantités, capital investi, PRU
-dashboard exporter-positions  écrire les positions et leur journal en CSV
+dashboard positions           ce que le moteur en déduit : quantités, capital investi, PRU,
+                              valeur des actifs, gain, TRI et TWRR
+dashboard exporter-positions  écrire les positions, le journal, la valorisation, les flux,
+                              les sous-périodes du TWRR et l'évolution en CSV
 dashboard positions-reelles   demander à la banque ce qu'elle dit détenir, pour recouper
 dashboard oublier-cours       effacer des cours en cache, pour les reprendre à la source
 ```
+
+`positions` et `exporter-positions` acceptent `--au AAAA-MM-JJ` (la fin de la période, et la
+date de valorisation ; par défaut aujourd'hui, valorisé à la dernière clôture connue, D-52) et
+`--depuis AAAA-MM-JJ` (le début de la période ; par défaut, depuis la première opération).
 """
 
 from __future__ import annotations
@@ -26,6 +32,8 @@ import collections
 import contextlib
 import sys
 import textwrap
+from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import date as Date
 from datetime import timedelta
 from importlib.metadata import PackageNotFoundError, version
@@ -45,13 +53,16 @@ from dashboard_tr.donnees_externes import completion as completion_cours
 from dashboard_tr.donnees_externes import cours as cours_module
 from dashboard_tr.donnees_externes.cache import Cache, CacheIllisible
 from dashboard_tr.donnees_externes.completion import Completion
-from dashboard_tr.donnees_externes.cours import FournisseurDeCours
+from dashboard_tr.donnees_externes.cours import FournisseurDeCours, Refus
 from dashboard_tr.donnees_externes.yahoo import Yahoo
 from dashboard_tr.moteur import export_csv as export_moteur
 from dashboard_tr.moteur import rapport as rapport_moteur
+from dashboard_tr.moteur import rendements as rendements_moteur
+from dashboard_tr.moteur import valorisation as valorisation_moteur
 from dashboard_tr.moteur.portefeuille import Portefeuille
 from dashboard_tr.moteur.rapprochement import rapprocher
 from dashboard_tr.pivot import export_csv
+from dashboard_tr.pivot.operation import Poche
 from dashboard_tr.pivot.position_reelle import PositionReelle
 
 NOM = "dashboard"
@@ -268,7 +279,7 @@ def commande_exporter_pivot(dossier_export: Path | None, hors_ligne: bool = Fals
     )
     print(f"\n{len(completion.operations)} opération(s) écrite(s) dans :\n  {fichier}")
     print("Ouvrez ce fichier dans un tableur pour comparer avec l'application Trade Republic.")
-    for ligne in _rapport_des_cours(completion):
+    for ligne in _rapport_des_cours(completion, completion.refus):
         print(ligne)
     return code
 
@@ -333,14 +344,17 @@ def _fournisseur_de_cours(hors_ligne: bool = False) -> FournisseurDeCours:
     )
 
 
-def _rapport_des_cours(completion: Completion) -> list[str]:
+def _rapport_des_cours(completion: Completion, refus: Sequence[Refus]) -> list[str]:
     """Ce que les cours ont changé aux opérations, et ce qu'ils n'ont pas pu changer.
 
     Bloc à part, avant les chiffres du moteur : un montant déduit d'un cours de marché n'est
     pas un montant donné par la banque, et l'utilisateur doit pouvoir refaire la
     multiplication (D-15, règle 6 de CLAUDE.md).
+
+    `refus` réunit **tous** les refus du fournisseur — ceux de la complétion et ceux de la
+    valorisation — puisque c'est le même fournisseur qui a servi aux deux.
     """
-    if completion.rien_a_completer and not completion.refus:
+    if completion.rien_a_completer and not refus:
         return []
 
     lignes = ["", "Cours de marché", "-" * 15]
@@ -378,8 +392,13 @@ def _rapport_des_cours(completion: Completion) -> list[str]:
         )
         lignes.append("  sont comptées, leur montant non : le capital investi est sous-estimé.")
 
-    for refus in completion.refus:
-        lignes += _enveloppe_cours(f"{refus.categorie} : {refus.motif}", refus.actif)
+    if refus:
+        lignes.append("")
+        lignes.append("  Ce que la source de cours a refusé, avec la date demandée quand elle")
+        lignes.append("  compte. Un actif détenu sans cours à la date de valorisation sort des")
+        lignes.append("  totaux : voir « Non valorisés » dans le rapport.")
+    for un_refus in refus:
+        lignes += _enveloppe_cours(f"{un_refus.categorie} : {un_refus.motif}", un_refus.actif)
 
     return lignes
 
@@ -391,13 +410,46 @@ def _enveloppe_cours(texte: str, actif: str) -> list[str]:
     )
 
 
+@dataclass(frozen=True)
+class Construit:
+    """Tout ce qu'une commande du moteur a sous la main après la lecture et le rejeu."""
+
+    portefeuille: Portefeuille
+    """Arrêté à la fin de la période."""
+
+    rapport: Rapport
+    entete: list[str]
+    completion: Completion
+    fournisseur: FournisseurDeCours
+    """Le même pour la complétion et la valorisation : ses refus couvrent les deux."""
+
+    periode: rendements_moteur.Periode
+    synthese: rendements_moteur.Synthese
+
+
+def _periode(au: Date | None, depuis: Date | None) -> rendements_moteur.Periode | None:
+    """La période des chiffres clés, ou `None` avec un message si elle est à l'envers.
+
+    Sans `--au`, elle finit aujourd'hui — valorisé à la dernière clôture connue, puisque la
+    séance du jour n'est pas close (D-52). Vérifiée **avant** toute lecture : une période
+    impossible ne doit pas coûter un export lu et des cours demandés pour rien.
+    """
+    try:
+        return rendements_moteur.Periode(fin=au or Date.today(), debut=depuis)
+    except ValueError as erreur:
+        print(erreur, file=sys.stderr)
+        return None
+
+
 def _construire_moteur(
-    dossier: Path, au: Date | None, hors_ligne: bool = False
-) -> tuple[Portefeuille, Rapport, list[str], Completion] | None:
-    """Lecture, complétion des prix, puis rejeu.
+    dossier: Path, periode: rendements_moteur.Periode, hors_ligne: bool = False
+) -> Construit | None:
+    """Lecture, complétion des prix, rejeu, puis valorisation et rendements.
 
     La complétion s'insère **entre** la lecture et le moteur, et ne produit que du format
-    pivot : le moteur ne gagne pas une ligne et ne sait rien des cours (D-26).
+    pivot : le moteur ne gagne pas une ligne et ne sait rien des cours (D-26). La
+    valorisation, elle, reçoit le fournisseur de cours **en paramètre** : le moteur déclare
+    ce dont il a besoin, et c'est ici, et seulement ici, qu'on le lui donne.
 
     Renvoie `None` si la lecture ne permet pas d'aller plus loin.
     """
@@ -411,26 +463,37 @@ def _construire_moteur(
         )
         return None
 
-    completion = completion_cours.completer_les_prix(
-        rapport.operations, _fournisseur_de_cours(hors_ligne)
-    )
+    fournisseur = _fournisseur_de_cours(hors_ligne)
+    completion = completion_cours.completer_les_prix(rapport.operations, fournisseur)
 
-    portefeuille = Portefeuille.construire(completion.operations)
-    if au is not None:
-        portefeuille = portefeuille.au(au)
-    return portefeuille, rapport, _etat_de_la_lecture(rapport), completion
+    portefeuille = Portefeuille.construire(completion.operations).au(periode.fin)
+    synthese = rendements_moteur.synthese(portefeuille, periode, fournisseur)
+    return Construit(
+        portefeuille=portefeuille,
+        rapport=rapport,
+        entete=_etat_de_la_lecture(rapport),
+        completion=completion,
+        fournisseur=fournisseur,
+        periode=periode,
+        synthese=synthese,
+    )
 
 
 def commande_positions(
-    dossier_export: Path | None, au: Date | None, hors_ligne: bool = False
+    dossier_export: Path | None,
+    au: Date | None,
+    hors_ligne: bool = False,
+    depuis: Date | None = None,
 ) -> int:
     """Affiche les positions calculées par le moteur, sans rien écrire."""
     dossier = dossier_export or source.dossier_par_defaut()
+    periode = _periode(au, depuis)
+    if periode is None:
+        return CODE_ECHEC
     try:
-        construit = _construire_moteur(dossier, au, hors_ligne)
+        construit = _construire_moteur(dossier, periode, hors_ligne)
         if construit is None:
             return CODE_DECLARATION_ATTENDUE
-        portefeuille, _, entete, completion = construit
         # Le portefeuille de la banque est une photo d'**aujourd'hui** : le comparer à un
         # portefeuille arrêté à une date passée signalerait à tort tout ce qui a bougé
         # depuis. Le rapprochement n'a de sens que sur les chiffres à jour.
@@ -451,21 +514,26 @@ def commande_positions(
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
 
-    for ligne in entete:
+    for ligne in construit.entete:
         print(ligne)
     if au is not None:
         print(f"Chiffres arrêtés au {au.isoformat()}.")
 
+    portefeuille = construit.portefeuille
     rapprochement = (
         rapprocher(portefeuille, positions_reelles, lignes_illisibles=len(anomalies_du_fichier))
         if positions_reelles is not None
         else None
     )
-    print(rapport_moteur.resume(portefeuille, rapprochement, arrete_au=au))
+    print(
+        rapport_moteur.resume(
+            portefeuille, rapprochement, arrete_au=au, synthese=construit.synthese
+        )
+    )
 
     # Après les chiffres, et non avant : le rapport du moteur porte en tête l'avertissement
     # qu'il contient de vraies valeurs, et rien ne doit s'intercaler devant.
-    for ligne in _rapport_des_cours(completion):
+    for ligne in _rapport_des_cours(construit.completion, construit.fournisseur.refus):
         print(ligne)
 
     for anomalie in anomalies_du_fichier:
@@ -474,16 +542,27 @@ def commande_positions(
     return CODE_SUCCES
 
 
+def _premier_jour(portefeuille: Portefeuille) -> Date | None:
+    """Le jour de la première opération, d'où part l'évolution."""
+    jours = [position.journal[0].date for position in portefeuille.positions if position.journal]
+    return min(jours) if jours else None
+
+
 def commande_exporter_positions(
-    dossier_export: Path | None, au: Date | None, hors_ligne: bool = False
+    dossier_export: Path | None,
+    au: Date | None,
+    hors_ligne: bool = False,
+    depuis: Date | None = None,
 ) -> int:
-    """Écrit `positions.csv` et `journal.csv` dans le dossier personnel."""
+    """Écrit les six CSV du moteur dans le dossier personnel."""
     dossier = dossier_export or source.dossier_par_defaut()
+    periode = _periode(au, depuis)
+    if periode is None:
+        return CODE_ECHEC
     try:
-        construit = _construire_moteur(dossier, au, hors_ligne)
+        construit = _construire_moteur(dossier, periode, hors_ligne)
         if construit is None:
             return CODE_DECLARATION_ATTENDUE
-        portefeuille, _, entete, completion = construit
     except source.ExportIntrouvable as erreur:
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
@@ -494,11 +573,10 @@ def commande_exporter_positions(
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
 
-    for ligne in entete:
-        print(ligne)
-    for ligne in _rapport_des_cours(completion):
+    for ligne in construit.entete:
         print(ligne)
 
+    portefeuille, synthese = construit.portefeuille, construit.synthese
     personnel = emplacements.dossier_personnel()
     fichier_positions = export_moteur.ecrire_positions(
         portefeuille, personnel / export_moteur.NOM_POSITIONS
@@ -506,13 +584,45 @@ def commande_exporter_positions(
     fichier_journal = export_moteur.ecrire_journal(
         portefeuille, personnel / export_moteur.NOM_JOURNAL
     )
+    fichier_valorisation = export_moteur.ecrire_valorisation(
+        portefeuille, synthese, personnel / export_moteur.NOM_VALORISATION
+    )
+    fichier_flux = export_moteur.ecrire_flux(synthese, personnel / export_moteur.NOM_FLUX)
+    fichier_sous_periodes = export_moteur.ecrire_sous_periodes(
+        synthese, personnel / export_moteur.NOM_SOUS_PERIODES
+    )
+
+    premier = _premier_jour(portefeuille)
+    points = (
+        valorisation_moteur.evolution(
+            portefeuille, premier, construit.periode.fin, construit.fournisseur
+        )
+        if premier is not None
+        else []
+    )
+    fichier_evolution = export_moteur.ecrire_evolution(
+        points, personnel / export_moteur.NOM_EVOLUTION
+    )
+
+    # Après l'évolution, et non avant : elle demande un cours par jour, et ses refus doivent
+    # figurer dans ce bloc — sans quoi une colonne « positions_non_valorisees » à 1 n'aurait
+    # d'explication nulle part.
+    for ligne in _rapport_des_cours(construit.completion, construit.fournisseur.refus):
+        print(ligne)
 
     print(f"\n{len(portefeuille.positions)} position(s) écrite(s) dans :\n  {fichier_positions}")
     lignes = sum(len(position.journal) for position in portefeuille.positions)
     print(f"{lignes} ligne(s) de journal dans :\n  {fichier_journal}")
     print(
+        f"Valeur, plus-value latente, gain, TRI et TWRR par position, au "
+        f"{construit.periode.fin.isoformat()} :\n  {fichier_valorisation}"
+    )
+    print(f"Les flux de la période, à coller dans TRI.PAIEMENTS :\n  {fichier_flux}")
+    print(f"Les sous-périodes du TWRR :\n  {fichier_sous_periodes}")
+    print(f"{len(points)} jour(s) d'évolution de la valeur dans :\n  {fichier_evolution}")
+    print(
         "\nLe journal est celui à ouvrir pour refaire un chiffre à la main : une ligne par\n"
-        "opération, avec l'état d'avant et l'état d'après."
+        "opération, avec l'état d'avant et l'état d'après. Pour le TRI, c'est flux.csv."
     )
     return CODE_SUCCES
 
@@ -628,6 +738,13 @@ def commande_actifs(dossier_export: Path | None, hors_ligne: bool = False) -> in
             if proposition is not None:
                 propositions[actif] = proposition
 
+    # Une crypto est identifiée par un code interne à la banque, qu'aucune source de cours ne
+    # connaît : la recherche automatique ne trouvera jamais rien, et il faut le dire plutôt que
+    # de laisser croire à un échec passager. Constaté par le propriétaire sur son bitcoin.
+    cryptos = {
+        operation.actif for operation in rapport.operations if operation.poche is Poche.CRYPTO
+    }
+
     print(f"\n{len(apercu)} actif(s) dans l'export, {len(manquants)} sans correspondance.")
     for actif in sorted(apercu):
         declaration = configuration.declaration(actif)
@@ -640,6 +757,11 @@ def commande_actifs(dossier_export: Path | None, hors_ligne: bool = False) -> in
                 etat += f" ({proposition.devise})"
             if proposition.douteuse:
                 etat += " - ATTENTION, pas en euros, à ne pas retenir tel quel"
+        elif actif in cryptos:
+            etat = (
+                "à compléter à la main : une crypto n'a pas d'ISIN, aucune source ne connaît "
+                "ce code. Son ticker est de la forme BTC-EUR (la cotation en euros)"
+            )
         else:
             etat = "à compléter à la main"
         print(f"  {actif:<14} {etat}")
@@ -856,8 +978,16 @@ def construire_analyseur() -> argparse.ArgumentParser:
                 type=_jour,
                 default=None,
                 metavar="AAAA-MM-JJ",
-                help="arrêter les chiffres à la fin de ce jour-là, au lieu d'aller "
-                "jusqu'à la dernière opération connue",
+                help="arrêter les chiffres à la fin de ce jour-là, et valoriser à cette "
+                "date, au lieu d'aujourd'hui",
+            )
+            sous_analyseur.add_argument(
+                "--depuis",
+                type=_jour,
+                default=None,
+                metavar="AAAA-MM-JJ",
+                help="faire commencer la période du gain, du TRI et du TWRR à ce jour-là, "
+                "au lieu de la première opération",
             )
         if nom in sans_reseau:
             sous_analyseur.add_argument(
@@ -939,9 +1069,13 @@ def main(arguments: list[str] | None = None) -> int:
         case "cours":
             return commande_cours(options.export, options.actif)
         case "positions":
-            return commande_positions(options.export, options.au, options.hors_ligne)
+            return commande_positions(
+                options.export, options.au, options.hors_ligne, options.depuis
+            )
         case "exporter-positions":
-            return commande_exporter_positions(options.export, options.au, options.hors_ligne)
+            return commande_exporter_positions(
+                options.export, options.au, options.hors_ligne, options.depuis
+            )
         case "positions-reelles":
             return commande_positions_reelles()
         case "oublier-cours":
