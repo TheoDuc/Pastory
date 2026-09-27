@@ -271,6 +271,30 @@ la relecture indépendante : la première version ne regardait que la vente simu
 C'est ce que la sortie coûterait, et c'est précisément ce que la synthèse brute ne montre pas
 ([D-23](../decisions.md)).
 
+### A.8 bis — Pourquoi une petite position peut afficher une plus-value négative ⚠️
+
+C'est le piège le plus déroutant de l'étape, et il n'a rien d'une erreur. Le détail de chaque
+impôt montre la plus-value **en deux temps** :
+
+| | Exemple |
+|---|---|
+| plus-values latentes, **avant** coûts de sortie | +0,80 € |
+| frais de vente et écart de prix estimés, en moins | −1,04 € |
+| **somme** | **−0,24 €** |
+
+La **première ligne** est celle qui se compare à ton application : c'est la valeur moins ce que tu
+as placé. La **seconde** explique l'écart. Sur une position de 20 €, l'euro de frais de vente pèse
+5 % : un gain de 0,80 € ne le couvre pas, et vendre te ferait réellement perdre de l'argent. Le
+chiffre est juste, et c'est l'information que tu venais chercher.
+
+**Deux choses à retenir pour lire ce bloc :**
+
+- **le 1 € est facturé par ordre, donc par ligne vendue.** Vendre trois actifs coûte 3 €, pas 1 € ;
+- **la valeur brute de l'application n'est pas celle de Trade Republic** : cours de clôture du
+  marché principal contre prix courant de la banque, quelques dixièmes de pour cent d'écart
+  ([D-48](../decisions.md)). Sur un petit portefeuille, cet écart et les frais de sortie se
+  cumulent et font paraître le gain plus faible qu'il ne l'est.
+
 **Refais-le toi-même** dans `valeur_reelle.csv` : une ligne par position, puis une par poche
 (c'est là qu'est l'impôt, parce qu'il se calcule sur la poche entière), puis le total.
 
@@ -373,6 +397,10 @@ Recalcule un `poids` en divisant `cout_paye` par `montant_brut`.
 
 - [ ] les cinq lignes de chaque poche se suivent : valeur brute, moins les frais, moins l'écart
       de prix, moins l'impôt, égale la valeur réelle ;
+- [ ] dans le détail de chaque impôt, la ligne **« plus-values latentes, avant coûts de sortie »**
+      doit être proche de « valeur affichée par ton application − ce que tu as placé ». Si elle
+      s'en écarte de plus de quelques dixièmes de pour cent, dis-le. La ligne suivante, les coûts
+      de sortie, explique le reste de l'écart ;
 - [ ] pour la poche **CTO**, refais la base imposable : somme de (valeur − prix de revient
       fiscal) sur tes lignes, avec `valeur_reelle.csv` ;
 - [ ] pour le **PEA**, refais le gain du plan : plus-value latente + plus-values réalisées +

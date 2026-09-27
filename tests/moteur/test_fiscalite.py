@@ -315,9 +315,11 @@ def test_le_gain_du_plan_se_decompose_ligne_par_ligne():
     )
 
     composantes = dict(impot.composantes)
-    assert composantes["plus-values latentes, après frais de vente et spread"] == Decimal(
-        "3000.00"
-    )
+    # La plus-value est montrée **avant** coûts de sortie, puis ces coûts sont retranchés : sans
+    # cette décomposition, une petite position dont le gain ne couvre pas l'euro de frais de
+    # vente affiche une plus-value négative que rien n'explique (constaté par le propriétaire).
+    assert composantes[fiscalite.LATENTES_BRUTES] == Decimal("3000.00")
+    assert composantes[fiscalite.COUTS_DE_SORTIE] == Decimal("0.00")
     assert composantes["dividendes reçus (brut)"] == Decimal("200.00")
     assert composantes["frais et taxes payés dans le PEA, en moins"] == Decimal("-10.00")
     assert sum(composantes.values()) == impot.base
@@ -649,3 +651,49 @@ def test_les_ventes_d_une_autre_poche_ne_comptent_pas():
     assert fiscalite.cessions_crypto_de_l_annee(
         portefeuille.positions, date(2026, 9, 27)
     ) == Decimal("0.00")
+
+
+def test_les_trois_poches_montrent_la_plus_value_avant_et_apres_les_couts_de_sortie():
+    """Demandé par le propriétaire (2026-09-27) après avoir buté sur une crypto de 12 € dont le
+    gain de 0,81 € affichait une plus-value négative : l'euro de frais de vente pèse 8 % d'une
+    si petite position. La première ligne se compare à l'application de la banque, la seconde
+    explique l'écart."""
+    vendue = cession(valeur="1500.00", spread="0.75", frais_de_vente="1.00")
+
+    impot = fiscalite.impot_cto([vendue], regles())
+
+    composantes = dict(impot.composantes)
+    # 1 500 de valeur brute contre 1 000 de prix de revient fiscal.
+    assert composantes[fiscalite.LATENTES_BRUTES] == Decimal("500.00")
+    assert composantes[fiscalite.COUTS_DE_SORTIE] == Decimal("-1.75")
+    assert sum(composantes.values()) == impot.base_avant_plancher == Decimal("498.25")
+
+
+def test_une_petite_crypto_montre_pourquoi_sa_plus_value_devient_negative():
+    """Le cas exact du propriétaire : 12,00 € investis, 12,81 € de valeur, et pourtant une
+    plus-value imposable négative. La décomposition le dit en deux lignes."""
+    petite = Cession(
+        position=position_de(
+            [
+                operation(
+                    TypeOperation.ACHAT,
+                    actif=CRYPTO,
+                    poche=Poche.CRYPTO,
+                    quantite="1",
+                    prix_unitaire="12.00",
+                )
+            ]
+        ),
+        valeur_brute=Decimal("12.81"),
+        spread=Decimal("0.06"),
+        frais_de_vente=Decimal("1.00"),
+    )
+
+    impot = fiscalite.impot_crypto([petite], regles())
+
+    composantes = dict(impot.composantes)
+    assert composantes[fiscalite.LATENTES_BRUTES] == Decimal("0.81")
+    assert composantes[fiscalite.COUTS_DE_SORTIE] == Decimal("-1.06")
+    assert impot.base_avant_plancher == Decimal("-0.25")
+    # Une moins-value ne donne aucun impôt, et le seuil de 305 € s'applique de toute façon.
+    assert impot.base == Decimal("0.00")

@@ -26,7 +26,7 @@ décide du taux), ou avec une position sans cours (un gain de plan « partiel »
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import date as Date
 from decimal import ROUND_HALF_UP, Decimal
@@ -147,6 +147,40 @@ class ImpotEstime:
         return self.impot is not None
 
 
+LATENTES_BRUTES = "plus-values latentes, avant coûts de sortie"
+COUTS_DE_SORTIE = "frais de vente et écart de prix estimés, en moins"
+"""Les deux lignes qui rendent l'arithmétique visible.
+
+La plus-value **après** coûts de sortie est le chiffre utile — c'est celle qui sera imposée — mais
+elle ne se rapproche d'aucun chiffre de l'application de la banque. Montrer d'abord le brut, puis
+ce qui en est retranché, permet de comparer la première ligne à ce que la banque affiche, et
+d'attribuer l'écart à sa cause. Sans cela, une petite position dont le gain ne couvre pas l'euro
+de frais de vente affiche une plus-value négative que rien n'explique."""
+
+
+def _decomposition(cessions: Sequence[Cession], poche: Poche) -> tuple[Decimal, Decimal]:
+    """La plus-value **avant** coûts de sortie, et ces coûts.
+
+    Leur différence vaut exactement la somme des plus-values imposables : c'est la même
+    soustraction, écrite en deux temps.
+    """
+    # Le PEA ne s'impose pas titre par titre : son gain est celui du plan, calculé sur ce qui
+    # a été réellement placé. La crypto, elle, exclut les frais d'achat par lecture prudente
+    # de la loi. Seul le CTO retient le prix de revient fiscal, frais d'achat compris (D-57).
+    acquisition = (
+        (lambda cession: cession.capital_fiscal)
+        if poche is Poche.CTO
+        else (lambda cession: cession.capital_net_investi)
+    )
+    brutes = sum(
+        (cession.valeur_brute - acquisition(cession) for cession in cessions), ZERO
+    )
+    couts = sum(
+        (cession.spread + cession.frais_de_vente for cession in cessions), ZERO
+    )
+    return brutes, couts
+
+
 HYPOTHESES_COMMUNES = (
     "prélèvement forfaitaire unique de plein droit, sans option pour le barème",
     "taux en vigueur à la date de valorisation, vente supposée dans l'année en cours",
@@ -178,6 +212,7 @@ def impot_cto(cessions: Iterable[Cession], regles: ReglesFiscales) -> ImpotEstim
     somme = sum((cession.plus_value(Poche.CTO) for cession in cessions), ZERO)
     base = max(somme, ZERO)
     taux = _taux_total(regles)
+    brutes, couts_de_sortie = _decomposition(cessions, Poche.CTO)
     return ImpotEstime(
         poche=Poche.CTO,
         regle="plus-values de cession de valeurs mobilières : prix moyen pondéré frais d'achat "
@@ -193,6 +228,10 @@ def impot_cto(cessions: Iterable[Cession], regles: ReglesFiscales) -> ImpotEstim
         hypotheses=HYPOTHESES_COMMUNES
         + ("prix de revient fiscal = capital net investi + frais et taxes d'achat, au prorata "
            "des parts vendues (D-57)",),
+        composantes=(
+            (LATENTES_BRUTES, brutes),
+            (COUTS_DE_SORTIE, -couts_de_sortie),
+        ),
         fiable=_fiable(cession.position for cession in cessions),
     )
 
@@ -236,6 +275,7 @@ def impot_crypto(
     somme = sum((cession.plus_value(Poche.CRYPTO) for cession in cessions), ZERO)
     prix_de_cession = sum((cession.prix_de_cession for cession in cessions), ZERO)
     cessions_de_l_annee = prix_de_cession + deja_vendu_dans_l_annee
+    brutes, couts_de_sortie = _decomposition(cessions, Poche.CRYPTO)
     seuil = regles.crypto_seuil_exoneration
     exonere = cessions_de_l_annee <= seuil.valeur
     base = ZERO if exonere else max(somme, ZERO)
@@ -277,6 +317,10 @@ def impot_crypto(
             "de vente partielle",
             "les frais d'achat n'entrent pas dans le prix d'acquisition (lecture prudente de la "
             "loi, qui ne les nomme pas)",
+        ),
+        composantes=(
+            (LATENTES_BRUTES, brutes),
+            (COUTS_DE_SORTIE, -couts_de_sortie),
         ),
         fiable=_fiable(cession.position for cession in cessions),
     )
@@ -350,9 +394,8 @@ def impot_pea(
             "taux. Écrivez-la dans fiscalite.toml (dossier de configuration), section [pea]"
         )
 
-    latentes = sum(
-        (cession.cession_nette - cession.capital_net_investi for cession in cessions), ZERO
-    )
+    brutes, couts_de_sortie = _decomposition(cessions, Poche.PEA)
+    latentes = brutes - couts_de_sortie
     realisees = sum((position.plus_values_realisees_brutes for position in positions), ZERO)
     dividendes = sum((position.dividendes_bruts for position in positions), ZERO)
     couts = sum((position.frais + position.taxes for position in positions), ZERO)
@@ -399,7 +442,8 @@ def impot_pea(
         # Ce que le plan a déjà transformé en espèces : son impôt est compté, son argent non.
         hors_des_titres=max(realisees + dividendes - couts, ZERO),
         composantes=(
-            ("plus-values latentes, après frais de vente et spread", latentes),
+            (LATENTES_BRUTES, brutes),
+            (COUTS_DE_SORTIE, -couts_de_sortie),
             ("plus-values réalisées (brut), positions soldées comprises", realisees),
             ("dividendes reçus (brut)", dividendes),
             ("frais et taxes payés dans le PEA, en moins", -couts),

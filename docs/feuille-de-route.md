@@ -318,12 +318,24 @@ un ISIN pouvait être lu dans la colonne du nom ; une date de PEA écrite avec u
 remonter une trace technique au lieu du message prévu ; et « TER à compléter » s'affichait pour une
 action, qui n'en a pas.
 
-Deux choses restent à la charge du propriétaire, écrites dans le cahier : ouvrir la **liste des
-prix française** dans son application (le document public refuse les téléchargements automatiques)
-pour confirmer les 1 € par ordre, et savoir que les taux fiscaux n'ont **pas** été relus par un
-tiers — il a choisi de s'en tenir aux sources officielles (Q-38).
+Deux choses restent à sa charge, écrites dans le cahier : ouvrir la **liste des prix française**
+dans son application (le document public refuse les téléchargements automatiques) pour confirmer
+les 1 € par ordre, et savoir que les taux fiscaux n'ont **pas** été relus par un tiers — il a
+choisi de s'en tenir aux sources officielles (Q-38).
 
-**Reste à faire avant la fusion :** sa vérification et son accord.
+**Le propriétaire a configuré ses actifs, vérifié ses chiffres et les confirme (2026-09-27).**
+Sa vérification a produit la dernière amélioration de l'étape, et elle vaut d'être retenue : il a
+buté sur des **plus-values plus faibles que prévu**, dont une **négative** sur une petite position
+en crypto, alors que celle-ci avait gagné. La cause n'était pas un calcul faux mais un affichage
+incomplet — la ligne arrivait **déjà nette** des coûts de sortie, sans montrer l'étape d'avant.
+Deux facteurs se cumulaient, et aucun n'était visible : l'euro de frais de vente, facturé **par
+ligne** et non par poche, qui pèse plusieurs pour cent d'une petite position ; et l'écart entre le
+cours de clôture du marché principal et le prix courant de la banque ([D-48](decisions.md)).
+
+Le détail de chaque impôt montre donc désormais la plus-value **en deux temps** : avant coûts de
+sortie — la ligne qui se compare à l'application de la banque — puis ces coûts retranchés. La
+leçon est générale et vaut pour les étapes suivantes : **un chiffre juste mais impossible à
+rapprocher d'une autre source est un chiffre qu'on ne croit pas.**
 
 **Claude :**
 - Présente le détail des **coûts payés** (issus de l'étape 3) : par opération, actif, poche et

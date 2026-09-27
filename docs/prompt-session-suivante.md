@@ -92,6 +92,21 @@ On attaque l'étape 7 : la diversification géographique et sectorielle.
 - **Les huit CSV suivent les conventions de `tableur.py`**, et jamais une case vide pour une valeur
   absente (`VALEUR_SANS_OBJET` / `VALEUR_A_COMPLETER`).
 
+**Ce que le propriétaire a vérifié à l'étape 6 (2026-09-27), et la leçon à garder.** Il a
+configuré le type et le TER de ses actifs, déclaré la date de son PEA, et confirmé les chiffres.
+Sa vérification a trouvé non pas une erreur de calcul mais un **défaut d'affichage**, et c'est le
+point à retenir : la plus-value d'une poche arrivait **déjà nette** des coûts de sortie, sans
+montrer l'étape d'avant. Il ne pouvait donc la rapprocher d'aucun chiffre de son application, et
+une petite position en crypto affichait même une plus-value **négative** alors qu'elle avait
+gagné — l'euro de frais de vente, facturé **par ligne**, pesant plusieurs pour cent d'une position
+de quelques dizaines d'euros. Le détail de chaque impôt montre désormais la plus-value en deux
+temps : avant coûts de sortie, puis ces coûts retranchés.
+
+**La règle qui en sort, et qui vaut pour l'étape 7 :** un chiffre juste qu'on ne peut rapprocher
+d'aucune autre source est un chiffre qu'on ne croit pas. Chaque fois qu'un résultat est **net**
+de quelque chose, montrer le brut et la retenue séparément. Une répartition géographique
+« hors actifs non couverts » posera exactement la même question.
+
 **Ce qui n'a pas pu être vérifié à l'étape 6, et qui reste à la charge du propriétaire :**
 
 1. **La grille tarifaire française de Trade Republic.** Le document public refuse les

@@ -667,6 +667,10 @@ def _detail_des_impots(lignes: list[str], valeur: ValeurReelle) -> None:
                 lignes.append(
                     f"    {libelle:<{LARGEUR_LIBELLE_REELLE + 18}} {_lisible(montant):>14}"
                 )
+            # La première ligne se compare à l'application de la banque, la deuxième explique
+            # l'écart : c'est la lecture que le propriétaire a demandée après avoir buté sur une
+            # plus-value négative qu'aucun chiffre du rapport ne justifiait.
+            lignes.append("      (ces deux lignes s'additionnent dans le total ci-dessous)")
         if impot.base is None:
             lignes += _enveloppe(f"non calculable : {impot.motif}", "    ", "      ")
             continue
