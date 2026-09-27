@@ -268,9 +268,41 @@ interne et non par un ISIN, doit recevoir son ticker **à la main** : l'assistan
 
 **Session :** nouvelle session. `/code-review` à la fin.
 
-## Étape 6 · Frais, taxes et valeur réelle 🔜
+## Étape 6 · Frais, taxes et valeur réelle ✅
 **But :** tout ce qui se passe à l'entrée et à la sortie, traité à part de l'évolution (D-21), et la
 valeur « si on retirait tout » (D-23).
+
+**Fait :** trois recherches ([couts-et-fiscalite.md](couts-et-fiscalite.md) — TER, spreads et
+tarifs, fiscalité française sur sources officielles), puis trois modules dans le moteur
+(`couts.py`, `fiscalite.py`, `valeur_reelle.py`), un paquet de **paramètres datés et sourcés**
+(`dashboard_tr/parametres/`), une source de TER (`donnees_externes/xetra.py`), trois blocs de plus
+dans `dashboard positions`, deux CSV de plus, et le [cahier de vérification](verification/etape-6.md).
+
+**Sept décisions** (D-55 à D-61). La plus structurante, [D-58](decisions.md) : **un taux est une
+valeur, une date et une source**, dans un fichier TOML versionné — sans date ni source, il est
+refusé à la lecture. Corriger un taux quand la loi change ne demande aucune ligne de code.
+
+La recherche fiscale a trouvé ce qu'aucune mémoire n'aurait donné : **les prélèvements sociaux
+sont passés de 17,2 % à 18,6 %** en 2026 (la loi de financement de la sécurité sociale a relevé la
+CSG sur les revenus du capital), donc le prélèvement forfaitaire unique vaut **31,4 %**. Recoupé
+sur impots.gouv.fr. Un projet qui aurait gardé 30 % de tête se serait trompé sur tous ses chiffres
+d'impôt.
+
+[D-57](decisions.md) règle une dette laissée par [D-13](decisions.md) : le moteur tient désormais
+un **capital fiscal** à côté du capital investi — le prix de revient au sens de l'impôt inclut les
+frais d'achat, celui du projet les exclut. Les deux sont justes, ils ne répondent pas à la même
+question, et le journal les montre côte à côte.
+
+**Le moteur n'importe toujours ni les paramètres ni la configuration** : il déclare deux
+protocoles de plus (`ParametresDeCouts`, `ReglesFiscales`), et `cli.py` fait le lien — le même
+chemin que la source de cours à l'étape 5.
+
+Deux choses restent à la charge du propriétaire, écrites dans le cahier : ouvrir la **liste des
+prix française** dans son application (le document public refuse les téléchargements automatiques)
+pour confirmer les 1 € par ordre, et savoir que les taux fiscaux n'ont **pas** été relus par un
+tiers — il a choisi de s'en tenir aux sources officielles (Q-38).
+
+**Reste à faire avant la fusion :** la relecture indépendante, sa vérification, son accord.
 
 **Claude :**
 - Présente le détail des **coûts payés** (issus de l'étape 3) : par opération, actif, poche et
@@ -290,7 +322,7 @@ valeur « si on retirait tout » (D-23).
 - Valider les spreads par défaut et les règles fiscales retenues (idéalement, avec une personne à
   l'aise avec la fiscalité).
 
-## Étape 7 · Diversification ⏳
+## Étape 7 · Diversification 🔜
 **But :** répartition géographique et sectorielle réelle, en regardant à l'intérieur des ETF
 (Q-22).
 

@@ -8,6 +8,8 @@
 | `flux.csv` | flux d'un groupe | **la table de `TRI.PAIEMENTS`** : dates et montants signés |
 | `sous_periodes_twrr.csv` | sous-période d'un groupe | refaire le TWRR : produit des (1 + r) |
 | `evolution.csv` | jour | la valeur du portefeuille dans le temps |
+| `couts.csv` | opération | refaire les coûts payés, et voir leur poids |
+| `valeur_reelle.csv` | position, poche, total | refaire la valeur réelle et l'impôt |
 
 Le journal est le plus important. Il se lit comme un relevé bancaire : on part de l'état
 d'avant, on applique l'opération, on tombe sur l'état d'après. C'est ce qui permet de
@@ -30,9 +32,15 @@ from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
 from dashboard_tr import tableur
+from dashboard_tr.moteur.couts import DetailDesCouts, LigneDeCout
 from dashboard_tr.moteur.portefeuille import Portefeuille
 from dashboard_tr.moteur.position import EtatPosition, LigneJournal, Position
 from dashboard_tr.moteur.rendements import PAS_DU_TAUX, Rendements, Synthese
+from dashboard_tr.moteur.valeur_reelle import (
+    LigneValeurReelle,
+    ValeurReelle,
+    ValeurReellePoche,
+)
 from dashboard_tr.moteur.valorisation import PointEvolution, PositionValorisee
 from dashboard_tr.pivot.operation import Poche
 
@@ -50,6 +58,8 @@ COLONNES_POSITIONS = (
     "quantite_detenue",
     "capital_net_investi",
     "prix_de_revient",
+    "capital_fiscal",
+    "prix_de_revient_fiscal",
     "remarque",
     "achats_bruts",
     "ventes_brutes",
@@ -80,6 +90,8 @@ COLONNES_JOURNAL = (
     "capital_retire",
     "capital_apres",
     "prix_de_revient_apres",
+    "capital_fiscal_apres",
+    "prix_de_revient_fiscal_apres",
     "plus_value_brute",
     "plus_value_nette",
     "remarque",
@@ -106,6 +118,19 @@ def remarque(etat: EtatPosition) -> str:
     return " ; ".join(raisons)
 
 
+def _prix_de_revient_fiscal(etat: EtatPosition) -> str:
+    """Le prix de revient au sens de l'impôt : frais et taxes d'achat compris (D-57).
+
+    Il se tait exactement quand l'autre se tait : plus aucune part, ou histoire trouée (D-45).
+    """
+    prix = etat.prix_de_revient_fiscal
+    if prix is not None:
+        return tableur.nombre(prix)
+    if etat.historique_incomplet:
+        return tableur.VALEUR_A_COMPLETER
+    return tableur.VALEUR_SANS_OBJET
+
+
 def _prix_de_revient(etat: EtatPosition) -> str:
     """Le prix de revient, ou la raison pour laquelle il n'y en a pas.
 
@@ -130,6 +155,8 @@ def _ligne_position(position: Position) -> dict[str, str]:
         "quantite_detenue": tableur.nombre(etat.quantite),
         "capital_net_investi": tableur.nombre(etat.capital_net_investi),
         "prix_de_revient": _prix_de_revient(etat),
+        "capital_fiscal": tableur.nombre(etat.capital_fiscal),
+        "prix_de_revient_fiscal": _prix_de_revient_fiscal(etat),
         "remarque": remarque(etat),
         "achats_bruts": tableur.nombre(position.achats_bruts),
         "ventes_brutes": tableur.nombre(position.ventes_brutes),
@@ -173,6 +200,8 @@ def _ligne_journal(position: Position, ligne: LigneJournal) -> dict[str, str]:
         "capital_retire": tableur.nombre(ligne.capital_retire),
         "capital_apres": tableur.nombre(ligne.apres.capital_net_investi),
         "prix_de_revient_apres": _prix_de_revient(ligne.apres),
+        "capital_fiscal_apres": tableur.nombre(ligne.apres.capital_fiscal),
+        "prix_de_revient_fiscal_apres": _prix_de_revient_fiscal(ligne.apres),
         "plus_value_brute": tableur.nombre(
             ligne.plus_value_brute, absent=tableur.VALEUR_SANS_OBJET
         ),
@@ -445,3 +474,207 @@ def ecrire_evolution(points: Iterable[PointEvolution], fichier: Path) -> Path:
     return tableur.ecrire(
         COLONNES_EVOLUTION, (_ligne_evolution(point) for point in points), fichier
     )
+
+
+# --- Les coûts et la valeur réelle (étape 6) ------------------------------------------------
+
+NOM_COUTS = "couts.csv"
+NOM_VALEUR_REELLE = "valeur_reelle.csv"
+
+COLONNES_COUTS = (
+    "poche",
+    "actif",
+    "nom_actif",
+    "date",
+    "type",
+    "nature",
+    "montant_brut",
+    "frais",
+    "taxes",
+    "cout_paye",
+    "poids",
+    "spread_estime",
+    "taux_de_spread",
+    "moment",
+    "remarque",
+    "identifiant",
+)
+
+COLONNES_VALEUR_REELLE = (
+    "niveau",
+    "poche",
+    "actif",
+    "nom_actif",
+    "valeur_brute",
+    "frais_de_vente_estimes",
+    "spread_estime",
+    "taux_de_spread",
+    "avant_impot",
+    "prix_d_acquisition_fiscal",
+    "plus_value_imposable",
+    "base_imposable",
+    "taux_d_impot",
+    "impot_estime",
+    "valeur_reelle",
+    "regle",
+    "remarque",
+)
+
+
+def _ligne_cout(
+    ligne: LigneDeCout, noms: Mapping[tuple[str, Poche], str | None]
+) -> dict[str, str]:
+    spread = ligne.spread_estime
+    remarques = []
+    if ligne.spread_manquant:
+        remarques.append("type d'actif non déclaré : spread non estimé")
+    if ligne.montant_brut is None:
+        remarques.append("montant brut à compléter : pas de poids ni de spread")
+    return {
+        "poche": ligne.poche.value,
+        "actif": ligne.actif,
+        "nom_actif": noms.get((ligne.actif, ligne.poche)) or "",
+        "date": ligne.date.isoformat(),
+        "type": ligne.type.value,
+        "nature": ligne.operation.nature_source,
+        "montant_brut": tableur.nombre(ligne.montant_brut, absent=tableur.VALEUR_A_COMPLETER),
+        "frais": tableur.nombre(ligne.frais),
+        "taxes": tableur.nombre(ligne.taxes),
+        "cout_paye": tableur.nombre(ligne.cout_paye),
+        "poids": _taux(ligne.poids),
+        "spread_estime": (
+            tableur.nombre(spread.montant) if spread else tableur.VALEUR_SANS_OBJET
+        ),
+        "taux_de_spread": (
+            _taux(spread.parametre.valeur / Decimal("100"))
+            if spread
+            else tableur.VALEUR_SANS_OBJET
+        ),
+        "moment": ligne.moment,
+        "remarque": " ; ".join(remarques),
+        "identifiant": ligne.operation.identifiant,
+    }
+
+
+def ecrire_couts(detail: DetailDesCouts, fichier: Path) -> Path:
+    """Écrit `couts.csv` : une ligne par opération de la période.
+
+    C'est le fichier qui permet de refaire le bloc des coûts payés dans un tableur : la somme
+    de la colonne `cout_paye` doit valoir le total affiché, et la colonne `poids` se recalcule
+    en divisant `cout_paye` par `montant_brut`.
+    """
+    return tableur.ecrire(
+        COLONNES_COUTS,
+        (_ligne_cout(ligne, detail.noms) for ligne in detail.lignes),
+        fichier,
+    )
+
+
+def _ligne_valeur_reelle_position(
+    ligne: LigneValeurReelle, noms: Mapping[tuple[str, Poche], str | None]
+) -> dict[str, str]:
+    cession = ligne.cession
+    acquisition = (
+        cession.capital_net_investi if ligne.poche is Poche.CRYPTO else cession.capital_fiscal
+    )
+    return {
+        "niveau": "position",
+        "poche": ligne.poche.value,
+        "actif": ligne.actif,
+        "nom_actif": noms.get((ligne.actif, ligne.poche)) or "",
+        "valeur_brute": tableur.nombre(ligne.valeur_brute),
+        "frais_de_vente_estimes": tableur.nombre(ligne.frais_de_vente.montant),
+        "spread_estime": tableur.nombre(ligne.spread.montant),
+        "taux_de_spread": _taux(ligne.spread.parametre.valeur / Decimal("100")),
+        "avant_impot": tableur.nombre(ligne.avant_impot),
+        "prix_d_acquisition_fiscal": tableur.nombre(acquisition),
+        "plus_value_imposable": tableur.nombre(ligne.plus_value_fiscale),
+        "base_imposable": tableur.VALEUR_SANS_OBJET,
+        "taux_d_impot": tableur.VALEUR_SANS_OBJET,
+        "impot_estime": tableur.VALEUR_SANS_OBJET,
+        "valeur_reelle": tableur.VALEUR_SANS_OBJET,
+        "regle": "",
+        "remarque": "l'impôt se calcule au niveau de la poche",
+    }
+
+
+def _ligne_valeur_reelle_poche(groupe: ValeurReellePoche) -> dict[str, str]:
+    impot = groupe.impot
+    remarques = []
+    if impot.motif:
+        remarques.append(impot.motif)
+    if groupe.exclues:
+        remarques.append(
+            f"{len(groupe.exclues)} position(s) hors du calcul : {groupe.exclues[0].motif}"
+        )
+    if not impot.fiable:
+        remarques.append("une position repose sur une histoire incomplète (D-45)")
+    return {
+        "niveau": "poche",
+        "poche": groupe.poche.value,
+        "actif": "",
+        "nom_actif": "",
+        "valeur_brute": tableur.nombre(groupe.valeur_brute),
+        "frais_de_vente_estimes": tableur.nombre(groupe.frais_de_vente),
+        "spread_estime": tableur.nombre(groupe.spread),
+        "taux_de_spread": tableur.VALEUR_SANS_OBJET,
+        "avant_impot": tableur.nombre(groupe.avant_impot),
+        "prix_d_acquisition_fiscal": tableur.VALEUR_SANS_OBJET,
+        "plus_value_imposable": tableur.nombre(
+            impot.base_avant_plancher, absent=tableur.VALEUR_SANS_OBJET
+        ),
+        "base_imposable": tableur.nombre(impot.base, absent=tableur.VALEUR_SANS_OBJET),
+        "taux_d_impot": _taux(impot.taux / Decimal("100") if impot.taux is not None else None),
+        "impot_estime": tableur.nombre(impot.impot, absent=tableur.VALEUR_SANS_OBJET),
+        "valeur_reelle": tableur.nombre(groupe.valeur_reelle, absent=tableur.VALEUR_SANS_OBJET),
+        "regle": impot.regle,
+        "remarque": " ; ".join(remarques),
+    }
+
+
+def _ligne_valeur_reelle_total(valeur: ValeurReelle) -> dict[str, str]:
+    return {
+        "niveau": "total",
+        "poche": "",
+        "actif": "",
+        "nom_actif": "",
+        "valeur_brute": tableur.nombre(valeur.valeur_brute),
+        "frais_de_vente_estimes": tableur.nombre(valeur.frais_de_vente),
+        "spread_estime": tableur.nombre(valeur.spread),
+        "taux_de_spread": tableur.VALEUR_SANS_OBJET,
+        "avant_impot": tableur.nombre(
+            valeur.valeur_brute - valeur.frais_de_vente - valeur.spread
+        ),
+        "prix_d_acquisition_fiscal": tableur.VALEUR_SANS_OBJET,
+        "plus_value_imposable": tableur.VALEUR_SANS_OBJET,
+        "base_imposable": tableur.VALEUR_SANS_OBJET,
+        "taux_d_impot": tableur.VALEUR_SANS_OBJET,
+        "impot_estime": tableur.nombre(valeur.impot),
+        "valeur_reelle": tableur.nombre(valeur.valeur_reelle, absent=tableur.VALEUR_SANS_OBJET),
+        "regle": "somme des poches dont l'impôt a pu être estimé",
+        "remarque": (
+            "PARTIEL : tout n'y est pas, voir les lignes de poche" if valeur.partielle else ""
+        ),
+    }
+
+
+def _lignes_valeur_reelle(
+    valeur: ValeurReelle, noms: Mapping[tuple[str, Poche], str | None]
+) -> Iterator[Mapping[str, str]]:
+    for groupe in valeur.par_poche.values():
+        for ligne in groupe.lignes:
+            yield _ligne_valeur_reelle_position(ligne, noms)
+        yield _ligne_valeur_reelle_poche(groupe)
+    yield _ligne_valeur_reelle_total(valeur)
+
+
+def ecrire_valeur_reelle(
+    valeur: ValeurReelle, noms: Mapping[tuple[str, Poche], str | None], fichier: Path
+) -> Path:
+    """Écrit `valeur_reelle.csv` : une ligne par position, puis une par poche, puis le total.
+
+    L'impôt figure sur les lignes de **poche**, pas de position : il se calcule sur la poche
+    entière, gains et pertes compensés (et, pour le PEA, sur le plan). Une colonne d'impôt par
+    position laisserait croire qu'on peut les additionner.
+    """
+    return tableur.ecrire(COLONNES_VALEUR_REELLE, _lignes_valeur_reelle(valeur, noms), fichier)

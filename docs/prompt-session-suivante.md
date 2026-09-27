@@ -7,7 +7,7 @@ commencer.
 > **À mettre à jour par l'instance qui termine une étape**, avant la fusion dans `main`. La
 > dernière section dit comment.
 >
-> Dernière mise à jour : **2026-09-27**, fin de l'étape 5.
+> Dernière mise à jour : **2026-09-27**, fin de l'étape 6.
 
 ---
 
@@ -15,24 +15,26 @@ commencer.
 
 ```
 Lis CLAUDE.md puis docs/feuille-de-route.md, et docs/prompt-session-suivante.md.
-On attaque l'étape 6 : les frais, les taxes et la valeur réelle.
+On attaque l'étape 7 : la diversification géographique et sectorielle.
 ```
 
 ---
 
 ## Où en est le projet
 
-- **Étapes 0 à 5 terminées.** L'application lit un export Trade Republic, en sort des opérations
+- **Étapes 0 à 6 terminées.** L'application lit un export Trade Republic, en sort des opérations
   au format pivot, va chercher les **cours de marché**, en déduit **quantité détenue, capital net
   investi, prix de revient, frais, taxes, dividendes et plus-values réalisées**, puis **la valeur
-  des actifs** et les **trois chiffres clés** — gain en €, TRI, TWRR (D-22) — par actif, par
-  poche et au total, sur une période choisie. Elle peut aussi comparer ses quantités avec ce que
-  la banque dit détenir.
-- **Prochaine : étape 6**, les frais, les taxes et la valeur réelle — les coûts **estimés**
-  (spread, TER, D-17), les règles fiscales par poche, et la valeur « si on retirait tout » (D-23).
-  Elle commence par un **agent de recherche** (TER, spreads, fiscalité française), comme l'étape 4.
-- Deux questions ouvertes : **Q-21** (présentation des frais), qui attend l'étape 8, et
-  **Q-26** (rapprocher le PEA), qui n'est pas bloquante.
+  des actifs** et les **trois chiffres clés** — gain en €, TRI, TWRR (D-22). Elle sait désormais
+  aussi dire **ce que tout cela coûte** (frais et taxes payés avec leur poids, spread et frais
+  courants estimés) et **ce qu'on récupérerait en vendant tout** : valeur réelle, impôt estimé
+  par poche (D-23). Elle peut enfin comparer ses quantités avec ce que la banque dit détenir.
+- **Prochaine : étape 7**, la diversification géographique et sectorielle réelle, en regardant à
+  l'intérieur des ETF (Q-22). Elle commence par un **agent de recherche** sur les sources
+  gratuites de composition d'ETF (D-28), comme les étapes 4 et 6.
+- **Une question ouverte** : **Q-26** (rapprocher le PEA), non bloquante. **Q-21** (présentation
+  des frais) est répondue côté calculs ; il ne reste que la présentation à l'écran, pour
+  l'étape 8.
 
 **Ce qui existe déjà :**
 
@@ -40,87 +42,74 @@ On attaque l'étape 6 : les frais, les taxes et la valeur réelle.
 |---|---|
 | [format-pivot.md](format-pivot.md) | **Le contrat**, en deux parties : les opérations (§1 à §8) et la photo du portefeuille (§9) |
 | [architecture.md](architecture.md) | **Comment c'est construit** : les couches, leurs frontières, le trajet d'un chiffre |
-| [glossaire.md](glossaire.md) | Chaque formule, dont celles du gain, du TRI et du TWRR (§4 et §5) telles que le code les applique |
+| [glossaire.md](glossaire.md) | Chaque formule, dont le gain, le TRI, le TWRR (§4 et §5) et les coûts, l'impôt et la valeur réelle (§6) |
+| [couts-et-fiscalite.md](couts-et-fiscalite.md) | **Comparatif de l'étape 6** : d'où viennent le TER, les spreads et les règles fiscales, avec les pièges |
 | `dashboard_tr/pivot/` | `Operation`, `PositionReelle`, les contrôles de cohérence et l'export CSV |
 | `dashboard_tr/adaptateurs/trade_republic/` | L'adaptateur complet, en couches testables |
-| `dashboard_tr/donnees_externes/` | `cours.py` (le contrat), `cache.py`, `yahoo.py`, `completion.py` |
-| `dashboard_tr/moteur/` | `position.py` (le rejeu), `portefeuille.py`, `valorisation.py`, `rendements.py`, `rapprochement.py`, `export_csv.py` (six CSV), `rapport.py` |
-| `dashboard_tr/tableur.py` | Les conventions d'écriture des nombres, communes à tous les CSV |
-| `dashboard_tr/cli.py` | 10 commandes, options `--au` et `--depuis` ; `ouvrir` arrive à l'étape 9 |
-| [decisions.md](decisions.md) | D-01 à D-54. L'étape 5 a ajouté D-52 à D-54 |
-| [verification/etape-5.md](verification/etape-5.md) | Le cahier de vérification des rendements, avec la démarche `TRI.PAIEMENTS` |
-| [scripts/diagnostic_comptes_titres.py](../scripts/diagnostic_comptes_titres.py) | Diagnostic structurel pour Q-26. **Jamais lancé pour l'instant** |
+| `dashboard_tr/donnees_externes/` | `cours.py` (le contrat), `cache.py`, `yahoo.py`, `completion.py`, `xetra.py` (le TER) |
+| `dashboard_tr/parametres/` | Les taux datés et sourcés : `fiscalite.toml`, `couts.toml`, et `lecture.py` qui les refuse s'ils ne le sont pas |
+| `dashboard_tr/moteur/` | `position.py` (le rejeu), `portefeuille.py`, `valorisation.py`, `rendements.py`, `couts.py`, `fiscalite.py`, `valeur_reelle.py`, `rapprochement.py`, `export_csv.py` (huit CSV), `rapport.py` |
+| `dashboard_tr/cli.py` | 10 commandes, options `--au`, `--depuis`, `--hors-ligne` ; `ouvrir` arrive à l'étape 9 |
+| [decisions.md](decisions.md) | D-01 à D-61. L'étape 6 a ajouté D-55 à D-61 |
+| [verification/etape-6.md](verification/etape-6.md) | Le cahier des coûts, de l'impôt et de la valeur réelle |
 
-**Ce qui n'existe pas encore :** les coûts estimés (TER, spread), la fiscalité et la valeur
-réelle, la diversification, l'interface.
+**Ce qui n'existe pas encore :** la diversification, et l'interface.
 
 ---
 
-## Ce que l'étape 6 doit savoir de l'étape 5
+## Ce que l'étape 7 doit savoir de l'étape 6
 
-- **La valeur brute d'une position existe et se demande en une ligne** :
-  `valorisation.valoriser(portefeuille, date, source)` rend une `Valorisation` avec, par position,
-  la quantité, le cours retenu (et sa date), la valeur et la plus-value latente. C'est le point de
-  départ de la **valeur réelle** (D-23) : valeur brute − frais de vente estimés − spread estimé −
-  impôt estimé. Ne pas recalculer la valeur ailleurs.
-- **Les coûts payés sont déjà rangés par moment** (`Position.couts_par_moment()` : frais et taxes
-  d'achat, de vente, sur revenus) et le rapport les affiche dans le bloc « Coûts réellement
-  payés ». Les coûts **estimés** doivent vivre à côté, jamais mélangés (D-17, D-21) : la
-  `Provenance.ESTIMATION` du pivot est réservée à ça, et n'a encore jamais servi.
-- **Le moteur reçoit les cours par un protocole qu'il déclare** (`SourceDeValorisation`, dans
-  `moteur/valorisation.py`) et **n'importe toujours pas `donnees_externes/`**. Si l'étape 6 a
-  besoin d'une donnée externe dans le moteur (un TER, un taux de spread, un taux d'impôt), la bonne
-  façon est la même : déclarer la forme attendue dans le moteur, la fournir depuis `cli.py`. Pas
-  d'import en sens inverse (D-26).
-- **Les paramètres datés et sourcés** (taux fiscaux, spreads par défaut) sont prévus en fichiers
-  lisibles, mis à jour sans toucher au code (architecture-notes §6). Le TOML de `config/` est le
-  modèle. Chaque taux doit porter sa **date** et sa **source officielle**.
-- **Un seul `FournisseurDeCours` par commande**, construit par `cli._fournisseur_de_cours()`, sert
-  à la complétion des prix et à la valorisation. Ses refus couvrent les deux et sont listés dans
-  le bloc « Cours de marché ». Une troisième utilisation doit passer par le même objet.
-- **La valeur d'« aujourd'hui » est celle de la dernière clôture** (D-52) : le cache ne contient
-  jamais le jour même, et rien de la séance en cours n'est affiché. L'interface (étape 9) pourra
-  reposer la question ; l'étape 6 n'a pas à y toucher.
-- **Ce qui n'a pas de cours sort des totaux, marqués partiels** (D-53). Toute vue « valeur
-  réelle » doit hériter de ce comportement : un actif non valorisé n'a pas de valeur réelle, et le
-  total le dit.
-- **Le TWRR est calculé aux cours de clôture**, pas aux prix d'exécution (D-54, glossaire §5).
-  C'est un choix écrit, né d'un cas fictif où la formule littérale donnait −100 % sur un actif
-  gagnant. Ne pas « corriger » en revenant à `V_avant + F`.
-- **La formule du gain compte les distributions de capital** (D-54). Le glossaire d'origine les
-  omettait ; le pivot les comptait déjà. Un test vérifie l'identité gain = latente + réalisée +
-  dividendes.
-- **Six CSV sortent d'`exporter-positions`.** `flux.csv` est la table de `TRI.PAIEMENTS`,
-  `sous_periodes_twrr.csv` celle du TWRR, `evolution.csv` la valeur jour par jour. Un nouveau
-  fichier suit les conventions de `tableur.py` et jamais une case vide pour une valeur absente
-  (`VALEUR_SANS_OBJET` / `VALEUR_A_COMPLETER`).
-- **Tout nouveau bloc de rapport a son test cp1252** (trois existent : lecture, moteur, cours ; le
-  moteur en a un de plus pour la synthèse).
+- **Une donnée externe entre dans le moteur par un protocole, jamais par un import.** C'est
+  désormais fait trois fois, de la même façon : les cours (`SourceDeValorisation`), les
+  paramètres de coûts (`ParametresDeCouts`), les règles fiscales (`ReglesFiscales`). Le moteur
+  déclare la forme qu'il attend, `cli.py` fournit l'objet. **La composition d'un ETF suivra le
+  même chemin** : un protocole dans le moteur, une source dans `donnees_externes/`, un
+  branchement dans `cli.py`. Aucun import de `moteur/` vers `donnees_externes/`, `config/` ou
+  `parametres/` — un test et le §3 de l'architecture en font foi.
+- **Le schéma « proposé, puis validé » est acquis, et il a fait ses preuves deux fois** : ISIN →
+  ticker (étape 4), puis type d'actif et TER (étape 6). Une source qui se trompe 5 % du temps est
+  utilisable **à condition** que l'utilisateur relise. Pour la composition d'un ETF, la même
+  question se posera : que fait-on quand la source ignore un actif, et comment le dire.
+- **Un taux, un ratio, un pourcentage doit porter sa date et sa source** (D-58). Le paquet
+  `parametres/` existe pour ça, avec son contrôle de vraisemblance ; une composition d'ETF datée
+  du mois dernier n'est pas la même chose qu'une composition d'il y a trois ans, et l'affichage
+  doit le dire.
+- **La liste des ETF de Xetra est déjà téléchargée par `donnees_externes/xetra.py`**, et elle
+  contient plus que le TER : nom, politique de distribution, indice de référence, devise. Si la
+  recherche de l'étape 7 en a besoin, le téléchargement et la lecture du fichier sont écrits, avec
+  leurs quatre pièges traités (extension `.xls` qui ment, adresse qui change à chaque publication,
+  valeur en fraction avec bruit de flottant, ISIN répété par devise).
+- **Le type d'actif est déclaré dans `actifs.toml`** (D-55) : `etf`, `action` ou `crypto`. C'est
+  déjà la distinction dont l'étape 7 a besoin pour savoir dans quoi regarder — seul un ETF a une
+  composition à ouvrir.
+- **Un actif sans donnée sort des totaux, qui sont marqués partiels.** C'est D-53, et l'étape 6 l'a
+  appliqué trois fois de plus (actif sans cours, sans type, ETF sans TER). Une répartition
+  géographique qui ignore 20 % du portefeuille doit le dire, et ne jamais normaliser à 100 % en
+  silence.
+- **Le rapport a sa limite de largeur et son test cp1252.** Cinq blocs en ont un aujourd'hui.
+  **En ajouter un pour tout nouveau bloc**, et vérifier qu'aucune ligne ne dépasse 100 caractères :
+  une répartition en colonnes est précisément le genre de bloc qui déborde.
+- **Les huit CSV suivent les conventions de `tableur.py`**, et jamais une case vide pour une valeur
+  absente (`VALEUR_SANS_OBJET` / `VALEUR_A_COMPLETER`).
 
-**Ce que le propriétaire a vérifié à l'étape 5 (2026-09-27) :** il a comparé la valeur totale de
-ses actifs à celle de son application Trade Republic. L'écart est de **moins de deux dixièmes de
-pour cent**, réparti sur les poches, et il l'accepte : c'est l'écart de place et de source annoncé
-par [D-48](decisions.md). Son essai a révélé un piège d'usage, pas de calcul : **une crypto n'a pas
-d'ISIN**, Trade Republic l'identifie par un code interne `XF…` qu'aucune source ne connaît, donc
-`dashboard actifs` ne peut rien proposer et sa ligne reste vide — la poche crypto sortait des
-totaux. Il a rempli la ligne à la main (`BTC-EUR`), et l'assistant le dit désormais en toutes
-lettres pour toute crypto. Il a aussi trouvé un défaut d'affichage, corrigé : une poche
-entièrement non valorisée montrait « 0,00 » d'achats au lieu de « - ».
+**Ce qui n'a pas pu être vérifié à l'étape 6, et qui reste à la charge du propriétaire :**
 
-**Sa question, et la réponse à garder en tête :** « si je vends tout, l'écart entre le cours Yahoo
-et le prix de Trade Republic va-t-il laisser quelques centimes ? » Non : le moteur ne travaille
-que sur les **quantités** et sur les **montants réels** des opérations. Une vente totale ramène la
-quantité à zéro exactement, le capital à zéro sans reliquat, et la plus-value réalisée part du
-montant brut réellement encaissé. Le cours de la source ne sert qu'à valoriser ce qui est **encore
-détenu** : zéro part, zéro valeur, aucun cours demandé. Le seul risque de reliquat vient d'une
-quantité mal lue dans un texte, et c'est le rapprochement avec la banque qui le verrait.
+1. **La grille tarifaire française de Trade Republic.** Le document public refuse les
+   téléchargements automatiques (403) : les montants retenus — 1 € par ordre à l'achat comme à la
+   vente, 0 € par exécution de plan, 1 € par ordre crypto — viennent de la version allemande
+   (04.2023) et du communiqué du 2 juillet 2026. Il doit les confirmer dans son application
+   (Profil → Documents légaux).
+2. **Les taux fiscaux, non relus par un tiers.** Interrogé, le propriétaire a répondu : « je ne
+   m'y connais pas, base-toi sur tes recherches » (Q-38). Les taux viennent donc de Légifrance, du
+   BOFiP et d'impots.gouv.fr, et le principal (31,4 %) a été recoupé. **Ils sont datés et sourcés
+   dans `parametres/fiscalite.toml` :** une correction future ne demande aucune ligne de code.
+   À relire en janvier 2027, après la loi de finances.
 
-**Ce qu'il n'a pas pu vérifier, et c'est à garder en tête :** son portefeuille est **jeune**. TRI
-et TWRR y sont exacts et **peu significatifs**, et le rapport le dit. Les règles délicates de
-l'étape — période commençant en cours de route, distribution de capital comme flux, tout vendre
-puis racheter — ne sont prouvées que par les cas fictifs du cahier, dont chacun est un test. Les
-étapes suivantes ne doivent pas prendre « vérifié sur les vraies données » pour acquis au-delà de
-ce qui l'a réellement été.
+**Le piège fiscal qu'une session future ne doit pas refaire :** en 2026, les prélèvements sociaux
+sur les revenus du capital valent **18,6 %**, pas 17,2 %. La loi de financement de la sécurité
+sociale pour 2026 a relevé la CSG de 9,2 à 10,6 %. Le PFU vaut donc **31,4 %**, pas 30 %. Beaucoup
+de pages en ligne — et même un paragraphe du BOFiP sur la crypto — affichent encore l'ancien taux.
+**La loi prime, et le fichier de paramètres porte la référence exacte.**
 
 ---
 
@@ -141,8 +130,17 @@ ce qui l'a réellement été.
      journaux de la session (`~/.claude/projects/<projet>/<session>/subagents/`).
 
   **Prévention :** ajouter `api.anthropic.com` aux exclusions d'Avast (*Menu → Paramètres →
-  Protection → Web Shield*). Et pour toute recherche en ligne longue : écrire les trouvailles dans
-  un fichier au fur et à mesure, plutôt que de les garder dans la conversation.
+  Protection → Web Shield*). Et pour toute recherche en ligne longue : **écrire les trouvailles
+  dans un fichier au fur et à mesure**, plutôt que de les garder dans la conversation. Les trois
+  agents de l'étape 6 l'ont fait, et aucun n'a rien perdu.
+- **Une longue session peut atteindre la limite de crédits en pleine écriture.** Arrivé le
+  2026-09-27 pendant l'étape 6. Rien n'est perdu : le disque est à jour, `git status` dit où on en
+  est, et les tests disent si le dernier morceau écrit tient. Reprendre là où le fichier s'arrête.
+- **Deux blocs `<<'EOF'` dans une même commande shell cassent l'interpréteur** (« unexpected EOF »).
+  Et un texte français passé par un script inline voit ses `\\n` échappés une fois de trop, ce qui
+  casse les f-strings. **Pour toute modification de fichier un peu longue, écrire un script dans
+  le dossier de travail temporaire et le lancer** : c'est ce que l'étape 6 a fini par faire
+  systématiquement.
 - **L'éditeur applique une limite de 88 caractères, le projet en fixe 100** (`pyproject.toml`).
   Les diagnostics E501 de l'IDE sous 100 caractères ne sont pas des erreurs du projet :
   `uv run ruff check .` fait foi.
@@ -152,7 +150,12 @@ ce qui l'a réellement été.
   coches, ni les flèches. Un rapport qui en contiendrait ferait échouer la commande **au moment
   de l'afficher**, alors que le calcul, lui, s'est bien passé. Le CLI force la sortie en UTF-8
   par précaution, et des tests vérifient que les rapports restent affichables en cp1252. En
-  ajouter un pour tout nouveau rapport.
+  ajouter un pour tout nouveau bloc. *(C'est pourquoi le rapport écrit « VALEUR REELLE » et
+  « ECART DE PRIX » sans accents sur les capitales.)*
+- **Aucun test ne sort de la machine, et deux fixtures automatiques le garantissent** dans
+  `tests/test_cli.py` : l'une détourne le dossier personnel, l'autre **coupe la liste des ETF de
+  Xetra**. La seconde a été ajoutée après avoir constaté que deux tests appelaient réellement
+  Deutsche Börse (ils duraient deux secondes). Si un test devient lent, c'est la première piste.
 - **La saisie du PIN n'affiche rien du tout.** Sous Windows, `getpass` lit les caractères
   directement depuis la console (`msvcrt.getwch`) : ni chiffres, ni étoiles, ni curseur qui
   avance. Le propriétaire a cru à un blocage la première fois. `rafraichir` et
@@ -181,6 +184,9 @@ ce qui l'a réellement été.
   `uv run dashboard lire --export <dossier>` (idem pour `positions`).
 - Le propriétaire **ne code pas** : il vérifie les chiffres. Tout calcul doit être refaisable à
   la main, et les options techniques lui sont présentées avec leurs avantages et inconvénients.
+  Il tranche vite et fait confiance aux recommandations quand elles sont argumentées : les sept
+  arbitrages de l'étape 6 ont été acceptés d'un bloc. **Cela oblige à recommander avec soin**, et
+  à écrire ce qui n'a pas pu être vérifié.
 
 ---
 

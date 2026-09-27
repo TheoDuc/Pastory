@@ -15,7 +15,8 @@ dashboard cours               récupérer les cours de marché et les garder en 
 dashboard positions           ce que le moteur en déduit : quantités, capital investi, PRU,
                               valeur des actifs, gain, TRI et TWRR
 dashboard exporter-positions  écrire les positions, le journal, la valorisation, les flux,
-                              les sous-périodes du TWRR et l'évolution en CSV
+                              les sous-périodes du TWRR, l'évolution, les coûts et la
+                              valeur réelle en CSV
 dashboard positions-reelles   demander à la banque ce qu'elle dit détenir, pour recouper
 dashboard oublier-cours       effacer des cours en cache, pour les reprendre à la source
 ```
@@ -23,6 +24,11 @@ dashboard oublier-cours       effacer des cours en cache, pour les reprendre à 
 `positions` et `exporter-positions` acceptent `--au AAAA-MM-JJ` (la fin de la période, et la
 date de valorisation ; par défaut aujourd'hui, valorisé à la dernière clôture connue, D-52) et
 `--depuis AAAA-MM-JJ` (le début de la période ; par défaut, depuis la première opération).
+
+Depuis l'étape 6, les deux affichent aussi les **coûts estimés** (spread, frais courants des
+ETF) et la **valeur réelle** — ce qu'on récupérerait en vendant tout (D-17, D-23). Les taux
+viennent de `dashboard_tr/parametres/`, datés et sourcés ; le type de chaque actif et son TER
+se déclarent dans `actifs.toml`, que `dashboard actifs` propose de remplir.
 """
 
 from __future__ import annotations
@@ -32,8 +38,8 @@ import collections
 import contextlib
 import sys
 import textwrap
-from collections.abc import Sequence
-from dataclasses import dataclass
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, replace
 from datetime import date as Date
 from datetime import timedelta
 from importlib.metadata import PackageNotFoundError, version
@@ -46,21 +52,28 @@ from dashboard_tr.adaptateurs.trade_republic import recoupement_csv, source
 from dashboard_tr.adaptateurs.trade_republic.classement import classer
 from dashboard_tr.adaptateurs.trade_republic.lecture import Lecteur
 from dashboard_tr.adaptateurs.trade_republic.rapport import Rapport
+from dashboard_tr.config import ConfigurationInvalide, emplacements
 from dashboard_tr.config import actifs as config_actifs
 from dashboard_tr.config import comptes as config_comptes
-from dashboard_tr.config import emplacements
+from dashboard_tr.config import fiscalite as config_fiscalite
 from dashboard_tr.donnees_externes import completion as completion_cours
 from dashboard_tr.donnees_externes import cours as cours_module
+from dashboard_tr.donnees_externes import xetra
 from dashboard_tr.donnees_externes.cache import Cache, CacheIllisible
 from dashboard_tr.donnees_externes.completion import Completion
-from dashboard_tr.donnees_externes.cours import FournisseurDeCours, Refus
+from dashboard_tr.donnees_externes.cours import ErreurDeSource, FournisseurDeCours, Refus
 from dashboard_tr.donnees_externes.yahoo import Yahoo
+from dashboard_tr.moteur import couts as couts_moteur
 from dashboard_tr.moteur import export_csv as export_moteur
 from dashboard_tr.moteur import rapport as rapport_moteur
 from dashboard_tr.moteur import rendements as rendements_moteur
+from dashboard_tr.moteur import valeur_reelle as valeur_reelle_moteur
 from dashboard_tr.moteur import valorisation as valorisation_moteur
 from dashboard_tr.moteur.portefeuille import Portefeuille
 from dashboard_tr.moteur.rapprochement import rapprocher
+from dashboard_tr.parametres import ParametresInvalides
+from dashboard_tr.parametres import couts as parametres_couts
+from dashboard_tr.parametres import fiscalite as parametres_fiscalite
 from dashboard_tr.pivot import export_csv
 from dashboard_tr.pivot.operation import Poche
 from dashboard_tr.pivot.position_reelle import PositionReelle
@@ -273,6 +286,11 @@ def commande_exporter_pivot(dossier_export: Path | None, hors_ligne: bool = Fals
     except CacheIllisible as erreur:
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
+    except (ParametresInvalides, ConfigurationInvalide) as erreur:
+        # Un taux sans source, une date de PEA mal écrite : c'est un fichier à corriger,
+        # pas une panne. Le message dit lequel et où.
+        print(erreur, file=sys.stderr)
+        return CODE_ECHEC
 
     fichier = export_csv.ecrire(
         completion.operations, emplacements.dossier_personnel() / NOM_EXPORT_PIVOT
@@ -341,6 +359,24 @@ def _fournisseur_de_cours(hors_ligne: bool = False) -> FournisseurDeCours:
         Cache(),
         None if hors_ligne else Yahoo(),
         hors_ligne=hors_ligne,
+    )
+
+
+def _parametres_des_couts() -> couts_moteur.ParametresDeCouts:
+    """Le barème livré avec l'application, croisé avec ce que l'utilisateur a déclaré.
+
+    C'est **le seul endroit** qui réunit les deux : le moteur, lui, ne connaît qu'un protocole
+    (`ParametresDeCouts`) et ne sait ni ce qu'est un fichier TOML, ni ce qu'est un ETF (D-26).
+    """
+    return parametres_couts.ParametresDuPortefeuille(
+        parametres_couts.charger(), config_actifs.charger()
+    )
+
+
+def _regles_fiscales() -> parametres_fiscalite.ReglesFiscales:
+    """Les taux datés et sourcés, plus la date du premier versement du PEA (D-58, D-59)."""
+    return parametres_fiscalite.charger(
+        premier_versement_pea=config_fiscalite.charger().premier_versement_pea
     )
 
 
@@ -426,6 +462,12 @@ class Construit:
     periode: rendements_moteur.Periode
     synthese: rendements_moteur.Synthese
 
+    detail_des_couts: couts_moteur.DetailDesCouts
+    """Les coûts payés de la période et les coûts estimés (étape 6)."""
+
+    valeur_reelle: valeur_reelle_moteur.ValeurReelle
+    """Ce qu'on récupérerait en vendant tout à la date de valorisation (D-23)."""
+
 
 def _periode(au: Date | None, depuis: Date | None) -> rendements_moteur.Periode | None:
     """La période des chiffres clés, ou `None` avec un message si elle est à l'envers.
@@ -468,6 +510,17 @@ def _construire_moteur(
 
     portefeuille = Portefeuille.construire(completion.operations).au(periode.fin)
     synthese = rendements_moteur.synthese(portefeuille, periode, fournisseur)
+
+    # Les coûts et la valeur réelle partent de la **même** valorisation que les rendements :
+    # deux valorisations du même jour pourraient différer d'un centime, et le propriétaire
+    # verrait deux valeurs brutes dans le même rapport.
+    parametres = _parametres_des_couts()
+    detail = couts_moteur.detailler(
+        portefeuille, periode, synthese.valorisation, parametres
+    )
+    valeur = valeur_reelle_moteur.valeur_reelle(
+        portefeuille, synthese.valorisation, parametres, _regles_fiscales()
+    )
     return Construit(
         portefeuille=portefeuille,
         rapport=rapport,
@@ -476,6 +529,8 @@ def _construire_moteur(
         fournisseur=fournisseur,
         periode=periode,
         synthese=synthese,
+        detail_des_couts=detail,
+        valeur_reelle=valeur,
     )
 
 
@@ -513,6 +568,11 @@ def commande_positions(
     except CacheIllisible as erreur:
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
+    except (ParametresInvalides, ConfigurationInvalide) as erreur:
+        # Un taux sans source, une date de PEA mal écrite : c'est un fichier à corriger,
+        # pas une panne. Le message dit lequel et où.
+        print(erreur, file=sys.stderr)
+        return CODE_ECHEC
 
     for ligne in construit.entete:
         print(ligne)
@@ -527,7 +587,12 @@ def commande_positions(
     )
     print(
         rapport_moteur.resume(
-            portefeuille, rapprochement, arrete_au=au, synthese=construit.synthese
+            portefeuille,
+            rapprochement,
+            arrete_au=au,
+            synthese=construit.synthese,
+            detail_des_couts=construit.detail_des_couts,
+            valeur_reelle_estimee=construit.valeur_reelle,
         )
     )
 
@@ -572,6 +637,11 @@ def commande_exporter_positions(
     except CacheIllisible as erreur:
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
+    except (ParametresInvalides, ConfigurationInvalide) as erreur:
+        # Un taux sans source, une date de PEA mal écrite : c'est un fichier à corriger,
+        # pas une panne. Le message dit lequel et où.
+        print(erreur, file=sys.stderr)
+        return CODE_ECHEC
 
     for ligne in construit.entete:
         print(ligne)
@@ -603,6 +673,14 @@ def commande_exporter_positions(
     fichier_evolution = export_moteur.ecrire_evolution(
         points, personnel / export_moteur.NOM_EVOLUTION
     )
+    fichier_couts = export_moteur.ecrire_couts(
+        construit.detail_des_couts, personnel / export_moteur.NOM_COUTS
+    )
+    fichier_valeur_reelle = export_moteur.ecrire_valeur_reelle(
+        construit.valeur_reelle,
+        construit.detail_des_couts.noms,
+        personnel / export_moteur.NOM_VALEUR_REELLE,
+    )
 
     # Après l'évolution, et non avant : elle demande un cours par jour, et ses refus doivent
     # figurer dans ce bloc — sans quoi une colonne « positions_non_valorisees » à 1 n'aurait
@@ -621,8 +699,14 @@ def commande_exporter_positions(
     print(f"Les sous-périodes du TWRR :\n  {fichier_sous_periodes}")
     print(f"{len(points)} jour(s) d'évolution de la valeur dans :\n  {fichier_evolution}")
     print(
+        f"{len(construit.detail_des_couts.lignes)} opération(s) et leurs coûts dans :"
+        f"\n  {fichier_couts}"
+    )
+    print(f"La valeur réelle et l'impôt estimé, poche par poche :\n  {fichier_valeur_reelle}")
+    print(
         "\nLe journal est celui à ouvrir pour refaire un chiffre à la main : une ligne par\n"
-        "opération, avec l'état d'avant et l'état d'après. Pour le TRI, c'est flux.csv."
+        "opération, avec l'état d'avant et l'état d'après. Pour le TRI, c'est flux.csv ;\n"
+        "pour les coûts, couts.csv ; pour l'impôt estimé, valeur_reelle.csv."
     )
     return CODE_SUCCES
 
@@ -726,7 +810,7 @@ def commande_actifs(dossier_export: Path | None, hors_ligne: bool = False) -> in
         return CODE_SUCCES
 
     manquants = configuration.manquants(apercu)
-    propositions = {}
+    propositions: dict[str, config_actifs.Proposition] = {}
     # Avec --export, **aucune** recherche n'est lancée : envoyer les ISIN de quelqu'un d'autre
     # à un service extérieur, ce serait divulguer ce qu'il détient (règle 2 de CLAUDE.md).
     # L'assistant se contente alors d'afficher ce qu'il a trouvé dans le fichier.
@@ -737,6 +821,14 @@ def commande_actifs(dossier_export: Path | None, hors_ligne: bool = False) -> in
             proposition = yahoo.chercher(actif)
             if proposition is not None:
                 propositions[actif] = proposition
+
+    # Les frais courants, pour tous les actifs : même ceux déjà déclarés peuvent attendre leur
+    # TER, puisqu'il n'existe que depuis l'étape 6. La proposition reste une proposition : elle
+    # est écrite en commentaire au-dessus d'une ligne déjà validée (D-61).
+    if not hors_ligne and dossier_export is None:
+        propositions = _completer_par_les_frais_courants(
+            propositions, apercu, configuration
+        )
 
     # Une crypto est identifiée par un code interne à la banque, qu'aucune source de cours ne
     # connaît : la recherche automatique ne trouvera jamais rien, et il faut le dire plutôt que
@@ -750,6 +842,13 @@ def commande_actifs(dossier_export: Path | None, hors_ligne: bool = False) -> in
         declaration = configuration.declaration(actif)
         if declaration is not None:
             etat = f"déclaré : {declaration.ticker} ({declaration.devise})"
+            if declaration.type is not None:
+                etat += f", {declaration.type.value}"
+            etat += (
+                f", TER {tableur.nombre_lisible(declaration.ter_pour_cent)} %"
+                if declaration.ter_pour_cent is not None
+                else ", TER à compléter"
+            )
         elif actif in propositions:
             proposition = propositions[actif]
             etat = f"proposé : {proposition.ticker}"
@@ -784,12 +883,85 @@ def commande_actifs(dossier_export: Path | None, hors_ligne: bool = False) -> in
 
     print(f"\nOuvrez ce fichier et vérifiez chaque ligne :\n  {fichier}\n")
     print("Une ligne vide veut dire « pas valorisé » : l'actif sera signalé, jamais estimé.")
+    print("Le « type » choisit le spread estimé ; le TER, proposé depuis la liste de Xetra,")
+    print("est à vérifier sur la fiche de l'émetteur : la liste est parfois en retard sur une")
+    print("baisse de frais. Sans type ni TER, rien n'est estimé pour cet actif.")
     if manquants:
         print(f"\n{len(manquants)} actif(s) attendent votre validation.")
         print(f"Ensuite, lancez « {NOM} cours » pour récupérer les cours.")
     else:
         print("\nTous les actifs de cet export sont déjà déclarés.")
     return CODE_SUCCES
+
+
+def _liste_des_etf() -> xetra.ListeXetra:
+    """La liste des ETF de Xetra, d'où viennent les frais courants proposés (D-61).
+
+    Fonction à part, et non un appel direct, pour la même raison que `_fournisseur_de_cours` :
+    c'est **le seul endroit** qui nomme la source, et les tests la remplacent ici — aucun test
+    du projet ne sort de la machine.
+    """
+    return xetra.telecharger()
+
+
+def _completer_par_les_frais_courants(
+    propositions: dict[str, config_actifs.Proposition],
+    apercu: Mapping[str, str],
+    configuration: config_actifs.Configuration,
+) -> dict[str, config_actifs.Proposition]:
+    """Ajoute à chaque proposition le TER trouvé dans la liste des ETF de Xetra (D-61).
+
+    Un échec n'interrompt rien : la liste est un confort, pas une dépendance. Sans elle, les
+    frais courants restent à saisir à la main, et l'assistant le dit.
+    """
+    a_completer = [
+        actif
+        for actif in apercu
+        if (declaration := configuration.declaration(actif)) is None
+        or declaration.ter_pour_cent is None
+    ]
+    if not a_completer:
+        return propositions
+
+    print("Recherche des frais courants (TER) dans la liste des ETF de Xetra...")
+    try:
+        liste = _liste_des_etf()
+    except ErreurDeSource as erreur:
+        print(f"  {erreur}", file=sys.stderr)
+        print(
+            "  Les frais courants des ETF resteront à saisir à la main, depuis la fiche de\n"
+            "  l'émetteur ou son document d'information clé.",
+            file=sys.stderr,
+        )
+        return propositions
+
+    print(f"  {len(liste)} ETF dans la liste" + (
+        f", au {liste.date.isoformat()}." if liste.date else "."
+    ))
+    completees = dict(propositions)
+    trouves = 0
+    for actif in a_completer:
+        frais = liste.frais_courants(actif)
+        if frais is None:
+            continue
+        trouves += 1
+        existante = completees.get(actif)
+        if existante is None:
+            declaration = configuration.declaration(actif)
+            ticker = declaration.ticker if declaration is not None else ""
+            completees[actif] = config_actifs.Proposition(
+                ticker=ticker,
+                type=config_actifs.TypeActif.ETF,
+                frais_courants=frais,
+            )
+        else:
+            completees[actif] = replace(
+                existante,
+                frais_courants=frais,
+                type=existante.type or config_actifs.TypeActif.ETF,
+            )
+    print(f"  {trouves} actif(s) avec des frais courants proposés.")
+    return completees
 
 
 def commande_cours(dossier_export: Path | None, actif_demande: str | None = None) -> int:
@@ -871,6 +1043,11 @@ def commande_cours(dossier_export: Path | None, actif_demande: str | None = None
                 f"   {periode}   {resume.place}"
             )
     except CacheIllisible as erreur:
+        print(erreur, file=sys.stderr)
+        return CODE_ECHEC
+    except (ParametresInvalides, ConfigurationInvalide) as erreur:
+        # Un taux sans source, une date de PEA mal écrite : c'est un fichier à corriger,
+        # pas une panne. Le message dit lequel et où.
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
 

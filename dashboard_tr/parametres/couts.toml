@@ -1,0 +1,64 @@
+# Les coûts estimés (D-17, D-56, D-58) : ce que Trade Republic facture à une vente, et l'écart
+# de prix (spread) que personne ne facture mais que tout le monde paie.
+#
+# Chaque paramètre porte sa valeur, son unité, la date depuis laquelle il s'applique, sa source
+# et le jour où quelqu'un l'a vérifié. Un spread porte aussi sa fourchette (basse, haute) : ce
+# sont des ordres de grandeur mesurés, pas des tarifs. Le détail des mesures est dans
+# docs/couts-et-fiscalite.md §3 et §4.
+#
+# Les frais passés ne sont jamais estimés : ils sont lus dans l'export. Ces montants ne servent
+# qu'au scénario « tout vendre aujourd'hui ».
+
+[frais_par_ordre.titres]
+valeur = 1.00
+unite = "euros"
+en_vigueur_depuis = 2019-01-01
+source = "Liste des prix et prestations Trade Republic (Allemagne, version 04.2023) : « Fremdkostenpauschale je Handelsgeschäft : 1,00 € » ; communiqué du 02/07/2026 : « only a 1 € settlement fee » ; https://assets.traderepublic.com/documents/DE/FURTHER_INFORMATION_PRICE_LIST_20230426144143.pdf"
+verifie_le = 2026-09-27
+note = "Par ordre exécuté, à l'achat comme à la vente, actions et ETF, PEA compris (rapporté). La liste des prix française n'a pas pu être lue par un robot : à confirmer dans l'application."
+
+[frais_par_ordre.crypto]
+valeur = 1.00
+unite = "euros"
+en_vigueur_depuis = 2019-01-01
+source = "Aide Trade Republic « frais crypto » : https://support.traderepublic.com/fr-fr/1489"
+verifie_le = 2026-09-27
+note = "Un euro par ordre crypto ; le spread, lui, est fondu dans le prix et n'est pas facturé."
+
+[frais_par_ordre.plan]
+valeur = 0.00
+unite = "euros"
+en_vigueur_depuis = 2019-01-01
+source = "Liste des prix et prestations Trade Republic (Allemagne, version 04.2023) : « Sparplankauf ETF/Aktie je Ausführung : kostenfrei » ; https://support.traderepublic.com/fr-fr/849-When-are-savings-plans-executed"
+verifie_le = 2026-09-27
+note = "Une exécution de plan d'épargne ne coûte rien ; une vente est toujours un ordre ponctuel."
+
+[spread_par_cote.etf]
+valeur = 0.05
+basse = 0.01
+haute = 0.15
+unite = "pour cent"
+en_vigueur_depuis = 2026-09-27
+source = "Deutsche Börse, Xetra Liquidity Measure des ETF (août 2026 : 1,7 à 2,4 points de base aller-retour pour un ETF monde, médiane 24,7) : https://www.cashmarket.deutsche-boerse.com/cash-en/trading/etfs-etps/xetra-liquidity-measure-etfs ; AFM (2022) et CNMV (2022) : surcoût de 5 à 15 points de base par ordre chez un courtier rémunéré au flux d'ordres"
+verifie_le = 2026-09-27
+note = "Taux par côté : la moitié de l'écart achat/vente, appliquée à chaque achat et à chaque vente. Un ETF de niche est plutôt dans le haut de la fourchette : déclarez-lui son propre taux dans actifs.toml."
+
+[spread_par_cote.action]
+valeur = 0.10
+basse = 0.02
+haute = 0.25
+unite = "pour cent"
+en_vigueur_depuis = 2026-09-27
+source = "Deutsche Börse, Xetra Liquidity Measure des actions du DAX (25/09/2026 : 2,6 à 14,5 points de base aller-retour) : https://www.cashmarket.deutsche-boerse.com/cash-en/trading/Equities/dax-listed-blue-chips-xetra ; AFM (2022), CNMV (2022) ; blogs français 2026 : 0,10 à 0,25 % d'écart total sur le CAC 40"
+verifie_le = 2026-09-27
+note = "Grande capitalisation. Une petite ou moyenne capitalisation coûte plutôt 0,25 à 1,00 % par côté : déclarez-lui son propre taux dans actifs.toml."
+
+[spread_par_cote.crypto]
+valeur = 0.50
+basse = 0.25
+haute = 1.50
+unite = "pour cent"
+en_vigueur_depuis = 2026-09-27
+source = "Comparatifs (extraETF 11/2025, kryptovergleich 2026, finanzwissen 22/09/2026, Handelsblatt 01/09/2026) : 0,5 à 1,5 % d'écart total sur le bitcoin chez Trade Republic ; témoignages d'utilisateurs 2024-2026 : 2,6 à 4 % de moins-value immédiate après achat"
+verifie_le = 2026-09-27
+note = "Aucune mesure officielle : Trade Republic ne publie pas son spread crypto. La borne haute est réaliste ; un altcoin coûte davantage."

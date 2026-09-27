@@ -6,13 +6,17 @@ et à la décision qui l'a arrêtée.
 
 Ce que le moteur tient à jour pour un actif, à chaque opération :
 
-| Type | Quantité détenue | Capital net investi |
-|---|---|---|
-| `achat` | **+** `quantite` | **+** `montant_brut` (D-12) |
-| `vente` | **−** `quantite` | **−** la part vendue, au prorata (D-12) |
-| `dividende` | inchangée | inchangé — c'est un revenu (D-14) |
-| `distribution_capital` | inchangée | **−** `montant_brut` (D-14) |
-| `titres_recus` | **+** `quantite` | **+** `montant_brut`, s'il est connu (D-15) |
+| Type | Quantité détenue | Capital net investi | Capital fiscal (D-57) |
+|---|---|---|---|
+| `achat` | **+** `quantite` | **+** `montant_brut` (D-12) | **+** `montant_brut` + frais + taxes |
+| `vente` | **−** `quantite` | **−** la part vendue, au prorata (D-12) | idem, au prorata |
+| `dividende` | inchangée | inchangé — c'est un revenu (D-14) | inchangé |
+| `distribution_capital` | inchangée | **−** `montant_brut` (D-14) | **−** `montant_brut` |
+| `titres_recus` | **+** `quantite` | **+** `montant_brut`, s'il est connu (D-15) | idem |
+
+Le **capital fiscal** est la seule colonne où frais et taxes entrent : c'est le prix de revient
+au sens de l'impôt français, qui inclut les frais d'acquisition (D-13, D-57). Il ne sert qu'à
+estimer l'impôt d'une vente ; aucun chiffre de performance ne le lit (D-21).
 
 Le moteur ne lit **que** le format pivot : aucun champ Trade Republic n'apparaît ici (D-26).
 Il ne calcule jamais sur `nature_source`, qui n'est qu'informative (format-pivot §2).
@@ -70,6 +74,10 @@ class EtatPosition:
     capital_net_investi: Decimal = Decimal("0.00")
     """Ce qui est réellement placé dans l'actif, hors frais et hors taxes (D-12)."""
 
+    capital_fiscal: Decimal = Decimal("0.00")
+    """Le même, **frais et taxes d'achat compris** : le prix de revient au sens de l'impôt
+    (D-57). Rangé côté coûts, il n'entre dans aucune performance (D-21)."""
+
     prix_inconnu: bool = False
     """Des parts sont entrées sans prix connu : le capital investi les **sous-estime** (D-15).
 
@@ -114,6 +122,16 @@ class EtatPosition:
         if self.quantite <= ZERO or self.historique_incomplet:
             return None
         return (self.capital_net_investi / self.quantite).quantize(
+            PAS_DU_PRIX_DE_REVIENT, rounding=ROUND_HALF_UP
+        )
+
+    @property
+    def prix_de_revient_fiscal(self) -> Decimal | None:
+        """Capital fiscal / quantité détenue (D-57). `None` dans les mêmes cas que le prix de
+        revient : il n'a pas plus de sens qu'un autre sur une histoire trouée (D-45)."""
+        if self.quantite <= ZERO or self.historique_incomplet:
+            return None
+        return (self.capital_fiscal / self.quantite).quantize(
             PAS_DU_PRIX_DE_REVIENT, rounding=ROUND_HALF_UP
         )
 
@@ -237,6 +255,10 @@ def _entree(
         etat,
         quantite=quantite,
         capital_net_investi=arrondi_au_centime(etat.capital_net_investi + montant),
+        # Le capital fiscal, lui, compte ce que l'achat a coûté en tout (D-57).
+        capital_fiscal=arrondi_au_centime(
+            etat.capital_fiscal + montant + operation.frais + operation.taxes
+        ),
     )
     return LigneJournal(
         operation=operation,
@@ -289,10 +311,16 @@ def _vente(
     if operation.quantite >= etat.quantite:
         # Tout part : le capital de l'actif retombe à zéro, sans reliquat d'arrondi.
         capital_retire = etat.capital_net_investi
+        capital_fiscal_retire = etat.capital_fiscal
         quantite_apres = ZERO
     else:
         capital_retire = arrondi_au_centime(
             etat.capital_net_investi * operation.quantite / etat.quantite
+        )
+        # Même règle pour le capital fiscal : le prix de revient fiscal est un prix moyen
+        # pondéré, que les ventes ne changent pas (D-57).
+        capital_fiscal_retire = arrondi_au_centime(
+            etat.capital_fiscal * operation.quantite / etat.quantite
         )
         quantite_apres = etat.quantite - operation.quantite
 
@@ -300,6 +328,7 @@ def _vente(
         etat,
         quantite=quantite_apres,
         capital_net_investi=etat.capital_net_investi - capital_retire,
+        capital_fiscal=etat.capital_fiscal - capital_fiscal_retire,
         stock_insuffisant=stock_insuffisant,
     )
 
@@ -383,6 +412,9 @@ def _distribution_capital(
     apres = replace(
         etat,
         capital_net_investi=etat.capital_net_investi - capital_retire,
+        # Un remboursement d'apport réduit aussi le prix d'acquisition fiscal, avec le même
+        # plancher à zéro.
+        capital_fiscal=etat.capital_fiscal - min(montant, etat.capital_fiscal),
         distribution_excedentaire=excedentaire,
     )
     return LigneJournal(

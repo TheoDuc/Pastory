@@ -114,10 +114,11 @@ l'écriture a confirmé, et ce qu'elle a ajouté :
   morceaux retombent exactement sur le capital d'avant.
 - Deux comptabilités **séparées** dès le moteur ([D-21](decisions.md)) :
   - **performance** sur montants bruts : capital net investi, PRU, gain, TRI, TWRR ;
-  - **coûts** : frais et taxes réels — déjà là, rangés par moment (achat, vente, revenus), ce qui
-    prépare les trois niveaux de Q-21 — puis spread estimé à l'achat et à la vente, et TER
-    pendant la détention ([D-30](decisions.md)), à l'étape 6.
-- **Valeur réelle** = performance − coûts de sortie estimés ([D-23](decisions.md)). *(étape 6)*
+  - **coûts** : frais et taxes réels, rangés par moment (achat, vente, revenus), les trois
+    niveaux de Q-21 ; puis, **écrits à l'étape 6**, le spread estimé à l'achat et à la vente et
+    le TER pendant la détention ([D-30](decisions.md), [D-56](decisions.md)).
+- **Valeur réelle** = valeur brute − frais de vente − spread − impôt estimés
+  ([D-23](decisions.md)). ✅ `valeur_reelle.py`
 - Titres reçus sans achat : prix = cours du jour d'apparition, marqué `deduction`
   ([D-15](decisions.md)). Tant qu'il manque, **les parts comptent et le montant non** — et le
   prix de revient de l'actif est affiché « à compléter » plutôt que dilué
@@ -168,8 +169,15 @@ l'écriture a confirmé, et ce qu'elle a ajouté :
   ETF capitalisant.
 - **Cache local** des cours, TER et compositions, avec la date de récupération. L'application doit
   s'ouvrir sans réseau, sur les dernières données connues, et afficher leur date.
-- **Paramètres datés et sourcés**, dans des fichiers lisibles, mis à jour sans toucher au code : taux
-  fiscaux par poche, spreads par défaut.
+- **Paramètres datés et sourcés**, dans des fichiers lisibles, mis à jour sans toucher au code :
+  taux fiscaux par poche, spreads par défaut, frais par ordre. **Réglé à l'étape 6** : deux TOML
+  versionnés dans `dashboard_tr/parametres/`, et un paramètre sans `en_vigueur_depuis` ni `source`
+  est **refusé à la lecture** ([D-58](decisions.md)). Le rapport cite, sous chaque impôt estimé,
+  le taux employé et son origine.
+- **Les frais courants des ETF (TER)** viennent de la liste publique des ETF négociables de Xetra,
+  indexée par ISIN. Elle est **proposée puis validée** par l'utilisateur, comme la correspondance
+  ISIN → ticker, et pour la même raison : elle est en retard sur environ 5 % des lignes et ignore
+  les ETF français « PEA » ([D-61](decisions.md), [couts-et-fiscalite.md](couts-et-fiscalite.md)).
 
 ## 7. Configuration et données locales
 

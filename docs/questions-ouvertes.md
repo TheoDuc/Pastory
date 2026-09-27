@@ -48,9 +48,13 @@ préalable : les chiffres du PEA sont justes, ils sont seulement non confirmés 
 source. À reprendre si le diagnostic montre que le second compte est facile à atteindre.
 
 ### Q-21 · Comment présenter les frais et les taxes ?
-*Le découpage en trois niveaux plaît au propriétaire (2026-09-17). À reprendre en détail à
-l'étape 8. Correction apportée : le spread est un coût d'entrée et de sortie, pas un coût
-courant.*
+*Le découpage en trois niveaux plaît au propriétaire (2026-09-17). Correction apportée : le
+spread est un coût d'entrée et de sortie, pas un coût courant.*
+
+> **Partiellement répondue à l'étape 6 (2026-09-27).** Les **calculs** des trois niveaux existent
+> et s'affichent dans `dashboard positions` : coûts payés avec leur poids, coûts estimés (spread
+> et TER), et valeur réelle dans un bloc à part — la recommandation (a). Ce qui reste ouvert est
+> la **présentation à l'écran** de l'interface, à reprendre à l'étape 8 avec les prototypes.
 
 Tu es ouvert aux suggestions. Voici une proposition en **trois niveaux**, qui suit ta séparation
 entre le cœur (synthèse) et ce qui se passe à l'entrée et à la sortie.
@@ -145,3 +149,26 @@ Posées dans le plan de l'étape 5, tranchées avec lui.
 Ce que le pivot avait déjà tranché, et que l'étape a seulement aligné dans le glossaire : la
 distribution de capital est un **flux positif** dans le gain, le TRI et le TWRR
 ([format-pivot §3](format-pivot.md), [D-54](decisions.md)).
+
+### Lot 5 (2026-09-27) — les frais, les taxes et la valeur réelle
+Posées dans le plan de l'étape 6, après trois recherches
+([couts-et-fiscalite.md](couts-et-fiscalite.md)). Le propriétaire a répondu « on part sur tes
+recommandations », et, sur la relecture des taux par un tiers : « je ne m'y connais pas, base-toi
+sur tes recherches ». Les sept recommandations s'appliquent donc telles quelles, et chacune reste
+corrigeable sans toucher au code ([D-58](decisions.md)).
+
+| Question | Retenu | Décision |
+|---|---|---|
+| Q-32 Comment connaître le type d'un actif ? | **Déclaré** dans `actifs.toml`, proposé par l'assistant. Le champ `instrumentType` de l'export est écarté : il n'existe que sur les ordres | D-55 |
+| Q-33 Quels spreads par défaut ? | **Par côté** : ETF 0,05 %, action 0,10 %, crypto 0,50 %, chacun avec sa fourchette dans le fichier ; un actif peut recevoir son propre taux. L'heure de l'ordre n'est pas prise en compte | D-56 |
+| Q-34 D'où vient le TER ? | La liste des ETF de **Xetra**, proposée puis **validée**. Les ETF français « PEA » en sont absents : saisie à la main | D-61 |
+| Q-35 Quelle base pour l'impôt du CTO ? | Les **plus-values latentes** seulement, compensées, plancher à zéro. Les plus-values déjà réalisées de l'année et les dividendes déjà reçus restent dehors | D-60 |
+| Q-36 Comment estimer l'impôt du PEA ? | Le **gain du plan** approché depuis les titres, sur une **date de premier versement déclarée**. Hypothèses affichées | D-59 |
+| Q-37 Comment traiter la crypto ? | Prix d'acquisition **hors frais** (lecture prudente), réduction **au prorata des parts** au lieu de la valeur, seuil de 305 € appliqué à la valeur vendue, tout supposé chez Trade Republic. Les trois approximations sont affichées | D-60 |
+| Q-38 Qui valide les taux de 2026 ? | **Personne d'autre que les sources officielles** : le propriétaire ne se sent pas compétent et ne fait pas relire. Les taux sont datés et sourcés dans `parametres/fiscalite.toml`, et le principal (31,4 %) a été recoupé sur impots.gouv.fr | D-58 |
+
+**Ce qui reste à la charge du propriétaire, et qui n'est pas une question mais une vérification :**
+ouvrir la **liste des prix française** dans son application (le document public refuse les
+téléchargements automatiques) pour confirmer les quatre montants retenus — 1 € par ordre à l'achat
+comme à la vente, 0 € par exécution de plan, 1 € par ordre crypto. C'est écrit dans le
+[cahier de l'étape 6](verification/etape-6.md) §B.7.

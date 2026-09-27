@@ -11,6 +11,8 @@ autre monnaie que l'euro ne doit **jamais** pouvoir servir par inadvertance.
 from __future__ import annotations
 
 import tomllib
+from datetime import date
+from decimal import Decimal
 
 import pytest
 
@@ -18,7 +20,9 @@ from dashboard_tr.config import ConfigurationInvalide
 from dashboard_tr.config.actifs import (
     Configuration,
     Declaration,
+    FraisCourantsProposes,
     Proposition,
+    TypeActif,
     charger,
     modele,
 )
@@ -218,3 +222,156 @@ class TestModele:
             "devise": "EUR",
         }
         assert "ZZZZ.MI" not in texte
+
+
+# --- Étape 6 : le type de l'actif et ses frais courants (D-55, D-61) -----------------
+
+
+def declarer(tmp_path, champs):
+    """Un fichier avec un seul actif, déclaré avec les champs donnés."""
+    return ecrire(tmp_path, f'[actifs]\n"{ACTIF}" = {{ {champs} }}\n')
+
+
+BASE = 'ticker = "AAAA.DE", devise = "EUR"'
+
+
+class TestTypeEtFraisCourants:
+    def test_un_actif_declare_avec_son_type_et_son_ter_est_lu(self, tmp_path):
+        fichier = declarer(tmp_path, f'{BASE}, type = "etf", ter_pour_cent = 0.20')
+
+        declaration = charger(fichier).declaration(ACTIF)
+        assert declaration.type is TypeActif.ETF
+        assert declaration.ter_pour_cent == Decimal("0.20")
+
+    def test_le_taux_passe_par_le_texte_jamais_par_le_flottant(self, tmp_path):
+        """D-33 : `Decimal(0.07)` ferait 0,070000000000000006661338…"""
+        fichier = declarer(tmp_path, f"{BASE}, ter_pour_cent = 0.07")
+
+        assert str(charger(fichier).declaration(ACTIF).ter_pour_cent) == "0.07"
+
+    def test_sans_type_ni_ter_la_declaration_reste_valable(self, tmp_path):
+        """Les deux champs sont facultatifs : un actif déclaré à l'étape 4 se lit toujours."""
+        declaration = charger(declarer(tmp_path, BASE)).declaration(ACTIF)
+
+        assert declaration.type is None
+        assert declaration.ter_pour_cent is None
+
+    def test_un_type_inconnu_dit_lesquels_sont_acceptes(self, tmp_path):
+        fichier = declarer(tmp_path, f'{BASE}, type = "obligation"')
+
+        with pytest.raises(ConfigurationInvalide, match="Types acceptés"):
+            charger(fichier)
+
+    @pytest.mark.parametrize("valeur", ["0.002", "20", "0.01"])
+    def test_un_ter_hors_fourchette_est_refuse_comme_erreur_d_unite(self, tmp_path, valeur):
+        """0,002 et 20 sont les deux façons de se tromper d'unité pour 0,20 %."""
+        fichier = declarer(tmp_path, f"{BASE}, ter_pour_cent = {valeur}")
+
+        with pytest.raises(ConfigurationInvalide, match="erreur d'unité"):
+            charger(fichier)
+
+    def test_un_ter_qui_n_est_pas_un_nombre_dit_quoi_ecrire(self, tmp_path):
+        fichier = declarer(tmp_path, f'{BASE}, ter_pour_cent = "0.20"')
+
+        with pytest.raises(ConfigurationInvalide, match="ter_pour_cent = 0.20"):
+            charger(fichier)
+
+    def test_un_spread_propre_a_un_actif_est_lu(self, tmp_path):
+        fichier = declarer(tmp_path, f"{BASE}, spread_pour_cent = 0.25")
+
+        assert charger(fichier).declaration(ACTIF).spread_pour_cent == Decimal("0.25")
+
+    def test_un_spread_nul_est_refuse(self, tmp_path):
+        """Un spread de zéro n'existe pas : c'est une ligne à effacer, pas un taux."""
+        fichier = declarer(tmp_path, f"{BASE}, spread_pour_cent = 0")
+
+        with pytest.raises(ConfigurationInvalide, match="fourchette"):
+            charger(fichier)
+
+
+class TestModeleAvecLesFraisCourants:
+    def test_une_proposition_complete_s_ecrit_en_ligne_active(self):
+        proposition = Proposition(
+            "AAAA.DE",
+            "XETRA",
+            "EUR",
+            "ETF Exemple",
+            type=TypeActif.ETF,
+            frais_courants=FraisCourantsProposes(
+                Decimal("0.20"), "Xetra", "ETF Exemple", "Accumulating", date(2026, 9, 28)
+            ),
+        )
+
+        texte = modele({}, {ACTIF: proposition}, Configuration())
+
+        assert tomllib.loads(texte)["actifs"][ACTIF] == {
+            "ticker": "AAAA.DE",
+            "devise": "EUR",
+            "type": "etf",
+            "ter_pour_cent": 0.20,
+        }
+        assert "À vérifier sur la fiche de l'émetteur" in texte
+        assert "Accumulating" in texte
+
+    def test_le_ter_propose_pour_un_actif_deja_declare_reste_en_commentaire(self):
+        """L'utilisateur a validé son ticker : on ne réécrit pas sa ligne, on lui souffle."""
+        deja = Configuration(declarations={ACTIF: Declaration("AAAA.DE", "EUR")})
+        proposition = Proposition(
+            "AAAA.DE",
+            type=TypeActif.ETF,
+            frais_courants=FraisCourantsProposes(Decimal("0.20"), "Xetra"),
+        )
+
+        texte = modele({}, {ACTIF: proposition}, deja)
+
+        assert tomllib.loads(texte)["actifs"][ACTIF] == {
+            "ticker": "AAAA.DE",
+            "devise": "EUR",
+        }
+        assert "# type proposé par la source" in texte
+        assert "TER proposé : 0.2 %" in texte
+
+    def test_un_type_deja_declare_n_est_jamais_contredit(self):
+        deja = Configuration(
+            declarations={ACTIF: Declaration("AAAA.DE", "EUR", type=TypeActif.ACTION)}
+        )
+
+        texte = modele({}, {ACTIF: Proposition("AAAA.DE", type=TypeActif.ETF)}, deja)
+
+        assert tomllib.loads(texte)["actifs"][ACTIF]["type"] == "action"
+        assert "type proposé" not in texte
+
+    def test_une_proposition_en_dollars_emporte_le_ter_avec_elle(self):
+        """Tout reste inactif : la ligne commentée montre ce qui aurait été écrit."""
+        proposition = Proposition(
+            "BBBB.L",
+            "London",
+            "USD",
+            type=TypeActif.ETF,
+            frais_courants=FraisCourantsProposes(Decimal("0.20"), "Xetra"),
+        )
+
+        texte = modele({}, {ACTIF: proposition}, Configuration())
+
+        assert tomllib.loads(texte)["actifs"][ACTIF] == ""
+        assert "ATTENTION" in texte
+
+    def test_un_ter_declare_se_relit_apres_reecriture(self, tmp_path):
+        deja = Configuration(
+            declarations={
+                ACTIF: Declaration(
+                    "AAAA.DE",
+                    "EUR",
+                    type=TypeActif.ETF,
+                    ter_pour_cent=Decimal("0.07"),
+                    spread_pour_cent=Decimal("0.25"),
+                )
+            }
+        )
+
+        texte = modele({}, {}, deja)
+
+        relu = charger(ecrire(tmp_path, texte)).declaration(ACTIF)
+        assert relu.ter_pour_cent == Decimal("0.07")
+        assert relu.spread_pour_cent == Decimal("0.25")
+        assert relu.type is TypeActif.ETF

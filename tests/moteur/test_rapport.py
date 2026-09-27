@@ -10,7 +10,9 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
+from dashboard_tr.moteur import couts as couts_moteur
 from dashboard_tr.moteur import rapport as rapport_moteur
+from dashboard_tr.moteur import valeur_reelle as valeur_reelle_moteur
 from dashboard_tr.moteur.portefeuille import Portefeuille
 from dashboard_tr.moteur.rapprochement import rapprocher
 from dashboard_tr.moteur.rendements import Periode, Synthese, synthese
@@ -18,6 +20,7 @@ from dashboard_tr.pivot.operation import Poche, TypeOperation
 from dashboard_tr.pivot.position_reelle import PositionReelle
 from tests.moteur.cours_fictifs import SourceFixe, cours_constant
 from tests.moteur.operations_fictives import ACTIF, enchainement_du_glossaire, operation
+from tests.moteur.parametres_fictifs import ParametresFictifs, regles
 
 AUTRE_ACTIF = "XX0000000002"
 
@@ -364,4 +367,159 @@ class TestAffichageSurUneConsoleWindows:
 
         assert "titres sans opération" in texte
         for ligne in texte.splitlines():
+            assert len(ligne) <= 100, ligne
+
+
+# --- Étape 6 : les trois blocs des coûts et de la valeur réelle ------------------------
+
+
+def detail_et_valeur(premier_versement_pea=date(2021, 3, 1), types=None, ter=None):
+    """Le portefeuille du glossaire, avec ses coûts et sa valeur réelle."""
+    portefeuille = portefeuille_complet()
+    periode = Periode(fin=date(2026, 3, 31))
+    source = SourceFixe(cours_constant(ACTIF, "40.00", date(2026, 1, 1), periode.fin))
+    la_synthese = synthese(portefeuille, periode, source)
+    parametres = ParametresFictifs(
+        types=types if types is not None else {ACTIF: "etf"},
+        ter=ter if ter is not None else {ACTIF: "0.20"},
+    )
+    detail = couts_moteur.detailler(portefeuille, periode, la_synthese.valorisation, parametres)
+    valeur = valeur_reelle_moteur.valeur_reelle(
+        portefeuille,
+        la_synthese.valorisation,
+        parametres,
+        regles(premier_versement_pea=premier_versement_pea),
+    )
+    return portefeuille, la_synthese, detail, valeur
+
+
+def rapport_complet(**kwargs):
+    portefeuille, la_synthese, detail, valeur = detail_et_valeur(**kwargs)
+    return rapport_moteur.resume(
+        portefeuille,
+        synthese=la_synthese,
+        detail_des_couts=detail,
+        valeur_reelle_estimee=valeur,
+    )
+
+
+class TestLesTroisBlocsDeLEtape6:
+    def test_les_couts_payes_sont_detailles_avec_leur_poids(self):
+        texte = rapport_complet()
+
+        assert "Coûts payés du" in texte
+        assert "poids" in texte
+        # Le poids est expliqué avec un exemple : sans cela, personne ne sait ce qu'il mesure.
+        assert "pèse 4,00 %" in texte
+
+    def test_les_couts_estimes_sont_annonces_comme_tels(self):
+        """D-17 : une estimation qu'on prendrait pour une facture serait pire que rien."""
+        texte = rapport_complet()
+
+        assert "Coûts estimés, jamais facturés" in texte
+        assert "n'est pas une facture" in texte
+        assert "ECART DE PRIX (SPREAD)" in texte
+        assert "FRAIS COURANTS DES ETF" in texte
+
+    def test_le_spread_dit_pourquoi_il_faut_l_estimer(self):
+        texte = rapport_complet()
+
+        assert "aucun relevé ne le montre" in texte
+
+    def test_la_valeur_reelle_montre_sa_decomposition(self):
+        """D-23 : cinq lignes, dont chacune se retranche de la précédente."""
+        texte = rapport_complet()
+
+        assert "Valeur réelle au 2026-03-31" in texte
+        for ligne in (
+            "valeur brute",
+            "frais de vente estimés",
+            "écart de prix estimé",
+            "impôt estimé",
+            "VALEUR REELLE",
+        ):
+            assert ligne in texte, ligne
+        assert "ce que la sortie coûterait" in texte
+
+    def test_chaque_impot_dit_sa_regle_sa_base_et_son_taux(self):
+        texte = rapport_complet()
+
+        assert "Comment chaque impôt est calculé" in texte
+        assert "base imposable" in texte
+        assert "taux appliqué" in texte
+        assert "18,6 %" in texte or "31,4 %" in texte
+
+    def test_les_taux_citent_leur_source_et_les_hypotheses_sont_ecrites(self):
+        """Règle 6 de CLAUDE.md : une estimation se signale, et dit ce qu'elle suppose."""
+        texte = rapport_complet()
+
+        assert "D'où viennent les taux" in texte
+        assert "source de test" in texte
+        assert "Ce que ce calcul suppose" in texte
+        assert "prélèvement forfaitaire unique de plein droit" in texte
+
+    def test_le_rapport_dit_ce_qui_n_est_pas_compte(self):
+        """Les impôts déjà dus ne sont pas des coûts de sortie : il faut le dire."""
+        texte = rapport_complet()
+
+        assert "dividendes déjà reçus" in texte
+        assert "elle ne déclare pas" in texte
+
+    def test_sans_type_declare_le_bloc_des_couts_estimes_le_dit(self):
+        texte = rapport_complet(types={}, ter={})
+
+        assert "PARTIEL" in texte
+        assert "type" in texte
+        assert "dashboard actifs" in texte
+
+    def test_sans_ter_declare_le_bloc_le_dit_sans_afficher_zero(self):
+        texte = rapport_complet(ter={})
+
+        assert "TER non déclaré" in texte
+
+    def test_sans_date_de_pea_la_poche_dit_ou_l_ecrire(self):
+        """D-59 : l'ancienneté décide du taux, et l'application ne la devine pas."""
+        # L'enchaînement du glossaire est en CTO : on rejoue la même chose en PEA.
+        portefeuille = Portefeuille.construire(
+            [
+                operation(
+                    TypeOperation.ACHAT,
+                    horodatage="2026-01-05 09:00",
+                    poche=Poche.PEA,
+                    quantite="10",
+                    prix_unitaire="20.00",
+                    frais="1.00",
+                )
+            ]
+        )
+        periode = Periode(fin=date(2026, 3, 31))
+        source = SourceFixe(cours_constant(ACTIF, "40.00", date(2026, 1, 1), periode.fin))
+        la_synthese = synthese(portefeuille, periode, source)
+        parametres = ParametresFictifs(types={ACTIF: "etf"}, ter={ACTIF: "0.20"})
+        valeur = valeur_reelle_moteur.valeur_reelle(
+            portefeuille, la_synthese.valorisation, parametres, regles()
+        )
+
+        texte = rapport_moteur.resume(
+            portefeuille, synthese=la_synthese, valeur_reelle_estimee=valeur
+        )
+
+        assert "fiscalite.toml" in texte
+        assert "PARTIEL" in texte
+
+
+class TestLesNouveauxBlocsSAffichentSurUneConsoleWindows:
+    """La console écrit en cp1252 : un bloc juste ferait planter la commande à l'impression."""
+
+    def test_les_trois_blocs_s_ecrivent_en_cp1252(self):
+        rapport_complet().encode("cp1252")
+
+    def test_les_refus_aussi_s_ecrivent_en_cp1252(self):
+        rapport_complet(premier_versement_pea=None, types={}, ter={}).encode("cp1252")
+
+    def test_aucune_ligne_des_nouveaux_blocs_ne_deborde(self):
+        texte = rapport_complet()
+        debut = texte.index("Coûts payés du")
+
+        for ligne in texte[debut:].splitlines():
             assert len(ligne) <= 100, ligne
