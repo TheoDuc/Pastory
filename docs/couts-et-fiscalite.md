@@ -310,10 +310,13 @@ d'avant manque, et la date d'origine avec).
   sur source officielle.
 
 **Ce que le projet fait** : base = Σ (valeur brute − spread − frais de vente − capital net
-investi), plancher à zéro ; zéro si la valeur vendue ≤ 305 € ; impôt = base × 31,4 %. Deux
-approximations écrites : le prorata des parts remplace la réduction en valeur du PTA après une
-vente passée (identique tant qu'il n'y a pas eu de vente partielle), et tout le portefeuille crypto
-est supposé chez Trade Republic.
+investi), plancher à zéro ; impôt = base × 31,4 %. Le **seuil de 305 €** est mesuré sur
+**l'année civile entière** — les cessions crypto déjà faites, lues dans l'export, plus celle qu'on
+simule : ne regarder que la vente simulée annoncerait « exonéré » à tort, et l'erreur serait
+invisible puisqu'elle donne zéro. Les cessions déjà faites comptent dans le seuil mais pas dans la
+base ([D-60](decisions.md)). Deux approximations écrites : le prorata des parts remplace la
+réduction en valeur du PTA après une vente passée (identique tant qu'il n'y a pas eu de vente
+partielle), et tout le portefeuille crypto est supposé chez Trade Republic.
 
 ### 5.5 Exemples chiffrés (valeurs inventées)
 
@@ -377,6 +380,14 @@ chacun avec sa valeur, sa date d'entrée en vigueur, sa source et la date de vé
    La loi dit 18,6 % pour 2026.
 7. **Le gain du PEA** est celui du plan : un impôt « partiel » (une position PEA sans cours) n'a
    pas de sens, le PEA est alors non calculable en entier.
+8. **La valeur réelle du PEA est structurellement minorée**, et c'est le piège le plus subtil de
+   l'étape. L'impôt du plan compte les ventes passées et les dividendes ; leur argent est dans les
+   espèces du plan, hors périmètre ([D-11](decisions.md)). On retranche donc un impôt dont la
+   contrepartie n'est pas à l'actif. Le rapport l'écrit avec le montant concerné, et refuse
+   d'afficher un chiffre si le résultat devient négatif — ce qui arrive sur un PEA presque
+   entièrement vendu.
+9. **Le seuil crypto est annuel, pas « par vente »** : il faut additionner les cessions déjà
+   faites dans l'année civile. C'est une erreur qui donne zéro, donc invisible.
 
 ---
 

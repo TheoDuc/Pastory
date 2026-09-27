@@ -32,10 +32,11 @@ from datetime import date as Date
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Protocol
 
+from dashboard_tr import tableur
 from dashboard_tr.moteur.couts import ParametreDate
 from dashboard_tr.moteur.portefeuille import Portefeuille
 from dashboard_tr.moteur.position import Position
-from dashboard_tr.pivot.operation import Poche
+from dashboard_tr.pivot.operation import Poche, TypeOperation
 
 ZERO = Decimal("0.00")
 CENT = Decimal("100")
@@ -127,6 +128,14 @@ class ImpotEstime:
     composantes: tuple[tuple[str, Decimal], ...] = ()
     """Pour le PEA : de quoi la base est faite, ligne par ligne."""
 
+    hors_des_titres: Decimal = ZERO
+    """La part de la base imposable qui n'est **pas** dans les titres détenus (PEA).
+
+    Les plus-values réalisées et les dividendes du plan ont produit de l'argent, et cet argent
+    est dans les **espèces du plan**, que l'application ne suit pas (D-11). Leur impôt, lui, est
+    compté ici. La valeur réelle du PEA est donc **minorée** de ces liquidités, et le rapport
+    doit le dire plutôt que de laisser croire à une perte."""
+
     motif: str | None = None
     """Pourquoi rien n'a été calculé, quand rien ne l'a été."""
 
@@ -188,24 +197,68 @@ def impot_cto(cessions: Iterable[Cession], regles: ReglesFiscales) -> ImpotEstim
     )
 
 
-def impot_crypto(cessions: Iterable[Cession], regles: ReglesFiscales) -> ImpotEstime:
-    """Σ (cession nette − capital net investi), plancher à zéro ; rien sous le seuil."""
+def cessions_crypto_de_l_annee(positions: Iterable[Position], date: Date) -> Decimal:
+    """Ce qui a **déjà** été vendu en crypto dans l'année civile de `date`.
+
+    Le seuil d'exonération de 305 € porte sur **toutes** les cessions de l'année, pas sur la
+    seule vente qu'on simule : une vente de 200 € en mars et une de 200 € aujourd'hui font
+    400 €, donc plus d'exonération. Ne regarder que la vente simulée annoncerait « exonéré »
+    à tort — et c'est le genre d'erreur qui ne se voit pas, puisqu'elle donne zéro.
+    """
+    total = ZERO
+    for position in positions:
+        if position.poche is not Poche.CRYPTO:
+            continue
+        for ligne in position.journal:
+            operation = ligne.operation
+            if operation.type is not TypeOperation.VENTE:
+                continue
+            if operation.date.year != date.year:
+                continue
+            if operation.est_a_completer("montant_brut") or operation.montant_brut is None:
+                continue
+            total += operation.montant_brut
+    return total
+
+
+def impot_crypto(
+    cessions: Iterable[Cession],
+    regles: ReglesFiscales,
+    deja_vendu_dans_l_annee: Decimal = ZERO,
+) -> ImpotEstime:
+    """Σ (cession nette − capital net investi), plancher à zéro ; rien sous le seuil.
+
+    `deja_vendu_dans_l_annee` est le prix des cessions crypto **déjà réalisées** la même année :
+    il entre dans le seuil d'exonération, mais **pas** dans la base imposable, les plus-values
+    déjà réalisées étant hors de la valeur réelle (D-60).
+    """
     cessions = tuple(cession for cession in cessions if cession.poche is Poche.CRYPTO)
     somme = sum((cession.plus_value(Poche.CRYPTO) for cession in cessions), ZERO)
     prix_de_cession = sum((cession.prix_de_cession for cession in cessions), ZERO)
+    cessions_de_l_annee = prix_de_cession + deja_vendu_dans_l_annee
     seuil = regles.crypto_seuil_exoneration
-    exonere = prix_de_cession <= seuil.valeur
+    exonere = cessions_de_l_annee <= seuil.valeur
     base = ZERO if exonere else max(somme, ZERO)
     taux = _taux_total(regles)
-    regle = (
-        f"cessions d'actifs numériques : {seuil.en_clair} de cessions dans l'année ou moins, "
-        "exonéré"
-        if exonere
-        else "cessions d'actifs numériques (CGI 150 VH bis) : prix d'acquisition sans les frais, "
-        f"frais de vente déduits, pertes compensées ; impôt sur le revenu "
-        f"{regles.impot_sur_le_revenu.en_clair} + prélèvements sociaux "
-        f"{regles.prelevements_sociaux.en_clair}"
-    )
+    if exonere:
+        regle = (
+            f"cessions d'actifs numériques : {tableur.nombre_lisible(cessions_de_l_annee)} € "
+            f"de cessions dans l'année, soit {seuil.en_clair} ou moins, donc exonéré "
+            "(CGI 150 VH bis, II, B)"
+        )
+    else:
+        regle = (
+            "cessions d'actifs numériques (CGI 150 VH bis) : prix d'acquisition sans les frais, "
+            f"frais de vente déduits, pertes compensées ; impôt sur le revenu "
+            f"{regles.impot_sur_le_revenu.en_clair} + prélèvements sociaux "
+            f"{regles.prelevements_sociaux.en_clair}"
+        )
+        if deja_vendu_dans_l_annee > ZERO:
+            deja = tableur.nombre_lisible(deja_vendu_dans_l_annee)
+            regle += (
+                f". Les {deja} € déjà vendus cette année comptent dans le seuil "
+                f"de {seuil.en_clair}, mais pas dans la base (D-60)"
+            )
     return ImpotEstime(
         poche=Poche.CRYPTO,
         regle=regle,
@@ -218,7 +271,7 @@ def impot_crypto(cessions: Iterable[Cession], regles: ReglesFiscales) -> ImpotEs
         hypotheses=HYPOTHESES_COMMUNES
         + (
             "tout le portefeuille de crypto-actifs est chez Trade Republic (la loi compte "
-            "toutes les plateformes)",
+            "toutes les plateformes, et toutes les cessions de l'année)",
             "après une vente partielle passée, le prix d'acquisition est réduit au prorata des "
             "parts, et non de la valeur comme le veut la loi : identique tant qu'il n'y a pas eu "
             "de vente partielle",
@@ -343,6 +396,8 @@ def impot_pea(
         impot=_impot(base, taux),
         parametres=parametres,
         hypotheses=HYPOTHESES_COMMUNES + HYPOTHESES_PEA,
+        # Ce que le plan a déjà transformé en espèces : son impôt est compté, son argent non.
+        hors_des_titres=max(realisees + dividendes - couts, ZERO),
         composantes=(
             ("plus-values latentes, après frais de vente et spread", latentes),
             ("plus-values réalisées (brut), positions soldées comprises", realisees),
@@ -374,5 +429,9 @@ def impots_estimes(
         elif poche is Poche.CTO:
             resultat[poche] = impot_cto(cessions, regles)
         else:
-            resultat[poche] = impot_crypto(cessions, regles)
+            resultat[poche] = impot_crypto(
+                cessions,
+                regles,
+                cessions_crypto_de_l_annee(portefeuille.positions, date),
+            )
     return resultat

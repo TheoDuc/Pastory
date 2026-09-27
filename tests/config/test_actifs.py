@@ -375,3 +375,37 @@ class TestModeleAvecLesFraisCourants:
         assert relu.ter_pour_cent == Decimal("0.07")
         assert relu.spread_pour_cent == Decimal("0.25")
         assert relu.type is TypeActif.ETF
+
+
+# --- Défauts trouvés à la relecture indépendante --------------------------------------
+
+
+class TestPropositionSansTicker:
+    """Trouvé à la relecture : une source peut connaître les frais courants d'un actif sans
+    qu'aucune n'ait trouvé son ticker. La ligne s'écrivait alors avec un ticker **vide**,
+    d'apparence valide, et la lecture l'écartait en silence."""
+
+    def test_une_proposition_sans_ticker_laisse_la_ligne_a_completer(self):
+        proposition = Proposition(
+            "",
+            type=TypeActif.ETF,
+            frais_courants=FraisCourantsProposes(Decimal("0.20"), "Xetra"),
+        )
+
+        texte = modele({}, {ACTIF: proposition}, Configuration())
+
+        assert tomllib.loads(texte)["actifs"][ACTIF] == ""
+        assert "aucun ticker proposé" in texte
+        # Le TER trouvé n'est pas perdu : il reste en commentaire, à recopier.
+        assert "TER proposé : 0.2 %" in texte
+
+    def test_aucune_ligne_active_ne_porte_jamais_un_ticker_vide(self, tmp_path):
+        proposition = Proposition(
+            "   ", frais_courants=FraisCourantsProposes(Decimal("0.07"), "Xetra")
+        )
+
+        texte = modele({}, {ACTIF: proposition}, Configuration())
+
+        # Relu par la vraie lecture, l'actif reste non déclaré — et le fichier le dit.
+        assert charger(ecrire(tmp_path, texte)).declaration(ACTIF) is None
+        assert "à compléter à la main" in texte

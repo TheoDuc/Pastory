@@ -619,6 +619,20 @@ def _valeur_reelle(lignes: list[str], titre: Titre, valeur: ValeurReelle) -> Non
             f"{_lisible(ecart):>{largeur}}"
         )
 
+    if valeur.minoree:
+        # Le cas du PEA : son impôt porte sur le gain du plan, dont une part est déjà en
+        # espèces. L'argent n'est pas compté à l'actif, son impôt l'est au passif : le taire
+        # ferait passer une valeur minorée pour une valeur exacte.
+        lignes.append("")
+        lignes += _enveloppe(
+            f"MINORÉE : au moins {_lisible(valeur.hors_des_titres)} de gains déjà encaissés "
+            "dans un plan (ventes passées, dividendes) sont restés dans ses espèces, que "
+            "l'application ne suit pas (D-11). Leur impôt est compté ci-dessus, leur argent "
+            "non : vous toucheriez davantage.",
+            "  ",
+            "  ",
+        )
+
     if valeur.partielle:
         lignes.append("")
         lignes.append("  PARTIEL : tout n'entre pas dans ces chiffres.")
@@ -629,9 +643,10 @@ def _valeur_reelle(lignes: list[str], titre: Titre, valeur: ValeurReelle) -> Non
                 "      ",
             )
         for groupe in valeur.poches_non_calculables:
-            if groupe.impot.motif:
+            motif = groupe.motif_incalculable
+            if motif:
                 lignes += _enveloppe(
-                    f"poche {groupe.poche.value} : {groupe.impot.motif}", "    - ", "      "
+                    f"poche {groupe.poche.value} : {motif}", "    - ", "      "
                 )
 
     _detail_des_impots(lignes, valeur)
@@ -655,6 +670,14 @@ def _detail_des_impots(lignes: list[str], valeur: ValeurReelle) -> None:
         if impot.base is None:
             lignes += _enveloppe(f"non calculable : {impot.motif}", "    ", "      ")
             continue
+        if impot.hors_des_titres > Decimal("0.00"):
+            lignes += _enveloppe(
+                f"dont {_lisible(impot.hors_des_titres)} de gains déjà encaissés, restés dans "
+                "les espèces du plan : leur impôt est compté, leur argent n'est pas dans la "
+                "valeur ci-dessus",
+                "    ",
+                "      ",
+            )
         if impot.base_avant_plancher is not None and impot.base_avant_plancher != impot.base:
             lignes.append(
                 f"    {'somme des plus-values et moins-values':<{LARGEUR_LIBELLE_REELLE + 18}} "

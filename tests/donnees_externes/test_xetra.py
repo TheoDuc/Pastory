@@ -198,3 +198,90 @@ class TestTelechargement:
     def test_une_page_qui_a_change_de_forme_le_dit(self):
         with pytest.raises(ErreurDeSource, match="changé de forme"):
             xetra.telecharger(lambda adresse: b"<html>plus de lien</html>")
+
+
+# --- Défaut trouvé à la relecture indépendante ----------------------------------------
+
+
+def fabriquer_avec_trous(cellules_par_rangee: list[list[tuple[str, str]]]) -> bytes:
+    """Un `.xlsx` qui **omet les cellules vides**, comme le fait un vrai fichier.
+
+    Chaque cellule est donnée par sa référence (« C3 ») et son contenu : c'est ainsi qu'un
+    tableur écrit une ligne dont des cases sont vides, et c'est le cas que la lecture par rang
+    ne voyait pas.
+    """
+    corps = []
+    for numero, cellules in enumerate(cellules_par_rangee, start=1):
+        corps.append(f'<row r="{numero}">')
+        for reference, contenu in cellules:
+            echappe = contenu.replace("&", "&amp;").replace("<", "&lt;")
+            corps.append(
+                f'<c r="{reference}" t="inlineStr"><is><t>{echappe}</t></is></c>'
+            )
+        corps.append("</row>")
+    feuille = (
+        '<?xml version="1.0"?><worksheet '
+        'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'
+        + "".join(corps)
+        + "</sheetData></worksheet>"
+    )
+    tampon = BytesIO()
+    with zipfile.ZipFile(tampon, "w") as archive:
+        archive.writestr("xl/worksheets/sheet1.xml", feuille)
+    return tampon.getvalue()
+
+
+class TestCellulesOmises:
+    """Trouvé à la relecture : un `.xlsx` n'écrit pas les cellules vides. Lire les cellules
+    dans l'ordre où elles arrivent décale donc tout le tableau, et on lit un ISIN dans la
+    colonne du nom, ou un TER dans celle de la devise — un chiffre plausible et faux."""
+
+    def test_une_ligne_dont_une_case_est_vide_reste_bien_lue(self):
+        # Colonne B (le nom) absente : les cellules écrites sont A, C, D, E.
+        contenu = fabriquer_avec_trous(
+            [
+                [("A1", "As of 28/09/2026")],
+                [],
+                [
+                    ("A3", "PRODUCT TYPE"),
+                    ("B3", "PRODUCT NAME"),
+                    ("C3", "ISIN"),
+                    ("D3", "ONGOING CHARGES"),
+                    ("E3", "USE OF PROFITS"),
+                ],
+                [("A4", "ETF"), ("C4", ETF), ("D4", "0.002"), ("E4", "Accumulating")],
+            ]
+        )
+
+        liste = xetra.lire(contenu)
+
+        frais = liste.frais_courants(ETF)
+        assert frais is not None
+        assert frais.ter_pour_cent == Decimal("0.2")
+        assert frais.politique == "Accumulating"
+        assert frais.nom is None
+
+    def test_un_entete_dont_une_colonne_est_vide_se_repere_quand_meme(self):
+        contenu = fabriquer_avec_trous(
+            [
+                [("A1", "PRODUCT TYPE"), ("C1", "ISIN"), ("E1", "ONGOING CHARGES")],
+                [("A2", "ETF"), ("C2", ETF), ("E2", "0.0007")],
+            ]
+        )
+
+        liste = xetra.lire(contenu)
+
+        assert liste.frais_courants(ETF).ter_pour_cent == Decimal("0.07")
+
+    def test_une_colonne_au_dela_de_la_vingt_sixieme_est_bien_placee(self):
+        """« AA » vaut 26, pas 0 : une liste large ne doit pas replier ses colonnes."""
+        contenu = fabriquer_avec_trous(
+            [
+                [("A1", "PRODUCT TYPE"), ("B1", "ISIN"), ("AA1", "ONGOING CHARGES")],
+                [("A2", "ETF"), ("B2", ETF), ("AA2", "0.0015")],
+            ]
+        )
+
+        liste = xetra.lire(contenu)
+
+        assert liste.frais_courants(ETF).ter_pour_cent == Decimal("0.15")

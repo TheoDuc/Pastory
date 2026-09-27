@@ -47,3 +47,20 @@ def test_le_modele_explique_ce_qu_il_faut_ecrire():
     # voulu : une valeur d'exemple passerait pour une vraie date.
     assert "premier_versement = AAAA-MM-JJ" in MODELE
     assert "5 ans" in MODELE
+
+
+def test_une_date_avec_une_heure_est_expliquee_sans_trace(tmp_path):
+    """Trouvé à la relecture : TOML accepte « 2024-03-15T00:00:00 », et pour Python un
+    `datetime` est un `date`. La comparaison avec aujourd'hui levait alors une exception
+    technique, et la commande affichait une trace au lieu du message."""
+    fichier = ecrire(tmp_path, "[pea]\npremier_versement = 2024-03-15T00:00:00\n")
+
+    with pytest.raises(ConfigurationInvalide, match="sans heure"):
+        charger(fichier)
+
+
+def test_le_message_donne_la_date_a_ecrire(tmp_path):
+    fichier = ecrire(tmp_path, "[pea]\npremier_versement = 2024-03-15T10:30:00\n")
+
+    with pytest.raises(ConfigurationInvalide, match="2024-03-15"):
+        charger(fichier)

@@ -297,12 +297,33 @@ question, et le journal les montre côte à côte.
 protocoles de plus (`ParametresDeCouts`, `ReglesFiscales`), et `cli.py` fait le lien — le même
 chemin que la source de cours à l'étape 5.
 
+La relecture indépendante a rendu six remarques, toutes traitées, et chacune couverte par un
+test. Les deux premières étaient des erreurs de calcul, et toutes deux venaient du **même angle
+mort** — ce que l'application ne voit pas :
+
+- **la valeur réelle du PEA pouvait être négative.** L'impôt du plan porte sur son gain entier,
+  ventes passées et dividendes compris, mais leur argent est dans les **espèces du plan**, hors
+  périmètre ([D-11](decisions.md)) : on retranchait un impôt dont la contrepartie manquait à
+  l'actif. Un PEA entièrement vendu affichait « VALEUR REELLE −30,77 ». Désormais la valeur du PEA
+  est marquée **minorée**, avec le montant concerné, et aucun chiffre n'est affiché si le résultat
+  devient négatif ;
+- **le seuil d'exonération de la crypto ignorait les ventes déjà faites dans l'année.** Le seuil
+  de 305 € est annuel : deux ventes de 200 € le dépassent. L'application annonçait « exonéré » et
+  un impôt nul là où il y en avait un — une erreur qui donne zéro, donc invisible.
+
+Les quatre autres étaient des pièges de robustesse : une proposition de TER sans ticker écrivait
+dans `actifs.toml` une ligne d'apparence valide que la lecture écartait en silence ; le fichier
+`.xlsx` de Xetra était lu **par le rang des cellules**, alors qu'un tableur omet les cases vides —
+un ISIN pouvait être lu dans la colonne du nom ; une date de PEA écrite avec une heure faisait
+remonter une trace technique au lieu du message prévu ; et « TER à compléter » s'affichait pour une
+action, qui n'en a pas.
+
 Deux choses restent à la charge du propriétaire, écrites dans le cahier : ouvrir la **liste des
 prix française** dans son application (le document public refuse les téléchargements automatiques)
 pour confirmer les 1 € par ordre, et savoir que les taux fiscaux n'ont **pas** été relus par un
 tiers — il a choisi de s'en tenir aux sources officielles (Q-38).
 
-**Reste à faire avant la fusion :** la relecture indépendante, sa vérification, son accord.
+**Reste à faire avant la fusion :** sa vérification et son accord.
 
 **Claude :**
 - Présente le détail des **coûts payés** (issus de l'étape 3) : par opération, actif, poche et

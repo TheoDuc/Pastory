@@ -362,6 +362,14 @@ comme crypto, `parametres/couts.toml`). Une position détenue **sans cours** n'a
 réelle : elle sort du total, qui est marqué partiel ([D-53](decisions.md)). Un actif **sans type**
 en sort aussi, faute de pouvoir estimer son spread.
 
+**Le cas du PEA, et pourquoi sa valeur réelle est minorée.** L'impôt du PEA porte sur le gain
+**du plan**, qui compte les ventes passées et les dividendes. Leur argent est dans les **espèces
+du plan**, que l'application ne suit pas ([D-11](decisions.md)) : son impôt est donc retranché,
+alors que lui-même n'est pas compté dans la valeur. La valeur réelle du PEA est ainsi **inférieure
+à ce qu'on toucherait**, et le rapport l'écrit avec le montant concerné. Si l'impôt du plan
+dépassait ce que les titres rapporteraient — un PEA presque entièrement vendu —, **aucun chiffre
+n'est affiché** : un nombre négatif laisserait croire à une perte.
+
 ### Impôt estimé
 Une **estimation**, jamais une déclaration ([D-26](decisions.md)). Le prélèvement forfaitaire
 unique s'applique de plein droit ([D-60](decisions.md)) ; les taux et leurs sources sont dans
@@ -399,6 +407,10 @@ Base = Σ (cession nette − capital net investi), plancher à zéro
      = 0 si le total des cessions de l'année ne dépasse pas 305 €
 Impôt = base × 31,4 %
 ```
+Le seuil de 305 € porte sur **toutes les cessions de l'année civile** : celles déjà faites, lues
+dans l'export, **plus** celle qu'on simule. Deux ventes de 200 € font 400 €, donc plus
+d'exonération. Les cessions déjà faites comptent dans le seuil mais **pas dans la base** : leur
+impôt est dû quoi qu'il arrive ([D-60](decisions.md)).
 Trois approximations, affichées : les frais d'achat n'entrent pas dans le prix d'acquisition ; la
 réduction du prix d'acquisition après une vente passée se fait au prorata des parts et non en
 valeur comme le veut la loi ; tout le portefeuille crypto est supposé chez Trade Republic.

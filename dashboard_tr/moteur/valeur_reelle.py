@@ -106,10 +106,42 @@ class ValeurReellePoche:
 
     @property
     def valeur_reelle(self) -> Decimal | None:
-        """`None` si l'impôt de la poche n'a pas pu être estimé : on ne retranche pas zéro."""
+        """Ce que la poche rapporterait, après frais, spread et impôt.
+
+        `None` dans deux cas, et aucun n'est un zéro :
+
+        - l'impôt n'a pas pu être estimé (PEA sans date déclarée, par exemple) ;
+        - le résultat serait **négatif**, ce qui n'arrive que sur un PEA dont l'essentiel du
+          gain est déjà en espèces : on retrancherait alors l'impôt d'un argent qu'on ne voit
+          pas (`motif_incalculable`). Afficher un nombre négatif laisserait croire à une perte.
+        """
         if self.impot.impot is None:
             return None
-        return self.avant_impot - self.impot.impot
+        valeur = self.avant_impot - self.impot.impot
+        return None if valeur < ZERO else valeur
+
+    @property
+    def minoree(self) -> bool:
+        """Vrai si une part de l'impôt porte sur de l'argent hors des titres (PEA).
+
+        Les ventes passées et les dividendes du plan ont produit des liquidités, qui sont dans
+        les espèces du plan — hors périmètre (D-11). Leur impôt est compté ici, leur argent
+        non : la valeur réelle de la poche est donc **inférieure** à ce qu'on toucherait.
+        """
+        return self.impot.hors_des_titres > ZERO
+
+    @property
+    def motif_incalculable(self) -> str | None:
+        """Pourquoi la poche n'a pas de valeur réelle, quand elle n'en a pas."""
+        if self.valeur_reelle is not None:
+            return None
+        if self.impot.impot is None:
+            return self.impot.motif
+        return (
+            "l'impôt estimé du plan dépasse ce que les titres rapporteraient : l'essentiel de "
+            "son gain est déjà en espèces dans le plan, que l'application ne suit pas (D-11). "
+            "La valeur réelle de cette poche ne peut pas être établie à partir des seuls titres"
+        )
 
     @property
     def partielle(self) -> bool:
@@ -165,6 +197,19 @@ class ValeurReelle:
     def partielle(self) -> bool:
         """Vrai dès qu'une position ou une poche manque au total (D-53)."""
         return bool(self.exclues) or bool(self.poches_non_calculables)
+
+    @property
+    def minoree(self) -> bool:
+        """Vrai si une poche retenue est minorée par des liquidités non suivies (PEA)."""
+        return any(poche.minoree for poche in self.poches_calculables)
+
+    @property
+    def hors_des_titres(self) -> Decimal:
+        """De combien le total est minoré, au minimum : les liquidités dont l'impôt est
+        compté et l'argent non."""
+        return sum(
+            (poche.impot.hors_des_titres for poche in self.poches_calculables), ZERO
+        )
 
     @property
     def parametres_cites(self) -> list:

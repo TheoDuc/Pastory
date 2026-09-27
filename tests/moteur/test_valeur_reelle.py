@@ -231,3 +231,81 @@ def test_un_portefeuille_sans_rien_de_calculable_n_a_pas_de_valeur_reelle():
 
     assert resultat.valeur_reelle is None
     assert resultat.partielle
+
+
+# --- Défauts trouvés à la relecture indépendante --------------------------------------
+
+
+def test_un_pea_entierement_vendu_n_affiche_pas_une_valeur_negative():
+    """Trouvé à la relecture. L'impôt du PEA porte sur le gain **du plan**, qui compte les
+    ventes passées et les dividendes ; leur argent est dans les espèces du plan, hors périmètre
+    (D-11). Sur un plan tout vendu, la valeur des titres est nulle et l'impôt non : le rapport
+    affichait une valeur réelle **négative**, ce qui ne veut rien dire."""
+    operations = [
+        operation(
+            TypeOperation.ACHAT,
+            horodatage="2026-01-05 09:00",
+            poche=Poche.PEA,
+            quantite="10",
+            prix_unitaire="20.00",
+        ),
+        operation(
+            TypeOperation.VENTE,
+            horodatage="2026-03-05 09:00",
+            poche=Poche.PEA,
+            quantite="10",
+            prix_unitaire="30.00",
+        ),
+    ]
+
+    resultat = construire(
+        operations, serie(ACTIF, "30.00"), premier_versement_pea=date(2021, 3, 1)
+    )
+
+    poche = resultat.par_poche[Poche.PEA]
+    assert poche.valeur_brute == Decimal("0.00")
+    assert poche.impot.impot == Decimal("18.60")  # 100 € de plus-value réalisée, à 18,6 %
+    assert poche.valeur_reelle is None
+    assert "déjà en espèces" in poche.motif_incalculable
+    assert resultat.partielle
+    assert resultat.valeur_reelle is None
+
+
+def test_un_pea_avec_des_gains_deja_encaisses_est_dit_minore():
+    """La valeur réelle du PEA est **inférieure** à ce qu'on toucherait : l'argent des ventes
+    passées et des dividendes n'est pas compté à l'actif, alors que son impôt l'est."""
+    operations = [
+        operation(
+            TypeOperation.ACHAT,
+            horodatage="2026-01-05 09:00",
+            poche=Poche.PEA,
+            quantite="20",
+            prix_unitaire="20.00",
+        ),
+        operation(
+            TypeOperation.VENTE,
+            horodatage="2026-03-05 09:00",
+            poche=Poche.PEA,
+            quantite="5",
+            prix_unitaire="30.00",
+        ),
+    ]
+
+    resultat = construire(
+        operations, serie(ACTIF, "30.00"), premier_versement_pea=date(2021, 3, 1)
+    )
+
+    poche = resultat.par_poche[Poche.PEA]
+    assert poche.minoree
+    assert poche.impot.hors_des_titres == Decimal("50.00")  # 150 encaissés - 100 de capital
+    assert poche.valeur_reelle is not None
+    assert resultat.minoree
+    assert resultat.hors_des_titres == Decimal("50.00")
+
+
+def test_un_cto_sans_gain_encaisse_n_est_pas_minore():
+    """Le CTO s'impose ligne par ligne : rien n'y est hors des titres."""
+    resultat = construire([achat_etf()], serie(ACTIF, "30.00"))
+
+    assert not resultat.par_poche[Poche.CTO].minoree
+    assert not resultat.minoree

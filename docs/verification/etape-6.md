@@ -236,6 +236,12 @@ La démonstration est dans [couts-et-fiscalite.md](../couts-et-fiscalite.md) §5
 **exonéré**. Le rapport l'écrit alors en toutes lettres. Un euro au-dessus, et tout redevient
 imposable.
 
+⚠️ **Le seuil compte l'année entière.** Si tu as déjà vendu 200 € de crypto en mars et que la
+vente simulée en ferait 200 € de plus, le total est de 400 € : plus d'exonération. L'application
+additionne les ventes déjà faites dans l'année civile, et le dit dans la règle. *(Défaut trouvé à
+la relecture indépendante : la première version ne regardait que la vente simulée, et annonçait
+« exonéré » à tort — une erreur qui donne zéro, donc qu'on ne voit pas.)*
+
 **Trois différences avec le CTO, toutes affichées :**
 - les **frais d'achat n'entrent pas** dans le prix d'acquisition : la loi ne les nomme pas, et
   l'application retient la lecture prudente (celle qui ne te fait pas payer moins qu'il ne
@@ -277,6 +283,7 @@ C'est ce que la sortie coûterait, et c'est précisément ce que la synthèse br
 | Un ETF **sans TER validé** | pas de frais courants, avec le motif — jamais un zéro |
 | Un **PEA sans date** de premier versement | impôt « non calculable », et le rapport dit dans quel fichier l'écrire |
 | Un **PEA dont une ligne n'a pas de cours** | **aucun** impôt pour la poche entière : le gain du plan ne se calcule pas à moitié |
+| Un **PEA presque entièrement vendu** | aucune valeur réelle pour la poche, avec la raison : l'essentiel de son gain est déjà en espèces, hors de ce que l'application voit |
 | Une **histoire trouée** ([D-45](../decisions.md)) | les chiffres, marqués **NON FIABLE** |
 | Un **TER hors de 0,03 %–1,00 %** dans ton fichier | refusé à la lecture, comme une erreur d'unité (0,20 % s'écrit `0.20`) |
 
@@ -372,6 +379,10 @@ Recalcule un `poids` en divisant `cout_paye` par `montant_brut`.
       dividendes − frais − taxes. Les quatre composantes sont affichées ;
 - [ ] pour la **crypto**, si tu vends moins de 305 € dans l'année, l'impôt doit être zéro et le
       rapport doit dire « exonéré » ;
+- [ ] si la ligne **MINORÉE** apparaît, lis-la : elle veut dire que tu toucherais **plus** que
+      le chiffre affiché. L'impôt du PEA porte sur le gain du plan, dont une partie est déjà en
+      espèces (tes ventes passées, tes dividendes) ; cet argent n'est pas compté dans la valeur,
+      son impôt l'est. Le montant concerné est indiqué ;
 - [ ] lis les **hypothèses** en bas du bloc. Si l'une est fausse chez toi (un retrait passé sur
       le PEA, de la crypto ailleurs que chez Trade Republic), le chiffre de cette poche est à
       prendre avec prudence : **dis-le, ça deviendra une question ouverte ou un test**.

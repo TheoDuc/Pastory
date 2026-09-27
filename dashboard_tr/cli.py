@@ -844,11 +844,12 @@ def commande_actifs(dossier_export: Path | None, hors_ligne: bool = False) -> in
             etat = f"déclaré : {declaration.ticker} ({declaration.devise})"
             if declaration.type is not None:
                 etat += f", {declaration.type.value}"
-            etat += (
-                f", TER {tableur.nombre_lisible(declaration.ter_pour_cent)} %"
-                if declaration.ter_pour_cent is not None
-                else ", TER à compléter"
-            )
+            if declaration.ter_pour_cent is not None:
+                etat += f", TER {tableur.nombre_lisible(declaration.ter_pour_cent)} %"
+            elif declaration.type in (None, config_actifs.TypeActif.ETF):
+                # Seul un ETF prélève des frais courants : réclamer un TER pour une action ou
+                # une crypto enverrait chercher un chiffre qui n'existe pas.
+                etat += ", TER à compléter"
         elif actif in propositions:
             proposition = propositions[actif]
             etat = f"proposé : {proposition.ticker}"

@@ -516,3 +516,136 @@ def test_une_poche_absente_n_a_pas_d_impot():
     )
 
     assert list(impots) == [Poche.CTO]
+
+
+# --- Défauts trouvés à la relecture indépendante --------------------------------------
+
+
+def portefeuille_crypto_avec_vente(montant="200.00", annee=2026):
+    """Une crypto achetée, partiellement vendue dans l'année, et encore détenue."""
+    return Portefeuille.construire(
+        [
+            operation(
+                TypeOperation.ACHAT,
+                horodatage=f"{annee}-01-05 09:00",
+                actif=CRYPTO,
+                poche=Poche.CRYPTO,
+                quantite="2",
+                prix_unitaire="100.00",
+            ),
+            operation(
+                TypeOperation.VENTE,
+                horodatage=f"{annee}-03-05 09:00",
+                actif=CRYPTO,
+                poche=Poche.CRYPTO,
+                quantite="1",
+                prix_unitaire=montant,
+            ),
+        ]
+    )
+
+
+def test_le_seuil_crypto_compte_les_ventes_deja_faites_dans_l_annee():
+    """Trouvé à la relecture. Le seuil de 305 € porte sur **toutes** les cessions de l'année :
+    200 € vendus en mars et 200 € aujourd'hui font 400 €, donc plus d'exonération. Ne regarder
+    que la vente simulée annonçait « exonéré » à tort, et c'est invisible : ça donne zéro."""
+    portefeuille = portefeuille_crypto_avec_vente("200.00")
+    restante = portefeuille.positions[0]
+    cession_restante = Cession(
+        position=restante,
+        valeur_brute=Decimal("200.00"),
+        spread=SANS_FRAIS,
+        frais_de_vente=SANS_FRAIS,
+    )
+
+    deja = fiscalite.cessions_crypto_de_l_annee(portefeuille.positions, date(2026, 9, 27))
+    impot = fiscalite.impot_crypto([cession_restante], regles(), deja)
+
+    assert deja == Decimal("200.00")
+    assert impot.base > Decimal("0.00")
+    assert impot.impot > Decimal("0.00")
+    assert "exonéré" not in impot.regle
+    assert "déjà vendus cette année" in impot.regle
+
+
+def test_une_vente_d_une_autre_annee_ne_compte_pas_dans_le_seuil():
+    """Le seuil est annuel : une vente de l'an dernier n'y entre pas."""
+    portefeuille = portefeuille_crypto_avec_vente("200.00", annee=2025)
+
+    deja = fiscalite.cessions_crypto_de_l_annee(portefeuille.positions, date(2026, 9, 27))
+
+    assert deja == Decimal("0.00")
+
+
+def test_les_ventes_deja_faites_n_entrent_pas_dans_la_base():
+    """D-60 : elles comptent dans le seuil, pas dans la base — leur impôt est dû quoi qu'il
+    arrive, ce n'est pas un coût de sortie."""
+    portefeuille = portefeuille_crypto_avec_vente("400.00")
+    cession_restante = Cession(
+        position=portefeuille.positions[0],
+        valeur_brute=Decimal("150.00"),
+        spread=SANS_FRAIS,
+        frais_de_vente=SANS_FRAIS,
+    )
+
+    impot = fiscalite.impot_crypto(
+        [cession_restante],
+        regles(),
+        fiscalite.cessions_crypto_de_l_annee(portefeuille.positions, date(2026, 9, 27)),
+    )
+
+    # La position restante : 150 € pour un capital de 100 € (la moitié des 200 investis).
+    assert impot.base == Decimal("50.00")
+
+
+def test_une_vente_au_montant_a_completer_ne_compte_pas_dans_le_seuil():
+    """D-15 : un montant inconnu ne s'additionne pas ; mieux vaut un seuil sous-estimé qu'un
+    total inventé, et le prix à compléter est signalé ailleurs."""
+    portefeuille = Portefeuille.construire(
+        [
+            operation(
+                TypeOperation.ACHAT,
+                horodatage="2026-01-05 09:00",
+                actif=CRYPTO,
+                poche=Poche.CRYPTO,
+                quantite="2",
+                prix_unitaire="100.00",
+            ),
+            operation(
+                TypeOperation.VENTE,
+                horodatage="2026-03-05 09:00",
+                actif=CRYPTO,
+                poche=Poche.CRYPTO,
+                quantite="1",
+                prix_a_completer=True,
+            ),
+        ]
+    )
+
+    assert fiscalite.cessions_crypto_de_l_annee(
+        portefeuille.positions, date(2026, 9, 27)
+    ) == Decimal("0.00")
+
+
+def test_les_ventes_d_une_autre_poche_ne_comptent_pas():
+    """Le seuil est propre aux actifs numériques."""
+    portefeuille = Portefeuille.construire(
+        [
+            operation(
+                TypeOperation.ACHAT,
+                horodatage="2026-01-05 09:00",
+                quantite="10",
+                prix_unitaire="20.00",
+            ),
+            operation(
+                TypeOperation.VENTE,
+                horodatage="2026-03-05 09:00",
+                quantite="10",
+                prix_unitaire="30.00",
+            ),
+        ]
+    )
+
+    assert fiscalite.cessions_crypto_de_l_annee(
+        portefeuille.positions, date(2026, 9, 27)
+    ) == Decimal("0.00")

@@ -189,10 +189,35 @@ def _premiere_feuille(archive: zipfile.ZipFile) -> str:
     return feuilles[0]
 
 
+def _colonne(reference: str | None, rang_par_defaut: int) -> int:
+    """La colonne d'une cellule, d'après sa référence (« B7 » → 1), en partant de zéro.
+
+    Un `.xlsx` **omet les cellules vides** : la troisième cellule écrite d'une ligne n'est pas
+    forcément la troisième colonne. Se fier au rang décalerait tout le tableau dès qu'une case
+    est vide, et on lirait un ISIN dans la colonne du nom, ou un TER dans celle de la devise —
+    un chiffre plausible et faux. La référence, elle, ne ment pas.
+    """
+    if not reference:
+        return rang_par_defaut
+    lettres = "".join(caractere for caractere in reference if caractere.isalpha()).upper()
+    if not lettres:
+        return rang_par_defaut
+    index = 0
+    for lettre in lettres:
+        index = index * 26 + (ord(lettre) - ord("A") + 1)
+    return index - 1
+
+
 def _rangees(archive: zipfile.ZipFile, partages: list[str]) -> Iterator[list[str]]:
     racine = ElementTree.fromstring(archive.read(_premiere_feuille(archive)))
     for rangee in racine.iter(f"{ESPACE_XLSX}row"):
-        yield [_cellule(cellule, partages) for cellule in rangee.findall(f"{ESPACE_XLSX}c")]
+        cellules: dict[int, str] = {}
+        for rang, cellule in enumerate(rangee.findall(f"{ESPACE_XLSX}c")):
+            cellules[_colonne(cellule.get("r"), rang)] = _cellule(cellule, partages)
+        if not cellules:
+            yield []
+            continue
+        yield [cellules.get(colonne, "") for colonne in range(max(cellules) + 1)]
 
 
 def _cellule(cellule: ElementTree.Element, partages: list[str]) -> str:

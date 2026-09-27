@@ -430,12 +430,29 @@ def _complements_proposes(
 
 
 def _lignes_a_valider(actif: str, proposition: Proposition | None) -> list[str]:
-    """La ligne d'un actif pas encore déclaré, avec ce que la source en dit."""
+    """La ligne d'un actif pas encore déclaré, avec ce que la source en dit.
+
+    **Sans ticker, pas de ligne active.** Une source peut connaître les frais courants d'un
+    actif sans qu'aucune n'ait trouvé son ticker : la ligne serait alors écrite avec un ticker
+    vide, d'apparence valide, et la lecture l'écarterait en silence — l'utilisateur ne verrait
+    ni l'avertissement « à compléter », ni l'actif dans ses cours. Le TER proposé reste écrit
+    en commentaire, pour qu'il n'ait qu'à le recopier.
+    """
     if proposition is None:
         return [
             "# aucune correspondance proposée : à compléter à la main",
             f'"{actif}" = ""',
         ]
+
+    if not proposition.ticker.strip():
+        lignes = []
+        if proposition.frais_courants is not None:
+            lignes.append(f"# {_commentaire_frais_courants(proposition.frais_courants)}")
+        lignes += [
+            "# aucun ticker proposé : à compléter à la main",
+            f'"{actif}" = ""',
+        ]
+        return lignes
 
     trouve = _commentaire(
         ", ".join(

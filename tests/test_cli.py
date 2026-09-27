@@ -1309,3 +1309,45 @@ class TestTerPropose:
         cli.main(["actifs"])
 
         assert "TER 0,07 %" in capsys.readouterr().out
+
+
+    def test_le_ter_n_est_reclame_que_pour_un_etf(self, export, monkeypatch, capsys):
+        """Trouvé à la relecture : une action ou une crypto ne prélève aucun frais courant.
+        Réclamer son TER enverrait chercher un chiffre qui n'existe pas."""
+        nommer_les_comptes(POCHE_CORRIGEE)
+        declarer_les_actifs_complets(
+            (fictifs.ACTIF_ETF, "etf", None), (fictifs.ACTIF_ACTION, "action", None)
+        )
+        brancher(monkeypatch, FauxYahoo())
+        brancher_la_liste_des_etf(monkeypatch, {})
+
+        cli.main(["actifs"])
+
+        affichage = capsys.readouterr().out
+        lignes = {
+            actif: next(
+                ligne
+                for ligne in affichage.splitlines()
+                if ligne.strip().startswith(actif)
+            )
+            for actif in (fictifs.ACTIF_ETF, fictifs.ACTIF_ACTION)
+        }
+        assert "TER à compléter" in lignes[fictifs.ACTIF_ETF]
+        assert "TER" not in lignes[fictifs.ACTIF_ACTION]
+
+    def test_un_ter_propose_sans_ticker_ne_cree_pas_de_ligne_vide(
+        self, export, monkeypatch
+    ):
+        """Le même défaut, vu depuis la commande : si la recherche de ticker ne trouve rien
+        mais que la liste des ETF connaît l'ISIN, la ligne doit rester « à compléter »."""
+        nommer_les_comptes(POCHE_CORRIGEE)
+        brancher(monkeypatch, FauxYahoo())  # aucune proposition de ticker
+        brancher_la_liste_des_etf(monkeypatch, {fictifs.ACTIF_ETF: ("0.20", None, None)})
+
+        assert cli.main(["actifs"]) == 0
+
+        contenu = config_actifs.chemin().read_text(encoding="utf-8")
+        assert 'ticker = ""' not in contenu
+        assert "TER proposé" in contenu
+        # Et l'actif reste bien non déclaré aux yeux de l'application.
+        assert config_actifs.charger().declaration(fictifs.ACTIF_ETF) is None

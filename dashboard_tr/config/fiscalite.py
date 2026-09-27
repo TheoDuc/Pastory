@@ -17,6 +17,7 @@ import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date as Date
+from datetime import datetime
 from pathlib import Path
 
 from dashboard_tr.config import ConfigurationInvalide, emplacements
@@ -70,6 +71,13 @@ def charger(
     brut = pea.get("premier_versement")
     if brut is None or (isinstance(brut, str) and brut.strip() == ""):
         return ConfigurationFiscale()
+    if isinstance(brut, datetime):
+        # TOML accepte « 2024-03-15T00:00:00 », et `datetime` est un `date` pour Python : sans
+        # ce cas, la comparaison plus bas lèverait une exception technique au lieu d'expliquer.
+        raise ConfigurationInvalide(
+            f"{fichier} : « premier_versement » doit être une date seule, sans heure : "
+            f"écrivez {brut.date().isoformat()}"
+        )
     if not isinstance(brut, Date):
         raise ConfigurationInvalide(
             f"{fichier} : « premier_versement » doit être une date écrite AAAA-MM-JJ, sans "
