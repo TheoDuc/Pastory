@@ -1,0 +1,48 @@
+# Les classes d'actifs qui composent un fonds (D-68, D-58).
+#
+# À quoi ça sert : seule la poche **actions** d'un fonds a un pays et un secteur au sens où
+# l'application les entend. Un ETF obligataire publie autre chose — Trésor, entreprises, titrisé —
+# et son « pays » peut même vouloir dire sa **devise d'émission** (docs/composition-des-etf.md
+# §8.1). Cette table dit donc, poste par poste, ce qui entre dans la géographie et les secteurs
+# (`actions = true`) et ce qui n'y entre pas.
+#
+# Ce n'est pas la même chose que le **type d'actif** déclaré dans actifs.toml (etf / action /
+# crypto, D-55) : celui-là dit ce qu'on détient, celle-ci dit de quoi c'est fait à l'intérieur.
+#
+# Le parti pris sur les titres hybrides, dit une fois pour toutes :
+#   - une **action de préférence** est comptée avec les actions (c'est du capital) ;
+#   - une **obligation convertible** est comptée avec les obligations (c'est une dette, tant
+#     qu'elle n'est pas convertie). Lecture prudente : elle ne gonfle pas la poche actions.
+#
+# Un code de source inconnu n'est jamais rangé dans « autres » par défaut : il est affiché et
+# signalé (règle 5 de CLAUDE.md).
+
+[meta]
+nomenclature = "Classes d'actifs d'un fonds, telles que les publient les agrégateurs de données"
+source = "Postes observés dans le champ `asset_allocation_exposure_list` d'extraETF le 2026-09-27 (stock, bond, preferred, convertible, cash, other) ; docs/composition-des-etf.md §3.1"
+verifie_le = 2026-09-27
+note = "Les libellés français sont ceux de l'application ; les alias sont les codes des sources."
+
+[classe.actions]
+libelle = "Actions"
+rang = 1
+actions = true
+alias = ["stock", "stocks", "equity", "equities", "preferred", "preferred_stock"]
+
+[classe.obligations]
+libelle = "Obligations"
+rang = 2
+actions = false
+alias = ["bond", "bonds", "fixed_income", "convertible", "convertibles"]
+
+[classe.liquidites]
+libelle = "Liquidités"
+rang = 3
+actions = false
+alias = ["cash", "cash_and_equivalents", "money_market", "liquidity"]
+
+[classe.autres]
+libelle = "Autres"
+rang = 4
+actions = false
+alias = ["other", "others", "derivative", "derivatives", "commodity", "commodities"]

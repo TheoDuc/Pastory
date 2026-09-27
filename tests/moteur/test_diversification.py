@@ -1,0 +1,394 @@
+"""La répartition du portefeuille : chaque euro rangé, et rien de renormalisé (D-66 à D-69).
+
+Le test qui compte le plus est `TestChaqueEuroEstRange` : si la somme des postes et des restes
+ne fait pas exactement la valeur du portefeuille, un montant s'est évaporé, et aucun pourcentage
+n'est fiable. Il est écrit avant les autres pour cette raison.
+"""
+
+from __future__ import annotations
+
+from datetime import date as Date
+from decimal import Decimal
+
+import pytest
+
+from dashboard_tr.moteur import diversification as dv
+from dashboard_tr.moteur.portefeuille import Portefeuille
+from dashboard_tr.moteur.valorisation import valoriser
+from dashboard_tr.parametres import referentiels as parametres_referentiels
+from dashboard_tr.pivot.operation import Poche, TypeOperation
+from tests.moteur.compositions_fictives import (
+    CompositionFictive,
+    SourceDeCompositionFictive,
+    action_en_direct,
+    etf_mixte,
+    etf_monde,
+    etf_obligataire,
+    etf_synthetique_pea,
+    parts,
+)
+from tests.moteur.cours_fictifs import SourceFixe, cours_constant
+from tests.moteur.operations_fictives import operation
+
+AU = Date(2026, 9, 30)
+
+ETF = "XX0000000ETF"
+OBLIG = "XX0000000OBL"
+CRYPTO = "BTC"
+ACTION = "XX0000000ACT"
+INCONNU = "XX0000000INC"
+
+
+@pytest.fixture
+def referentiels():
+    """Les vrais référentiels livrés avec l'application : ce sont eux qu'on veut éprouver."""
+    return parametres_referentiels.charger_tout()
+
+
+def _achat(actif: str, quantite: str, prix: str, poche: Poche = Poche.CTO):
+    return operation(
+        TypeOperation.ACHAT,
+        horodatage="2026-01-05 09:00",
+        actif=actif,
+        poche=poche,
+        quantite=quantite,
+        prix_unitaire=prix,
+    )
+
+
+def _valorisation(*achats, cours: dict[str, str]):
+    """Un portefeuille valorisé à `AU`, avec un cours fixe par actif."""
+    series: dict[str, dict[Date, str]] = {}
+    for actif, valeur in cours.items():
+        series |= cours_constant(actif, valeur, Date(2026, 1, 1), AU)
+    portefeuille = Portefeuille.construire(list(achats)).au(AU)
+    return valoriser(portefeuille, AU, SourceFixe(series))
+
+
+class TestChaqueEuroEstRange:
+    """La propriété qui garantit tout le reste : postes + restes = valeur du portefeuille."""
+
+    def test_les_trois_rubriques_somment_a_la_valeur_totale(self, referentiels):
+        # 10 parts a 100 EUR d'ETF, 5 a 100 EUR d'obligataire, 2 a 100 EUR de crypto, et un
+        # actif dont personne ne connait la composition : 1 000 + 500 + 200 + 300 = 2 000 EUR.
+        valorisation = _valorisation(
+            _achat(ETF, "10", "100.00"),
+            _achat(OBLIG, "5", "100.00"),
+            _achat(CRYPTO, "2", "100.00", poche=Poche.CRYPTO),
+            _achat(INCONNU, "3", "100.00"),
+            cours={ETF: "100.00", OBLIG: "100.00", CRYPTO: "100.00", INCONNU: "100.00"},
+        )
+        source = SourceDeCompositionFictive({ETF: etf_monde(), OBLIG: etf_obligataire()})
+
+        resultat = dv.diversifier(valorisation, source, referentiels)
+
+        assert valorisation.total.valeur == Decimal("2000.00")
+        for repartition in resultat.repartitions:
+            total = (
+                repartition.attribue
+                + repartition.non_attribue
+                + repartition.hors_perimetre
+                + repartition.hors_classification
+                + repartition.non_couvert
+            )
+            assert total == Decimal("2000.00"), repartition.rubrique
+
+    def test_un_actif_sans_composition_est_non_couvert_et_nomme(self, referentiels):
+        valorisation = _valorisation(
+            _achat(ETF, "10", "100.00"),
+            _achat(INCONNU, "5", "100.00"),
+            cours={ETF: "100.00", INCONNU: "100.00"},
+        )
+        source = SourceDeCompositionFictive({ETF: etf_monde()})
+
+        resultat = dv.diversifier(valorisation, source, referentiels)
+
+        assert resultat.pays.non_couvert == Decimal("500.00")
+        assert resultat.pays.actifs_non_couverts == (INCONNU,)
+        assert not resultat.pays.complete
+
+
+class TestLesPourcentagesNeSontJamaisRenormalises:
+    def test_un_poids_manquant_devient_du_non_attribue(self, referentiels):
+        # L'ETF synthétique n'attribue que 90 % de ses pays : 70 + 20. Les 10 % restants
+        # doivent rester visibles, et non gonfler les États-Unis.
+        valorisation = _valorisation(_achat(ETF, "10", "100.00"), cours={ETF: "100.00"})
+        source = SourceDeCompositionFictive({ETF: etf_synthetique_pea()})
+
+        resultat = dv.diversifier(valorisation, source, referentiels)
+
+        montants = {poste.code: poste.montant for poste in resultat.pays.postes}
+        assert montants == {"US": Decimal("700.00"), "DE": Decimal("200.00")}
+        assert resultat.pays.non_attribue == Decimal("100.00")
+        assert resultat.pays.pour_cent(montants["US"]) == Decimal("70.00")
+
+    def test_le_pourcentage_se_rapporte_a_la_valeur_totale_et_non_aux_postes(self, referentiels):
+        # La moitié du portefeuille n'est pas couverte : les États-Unis pèsent 30 % du
+        # portefeuille, et non 60 % comme le donnerait un total ramené aux seuls postes.
+        valorisation = _valorisation(
+            _achat(ETF, "10", "100.00"),
+            _achat(INCONNU, "10", "100.00"),
+            cours={ETF: "100.00", INCONNU: "100.00"},
+        )
+        source = SourceDeCompositionFictive({ETF: etf_monde()})
+
+        resultat = dv.diversifier(valorisation, source, referentiels)
+
+        etats_unis = next(poste for poste in resultat.pays.postes if poste.code == "US")
+        assert resultat.pays.pour_cent(etats_unis.montant) == Decimal("30.00")
+
+
+class TestLObligataireResteHorsDeLaGeographieEtDesSecteurs:
+    """D-68 : « pays » peut vouloir dire devise d'émission, et « secteur » veut dire Trésor."""
+
+    def test_un_etf_obligataire_est_hors_perimetre_et_non_pas_non_couvert(self, referentiels):
+        valorisation = _valorisation(_achat(OBLIG, "5", "100.00"), cours={OBLIG: "100.00"})
+        source = SourceDeCompositionFictive({OBLIG: etf_obligataire()})
+
+        resultat = dv.diversifier(valorisation, source, referentiels)
+
+        assert resultat.pays.hors_perimetre == Decimal("500.00")
+        assert resultat.pays.non_couvert == Decimal("0.00")
+        assert resultat.pays.postes == ()
+
+    def test_il_compte_normalement_dans_la_repartition_par_classe_d_actifs(self, referentiels):
+        valorisation = _valorisation(_achat(OBLIG, "5", "100.00"), cours={OBLIG: "100.00"})
+        source = SourceDeCompositionFictive({OBLIG: etf_obligataire()})
+
+        resultat = dv.diversifier(valorisation, source, referentiels)
+
+        libelles = {poste.libelle: poste.montant for poste in resultat.classes.postes}
+        assert libelles == {"Obligations": Decimal("500.00")}
+
+    def test_un_fonds_mixte_separe_sa_part_actions_du_reste(self, referentiels):
+        # 60 % d'actions, 40 % d'obligations, sur 1 000 EUR : 600 EUR entrent dans la
+        # géographie, 400 EUR en sortent.
+        valorisation = _valorisation(_achat(ETF, "10", "100.00"), cours={ETF: "100.00"})
+        source = SourceDeCompositionFictive({ETF: etf_mixte()})
+
+        resultat = dv.diversifier(valorisation, source, referentiels)
+
+        assert resultat.pays.attribue == Decimal("600.00")
+        assert resultat.pays.hors_perimetre == Decimal("400.00")
+        assert resultat.pays.non_attribue == Decimal("0.00")
+
+
+class TestLaCryptoEstAPart:
+    def test_elle_n_est_ni_non_couverte_ni_rangee_dans_un_secteur(self, referentiels):
+        valorisation = _valorisation(
+            _achat(CRYPTO, "2", "100.00", poche=Poche.CRYPTO), cours={CRYPTO: "100.00"}
+        )
+        source = SourceDeCompositionFictive({})
+
+        resultat = dv.diversifier(valorisation, source, referentiels)
+
+        for repartition in resultat.repartitions:
+            assert repartition.hors_classification == Decimal("200.00"), repartition.rubrique
+            assert repartition.non_couvert == Decimal("0.00")
+            assert repartition.postes == ()
+
+    def test_aucune_source_n_est_interrogee_pour_une_crypto(self, referentiels):
+        valorisation = _valorisation(
+            _achat(CRYPTO, "2", "100.00", poche=Poche.CRYPTO), cours={CRYPTO: "100.00"}
+        )
+        source = SourceDeCompositionFictive({})
+
+        dv.diversifier(valorisation, source, referentiels)
+
+        assert CRYPTO not in source.demandes
+
+
+class TestUnCodeInconnuEstAfficheJamaisRange:
+    """Règle 5 de CLAUDE.md, transposée aux codes de pays et de secteur."""
+
+    def test_un_pays_inconnu_du_referentiel_garde_son_code_et_sa_zone_est_dite(
+        self, referentiels
+    ):
+        composition = CompositionFictive(
+            pays=parts(ZZ="100"), secteurs=parts(technology="100"), classes=parts(stock="100")
+        )
+        valorisation = _valorisation(_achat(ETF, "10", "100.00"), cours={ETF: "100.00"})
+        source = SourceDeCompositionFictive({ETF: composition})
+
+        resultat = dv.diversifier(valorisation, source, referentiels)
+
+        poste = resultat.pays.postes[0]
+        assert poste.code == "ZZ"
+        assert poste.libelle == "ZZ"
+        assert not poste.reconnu
+        assert poste.zone == parametres_referentiels.ZONE_INCONNUE
+        assert poste.montant == Decimal("1000.00")
+
+    def test_un_secteur_inconnu_est_conserve_et_signale_comme_non_reconnu(self, referentiels):
+        composition = CompositionFictive(
+            pays=parts(US="100"),
+            secteurs=parts(intelligence_artificielle="100"),
+            classes=parts(stock="100"),
+        )
+        valorisation = _valorisation(_achat(ETF, "10", "100.00"), cours={ETF: "100.00"})
+        source = SourceDeCompositionFictive({ETF: composition})
+
+        resultat = dv.diversifier(valorisation, source, referentiels)
+
+        assert [poste.code for poste in resultat.secteurs.postes_non_reconnus] == [
+            "intelligence_artificielle"
+        ]
+        assert resultat.secteurs.non_attribue == Decimal("0.00")
+
+
+class TestLesZones:
+    def test_les_pays_sont_regroupes_dans_l_ordre_des_rangs(self, referentiels):
+        valorisation = _valorisation(_achat(ETF, "10", "100.00"), cours={ETF: "100.00"})
+        source = SourceDeCompositionFictive({ETF: etf_monde()})
+
+        resultat = dv.diversifier(valorisation, source, referentiels)
+
+        zones = [(zone.libelle, montant) for zone, montant, _ in resultat.pays.par_zone()]
+        assert zones == [
+            ("Amérique du Nord", Decimal("600.00")),
+            ("Europe développée", Decimal("300.00")),
+            ("Japon", Decimal("100.00")),
+        ]
+
+
+class TestLesFondsSynthetiquesSontSignales:
+    def test_un_fonds_a_swap_est_nomme_pour_que_l_ecart_soit_comprehensible(self, referentiels):
+        valorisation = _valorisation(
+            _achat(ETF, "10", "100.00", poche=Poche.PEA), cours={ETF: "100.00"}
+        )
+        source = SourceDeCompositionFictive({ETF: etf_synthetique_pea()})
+
+        resultat = dv.diversifier(valorisation, source, referentiels)
+
+        assert resultat.pays.actifs_synthetiques == (ETF,)
+
+
+class TestLesDatesDArrete:
+    def test_la_fourchette_des_arretes_est_rendue(self, referentiels):
+        valorisation = _valorisation(
+            _achat(ETF, "10", "100.00"),
+            _achat(OBLIG, "5", "100.00"),
+            cours={ETF: "100.00", OBLIG: "100.00"},
+        )
+        source = SourceDeCompositionFictive({ETF: etf_monde(), OBLIG: etf_obligataire()})
+
+        resultat = dv.diversifier(valorisation, source, referentiels)
+
+        assert resultat.arrete_du == Date(2026, 8, 31)
+        assert resultat.arrete_au == Date(2026, 9, 22)
+        assert resultat.intitules_de_date == ("date annoncée par la source fictive",)
+
+
+class TestUneRepartitionQuiDepasseLaPartActionsEstSignalee:
+    """Prêt de titres, ou source qui exprime ses poids sur la seule poche actions."""
+
+    def test_le_depassement_est_dit_et_rien_n_est_rabote(self, referentiels):
+        composition = CompositionFictive(
+            pays=parts(US="100"),
+            secteurs=parts(technology="100"),
+            classes=parts(stock="50", bond="50"),
+        )
+        valorisation = _valorisation(_achat(ETF, "10", "100.00"), cours={ETF: "100.00"})
+        source = SourceDeCompositionFictive({ETF: composition})
+
+        resultat = dv.diversifier(valorisation, source, referentiels)
+
+        assert resultat.pays.attribue == Decimal("1000.00")
+        assert resultat.pays.non_attribue == Decimal("0.00")
+        messages = [signalement.message for signalement in resultat.signalements]
+        assert any("dépasse donc la valeur de l'actif" in message for message in messages)
+
+
+class TestUneActionEnDirectEntreDansLesDeuxRepartitions:
+    """D-62 : l'achat d'actions à l'unité est courant, la répartition doit savoir les traiter."""
+
+    def test_son_pays_et_son_secteur_comptent(self, referentiels):
+        valorisation = _valorisation(_achat(ACTION, "4", "50.00"), cours={ACTION: "50.00"})
+        source = SourceDeCompositionFictive({ACTION: action_en_direct()})
+
+        resultat = dv.diversifier(valorisation, source, referentiels)
+
+        assert [(poste.libelle, poste.montant) for poste in resultat.pays.postes] == [
+            ("France", Decimal("200.00"))
+        ]
+        assert [(poste.libelle, poste.montant) for poste in resultat.secteurs.postes] == [
+            ("Consommation cyclique", Decimal("200.00"))
+        ]
+
+
+class TestUnPortefeuilleSansRien:
+    def test_aucune_position_ne_fait_pas_echouer(self, referentiels):
+        valorisation = _valorisation(cours={})
+        source = SourceDeCompositionFictive({})
+
+        resultat = dv.diversifier(valorisation, source, referentiels)
+
+        assert resultat.pays.postes == ()
+        assert resultat.pays.base == Decimal("0.00")
+        assert resultat.pays.pour_cent(Decimal("0")) is None
+        assert resultat.arrete_du is None
+
+
+class TestLesCasDuCahierDeVerification:
+    """Les pourcentages écrits dans `docs/verification/etape-7.md`, épinglés ici.
+
+    Le propriétaire refait ces calculs à la main. Si un chiffre du programme changeait sans que
+    le cahier soit corrigé, ces tests tomberaient — c'est leur seule raison d'être.
+    """
+
+    def test_a3_un_etf_obligataire_reduit_la_part_des_pays_sans_changer_leur_montant(
+        self, referentiels
+    ):
+        valorisation = _valorisation(
+            _achat(ETF, "10", "100.00"),
+            _achat(OBLIG, "5", "100.00"),
+            cours={ETF: "100.00", OBLIG: "100.00"},
+        )
+        source = SourceDeCompositionFictive({ETF: etf_monde(), OBLIG: etf_obligataire()})
+
+        resultat = dv.diversifier(valorisation, source, referentiels)
+
+        classes = {poste.libelle: resultat.classes.pour_cent(poste.montant)
+                   for poste in resultat.classes.postes}
+        assert classes == {"Actions": Decimal("66.67"), "Obligations": Decimal("33.33")}
+
+        etats_unis = next(poste for poste in resultat.pays.postes if poste.code == "US")
+        assert etats_unis.montant == Decimal("600.00")
+        assert resultat.pays.pour_cent(etats_unis.montant) == Decimal("40.00")
+        assert resultat.pays.pour_cent(resultat.pays.hors_perimetre) == Decimal("33.33")
+
+    def test_a4_un_fonds_mixte_isole_sa_part_actions(self, referentiels):
+        valorisation = _valorisation(_achat(ETF, "10", "100.00"), cours={ETF: "100.00"})
+        source = SourceDeCompositionFictive({ETF: etf_mixte()})
+
+        resultat = dv.diversifier(valorisation, source, referentiels)
+
+        assert resultat.pays.pour_cent(resultat.pays.attribue) == Decimal("60.00")
+        assert resultat.pays.pour_cent(resultat.pays.hors_perimetre) == Decimal("40.00")
+
+    def test_a5_la_crypto_pese_seize_virgule_soixante_sept_pour_cent(self, referentiels):
+        valorisation = _valorisation(
+            _achat(ETF, "10", "100.00"),
+            _achat(CRYPTO, "2", "100.00", poche=Poche.CRYPTO),
+            cours={ETF: "100.00", CRYPTO: "100.00"},
+        )
+        source = SourceDeCompositionFictive({ETF: etf_monde()})
+
+        resultat = dv.diversifier(valorisation, source, referentiels)
+
+        assert resultat.pays.hors_classification == Decimal("200.00")
+        assert resultat.pays.pour_cent(resultat.pays.hors_classification) == Decimal("16.67")
+
+    def test_a6_un_actif_inconnu_pese_vingt_trois_virgule_zero_huit_pour_cent(self, referentiels):
+        valorisation = _valorisation(
+            _achat(ETF, "10", "100.00"),
+            _achat(INCONNU, "3", "100.00"),
+            cours={ETF: "100.00", INCONNU: "100.00"},
+        )
+        source = SourceDeCompositionFictive({ETF: etf_monde()})
+
+        resultat = dv.diversifier(valorisation, source, referentiels)
+
+        assert resultat.pays.pour_cent(resultat.pays.non_couvert) == Decimal("23.08")
+        france = next(poste for poste in resultat.pays.postes if poste.code == "FR")
+        assert resultat.pays.pour_cent(france.montant) == Decimal("23.08")

@@ -13,10 +13,11 @@ choix dans [decisions.md](decisions.md) ; le détail du contrat entre couches da
 [format-pivot.md](format-pivot.md). Ici, aucune raison n'est réexpliquée : elle est citée
 (`D-xx`).
 
-> État à la dernière mise à jour (fin de l'étape 6) : les couches **adaptateur**, **pivot**,
-> **moteur** (rejeu, valorisation, rendements, coûts, fiscalité et valeur réelle) et **données
-> externes** sont écrites, ainsi que les **paramètres** datés et sourcés. La couche **vues**
-> existe comme dossier vide, avec sa place déjà définie. Le §10 dit ce qui s'y branchera.
+> État à la dernière mise à jour (fin de l'étape 7) : les couches **adaptateur**, **pivot**,
+> **moteur** (rejeu, valorisation, rendements, coûts, fiscalité, valeur réelle et
+> **diversification**) et **données externes** sont écrites, ainsi que les **paramètres** datés et
+> sourcés, qui portent désormais aussi les **référentiels** (secteurs, pays et zones). La couche
+> **vues** existe comme dossier vide, avec sa place déjà définie. Le §10 dit ce qui s'y branchera.
 
 ---
 
@@ -86,9 +87,9 @@ L'interdiction compte autant que le rôle : c'est elle qui garantit qu'un défau
 | `config/` | Où sont les fichiers personnels ; ce que seul l'utilisateur peut dire (le rôle de chaque compte) | Ce qu'on fera de ces réponses |
 | `adaptateurs/` | Comprendre les fichiers d'**une** banque et les traduire en pivot | Ce qu'est un prix de revient, un gain, un rendement |
 | `pivot/` | Décrire une opération et une position réelle, et vérifier qu'une ligne se tient | Qui l'a produite, qui va la lire |
-| `donnees_externes/` | Aller chercher un cours, le garder, et **compléter un prix manquant** | Ce qu'est une position, un prix de revient, une plus-value |
-| `moteur/` | Rejouer les opérations, tenir le journal, agréger, rapprocher, **valoriser**, calculer gain, TRI et TWRR, puis les **coûts**, l'**impôt estimé** et la **valeur réelle** | Le nom d'un champ Trade Republic, l'emplacement d'un fichier, **d'où viennent les cours et les taux** — il dit seulement la forme qu'il en attend. Il ne sait pas ce qu'est un ETF : il demande un taux pour un actif |
-| `parametres/` | Porter les taux fiscaux, les frais par ordre et les spreads par défaut, chacun avec sa date et sa source | Ce qu'on en fera. Ils sont **livrés avec l'application** et versionnés : rien de personnel |
+| `donnees_externes/` | Aller chercher un cours, **la composition d'un actif**, les garder, et **compléter un prix manquant** | Ce qu'est une position, un prix de revient, une plus-value. Et ce qu'est un secteur « Technologie » : elle ne transporte que des **codes** |
+| `moteur/` | Rejouer les opérations, tenir le journal, agréger, rapprocher, **valoriser**, calculer gain, TRI et TWRR, puis les **coûts**, l'**impôt estimé**, la **valeur réelle** et la **répartition** | Le nom d'un champ Trade Republic, l'emplacement d'un fichier, **d'où viennent les cours, les taux et les compositions** — il dit seulement la forme qu'il en attend. Il ne sait pas ce qu'est un ETF : il demande un taux, ou une composition, pour un actif |
+| `parametres/` | Porter les taux fiscaux, les frais par ordre, les spreads par défaut, et les **référentiels** (secteurs, pays, zones, classes d'actifs), chacun avec sa date et sa source | Ce qu'on en fera. Ils sont **livrés avec l'application** et versionnés : rien de personnel |
 | `vues/` (étape 9) | Montrer, expliquer, laisser filtrer | Tout calcul — elle n'appelle que le moteur |
 
 Deux conséquences pratiques :
@@ -134,9 +135,15 @@ Ce qui en découle, et qui se vérifie en lisant les imports :
   importante du projet, et la plus facile à casser par inadvertance : un seul import
   d'adaptateur dans `moteur/` annulerait l'ouverture aux autres banques ;
 - **`moteur/` n'importe ni `parametres/` ni `config/`**, exactement comme il n'importe pas
-  `donnees_externes/` : il déclare deux protocoles (`ParametresDeCouts` dans `moteur/couts.py`,
-  `ReglesFiscales` dans `moteur/fiscalite.py`) et `cli.py` lui passe des objets qui les
+  `donnees_externes/` : il déclare des protocoles (`ParametresDeCouts` dans `moteur/couts.py`,
+  `ReglesFiscales` dans `moteur/fiscalite.py`, et depuis l'étape 7 `SourceDeComposition` et
+  `Referentiels` dans `moteur/diversification.py`) et `cli.py` lui passe des objets qui les
   satisfont. Un taux fiscal entre dans le moteur comme un cours : **par paramètre** ;
+- **la composition d'un actif suit exactement le même chemin**, et c'est la **quatrième** fois :
+  le moteur déclare ce qu'il attend d'une source (`composition(actif)`) et de quoi nommer un code
+  (`secteur`, `pays`, `zone_de`, `classe`), et `_fournisseur_de_compositions()` et
+  `_referentiels()`, dans `cli.py`, sont les **seuls** endroits qui nomment extraETF, GLEIF et les
+  fichiers TOML. Changer de source de composition ne toucherait donc que `cli.py` ;
 - **`moteur/` n'importe pas `donnees_externes/` non plus**, et c'est ce qui surprend le plus.
   Les cours y entrent de deux façons, et aucune n'est un import : les prix manquants
   **complètent des opérations pivot avant lui** (§5.7) ; et pour valoriser, le moteur
@@ -196,20 +203,31 @@ dashboard_tr/
 │   ├── couts.py               coûts payés (avec leur poids) et estimés : spread, TER (D-17)
 │   ├── fiscalite.py           l'impôt estimé par poche, si on vendait tout (D-59, D-60)
 │   ├── valeur_reelle.py       valeur brute moins frais, spread et impôt (D-23)
+│   ├── diversification.py    par classe d'actifs, par pays, par secteur (D-66 à D-69), et ce
+│   │                          qu'il attend d'une source de compositions et d'un référentiel
 │   ├── signalement.py         ce que le moteur n'a pas pu calculer normalement (D-45)
 │   ├── rapport.py             le rapport de « dashboard positions »
-│   └── export_csv.py          les huit CSV : positions, journal, valorisation, flux,
-│                              sous-périodes du TWRR, évolution, coûts, valeur réelle
+│   └── export_csv.py          les onze CSV : positions, journal, valorisation, flux,
+│                              sous-périodes du TWRR, évolution, coûts, valeur réelle,
+│                              et trois répartitions
 ├── donnees_externes/
 │   ├── cours.py               le contrat : un cours, un refus, une source interchangeable
 │   ├── cache.py               un CSV par actif, définitif et oubliable (D-50)
 │   ├── yahoo.py               la source retenue, et ses trois garde-fous (D-51)
 │   ├── xetra.py               la liste des ETF : le TER par ISIN, à valider (D-61)
-│   └── completion.py          les prix manquants complétés, du pivot vers du pivot (D-15)
+│   ├── completion.py          les prix manquants complétés, du pivot vers du pivot (D-15)
+│   ├── composition.py         le contrat : une composition, ses contrôles, le fournisseur (D-63)
+│   ├── cache_compositions.py  un CSV par actif, daté et **remplaçable** (D-70)
+│   ├── extraetf.py            la composition d'un ETF par ISIN, agrégats seuls (D-63, D-64)
+│   └── actions.py             le pays (GLEIF) et le secteur d'une action en direct (D-66)
 ├── parametres/
 │   ├── lecture.py             un taux sans date ni source est refusé (D-58)
+│   ├── referentiels.py        les secteurs, les pays, les zones, les classes d'actifs
 │   ├── fiscalite.toml         12,8 % + 18,6 %, durée du PEA, seuil crypto — datés et sourcés
 │   ├── couts.toml             frais par ordre, spreads par défaut avec leur fourchette
+│   ├── secteurs.toml          les 11 secteurs Morningstar, jamais « GICS » (D-65)
+│   ├── zones.toml             pays ISO 3166-1 → nom français et zone (D-66, D-67)
+│   ├── classes_actifs.toml    actions, obligations, liquidités : qui entre dans quoi (D-68)
 │   ├── fiscalite.py           les règles fiscales, telles que le moteur les attend
 │   └── couts.py               le barème croisé avec ce que l'utilisateur a déclaré
 └── vues/                      vide — l'interface Dash (étapes 8 et 9)
@@ -358,6 +376,26 @@ Trois propriétés les rendent vérifiables :
 - **le capital fiscal est tenu dans le rejeu**, une colonne à côté du capital investi
   ([D-57](decisions.md)) : le prix de revient fiscal se suit dans `journal.csv` comme l'autre ;
 - **ce qui manque est nommé** : actif sans type, ETF sans TER, PEA sans date. Jamais un zéro.
+
+`diversification.py` est l'étape 7, et il ne touche à rien non plus : il part de la **même**
+valorisation que les rendements et les coûts, et n'en tire que des poids. Sa seule règle vaut
+d'être lue, parce qu'elle explique tous ses chiffres :
+
+```
+valeur de la position = part actions + part non-actions
+part actions          = ce que la composition attribue + non attribué
+```
+
+La **part non-actions** sort de la géographie et des secteurs ([D-68](decisions.md)) : sur un indice
+obligataire, « secteur » veut dire Trésor ou entreprises, et « pays » peut vouloir dire devise
+d'émission. Le **non attribué** est ce que la source laisse de côté, et il reste visible : aucune
+composition ne somme à 100 %, et rien n'est renormalisé ([D-69](decisions.md)). Un actif sans
+composition est **non couvert**, une crypto est **hors classification** — ce qui n'est pas la même
+chose, et l'écran ne les confond pas.
+
+Deux propriétés le rendent vérifiable : **tout pourcentage se rapporte à la valeur totale des
+actifs valorisés**, jamais à la somme des postes ; et **la somme des postes et des restes vaut
+exactement cette valeur**, ce que les trois CSV permettent de contrôler dans un tableur.
 
 `rapprochement.py` est **le contrôle le plus fort du projet** : il ne dépend d'aucune lecture de
 texte ni d'aucune déduction. La quantité est un contrôle, le prix de revient de la banque une
@@ -529,7 +567,6 @@ données est un exercice séparé, fait par le propriétaire, guidé par un
 
 | À venir | Où | Ce qui ne changera pas |
 |---|---|---|
-| Diversification *(étape 7)* | `donnees_externes/` + `moteur/` | La composition d'un ETF est une donnée externe de plus : elle entrera par un protocole déclaré dans le moteur, comme les cours et les taux |
 | Interface Dash *(étapes 8 et 9)* | `vues/` | Les vues n'appellent que le moteur — jamais l'adaptateur ni une source externe |
 | Monte-Carlo *(étape 12)* | Module indépendant, branché sur les résultats du moteur | Rien ne dépendra de lui ([D-27](decisions.md)) |
 
@@ -539,8 +576,16 @@ Les deux branchements des cours sont **faits** : les **titres reçus sans prix**
 L'étape 6 a suivi le même chemin pour les taux : deux protocoles déclarés dans le moteur, deux
 objets fournis par `cli.py`, et **aucun import nouveau** entre les couches.
 
-Ce que l'étape 7 trouvera en place : une couche de données externes qui sait chercher, mettre en
-cache et **refuser**, et un moteur qui reçoit ce dont il a besoin sans savoir d'où ça vient.
+**L'étape 7 l'a suivi une quatrième fois**, et c'est devenu la manière de faire du projet : la
+composition d'un actif et les référentiels qui nomment ses codes entrent par deux protocoles de
+plus, déclarés dans `moteur/diversification.py`, et `cli.py` reste le seul assembleur. Le moteur ne
+sait toujours ni ce qu'est un ETF, ni ce qu'est un secteur « Technologie » — il reçoit des codes et
+demande qu'on les lui nomme.
+
+Ce que l'étape 8 trouvera en place : tous les chiffres que l'interface doit montrer, y compris ce
+qui **manque** et pourquoi. Les libellés d'absence — « non couvert », « non attribué », « non
+transparisé », « synthétique », « minoré » — sont du contenu d'interface à part entière
+([D-62](decisions.md)), pas des notes techniques à reléguer en bas de page.
 
 ---
 

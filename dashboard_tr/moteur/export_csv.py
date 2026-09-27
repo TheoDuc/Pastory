@@ -33,6 +33,7 @@ from pathlib import Path
 
 from dashboard_tr import tableur
 from dashboard_tr.moteur.couts import DetailDesCouts, LigneDeCout
+from dashboard_tr.moteur.diversification import Diversification, Repartition, Rubrique
 from dashboard_tr.moteur.portefeuille import Portefeuille
 from dashboard_tr.moteur.position import EtatPosition, LigneJournal, Position
 from dashboard_tr.moteur.rendements import PAS_DU_TAUX, Rendements, Synthese
@@ -678,3 +679,118 @@ def ecrire_valeur_reelle(
     position laisserait croire qu'on peut les additionner.
     """
     return tableur.ecrire(COLONNES_VALEUR_REELLE, _lignes_valeur_reelle(valeur, noms), fichier)
+
+
+# --- La répartition du portefeuille (étape 7) -----------------------------------------------
+
+NOM_REPARTITION_CLASSES = "repartition_classes.csv"
+NOM_REPARTITION_PAYS = "repartition_pays.csv"
+NOM_REPARTITION_SECTEURS = "repartition_secteurs.csv"
+
+COLONNES_REPARTITION = (
+    "rubrique",
+    "nature",
+    "zone",
+    "code",
+    "libelle",
+    "montant",
+    "part_pour_cent",
+    "code_reconnu",
+    "base",
+    "arrete_du",
+    "arrete_au",
+    "source",
+)
+"""Les trois fichiers partagent ces colonnes, et chacun s'ouvre seul.
+
+La colonne `nature` distingue un **poste** (un pays, un secteur) d'un **reste** (non attribué,
+non couvert, hors périmètre, actifs numériques). C'est elle qui rend le fichier vérifiable : la
+somme de la colonne `montant` vaut exactement la colonne `base`. Sans les restes, le fichier
+donnerait l'illusion d'une répartition complète, ce que [D-69] interdit.
+"""
+
+NATURE_POSTE = "poste"
+NATURE_RESTE = "reste"
+
+
+def _ligne_repartition(
+    repartition: Repartition,
+    diversification: Diversification,
+    nature: str,
+    code: str,
+    libelle: str,
+    montant: Decimal,
+    zone: str | None = None,
+    reconnu: bool = True,
+) -> dict[str, str]:
+    return {
+        "rubrique": repartition.rubrique.value,
+        "nature": nature,
+        "zone": zone if zone else tableur.VALEUR_SANS_OBJET,
+        "code": code if code else tableur.VALEUR_SANS_OBJET,
+        "libelle": libelle,
+        "montant": tableur.nombre(montant),
+        "part_pour_cent": tableur.nombre(repartition.pour_cent(montant)),
+        "code_reconnu": "oui" if reconnu else "non",
+        "base": tableur.nombre(repartition.base),
+        "arrete_du": (
+            diversification.arrete_du.isoformat()
+            if diversification.arrete_du is not None
+            else tableur.VALEUR_SANS_OBJET
+        ),
+        "arrete_au": (
+            diversification.arrete_au.isoformat()
+            if diversification.arrete_au is not None
+            else tableur.VALEUR_SANS_OBJET
+        ),
+        "source": ", ".join(diversification.sources) or tableur.VALEUR_SANS_OBJET,
+    }
+
+
+def _lignes_de_repartition(
+    repartition: Repartition, diversification: Diversification
+) -> Iterator[Mapping[str, str]]:
+    """Les postes, puis les restes. La somme des montants vaut la base."""
+    for poste in repartition.postes:
+        yield _ligne_repartition(
+            repartition,
+            diversification,
+            NATURE_POSTE,
+            poste.code,
+            poste.libelle,
+            poste.montant,
+            zone=poste.zone_libelle,
+            reconnu=poste.reconnu,
+        )
+
+    restes = (
+        ("hors_perimetre", "Obligations, liquidités et autres", repartition.hors_perimetre),
+        ("hors_classification", "Actifs numériques, ni pays ni secteur",
+         repartition.hors_classification),
+        ("non_attribue", "Non attribué par la source", repartition.non_attribue),
+        ("non_couvert", "Non couvert : composition inconnue", repartition.non_couvert),
+    )
+    for code, libelle, montant in restes:
+        if montant > 0:
+            yield _ligne_repartition(
+                repartition, diversification, NATURE_RESTE, code, libelle, montant
+            )
+
+
+def ecrire_repartition(
+    diversification: Diversification, rubrique: Rubrique, fichier: Path
+) -> Path:
+    """Écrit la répartition d'une rubrique : ses postes, puis ce qui n'y entre pas.
+
+    Trois fichiers plutôt qu'un, parce qu'on ne compare jamais deux rubriques ligne à ligne :
+    un secteur et une classe d'actifs ne sont pas de même nature (D-68).
+    """
+    repartitions = {
+        Rubrique.CLASSE: diversification.classes,
+        Rubrique.PAYS: diversification.pays,
+        Rubrique.SECTEUR: diversification.secteurs,
+    }
+    repartition = repartitions[rubrique]
+    return tableur.ecrire(
+        COLONNES_REPARTITION, _lignes_de_repartition(repartition, diversification), fichier
+    )

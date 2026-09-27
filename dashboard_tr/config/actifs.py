@@ -52,6 +52,17 @@ pour 0,20 % vaudrait 20 % par an (`docs/couts-et-fiscalite.md` §2.4)."""
 SPREAD_MAXIMUM = Decimal("5")
 """En pour cent, par côté. Au-delà, l'actif n'est plus négociable, ou l'unité est fausse."""
 
+FORME_REPARTITION = 'pays = { US = 70.0, FR = 2.1 }  (et de même pour  secteurs )'
+"""Comment corriger à la main la composition d'un actif (D-70)."""
+
+TOTAL_MAXIMAL = Decimal("105")
+"""Le total accepté pour une répartition déclarée, en pour cent.
+
+Pourquoi pas 100 : le prêt de titres peut faire dépasser légèrement 100 % dans les données des
+fonds (`docs/composition-des-etf.md` §8.3), et une répartition déclarée peut légitimement recopier
+une telle source. Au-delà de 105, c'est une erreur de saisie.
+"""
+
 
 class TypeActif(StrEnum):
     """Ce qui choisit le taux de spread par défaut, et dit si un TER est attendu (D-55)."""
@@ -83,6 +94,18 @@ class Declaration:
 
     spread_pour_cent: Decimal | None = None
     """Un taux de spread par côté propre à cet actif, qui remplace celui de son type."""
+
+    pays: Mapping[str, Decimal] | None = None
+    """Répartition par pays **déclarée à la main**, qui l'emporte sur la source (D-70).
+
+    La porte de sortie du choix « mise à jour automatique » : si la source se trompe sur un
+    actif, on corrige ici sans attendre qu'elle se corrige. Les clés sont des codes ISO 3166-1
+    alpha-2, les valeurs des pourcentages.
+    """
+
+    secteurs: Mapping[str, Decimal] | None = None
+    """Répartition par secteur déclarée à la main. Mêmes règles ; les clés sont les codes de la
+    nomenclature retenue (`parametres/secteurs.toml`)."""
 
 
 @dataclass(frozen=True)
@@ -220,8 +243,62 @@ def _lire_declarations(brut: object, fichier: Path) -> dict[str, Declaration]:
                 valeur.get("spread_pour_cent"), "spread_pour_cent", Decimal("0"),
                 SPREAD_MAXIMUM, actif, fichier,
             ),
+            pays=_lire_repartition(valeur.get("pays"), "pays", actif, fichier),
+            secteurs=_lire_repartition(valeur.get("secteurs"), "secteurs", actif, fichier),
         )
     return declarations
+
+
+def _lire_repartition(
+    valeur: object, champ: str, actif: str, fichier: Path
+) -> dict[str, Decimal] | None:
+    """Une répartition déclarée à la main, facultative, qui l'emporte sur la source (D-70).
+
+    Trois refus, et chacun protège d'un chiffre faux et crédible :
+
+    - un poids qui n'est pas un nombre, ou négatif ;
+    - un total au-delà de `TOTAL_MAXIMAL` : c'est presque toujours une ligne oubliée en double,
+      ou des fractions écrites pour des pourcentages ;
+    - un total nul, qui ferait disparaître l'actif des totaux sans le dire.
+
+    Un total **inférieur** à 100 est en revanche accepté tel quel : le reste devient du « non
+    attribué », exactement comme pour une source (D-69). On ne complète jamais à 100.
+    """
+    if valeur is None:
+        return None
+    if not isinstance(valeur, dict) or not valeur:
+        raise ConfigurationInvalide(
+            f"{fichier} : l'actif {actif} déclare un « {champ} » que je ne comprends pas. "
+            f"Écrivez  {FORME_REPARTITION}"
+        )
+
+    repartition: dict[str, Decimal] = {}
+    for code, poids in valeur.items():
+        if isinstance(poids, bool) or not isinstance(poids, int | float):
+            raise ConfigurationInvalide(
+                f"{fichier} : l'actif {actif} déclare {champ}.{code} = {poids!r}, qui n'est pas "
+                f"un nombre. Écrivez un pourcentage, par exemple  {code} = 12.5"
+            )
+        part = Decimal(str(poids))
+        if part < 0:
+            raise ConfigurationInvalide(
+                f"{fichier} : l'actif {actif} déclare {champ}.{code} = {poids}, un poids négatif."
+            )
+        repartition[str(code).strip()] = part
+
+    total = sum(repartition.values(), Decimal("0"))
+    if total <= 0:
+        raise ConfigurationInvalide(
+            f"{fichier} : l'actif {actif} déclare un « {champ} » dont le total est nul. L'actif "
+            f"disparaîtrait de la répartition sans que rien ne le dise. Retirez la ligne plutôt."
+        )
+    if total > TOTAL_MAXIMAL:
+        raise ConfigurationInvalide(
+            f"{fichier} : l'actif {actif} déclare un « {champ} » dont le total fait {total} %, "
+            f"au-delà de {TOTAL_MAXIMAL} %. C'est presque toujours une ligne comptée deux fois, "
+            f"ou des fractions écrites pour des pourcentages (0.72 au lieu de 72)."
+        )
+    return repartition
 
 
 def _lire_devise(valeur: object, actif: str, fichier: Path) -> str:

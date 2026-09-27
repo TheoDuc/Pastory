@@ -21,6 +21,8 @@ from dashboard_tr.config import emplacements
 from dashboard_tr.config import fiscalite as config_fiscalite
 from dashboard_tr.config.actifs import FraisCourantsProposes, Proposition, TypeActif
 from dashboard_tr.donnees_externes.cache import Cache
+from dashboard_tr.donnees_externes.cache_compositions import CacheDeCompositions
+from dashboard_tr.donnees_externes.composition import Composition, Part
 from dashboard_tr.donnees_externes.cours import Cours, ErreurDeSource
 from tests.adaptateurs.trade_republic import evenements_fictifs as fictifs
 
@@ -46,6 +48,27 @@ def aucun_appel_a_xetra(monkeypatch):
         raise ErreurDeSource("aucun appel réseau dans les tests")
 
     monkeypatch.setattr(cli, "_liste_des_etf", refuser)
+
+
+@pytest.fixture(autouse=True)
+def aucune_source_de_composition(monkeypatch):
+    """Coupe les sources de composition : **aucun test ne sort de la machine** (étape 7).
+
+    Troisième garde-fou de la même famille, et posé pour la même raison que celui de Xetra : il a
+    été ajouté après avoir constaté que deux tests appelaient réellement Deutsche Börse. Ici, deux
+    services sont en jeu — celui des fonds et celui des sociétés — et un seul oubli suffirait à
+    faire sortir un test du poste. Les tests qui veulent une composition la fournissent
+    eux-mêmes.
+
+    Le fournisseur est construit **hors ligne** : le cache local reste utilisable, mais aucune
+    source n'est interrogée.
+    """
+    vrai_fournisseur = cli._fournisseur_de_compositions
+
+    def sans_reseau(hors_ligne: bool = False):
+        return vrai_fournisseur(hors_ligne=True)
+
+    monkeypatch.setattr(cli, "_fournisseur_de_compositions", sans_reseau)
 
 
 class ListeFictive:
@@ -1351,3 +1374,169 @@ class TestTerPropose:
         assert "TER proposé" in contenu
         # Et l'actif reste bien non déclaré aux yeux de l'application.
         assert config_actifs.charger().declaration(fictifs.ACTIF_ETF) is None
+
+
+POCHE_DE_L_ACTION_B = f'\n[poches]\n"{fictifs.ACTIF_ACTION_B}" = "CTO"\n'
+"""La poche que l'export fictif ne permet pas de déduire, déclarée comme le ferait l'utilisateur."""
+
+
+def deposer_une_composition(actif: str, pays: str = "US", arrete_le: str = "2026-08-31") -> None:
+    """Écrit une composition dans le cache, comme si la source l'avait déjà donnée."""
+    CacheDeCompositions().ecrire(
+        Composition(
+            actif=actif,
+            pays=(Part(pays, Decimal("70")),),
+            secteurs=(Part("technology", Decimal("60")),),
+            classes=(Part("stock", Decimal("100")),),
+            arrete_le=Date.fromisoformat(arrete_le),
+            intitule_de_la_date="champ de la source de test",
+            source="Source de test",
+            recupere_le=Date(2026, 9, 27),
+            replication="physique",
+            document="https://exemple.test/dic.pdf",
+        )
+    )
+
+
+class TestComposition:
+    """La commande qui montre ce qu'il y a à l'intérieur des actifs détenus (étape 7)."""
+
+    def test_elle_dit_ce_qu_elle_sait_de_chaque_actif(self, export, capsys):
+        nommer_les_comptes()
+        declarer_les_actifs_complets(
+            (fictifs.ACTIF_ETF, "etf", "0.20"),
+            (fictifs.ACTIF_ACTION, "action", None),
+            (fictifs.ACTIF_FONDS, "etf", "0.25"),
+            (fictifs.ACTIF_ACTION_B, "action", None),
+            (fictifs.ACTIF_CRYPTO, "crypto", None),
+        )
+        deposer_une_composition(fictifs.ACTIF_ETF)
+
+        code = cli.main(["composition"])
+
+        affichage = capsys.readouterr().out
+        assert code == 0
+        assert "Morningstar" in affichage
+        assert "1 pays, 1 secteur(s), arrêté au 2026-08-31" in affichage
+        assert "https://exemple.test/dic.pdf" in affichage
+
+    def test_une_crypto_est_presentee_comme_telle_et_non_comme_un_manque(self, export, capsys):
+        # D-62 : le message est lu par quelqu'un qui n'a pas suivi la construction du projet.
+        nommer_les_comptes()
+        declarer_les_actifs_complets((fictifs.ACTIF_CRYPTO, "crypto", None))
+
+        cli.main(["composition"])
+
+        affichage = capsys.readouterr().out
+        assert "ni pays ni secteur" in affichage
+        assert "pas une donnée manquante" in affichage
+
+    def test_les_origines_des_referentiels_sont_affichees(self, export, capsys):
+        nommer_les_comptes()
+        declarer_les_actifs_complets((fictifs.ACTIF_ETF, "etf", "0.20"))
+
+        cli.main(["composition"])
+
+        affichage = capsys.readouterr().out
+        assert "Secteurs :" in affichage
+        assert "Zones :" in affichage
+        assert "vérifiée le" in affichage
+
+    def test_un_actif_sans_composition_recoit_un_motif(self, export, capsys):
+        nommer_les_comptes()
+        declarer_les_actifs_complets((fictifs.ACTIF_ETF, "etf", "0.20"))
+
+        cli.main(["composition", "--hors-ligne"])
+
+        affichage = capsys.readouterr().out
+        assert "aucune composition" in affichage
+        assert "--hors-ligne" in affichage
+
+
+class TestOublierComposition:
+    def test_sans_precision_la_commande_refuse(self, capsys):
+        assert cli.main(["oublier-composition"]) == cli.CODE_ECHEC
+        assert "--tout" in capsys.readouterr().err
+
+    def test_une_composition_s_oublie_seule(self, capsys):
+        deposer_une_composition(fictifs.ACTIF_ETF)
+        deposer_une_composition(fictifs.ACTIF_ACTION)
+
+        code = cli.main(["oublier-composition", "--actif", fictifs.ACTIF_ETF])
+
+        assert code == 0
+        assert "1 composition(s) oubliée(s)" in capsys.readouterr().out
+        assert CacheDeCompositions().lire(fictifs.ACTIF_ETF) is None
+        assert CacheDeCompositions().lire(fictifs.ACTIF_ACTION) is not None
+
+    def test_tout_s_oublie_sur_demande_explicite(self, capsys):
+        deposer_une_composition(fictifs.ACTIF_ETF)
+
+        assert cli.main(["oublier-composition", "--tout"]) == 0
+        assert CacheDeCompositions().actifs() == []
+
+    def test_un_cache_vide_ne_fait_pas_echouer_la_commande(self, capsys):
+        assert cli.main(["oublier-composition", "--tout"]) == 0
+        assert "Rien à oublier" in capsys.readouterr().out
+
+
+class TestPositionsAvecRepartition:
+    """Le contrôle qui prouve l'étape : la répartition branchée de bout en bout."""
+
+    def test_le_bloc_de_repartition_apparait_dans_le_rapport(self, export, capsys):
+        nommer_les_comptes(POCHE_DE_L_ACTION_B)
+        declarer_les_actifs_complets(
+            (fictifs.ACTIF_ETF, "etf", "0.20"),
+            (fictifs.ACTIF_ACTION, "action", None),
+            (fictifs.ACTIF_FONDS, "etf", "0.25"),
+            (fictifs.ACTIF_ACTION_B, "action", None),
+            (fictifs.ACTIF_CRYPTO, "crypto", None),
+        )
+        declarer_le_pea()
+        for actif in (
+            fictifs.ACTIF_ETF,
+            fictifs.ACTIF_ACTION,
+            fictifs.ACTIF_FONDS,
+            fictifs.ACTIF_ACTION_B,
+            fictifs.ACTIF_CRYPTO,
+        ):
+            deposer_un_cours(actif, Date(2026, 2, 27), "10.00")
+        deposer_une_composition(fictifs.ACTIF_ETF)
+
+        code = cli.main(["positions", "--au", "2026-02-27"])
+
+        affichage = capsys.readouterr().out
+        assert code == 0
+        assert "REPARTITION DU PORTEFEUILLE" in affichage
+        assert "Par zone et par pays" in affichage
+        assert "Amérique du Nord" in affichage
+        # Les actifs dont la composition est inconnue sortent des totaux, et le disent : c'est
+        # le comportement qui distingue une répartition honnête d'un camembert qui fait 100 %.
+        assert "Non couvert : composition inconnue" in affichage
+        assert "ne font donc pas 100 %" in affichage
+
+    def test_les_trois_csv_de_repartition_sont_ecrits(self, export, capsys, dossier_personnel):
+        nommer_les_comptes(POCHE_DE_L_ACTION_B)
+        declarer_les_actifs_complets(
+            (fictifs.ACTIF_ETF, "etf", "0.20"),
+            (fictifs.ACTIF_ACTION, "action", None),
+            (fictifs.ACTIF_FONDS, "etf", "0.25"),
+            (fictifs.ACTIF_ACTION_B, "action", None),
+            (fictifs.ACTIF_CRYPTO, "crypto", None),
+        )
+        declarer_le_pea()
+        for actif in (
+            fictifs.ACTIF_ETF,
+            fictifs.ACTIF_ACTION,
+            fictifs.ACTIF_FONDS,
+            fictifs.ACTIF_ACTION_B,
+            fictifs.ACTIF_CRYPTO,
+        ):
+            deposer_un_cours(actif, Date(2026, 2, 27), "10.00")
+        deposer_une_composition(fictifs.ACTIF_ETF)
+
+        assert cli.main(["exporter-positions", "--au", "2026-02-27"]) == 0
+
+        for nom in ("repartition_classes.csv", "repartition_pays.csv", "repartition_secteurs.csv"):
+            assert (dossier_personnel / nom).exists(), nom
+        assert "Répartition, avec ce qui n'y entre pas" in capsys.readouterr().out
