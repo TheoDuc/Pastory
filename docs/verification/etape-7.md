@@ -308,6 +308,12 @@ Ouvre **`repartition_pays.csv`**. Il contient une ligne par pays, puis des ligne
 **Les deux doivent être exactement égales, au centime.** Si elles ne le sont pas, un montant s'est
 évaporé et **aucun pourcentage du rapport n'est fiable** : dis-le-moi immédiatement.
 
+> **La seule exception, et elle s'annonce d'elle-même.** Si le rapport affiche un bloc
+> « **Ce qui cloche dans ces chiffres** », c'est qu'une source attribue plus que la valeur d'un
+> actif — le prêt de titres le fait légitimement. La somme dépasse alors la base, et le message dit
+> **de combien**, au centime. Rien n'est raboté ([D-69](../decisions.md)), donc l'écart est
+> exactement celui annoncé. Sans ce bloc, l'égalité doit être parfaite.
+
 Refais la même vérification sur `repartition_secteurs.csv` et `repartition_classes.csv`.
 
 - [ ] et vérifie que la colonne `base` vaut bien la **valeur de tes actifs** affichée par

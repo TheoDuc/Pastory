@@ -48,6 +48,15 @@ en revanche, on lit autre chose que ce qu'on croit.
 SOURCE_DECLAREE = "déclaré par vous dans actifs.toml"
 """L'origine d'une répartition corrigée à la main (D-70). Elle l'emporte sur toute source."""
 
+CLASSE_ACTIONS = "stock"
+"""La classe d'actifs d'une composition déclarée à la main.
+
+Le code est celui qu'emploient les sources, pour que le référentiel le reconnaisse
+(`parametres/classes_actifs.toml`).
+"""
+
+CENT = Decimal("100")
+
 
 class Rubrique(StrEnum):
     """Les trois répartitions. Elles ne se mélangent jamais (D-68)."""
@@ -376,7 +385,12 @@ class FournisseurDeCompositions:
             actif=actif,
             pays=_parts(declaration.pays),
             secteurs=_parts(declaration.secteurs),
-            classes=(),
+            # Déclarer des pays ou des secteurs, c'est décrire des **actions** : ces deux
+            # répartitions n'ont pas d'autre sens (D-68). Sans cette ligne, un actif corrigé à la
+            # main pesait 0 € dans la répartition par classe d'actifs et tombait entièrement en
+            # « non attribué » — la porte de sortie de D-70 fabriquait donc le trou qu'elle est
+            # censée combler.
+            classes=(Part(code=CLASSE_ACTIONS, pour_cent=CENT),),
             arrete_le=jour,
             intitule_de_la_date="date de lecture du fichier (une déclaration n'a pas d'arrêté)",
             source=SOURCE_DECLAREE,

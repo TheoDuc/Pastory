@@ -355,17 +355,33 @@ def _repartir(
         parts = _parts(composition, rubrique)
 
         if rubrique is Rubrique.CLASSE:
-            attribue = _accumuler(cumul, parts, valeur, rubrique)
-            cumul.non_attribue += max(ZERO, _arrondi(valeur - attribue))
+            attribue = _accumuler(cumul, parts, valeur, rubrique, referentiels)
+            reste = _arrondi(valeur - attribue)
+            if reste >= ZERO:
+                cumul.non_attribue += reste
+            elif -reste > ECART_TOLERE:
+                # La source attribue plus que la valeur de l'actif. On ne rabote pas (D-69) : la
+                # somme de cette répartition dépassera donc la valeur du portefeuille, et c'est
+                # **ce dépassement** qu'il faut expliquer, pas cacher.
+                signalements.append(
+                    _signaler_le_depassement(position, rubrique, attribue, valeur)
+                )
             continue
 
         part_actions = _part_actions(composition, referentiels)
-        valeur_actions = (
-            valeur if part_actions is None else _arrondi(valeur * part_actions / CENT)
-        )
-        cumul.hors_perimetre += _arrondi(valeur - valeur_actions)
+        if part_actions is None:
+            valeur_actions = valeur
+        else:
+            # Plafonnée à 100 % : une composition peut annoncer plus (le contrôle en accepte
+            # jusqu'à 105 %, parce que le prêt de titres fait légitimement dépasser 100). Sans ce
+            # plafond, la part hors périmètre devenait **négative**, le filtre d'affichage la
+            # cachait, et la somme des lignes dépassait la valeur du portefeuille — en ruinant
+            # justement l'invariant que le CSV promet de respecter.
+            part_actions = min(part_actions, CENT)
+            valeur_actions = _arrondi(valeur * part_actions / CENT)
+        cumul.hors_perimetre += max(ZERO, _arrondi(valeur - valeur_actions))
 
-        attribue = _accumuler(cumul, parts, valeur, rubrique)
+        attribue = _accumuler(cumul, parts, valeur, rubrique, referentiels)
         reste = _arrondi(valeur_actions - attribue)
         if reste >= ZERO:
             cumul.non_attribue += reste
@@ -375,20 +391,36 @@ def _repartir(
             # exprime ses poids sur la seule poche actions et non sur le fonds entier. On ne
             # tranche pas, et on ne rabote rien : on le dit.
             signalements.append(
-                Signalement(
-                    categorie=CATEGORIE_ECART,
-                    actif=position.actif,
-                    poche=position.poche,
-                    message=(
-                        f"la répartition par {rubrique.value} attribue "
-                        f"{_lisible(attribue)} € alors que la part en actions du fonds vaut "
-                        f"{_lisible(valeur_actions)} €. Le total de cette répartition dépasse "
-                        f"donc la valeur de l'actif. Rien n'a été corrigé : voyez la fiche de "
-                        f"l'émetteur."
-                    ),
-                )
+                _signaler_le_depassement(position, rubrique, attribue, valeur_actions)
             )
     return cumul, non_couverts, synthetiques, signalements
+
+
+def _signaler_le_depassement(
+    position: PositionValorisee, rubrique: Rubrique, attribue: Decimal, disponible: Decimal
+) -> Signalement:
+    """Dit qu'une répartition attribue plus que ce qu'il y avait à répartir.
+
+    Deux causes connues, et on ne tranche pas entre elles : le **prêt de titres**, qui fait
+    légitimement dépasser 100 % ; ou une source qui exprime ses poids sur la seule poche actions et
+    non sur le fonds entier. Dans les deux cas, rien n'est raboté ([D-69](../../docs/decisions.md)),
+    donc la somme de cette répartition dépasse la valeur du portefeuille — et **c'est ce
+    dépassement que ce message explique**, pour que le contrôle du cahier de vérification ne
+    ressemble pas à un bogue.
+    """
+    return Signalement(
+        categorie=CATEGORIE_ECART,
+        actif=position.actif,
+        poche=position.poche,
+        message=(
+            f"la répartition par {rubrique.value} attribue {_lisible(attribue)} € alors qu'il n'y "
+            f"avait que {_lisible(disponible)} € à répartir pour cet actif. Le total de cette "
+            f"répartition dépasse donc la valeur du portefeuille, de "
+            f"{_lisible(attribue - disponible)} €. Rien n'a été corrigé : la cause est soit le "
+            f"prêt de titres, soit une source qui compte ses poids sur la seule poche actions. "
+            f"Voyez la fiche de l'émetteur."
+        ),
+    )
 
 
 def _parts(
@@ -406,6 +438,7 @@ def _accumuler(
     parts: Sequence[PartDeComposition],
     valeur: Decimal,
     rubrique: Rubrique,
+    referentiels: Referentiels,
 ) -> Decimal:
     """Range les montants d'une position, et rend ce qui a été attribué."""
     attribue = ZERO
@@ -415,13 +448,32 @@ def _accumuler(
             # Un poste à 0,00 € n'apporte rien et allongerait la liste : on le laisse tomber
             # dans le non attribué, où il pèse zéro. Aucun euro n'est perdu.
             continue
-        cumul.ajouter(_cle(part.code, rubrique), montant)
+        cumul.ajouter(_cle(part.code, rubrique, referentiels), montant)
         attribue += montant
     return attribue
 
 
-def _cle(code: str, rubrique: Rubrique) -> str:
-    return code.strip().upper() if rubrique is Rubrique.PAYS else code.strip().lower()
+def _cle(code: str, rubrique: Rubrique, referentiels: Referentiels) -> str:
+    """La clé sous laquelle un poste est cumulé : **celle du référentiel**, pas celle de la source.
+
+    Sans ce passage par le référentiel, deux écritures d'un même poste feraient deux lignes : une
+    source qui répond `stock 88` et `preferred 2` afficherait « Actions 880,00 » **puis**
+    « Actions 20,00 », et un même secteur se dédoublerait sous `consumer_defense` et
+    `consumer_defensive`. Les alias de `parametres/` existent précisément pour que ces écritures se
+    rejoignent (D-65) : encore faut-il les consulter **avant** de cumuler.
+
+    Un code que le référentiel ne connaît pas garde le sien, normalisé : il sera affiché tel quel,
+    jamais rangé ailleurs (règle 5 de `CLAUDE.md`).
+    """
+    propre = code.strip()
+    if rubrique is Rubrique.PAYS:
+        # Un pays est déjà identifié par son code ISO : il n'y a pas d'alias à résoudre.
+        return propre.upper()
+    if rubrique is Rubrique.SECTEUR:
+        secteur = referentiels.secteur(propre)
+        return secteur.code if secteur is not None else propre.lower()
+    classe = referentiels.classe(propre)
+    return classe.cle if classe is not None else propre.lower()
 
 
 def _postes(

@@ -678,3 +678,35 @@ class TestAucunLibelleDuBlocNEstTronque:
         debut = texte.index("REPARTITION DU PORTEFEUILLE")
         for ligne in texte[debut:].splitlines():
             assert "liqu. " not in ligne, ligne
+
+
+class TestLesSignalementsDeLaRepartitionSontAffiches:
+    """Un signalement calculé mais jamais montré ne sert à rien (règle 6 de CLAUDE.md)."""
+
+    def test_un_depassement_est_explique_a_l_ecran(self):
+        composition = CompositionFictive(
+            pays=parts(US="100"),
+            secteurs=parts(technology="100"),
+            classes=parts(stock="50", bond="50"),
+        )
+        texte = rapport_avec_repartition(composition=composition)
+
+        assert "Ce qui cloche dans ces chiffres" in texte
+        assert "dépasse donc la valeur du portefeuille" in texte
+
+    def test_sans_signalement_le_bloc_n_apparait_pas(self):
+        texte = rapport_avec_repartition()
+
+        assert "Ce qui cloche dans ces chiffres" not in texte
+
+    def test_le_bloc_des_signalements_reste_affichable_sur_une_console_windows(self):
+        composition = CompositionFictive(
+            pays=parts(US="100"),
+            secteurs=parts(technology="100"),
+            classes=parts(stock="50", bond="50"),
+        )
+        texte = rapport_avec_repartition(composition=composition)
+
+        texte.encode("cp1252")
+        for ligne in texte.splitlines():
+            assert len(ligne) <= 100, ligne

@@ -265,3 +265,21 @@ class TestOublier:
 
         assert oublies == [ETF]
         assert fournisseur.composition(ETF).source == "reprise à la source"
+
+
+class TestUneCompositionDeclareeCompteDansLesClassesDActifs:
+    """Sans cela, la porte de sortie de D-70 fabriquait le trou qu'elle est censée combler."""
+
+    def test_un_actif_declare_a_la_main_pese_cent_pour_cent_en_actions(self):
+        declaration = etf_declare(pays={"FR": Decimal("100")})
+        fournisseur = FournisseurDeCompositions(
+            cache=CacheFictif(),
+            actifs=config(**{ETF: declaration}),
+            aujourd_hui=AUJOURD_HUI,
+        )
+
+        trouvee = fournisseur.composition(ETF)
+
+        assert [(part.code, part.pour_cent) for part in trouvee.classes] == [
+            ("stock", Decimal("100"))
+        ]

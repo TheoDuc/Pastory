@@ -841,7 +841,28 @@ def _diversification(lignes: list[str], titre: Titre, diversification: Diversifi
         )
     _restes(lignes, diversification.secteurs, avec_perimetre=True)
 
+    _ce_qui_cloche_dans_la_repartition(lignes, diversification)
     _lecture_de_la_repartition(lignes, diversification)
+
+
+def _ce_qui_cloche_dans_la_repartition(
+    lignes: list[str], diversification: Diversification
+) -> None:
+    """Ce que le moteur n'a pas pu calculer normalement, dit ici et pas seulement calculé.
+
+    Le moteur produit ces signalements pour être lus : un total de répartition qui dépasse la
+    valeur de l'actif doit s'expliquer à l'écran, sinon l'utilisateur voit un chiffre impossible
+    sans savoir pourquoi (règle 6 de `CLAUDE.md`, et [D-45](../../docs/decisions.md)).
+    """
+    if not diversification.signalements:
+        return
+
+    lignes.append("")
+    lignes.append("  Ce qui cloche dans ces chiffres")
+    for categorie, signalements in _grouper(diversification.signalements):
+        lignes.append(f"    {categorie} ({len(signalements)})")
+        for signalement in signalements:
+            lignes += _enveloppe(str(signalement), "      - ", "        ")
 
 
 def _libelle(poste) -> str:

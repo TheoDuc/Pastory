@@ -296,7 +296,7 @@ class TestUneRepartitionQuiDepasseLaPartActionsEstSignalee:
         assert resultat.pays.attribue == Decimal("1000.00")
         assert resultat.pays.non_attribue == Decimal("0.00")
         messages = [signalement.message for signalement in resultat.signalements]
-        assert any("dépasse donc la valeur de l'actif" in message for message in messages)
+        assert any("dépasse donc la valeur du portefeuille" in message for message in messages)
 
 
 class TestUneActionEnDirectEntreDansLesDeuxRepartitions:
@@ -392,3 +392,67 @@ class TestLesCasDuCahierDeVerification:
         assert resultat.pays.pour_cent(resultat.pays.non_couvert) == Decimal("23.08")
         france = next(poste for poste in resultat.pays.postes if poste.code == "FR")
         assert resultat.pays.pour_cent(france.montant) == Decimal("23.08")
+
+
+class TestLesQuatreDefautsDeLaRelecture:
+    """Les quatre défauts trouvés par la relecture indépendante, chacun avec son test."""
+
+    def test_deux_ecritures_d_un_meme_poste_ne_font_qu_une_ligne(self, referentiels):
+        # La source répond « stock 88 » et « preferred 2 » : ce sont deux écritures de la même
+        # classe d'actifs. Sans passer par le référentiel, l'écran affichait « Actions 880,00 »
+        # puis « Actions 20,00 ».
+        composition = CompositionFictive(
+            pays=parts(US="100"),
+            secteurs=parts(consumer_defense="50", consumer_defensive="50"),
+            classes=parts(stock="88", preferred="2", bond="5", convertible="5"),
+        )
+        valorisation = _valorisation(_achat(ETF, "10", "100.00"), cours={ETF: "100.00"})
+        source = SourceDeCompositionFictive({ETF: composition})
+
+        resultat = dv.diversifier(valorisation, source, referentiels)
+
+        classes = [(poste.libelle, poste.montant) for poste in resultat.classes.postes]
+        assert classes == [
+            ("Actions", Decimal("900.00")),
+            ("Obligations", Decimal("100.00")),
+        ]
+        secteurs = [(poste.libelle, poste.montant) for poste in resultat.secteurs.postes]
+        assert secteurs == [("Consommation de base", Decimal("1000.00"))]
+
+    def test_une_part_actions_au_dela_de_cent_ne_rend_pas_le_hors_perimetre_negatif(
+        self, referentiels
+    ):
+        # Le prêt de titres fait légitimement dépasser 100 %. Sans plafond, « hors périmètre »
+        # devenait négatif, le filtre d'affichage le cachait, et la somme des lignes dépassait
+        # la valeur du portefeuille — l'invariant même que le CSV promet.
+        composition = CompositionFictive(
+            pays=parts(US="100"),
+            secteurs=parts(technology="100"),
+            classes=parts(stock="100", preferred="3"),
+        )
+        valorisation = _valorisation(_achat(ETF, "10", "100.00"), cours={ETF: "100.00"})
+        source = SourceDeCompositionFictive({ETF: composition})
+
+        resultat = dv.diversifier(valorisation, source, referentiels)
+
+        # Aucun montant negatif, et aucun montant cache : c'est ce qui etait casse.
+        for repartition in resultat.repartitions:
+            assert repartition.hors_perimetre >= Decimal("0.00"), repartition.rubrique
+            assert repartition.non_attribue >= Decimal("0.00"), repartition.rubrique
+
+        # La geographie et les secteurs retombent juste : la part actions est plafonnee a 100 %.
+        for repartition in (resultat.pays, resultat.secteurs):
+            total = (
+                repartition.attribue
+                + repartition.non_attribue
+                + repartition.hors_perimetre
+                + repartition.hors_classification
+                + repartition.non_couvert
+            )
+            assert total == Decimal("1000.00"), repartition.rubrique
+
+        # La repartition par classe d'actifs, elle, depasse : la source annonce 103 %, et on ne
+        # rabote pas (D-69). Le depassement doit donc etre explique, au centime.
+        assert resultat.classes.attribue == Decimal("1030.00")
+        messages = [signalement.message for signalement in resultat.signalements]
+        assert any("de 30,00" in message for message in messages), messages
