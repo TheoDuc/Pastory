@@ -16,6 +16,7 @@ viennent les opérations (D-26).
 
 from __future__ import annotations
 
+import bisect
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import date as Date
@@ -192,6 +193,7 @@ class FournisseurDeCours:
         self.hors_ligne = hors_ligne or source is None
         self.aujourd_hui = aujourd_hui or Date.today()
         self._series: dict[str, dict[Date, Cours]] = {}
+        self._jours_tries: dict[str, list[Date]] = {}
         self._refus: dict[tuple[str, str], Refus] = {}
         self._demandes: dict[str, list[tuple[Date, Date]]] = {}
         self._en_panne: set[str] = set()
@@ -210,7 +212,7 @@ class FournisseurDeCours:
             )
             return None
 
-        trouve = dernier_jour_cote(self._serie(actif), date)
+        trouve = self._dernier_jour_cote(actif, date)
         if trouve is not None:
             return trouve
 
@@ -230,7 +232,7 @@ class FournisseurDeCours:
         # seconde produirait un refus qui affirmerait à tort que la source ne sait rien.
         if not self._date_deja_demandee(actif, date):
             self.remplir(actif, date - MARGE_AVANT, min(date + MARGE_APRES, self.aujourd_hui))
-            trouve = dernier_jour_cote(self._serie(actif), date)
+            trouve = self._dernier_jour_cote(actif, date)
             if trouve is not None:
                 return trouve
 
@@ -300,6 +302,7 @@ class FournisseurDeCours:
 
         ecrits = self.cache.ecrire(actif, recus)
         self._series.pop(actif, None)
+        self._jours_tries.pop(actif, None)
         return ecrits
 
     @property
@@ -321,6 +324,27 @@ class FournisseurDeCours:
         if actif not in self._series:
             self._series[actif] = self.cache.lire(actif)
         return self._series[actif]
+
+    def _dernier_jour_cote(self, actif: str, date: Date) -> Cours | None:
+        """Comme `dernier_jour_cote`, mais par recherche dichotomique dans les jours triés.
+
+        La valorisation jour par jour demande un cours par actif et par jour calendaire sur
+        toute la durée de détention : parcourir toute la série à chaque demande rendrait
+        l'évolution lente à mesure que le cache grossit. Le résultat est le même.
+        """
+        serie = self._serie(actif)
+        if not serie:
+            return None
+        if actif not in self._jours_tries:
+            self._jours_tries[actif] = sorted(serie)
+        jours = self._jours_tries[actif]
+        rang = bisect.bisect_right(jours, date)
+        if rang == 0:
+            return None
+        candidat = jours[rang - 1]
+        if candidat < date - RECUL_MAXIMAL:
+            return None
+        return serie[candidat]
 
     def _ce_qui_manque(self, actif: str, debut: Date, fin: Date) -> tuple[Date, Date]:
         """Réduit la période à ce que le cache ne connaît pas encore.

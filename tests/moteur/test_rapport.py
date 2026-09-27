@@ -286,6 +286,13 @@ class TestValeurEtChiffresCles:
         assert "du 2026-03-01 jusqu'au 2026-03-31" in texte
         assert "800,00" in texte  # 20 parts x 40 au soir du 28 février
 
+    def test_un_pourcentage_s_arrondit_comme_a_la_main(self):
+        # 10,125 % s'écrit 10,13 %, comme tous les arrondis du projet — pas 10,12 % comme le
+        # ferait l'arrondi « au pair » par défaut de Decimal.
+        assert rapport_moteur._pourcentage(Decimal("0.101250")) == "10,13 %"
+        assert rapport_moteur._pourcentage(Decimal("0.100050")) == "10,01 %"
+        assert rapport_moteur._pourcentage(None) == "-"
+
     def test_un_portefeuille_vide_a_une_synthese_vide(self):
         portefeuille = Portefeuille.construire([])
         resultat = synthese(portefeuille, Periode(date(2026, 3, 31)), SourceFixe())

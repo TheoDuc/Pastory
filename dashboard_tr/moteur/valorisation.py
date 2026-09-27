@@ -214,7 +214,8 @@ def valoriser_position(
             position=position,
             date=date,
             cours=None,
-            motif="aucun cours utilisable à cette date : voir le bloc « Cours de marché »",
+            motif=f"aucun cours utilisable au {date.isoformat()} ni dans les jours qui "
+            "précèdent : voir le bloc « Cours de marché »",
         )
     if cours.devise.upper() != _devise(position).upper():
         # La source vérifie déjà la devise (D-48). Le redire ici ne coûte rien, et empêche
@@ -277,13 +278,15 @@ def evolution(
     points: list[PointEvolution] = []
     jour = debut
     while jour <= fin:
-        du_jour = valoriser(portefeuille, jour, source)
+        # Une seule coupe du journal par jour : elle sert à la valeur et au capital investi.
+        ce_jour = portefeuille.au(jour)
+        du_jour = valoriser(ce_jour, jour, source)
         points.append(
             PointEvolution(
                 date=jour,
                 valeur=du_jour.total.valeur,
                 par_poche={poche: totaux.valeur for poche, totaux in du_jour.par_poche().items()},
-                capital_net_investi=portefeuille.au(jour).total.capital_net_investi,
+                capital_net_investi=ce_jour.total.capital_net_investi,
                 non_valorisees=len(du_jour.non_valorisees),
             )
         )

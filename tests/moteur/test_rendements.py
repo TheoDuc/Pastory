@@ -370,6 +370,29 @@ class TestA7CeQuiNEstPasCalculable:
         assert not resultat.calculable
         assert "aucune des positions" in (resultat.motif or "")
 
+    def test_un_cours_dans_une_autre_devise_un_jour_de_flux_arrete_le_twrr(self):
+        # La devise est vérifiée à chaque valorisation, pas seulement à la fin (D-48) : une
+        # source qui répondrait en dollars un jour de flux ne doit pas entrer dans la chaîne.
+        class SourceMelangee(SourceFixe):
+            def cours(self, actif, date):
+                trouve = super().cours(actif, date)
+                if trouve is not None and date < date.replace(month=3):
+                    return type(trouve)(valeur=trouve.valeur, date=trouve.date, devise="USD")
+                return trouve
+
+        source = SourceMelangee(cours_constant(ACTIF, "40.00", date(2026, 1, 1), date(2026, 3, 31)))
+
+        resultat = rendements(
+            Portefeuille.construire(enchainement_du_glossaire()).positions,
+            Periode(date(2026, 3, 31)),
+            source,
+        )
+
+        assert resultat.calculable  # la fin est en euros : le gain existe
+        assert resultat.twrr.taux is None
+        assert "USD" in (resultat.twrr.motif or "")
+        assert "D-48" in (resultat.twrr.motif or "")
+
     def test_un_cours_manquant_au_debut_de_la_periode_est_dit(self):
         portefeuille = Portefeuille.construire([achat("2026-01-05", "10", "20.00")])
         source = SourceFixe({ACTIF: {date(2026, 3, 31): "25.00"}})

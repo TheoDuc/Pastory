@@ -21,7 +21,7 @@ from __future__ import annotations
 import textwrap
 from collections.abc import Callable, Iterable
 from datetime import date as Date
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 from dashboard_tr import tableur
 from dashboard_tr.moteur.portefeuille import Portefeuille, Totaux
@@ -54,10 +54,14 @@ def _lisible(valeur: Decimal | None, absent: str = SANS_OBJET) -> str:
 
 
 def _pourcentage(taux: Decimal | None, absent: str = SANS_OBJET) -> str:
-    """Un taux écrit en pour cent, à deux décimales : « 10,00 % »."""
+    """Un taux écrit en pour cent, à deux décimales : « 10,00 % ».
+
+    Arrondi « comme à la main » (`ROUND_HALF_UP`), comme partout dans le projet : 10,125 %
+    s'écrit 10,13 %, pas 10,12 %.
+    """
     if taux is None:
         return absent
-    return f"{_lisible((taux * 100).quantize(Decimal('0.01')))} %"
+    return f"{_lisible((taux * 100).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))} %"
 
 
 def _enveloppe(texte: str, marge: str, suite: str) -> list[str]:
@@ -169,6 +173,10 @@ def _positions(lignes: list[str], titre: Titre, portefeuille: Portefeuille) -> N
 LARGEUR_NOM_VALEUR = 24
 """Un peu plus étroit que dans le tableau des positions : il faut loger le cours et le gain."""
 
+LARGEUR_LIBELLE_VALEUR = 14 + 1 + LARGEUR_NOM_VALEUR + 1 + 10 + 1 + 12
+"""Actif, nom, quantité et cours, séparateurs compris : un sous-total écrit sur cette largeur
+tombe exactement sous la colonne « valeur »."""
+
 ENTETE_VALEUR = (
     f"  {'actif':<14} {'nom':<{LARGEUR_NOM_VALEUR}} {'quantité':>10} {'cours':>12} "
     f"{'valeur':>14} {'gain':>12}"
@@ -209,8 +217,7 @@ def _valeur(lignes: list[str], titre: Titre, synthese: Synthese) -> None:
             _ligne_valeur(lignes, position, synthese.de(position.position))
         totaux = par_poche[poche]
         lignes.append(
-            f"  {'valeur de la poche':<{14 + 1 + LARGEUR_NOM_VALEUR + 1 + 10 + 1 + 12}} "
-            f"{_lisible(totaux.valeur):>14}"
+            f"  {'valeur de la poche':<{LARGEUR_LIBELLE_VALEUR}} {_lisible(totaux.valeur):>14}"
         )
         if not totaux.complet:
             lignes.append(
@@ -220,10 +227,7 @@ def _valeur(lignes: list[str], titre: Titre, synthese: Synthese) -> None:
 
     total = valorisation.total
     lignes.append("")
-    lignes.append(
-        f"  {'valeur totale':<{14 + 1 + LARGEUR_NOM_VALEUR + 1 + 10 + 1 + 12}} "
-        f"{_lisible(total.valeur):>14}"
-    )
+    lignes.append(f"  {'valeur totale':<{LARGEUR_LIBELLE_VALEUR}} {_lisible(total.valeur):>14}")
 
     if valorisation.non_valorisees:
         lignes.append("")
@@ -322,10 +326,9 @@ def _chiffres_cles(lignes: list[str], titre: Titre, synthese: Synthese) -> None:
         cellules = "".join(f" {valeur(r):>{LARGEUR_COLONNE_CLES}}" for _, r in colonnes)
         lignes.append(f"  {libelle:<{LARGEUR_LIBELLE_CLES}}{cellules}")
 
-    ligne("", lambda r: "")
-    lignes[-1] = f"  {'':<{LARGEUR_LIBELLE_CLES}}" + "".join(
-        f" {nom:>{LARGEUR_COLONNE_CLES}}" for nom, _ in colonnes
-    )
+    # L'en-tête : le nom de chaque colonne, aligné comme ses chiffres.
+    entete = "".join(f" {nom:>{LARGEUR_COLONNE_CLES}}" for nom, _ in colonnes)
+    lignes.append(f"  {'':<{LARGEUR_LIBELLE_CLES}}{entete}")
     ligne("valeur au début", lambda r: _lisible(r.valeur_debut))
     ligne("achats (titres reçus compris)", lambda r: _lisible(r.achats))
     ligne("ventes", lambda r: _lisible(r.ventes))

@@ -909,15 +909,18 @@ class TestValorisationEtRendements:
         assert code == 0
         assert "du 2026-03-01 jusqu'au 2026-03-31" in affichage
 
-    def test_une_periode_a_l_envers_est_refusee_avec_un_message(self, export, capsys):
+    def test_une_periode_a_l_envers_est_refusee_avant_toute_lecture(self, export, capsys):
         self.preparer()
 
         code = cli.main(
             ["positions", "--hors-ligne", "--depuis", "2026-06-01", "--au", "2026-03-31"]
         )
+        sortie = capsys.readouterr()
 
         assert code == 1
-        assert "après la fin" in capsys.readouterr().err
+        assert "après la fin" in sortie.err
+        # Rien n'a été lu ni calculé : une période impossible se refuse tout de suite.
+        assert sortie.out == ""
 
     def test_exporter_positions_ecrit_les_six_fichiers(self, export, capsys):
         self.preparer()
@@ -940,6 +943,12 @@ class TestValorisationEtRendements:
 
         valorisation = (personnel / "valorisation.csv").read_text(encoding="utf-8-sig")
         assert "39,00" in valorisation
+        # Le bloc « Cours de marché » est écrit après la construction de l'évolution : les
+        # refus qu'elle rencontre y figurent. Ici, entre le 27 février et le 27 mars, il n'y a
+        # aucun cours : dès le 10 mars, le dernier connu a plus de dix jours, et l'évolution le
+        # dit — ce que ni la complétion ni la valorisation au 31 mars n'auraient signalé.
+        assert "cours indisponible" in affichage
+        assert "2026-03-10" in affichage
         evolution = (personnel / "evolution.csv").read_text(encoding="utf-8-sig").splitlines()
         # Un jour par ligne, de la première opération (2 janvier) au 31 mars : 89 jours.
         assert len(evolution) == 1 + 89

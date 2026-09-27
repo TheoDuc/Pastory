@@ -33,7 +33,7 @@ from dashboard_tr import tableur
 from dashboard_tr.moteur.portefeuille import Portefeuille
 from dashboard_tr.moteur.position import EtatPosition, LigneJournal, Position
 from dashboard_tr.moteur.rendements import PAS_DU_TAUX, Rendements, Synthese
-from dashboard_tr.moteur.valorisation import PointEvolution
+from dashboard_tr.moteur.valorisation import PointEvolution, PositionValorisee
 from dashboard_tr.pivot.operation import Poche
 
 NOM_POSITIONS = "positions.csv"
@@ -249,12 +249,12 @@ COLONNES_SOUS_PERIODES = (
 COLONNES_EVOLUTION = (
     "date",
     "valeur_totale",
-    "valeur_PEA",
-    "valeur_CTO",
-    "valeur_crypto",
+    *(f"valeur_{poche.value}" for poche in Poche),
     "capital_net_investi",
     "positions_non_valorisees",
 )
+"""Une colonne par poche, tirée de l'énumération : une poche de plus ne peut pas manquer ici
+sans manquer partout, et la somme des colonnes de poche retombe toujours sur le total."""
 
 
 def _taux(taux: Decimal | None) -> str:
@@ -280,22 +280,21 @@ def _remarque_rendements(rendements: Rendements | None) -> list[str]:
     return raisons
 
 
-def _ligne_valorisation(synthese: Synthese, position: Position) -> dict[str, str]:
+def _ligne_valorisation(
+    synthese: Synthese,
+    position: Position,
+    valorisees: Mapping[tuple[str, Poche], PositionValorisee],
+) -> dict[str, str]:
     """Une position à la fin de la période : détenue et valorisée, détenue sans cours, ou
     déjà soldée (valeur nulle, mais un gain sur la période)."""
-    valorisee = next(
-        (
-            candidate
-            for candidate in synthese.valorisation.positions
-            if candidate.actif == position.actif and candidate.poche is position.poche
-        ),
-        None,
-    )
+    valorisee = valorisees.get((position.actif, position.poche))
     rendements = synthese.de(position)
     cours = valorisee.cours if valorisee is not None else None
+    # La position reçue peut ne pas être coupée à la fin de la période : on s'en assure.
     detenue = position.jusqu_au(synthese.periode.fin).etat
 
-    remarques = [remarque(detenue)] if remarque(detenue) else []
+    reserve = remarque(detenue)
+    remarques = [reserve] if reserve else []
     if valorisee is not None and not valorisee.valorisee:
         remarques.append(valorisee.motif or "non valorisée")
     remarques += _remarque_rendements(rendements)
@@ -337,9 +336,16 @@ def _ligne_valorisation(synthese: Synthese, position: Position) -> dict[str, str
 def ecrire_valorisation(portefeuille: Portefeuille, synthese: Synthese, fichier: Path) -> Path:
     """Écrit `valorisation.csv` : **toutes** les positions, soldées comprises, pour que la
     colonne « gain » s'additionne en le gain total."""
+    valorisees = {
+        (valorisee.actif, valorisee.poche): valorisee
+        for valorisee in synthese.valorisation.positions
+    }
     return tableur.ecrire(
         COLONNES_VALORISATION,
-        (_ligne_valorisation(synthese, position) for position in portefeuille.positions),
+        (
+            _ligne_valorisation(synthese, position, valorisees)
+            for position in portefeuille.positions
+        ),
         fichier,
     )
 
@@ -376,26 +382,22 @@ def _ligne_flux(
 
 
 def _lignes_de_flux(synthese: Synthese) -> Iterator[Mapping[str, str]]:
-    """La table de `TRI.PAIEMENTS`, groupe par groupe : `−V_début`, les flux, `+V_fin`."""
+    """La table de `TRI.PAIEMENTS`, groupe par groupe : **celle-là même** sur laquelle le
+    TRI a été calculé (`Rendements.table_du_tri`), ligne pour ligne."""
     for nom, rendements in _groupes(synthese):
         if not rendements.calculable:
             continue
-        if rendements.valeur_debut and rendements.periode.veille is not None:
-            yield _ligne_flux(
-                nom, rendements.periode.veille, -rendements.valeur_debut, "valeur au début"
-            )
-        for flux in rendements.flux:
+        for ligne in rendements.table_du_tri:
+            flux = ligne.flux
             yield _ligne_flux(
                 nom,
-                flux.date,
-                flux.montant,
-                flux.type.value,
-                flux.actif,
-                flux.poche.value,
-                flux.identifiant,
+                ligne.date,
+                ligne.montant,
+                ligne.libelle,
+                flux.actif if flux else "",
+                flux.poche.value if flux else "",
+                flux.identifiant if flux else "",
             )
-        if rendements.valeur_fin:
-            yield _ligne_flux(nom, rendements.periode.fin, rendements.valeur_fin, "valeur à la fin")
 
 
 def ecrire_flux(synthese: Synthese, fichier: Path) -> Path:
@@ -429,9 +431,10 @@ def _ligne_evolution(point: PointEvolution) -> dict[str, str]:
     return {
         "date": point.date.isoformat(),
         "valeur_totale": tableur.nombre(point.valeur),
-        "valeur_PEA": tableur.nombre(point.par_poche.get(Poche.PEA, zero)),
-        "valeur_CTO": tableur.nombre(point.par_poche.get(Poche.CTO, zero)),
-        "valeur_crypto": tableur.nombre(point.par_poche.get(Poche.CRYPTO, zero)),
+        **{
+            f"valeur_{poche.value}": tableur.nombre(point.par_poche.get(poche, zero))
+            for poche in Poche
+        },
         "capital_net_investi": tableur.nombre(point.capital_net_investi),
         "positions_non_valorisees": str(point.non_valorisees),
     }

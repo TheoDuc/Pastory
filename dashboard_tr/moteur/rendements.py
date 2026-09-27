@@ -38,11 +38,11 @@ from decimal import ROUND_HALF_UP, Decimal
 from dashboard_tr.moteur.portefeuille import Portefeuille
 from dashboard_tr.moteur.position import Position
 from dashboard_tr.moteur.valorisation import (
-    CENTIME,
     PositionValorisee,
     SourceDeValorisation,
     Valorisation,
     valoriser,
+    valoriser_position,
     valoriser_positions,
 )
 from dashboard_tr.pivot.operation import Poche, TypeOperation
@@ -133,6 +133,19 @@ class Flux:
     @property
     def montant_brut(self) -> Decimal:
         return abs(self.montant)
+
+
+@dataclass(frozen=True)
+class LigneDuTri:
+    """Une ligne de la table du TRI : une date, un montant signé, et ce que c'est."""
+
+    date: Date
+    montant: Decimal
+    libelle: str
+    """`valeur au début`, le type de l'opération, ou `valeur à la fin`."""
+
+    flux: Flux | None = None
+    """Le flux d'origine, quand la ligne en est un."""
 
 
 class NonCalculable(Exception):
@@ -390,16 +403,27 @@ class Rendements:
         return self.total_des(TypeOperation.DISTRIBUTION_CAPITAL)
 
     @property
-    def flux_dates(self) -> list[tuple[Date, Decimal]]:
+    def table_du_tri(self) -> list[LigneDuTri]:
         """La table à coller dans un tableur : dates et montants signés, `−V_début` et
-        `+V_fin` compris. `TRI.PAIEMENTS(montants ; dates)` doit redonner le TRI."""
-        table: list[tuple[Date, Decimal]] = []
+        `+V_fin` compris. `TRI.PAIEMENTS(montants ; dates)` doit redonner le TRI.
+
+        C'est **la** table : le TRI est calculé dessus, et `flux.csv` l'écrit telle quelle.
+        Les deux ne peuvent donc pas diverger.
+        """
+        table: list[LigneDuTri] = []
         if self.valeur_debut and self.periode.veille is not None:
-            table.append((self.periode.veille, -self.valeur_debut))
-        table += [(flux.date, flux.montant) for flux in self.flux]
+            table.append(LigneDuTri(self.periode.veille, -self.valeur_debut, "valeur au début"))
+        table += [
+            LigneDuTri(flux.date, flux.montant, flux.type.value, flux) for flux in self.flux
+        ]
         if self.valeur_fin:
-            table.append((self.periode.fin, self.valeur_fin))
+            table.append(LigneDuTri(self.periode.fin, self.valeur_fin, "valeur à la fin"))
         return table
+
+    @property
+    def flux_dates(self) -> list[tuple[Date, Decimal]]:
+        """La même table, réduite à ce que `tri()` consomme."""
+        return [(ligne.date, ligne.montant) for ligne in self.table_du_tri]
 
 
 def _valeur(
@@ -411,19 +435,20 @@ def _valeur(
     """Parts détenues à la fin de `jour_des_parts` × cours de clôture de `jour_du_cours`.
 
     Un cours n'est demandé que s'il y a des parts : avant le premier achat, la valeur est
-    zéro sans qu'aucune source n'ait à répondre.
+    zéro sans qu'aucune source n'ait à répondre. La multiplication et ses garde-fous (devise,
+    arrondi) sont ceux de `valoriser_position` : une seule façon de valoriser dans le moteur.
     """
     total = ZERO
     for position in positions:
-        quantite = position.jusqu_au(jour_des_parts).etat.quantite
-        if quantite <= 0:
+        coupee = position.jusqu_au(jour_des_parts)
+        if not coupee.etat.detenue:
             continue
-        cours = source.cours(position.actif, jour_du_cours)
-        if cours is None:
+        valorisee = valoriser_position(coupee, jour_du_cours, source)
+        if valorisee.valeur is None:
             raise NonCalculable(
-                f"aucun cours utilisable au {jour_du_cours.isoformat()} pour {position.actif}"
+                f"{position.actif} au {jour_du_cours.isoformat()} : {valorisee.motif}"
             )
-        total += (quantite * cours.valeur).quantize(CENTIME, rounding=ROUND_HALF_UP)
+        total += valorisee.valeur
     return total
 
 

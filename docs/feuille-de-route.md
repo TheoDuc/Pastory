@@ -242,9 +242,16 @@ dès qu'on vendait tout légèrement au-dessus de la clôture.
 Les cas du cahier sont construits pour tomber juste — 10,00 % exactement, un TWRR de 0 % contre
 un TRI de −26,79 % sur le même portefeuille — et chacun est un test.
 
-**Reste à faire avant la fusion :** la relecture indépendante, puis la vérification du
-propriétaire (partie B du cahier : la valeur par position face à l'application, le TRI dans un
-tableur).
+La relecture indépendante a rendu dix remarques, toutes traitées : le garde-fou de devise
+manquait dans la chaîne du TWRR (il est désormais le même partout), un pourcentage s'arrondissait
+« au pair », une période à l'envers n'était refusée qu'après avoir tout lu, les refus rencontrés
+en construisant l'évolution n'étaient pas affichés, et la table de `flux.csv` était écrite
+séparément de celle qui sert au TRI (elles sont maintenant une seule). Le fournisseur de cours
+cherche le dernier jour coté par dichotomie : l'évolution jour par jour ne ralentit plus avec la
+taille du cache.
+
+**Reste à faire avant la fusion :** la vérification du propriétaire (partie B du cahier : la
+valeur par position face à l'application, le TRI dans un tableur).
 
 **Claude :**
 - Implémente les formules du glossaire (et Q-25 pour les dividendes).

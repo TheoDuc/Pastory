@@ -344,6 +344,12 @@ class TestSousPeriodes:
 
 
 class TestEvolution:
+    def test_une_colonne_par_poche_tiree_de_l_enumeration(self):
+        # Une poche de plus ne peut pas manquer au fichier sans manquer partout ailleurs : la
+        # somme des colonnes de poche doit toujours retomber sur le total.
+        for poche in Poche:
+            assert f"valeur_{poche.value}" in export_csv.COLONNES_EVOLUTION
+
     def test_un_jour_par_ligne_avec_les_poches(self, tmp_path):
         points = valorisation.evolution(
             portefeuille_a_deux_actifs(),

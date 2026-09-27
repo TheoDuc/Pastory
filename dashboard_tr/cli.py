@@ -393,8 +393,9 @@ def _rapport_des_cours(completion: Completion, refus: Sequence[Refus]) -> list[s
 
     if refus:
         lignes.append("")
-        lignes.append("  Ce que la source de cours a refusé (les actifs concernés ne sont pas")
-        lignes.append("  valorisés, et sortent des totaux) :")
+        lignes.append("  Ce que la source de cours a refusé, avec la date demandée quand elle")
+        lignes.append("  compte. Un actif détenu sans cours à la date de valorisation sort des")
+        lignes.append("  totaux : voir « Non valorisés » dans le rapport.")
     for un_refus in refus:
         lignes += _enveloppe_cours(f"{un_refus.categorie} : {un_refus.motif}", un_refus.actif)
 
@@ -425,14 +426,22 @@ class Construit:
     synthese: rendements_moteur.Synthese
 
 
-def _periode(au: Date | None, depuis: Date | None) -> rendements_moteur.Periode:
-    """La période des chiffres clés. Sans `--au`, elle finit aujourd'hui — valorisé à la
-    dernière clôture connue, puisque la séance du jour n'est pas close (D-52)."""
-    return rendements_moteur.Periode(fin=au or Date.today(), debut=depuis)
+def _periode(au: Date | None, depuis: Date | None) -> rendements_moteur.Periode | None:
+    """La période des chiffres clés, ou `None` avec un message si elle est à l'envers.
+
+    Sans `--au`, elle finit aujourd'hui — valorisé à la dernière clôture connue, puisque la
+    séance du jour n'est pas close (D-52). Vérifiée **avant** toute lecture : une période
+    impossible ne doit pas coûter un export lu et des cours demandés pour rien.
+    """
+    try:
+        return rendements_moteur.Periode(fin=au or Date.today(), debut=depuis)
+    except ValueError as erreur:
+        print(erreur, file=sys.stderr)
+        return None
 
 
 def _construire_moteur(
-    dossier: Path, au: Date | None, hors_ligne: bool = False, depuis: Date | None = None
+    dossier: Path, periode: rendements_moteur.Periode, hors_ligne: bool = False
 ) -> Construit | None:
     """Lecture, complétion des prix, rejeu, puis valorisation et rendements.
 
@@ -456,7 +465,6 @@ def _construire_moteur(
     fournisseur = _fournisseur_de_cours(hors_ligne)
     completion = completion_cours.completer_les_prix(rapport.operations, fournisseur)
 
-    periode = _periode(au, depuis)
     portefeuille = Portefeuille.construire(completion.operations).au(periode.fin)
     synthese = rendements_moteur.synthese(portefeuille, periode, fournisseur)
     return Construit(
@@ -478,8 +486,11 @@ def commande_positions(
 ) -> int:
     """Affiche les positions calculées par le moteur, sans rien écrire."""
     dossier = dossier_export or source.dossier_par_defaut()
+    periode = _periode(au, depuis)
+    if periode is None:
+        return CODE_ECHEC
     try:
-        construit = _construire_moteur(dossier, au, hors_ligne, depuis)
+        construit = _construire_moteur(dossier, periode, hors_ligne)
         if construit is None:
             return CODE_DECLARATION_ATTENDUE
         # Le portefeuille de la banque est une photo d'**aujourd'hui** : le comparer à un
@@ -499,10 +510,6 @@ def commande_positions(
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
     except CacheIllisible as erreur:
-        print(erreur, file=sys.stderr)
-        return CODE_ECHEC
-    except ValueError as erreur:
-        # Une période à l'envers : « --depuis » après « --au ».
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
 
@@ -548,8 +555,11 @@ def commande_exporter_positions(
 ) -> int:
     """Écrit les six CSV du moteur dans le dossier personnel."""
     dossier = dossier_export or source.dossier_par_defaut()
+    periode = _periode(au, depuis)
+    if periode is None:
+        return CODE_ECHEC
     try:
-        construit = _construire_moteur(dossier, au, hors_ligne, depuis)
+        construit = _construire_moteur(dossier, periode, hors_ligne)
         if construit is None:
             return CODE_DECLARATION_ATTENDUE
     except source.ExportIntrouvable as erreur:
@@ -561,13 +571,8 @@ def commande_exporter_positions(
     except CacheIllisible as erreur:
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
-    except ValueError as erreur:
-        print(erreur, file=sys.stderr)
-        return CODE_ECHEC
 
     for ligne in construit.entete:
-        print(ligne)
-    for ligne in _rapport_des_cours(construit.completion, construit.fournisseur.refus):
         print(ligne)
 
     portefeuille, synthese = construit.portefeuille, construit.synthese
@@ -597,6 +602,12 @@ def commande_exporter_positions(
     fichier_evolution = export_moteur.ecrire_evolution(
         points, personnel / export_moteur.NOM_EVOLUTION
     )
+
+    # Après l'évolution, et non avant : elle demande un cours par jour, et ses refus doivent
+    # figurer dans ce bloc — sans quoi une colonne « positions_non_valorisees » à 1 n'aurait
+    # d'explication nulle part.
+    for ligne in _rapport_des_cours(construit.completion, construit.fournisseur.refus):
+        print(ligne)
 
     print(f"\n{len(portefeuille.positions)} position(s) écrite(s) dans :\n  {fichier_positions}")
     lignes = sum(len(position.journal) for position in portefeuille.positions)
