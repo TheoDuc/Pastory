@@ -1,0 +1,41 @@
+# Les taux et seuils de l'impôt estimé (D-58, D-60).
+#
+# Chaque paramètre porte sa valeur, son unité, la date depuis laquelle il s'applique, la source
+# officielle qui le donne, et le jour où quelqu'un l'a vérifié. Un paramètre sans date ou sans
+# source est refusé à la lecture. Quand la loi change, c'est ce fichier qu'on modifie, pas le
+# code — et c'est ce fichier que le rapport cite à côté de chaque impôt estimé.
+#
+# Rappel : l'application ESTIME un impôt, elle ne le déclare pas (D-26). Les hypothèses sont dans
+# docs/couts-et-fiscalite.md §5.
+
+[impot_sur_le_revenu.taux_forfaitaire]
+valeur = 12.8
+unite = "pour cent"
+en_vigueur_depuis = 2018-01-01
+source = "CGI art. 200 A, 1, B, 1° (CTO et PEA de moins de 5 ans) et art. 200 C (crypto-actifs) : https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000053546896 ; https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000044983192"
+verifie_le = 2026-09-27
+note = "Le prélèvement forfaitaire unique s'applique de plein droit ; l'option pour le barème progressif n'est pas estimée."
+
+[prelevements_sociaux.taux]
+valeur = 18.6
+unite = "pour cent"
+en_vigueur_depuis = 2026-01-01
+source = "CSS art. L. 136-8, I, 2° (CSG 10,6 %) ; ordonnance 96-50 art. 19 (CRDS 0,5 %) ; CGI art. 235 ter (solidarité 7,5 %) ; LFSS 2026, loi 2025-1403 du 30/12/2025, art. 12 : https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000053278668 ; https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000053226384 ; recoupé sur https://www.impots.gouv.fr/particulier/questions/jai-un-plan-depargne-en-actions-pea-les-retraits-sont-ils-imposables"
+verifie_le = 2026-09-27
+note = "Plus-values mobilières et crypto : dès les revenus 2025 ; gain du PEA : retraits à compter du 1er janvier 2026, sur tout le gain d'un plan ouvert depuis 2018. Avant : 17,2 %."
+
+[pea.duree_exoneration_ir]
+valeur = 5
+unite = "ans"
+en_vigueur_depuis = 2019-05-24
+source = "CMF art. L. 221-32 (loi PACTE) ; CGI art. 150-0 A, II, 2 ; BOI-RPPM-RCM-40-50-40 § 310 : https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000038612518 ; https://bofip.impots.gouv.fr/bofip/2220-PGP.html/identifiant=BOI-RPPM-RCM-40-50-40-20240730"
+verifie_le = 2026-09-27
+note = "Compté depuis le premier versement. Avant cette durée, un retrait est imposé au taux forfaitaire et clôture le plan ; après, seuls les prélèvements sociaux restent dus."
+
+[crypto.seuil_exoneration]
+valeur = 305
+unite = "euros"
+en_vigueur_depuis = 2019-01-01
+source = "CGI art. 150 VH bis, II, B : https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000038612228"
+verifie_le = 2026-09-27
+note = "Exonération si la somme des prix de cession de l'année ne dépasse pas ce seuil ; au-delà, toutes les cessions de l'année sont imposables."

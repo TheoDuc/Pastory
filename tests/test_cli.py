@@ -6,6 +6,7 @@ doit écrire dans le vrai dossier personnel** de la personne qui lance la suite.
 
 from __future__ import annotations
 
+import csv
 import json
 from datetime import date as Date
 from decimal import Decimal
@@ -17,9 +18,10 @@ from dashboard_tr.adaptateurs.trade_republic import portefeuille as portefeuille
 from dashboard_tr.config import actifs as config_actifs
 from dashboard_tr.config import comptes as config_comptes
 from dashboard_tr.config import emplacements
-from dashboard_tr.config.actifs import Proposition
+from dashboard_tr.config import fiscalite as config_fiscalite
+from dashboard_tr.config.actifs import FraisCourantsProposes, Proposition, TypeActif
 from dashboard_tr.donnees_externes.cache import Cache
-from dashboard_tr.donnees_externes.cours import Cours
+from dashboard_tr.donnees_externes.cours import Cours, ErreurDeSource
 from tests.adaptateurs.trade_republic import evenements_fictifs as fictifs
 
 
@@ -29,6 +31,60 @@ def dossier_personnel(tmp_path, monkeypatch):
     personnel = tmp_path / "personnel"
     monkeypatch.setenv("DASHBOARD_TR_DOSSIER", str(personnel))
     return personnel
+
+
+@pytest.fixture(autouse=True)
+def aucun_appel_a_xetra(monkeypatch):
+    """Coupe la liste des ETF de Xetra par défaut : **aucun test ne sort de la machine**.
+
+    Même raison que la fixture précédente, et même forme : le garde-fou est automatique,
+    pour qu'un test écrit plus tard ne puisse pas appeler le service par simple oubli. Les
+    tests qui ont besoin d'une liste la fournissent avec `brancher_la_liste_des_etf`.
+    """
+
+    def refuser():
+        raise ErreurDeSource("aucun appel réseau dans les tests")
+
+    monkeypatch.setattr(cli, "_liste_des_etf", refuser)
+
+
+class ListeFictive:
+    """La liste des ETF réduite à un dictionnaire : `{actif: (ter, nom, politique)}`."""
+
+    def __init__(self, contenu, date_deffet=Date(2026, 9, 28)):
+        self.contenu = contenu
+        self.date = date_deffet
+
+    def __len__(self):
+        return len(self.contenu)
+
+    def frais_courants(self, actif):
+        if actif not in self.contenu:
+            return None
+        ter, nom, politique = self.contenu[actif]
+        return FraisCourantsProposes(
+            ter_pour_cent=Decimal(ter),
+            source="liste de test",
+            nom=nom,
+            politique=politique,
+            date=self.date,
+        )
+
+
+def brancher_la_liste_des_etf(monkeypatch, contenu):
+    """Remplace la liste des ETF par une liste écrite à la main."""
+    monkeypatch.setattr(cli, "_liste_des_etf", lambda: ListeFictive(contenu))
+
+
+def lire_csv(fichier):
+    """Relit un CSV du moteur comme le ferait un tableur : point-virgule et BOM (tableur.py)."""
+    with fichier.open(encoding=tableur.ENCODAGE, newline="") as flux:
+        return list(csv.DictReader(flux, delimiter=tableur.SEPARATEUR))
+
+
+def montant(texte):
+    """Un nombre écrit à la française, relu comme le tableur le relirait."""
+    return Decimal(texte.replace(",", "."))
 
 
 def _deposer_export(dossier):
@@ -992,3 +1048,306 @@ class TestValorisationEtRendements:
         assert code == 0
         assert f"Valeur des actifs au {Date.today().isoformat()}" in affichage
         assert "Non valorisés" in affichage
+
+
+# --- Étape 6 : les coûts estimés, la valeur réelle, et le TER proposé ------------------
+
+
+def declarer_les_actifs_complets(*declarations):
+    """Le fichier qu'aurait laissé l'assistant après relecture, type et TER compris.
+
+    Chaque déclaration est un triplet `(actif, type, TER)` ; un TER à `None` est un actif dont
+    l'utilisateur n'a pas encore validé les frais courants.
+    """
+    fichier = config_actifs.chemin()
+    fichier.parent.mkdir(parents=True, exist_ok=True)
+    lignes = ["[actifs]"]
+    for numero, (actif, type_actif, ter) in enumerate(declarations, start=1):
+        champs = [f'ticker = "T{numero}.DE"', 'devise = "EUR"', f'type = "{type_actif}"']
+        if ter is not None:
+            champs.append(f"ter_pour_cent = {ter}")
+        lignes.append(f'"{actif}" = {{ {", ".join(champs)} }}')
+    fichier.write_text("\n".join(lignes) + "\n", encoding="utf-8")
+
+
+def declarer_le_pea(premier_versement="2021-03-01"):
+    fichier = config_fiscalite.chemin()
+    fichier.parent.mkdir(parents=True, exist_ok=True)
+    fichier.write_text(
+        f"[pea]\npremier_versement = {premier_versement}\n", encoding="utf-8"
+    )
+
+
+class TestCoutsEstimesEtValeurReelle:
+    """Les trois blocs de l'étape 6, sur l'export fictif, avec des cours en cache."""
+
+    def preparer(self, avec_type=True):
+        """Les deux positions détenues au 28 février : un ETF en CTO, une action en PEA.
+
+        Les déclarer toutes les deux est nécessaire : la valeur réelle d'une poche n'existe
+        que si **toutes** ses positions ont un cours (D-53), et l'impôt du PEA se calcule sur
+        le plan entier.
+        """
+        nommer_les_comptes(POCHE_CORRIGEE)
+        if avec_type:
+            declarer_les_actifs_complets(
+                (fictifs.ACTIF_ETF, "etf", "0.20"), (fictifs.ACTIF_ACTION, "action", None)
+            )
+        else:
+            declarer_les_actifs(fictifs.ACTIF_ETF, fictifs.ACTIF_ACTION)
+        deposer_un_cours(fictifs.ACTIF_ETF, Date(2026, 2, 27), "30.00")
+        deposer_un_cours(fictifs.ACTIF_ACTION, Date(2026, 2, 27), "25.00")
+
+    def test_le_rapport_montre_les_couts_payes_avec_leur_poids(self, export, capsys):
+        self.preparer()
+
+        assert cli.main(["positions", "--hors-ligne", "--au", "2026-02-28"]) == 0
+
+        affichage = capsys.readouterr().out
+        assert "Coûts payés du" in affichage
+        assert "poids" in affichage
+
+    def test_le_rapport_montre_le_spread_et_les_frais_courants_estimes(self, export, capsys):
+        self.preparer()
+
+        cli.main(["positions", "--hors-ligne", "--au", "2026-02-28"])
+
+        affichage = capsys.readouterr().out
+        assert "Coûts estimés, jamais facturés" in affichage
+        assert "ECART DE PRIX (SPREAD)" in affichage
+        assert "FRAIS COURANTS DES ETF" in affichage
+        # Le spread est déjà dans le prix : le rapport doit le dire, sinon on le croit facturé.
+        assert "aucun relevé ne le montre" in affichage
+
+    def test_le_rapport_montre_la_valeur_reelle_et_ses_retenues(self, export, capsys):
+        self.preparer()
+        declarer_le_pea()
+
+        cli.main(["positions", "--hors-ligne", "--au", "2026-02-28"])
+
+        affichage = capsys.readouterr().out
+        assert "Valeur réelle au 2026-02-28" in affichage
+        assert "frais de vente estimés" in affichage
+        assert "écart de prix estimé" in affichage
+        assert "impôt estimé" in affichage
+        assert "VALEUR REELLE" in affichage
+        # Chaque taux dit d'où il vient, et le calcul dit ce qu'il suppose.
+        assert "D'où viennent les taux" in affichage
+        assert "Ce que ce calcul suppose" in affichage
+        # Les deux poches détenues ont chacune leur colonne et leur règle.
+        assert "PEA" in affichage and "CTO" in affichage
+
+    def test_le_rapport_cite_le_taux_de_2026_et_sa_source(self, export, capsys):
+        self.preparer()
+        declarer_le_pea()
+
+        cli.main(["positions", "--hors-ligne", "--au", "2026-02-28"])
+
+        affichage = capsys.readouterr().out
+        assert "18,6 %" in affichage
+        assert "legifrance" in affichage
+
+    def test_sans_date_de_pea_la_poche_dit_quoi_ecrire(self, export, capsys):
+        """D-59 : l'ancienneté décide du taux, elle ne se devine pas."""
+        self.preparer()
+
+        cli.main(["positions", "--hors-ligne", "--au", "2026-02-28"])
+
+        affichage = capsys.readouterr().out
+        assert "fiscalite.toml" in affichage
+
+    def test_une_date_de_pea_mal_ecrite_est_expliquee_sans_trace(self, export, capsys):
+        self.preparer()
+        declarer_le_pea('"2021-03-01"')
+
+        code = cli.main(["positions", "--hors-ligne", "--au", "2026-02-28"])
+
+        assert code == cli.CODE_ECHEC
+        assert "sans guillemets" in capsys.readouterr().err
+
+    def test_un_actif_sans_type_declare_sort_de_la_valeur_reelle(self, export, capsys):
+        """D-55 : sans type, pas de spread estimé, donc pas de valeur réelle pour cet actif."""
+        self.preparer(avec_type=False)
+
+        cli.main(["positions", "--hors-ligne", "--au", "2026-02-28"])
+
+        affichage = capsys.readouterr().out
+        assert "actifs.toml" in affichage
+        assert "PARTIEL" in affichage
+
+    def test_les_deux_csv_de_l_etape_sont_ecrits(self, export, dossier_personnel, capsys):
+        self.preparer()
+        declarer_le_pea()
+
+        assert cli.main(["exporter-positions", "--hors-ligne", "--au", "2026-02-28"]) == 0
+
+        couts = dossier_personnel / "couts.csv"
+        valeur = dossier_personnel / "valeur_reelle.csv"
+        assert couts.exists()
+        assert valeur.exists()
+        affichage = capsys.readouterr().out
+        assert "couts.csv" in affichage
+        assert "valeur_reelle.csv" in affichage
+
+    def test_le_csv_des_couts_retombe_sur_celui_des_positions(
+        self, export, dossier_personnel
+    ):
+        """Le contrôle du cahier : les deux fichiers doivent dire le même total, sinon on ne
+        sait plus lequel croire."""
+        self.preparer()
+
+        cli.main(["exporter-positions", "--hors-ligne", "--au", "2026-02-28"])
+
+        couts = lire_csv(dossier_personnel / "couts.csv")
+        positions = lire_csv(dossier_personnel / "positions.csv")
+        paye = sum(montant(ligne["cout_paye"]) for ligne in couts)
+        attendu = sum(
+            montant(ligne["frais"]) + montant(ligne["taxes"]) for ligne in positions
+        )
+        assert paye == attendu
+        # Les colonnes que le propriétaire utilise doivent être là, nommées en français.
+        assert {"poids", "spread_estime", "moment"} <= set(couts[0])
+
+    def test_le_csv_de_la_valeur_reelle_a_trois_niveaux(self, export, dossier_personnel):
+        self.preparer()
+        declarer_le_pea()
+
+        cli.main(["exporter-positions", "--hors-ligne", "--au", "2026-02-28"])
+
+        lignes = lire_csv(dossier_personnel / "valeur_reelle.csv")
+        niveaux = {ligne["niveau"] for ligne in lignes}
+        assert niveaux == {"position", "poche", "total"}
+        # L'impôt ne figure qu'au niveau de la poche : on n'additionne pas des impôts de ligne.
+        position = next(ligne for ligne in lignes if ligne["niveau"] == "position")
+        assert position["impot_estime"] == tableur.VALEUR_SANS_OBJET
+
+
+class TestTerPropose:
+    """L'assistant propose un TER, l'utilisateur valide (D-61)."""
+
+    def test_le_ter_de_la_liste_est_propose_dans_le_fichier(
+        self, export, monkeypatch, capsys
+    ):
+        nommer_les_comptes(POCHE_CORRIGEE)
+        brancher(monkeypatch, FauxYahoo(propositions={
+            fictifs.ACTIF_ETF: Proposition(
+                "AAAA.DE", "XETRA", "EUR", "ETF Exemple", type=TypeActif.ETF
+            )
+        }))
+        brancher_la_liste_des_etf(
+            monkeypatch,
+            {fictifs.ACTIF_ETF: ("0.20", "ETF Exemple", "Accumulating")},
+        )
+
+        assert cli.main(["actifs"]) == 0
+
+        contenu = config_actifs.chemin().read_text(encoding="utf-8")
+        assert "ter_pour_cent = 0.2" in contenu
+        assert "À vérifier sur la fiche de l'émetteur" in contenu
+        assert "frais courants" in capsys.readouterr().out
+
+    def test_un_actif_deja_declare_recoit_sa_proposition_en_commentaire(
+        self, export, monkeypatch
+    ):
+        """Sa ligne validée n'est pas réécrite : on lui souffle la valeur au-dessus."""
+        nommer_les_comptes(POCHE_CORRIGEE)
+        declarer_les_actifs(fictifs.ACTIF_ETF)
+        brancher(monkeypatch, FauxYahoo())
+        brancher_la_liste_des_etf(monkeypatch, {fictifs.ACTIF_ETF: ("0.07", None, None)})
+
+        cli.main(["actifs"])
+
+        contenu = config_actifs.chemin().read_text(encoding="utf-8")
+        assert "# TER proposé : 0.07 %" in contenu
+        assert (
+            config_actifs.charger().declaration(fictifs.ACTIF_ETF).ter_pour_cent is None
+        )
+
+    def test_une_liste_injoignable_n_empeche_pas_l_assistant(
+        self, export, monkeypatch, capsys
+    ):
+        """La liste est un confort : sans elle, le TER se saisit à la main, et c'est dit."""
+        nommer_les_comptes(POCHE_CORRIGEE)
+        brancher(monkeypatch, FauxYahoo())
+        monkeypatch.setattr(
+            cli, "_liste_des_etf", lambda: (_ for _ in ()).throw(ErreurDeSource("injoignable"))
+        )
+
+        assert cli.main(["actifs"]) == 0
+
+        erreurs = capsys.readouterr().err
+        assert "injoignable" in erreurs
+        assert "à saisir à la main" in erreurs
+
+    def test_hors_ligne_aucune_liste_n_est_demandee(self, export, monkeypatch, capsys):
+        nommer_les_comptes(POCHE_CORRIGEE)
+        demandes = []
+        monkeypatch.setattr(cli, "_liste_des_etf", lambda: demandes.append(1))
+
+        assert cli.main(["actifs", "--hors-ligne"]) == 0
+
+        assert demandes == []
+
+    def test_avec_un_export_d_ailleurs_aucune_liste_n_est_demandee(
+        self, export_ailleurs, monkeypatch
+    ):
+        """Les ISIN de quelqu'un d'autre ne partent vers aucun service (règle 2)."""
+        nommer_les_comptes(POCHE_CORRIGEE)
+        demandes = []
+        monkeypatch.setattr(cli, "_liste_des_etf", lambda: demandes.append(1))
+
+        assert cli.main(["actifs", "--export", str(export_ailleurs)]) == 0
+
+        assert demandes == []
+
+    def test_le_ter_declare_est_affiche_a_l_ecran(self, export, monkeypatch, capsys):
+        nommer_les_comptes(POCHE_CORRIGEE)
+        declarer_les_actifs_complets((fictifs.ACTIF_ETF, "etf", "0.07"))
+        brancher(monkeypatch, FauxYahoo())
+        brancher_la_liste_des_etf(monkeypatch, {})
+
+        cli.main(["actifs"])
+
+        assert "TER 0,07 %" in capsys.readouterr().out
+
+
+    def test_le_ter_n_est_reclame_que_pour_un_etf(self, export, monkeypatch, capsys):
+        """Trouvé à la relecture : une action ou une crypto ne prélève aucun frais courant.
+        Réclamer son TER enverrait chercher un chiffre qui n'existe pas."""
+        nommer_les_comptes(POCHE_CORRIGEE)
+        declarer_les_actifs_complets(
+            (fictifs.ACTIF_ETF, "etf", None), (fictifs.ACTIF_ACTION, "action", None)
+        )
+        brancher(monkeypatch, FauxYahoo())
+        brancher_la_liste_des_etf(monkeypatch, {})
+
+        cli.main(["actifs"])
+
+        affichage = capsys.readouterr().out
+        lignes = {
+            actif: next(
+                ligne
+                for ligne in affichage.splitlines()
+                if ligne.strip().startswith(actif)
+            )
+            for actif in (fictifs.ACTIF_ETF, fictifs.ACTIF_ACTION)
+        }
+        assert "TER à compléter" in lignes[fictifs.ACTIF_ETF]
+        assert "TER" not in lignes[fictifs.ACTIF_ACTION]
+
+    def test_un_ter_propose_sans_ticker_ne_cree_pas_de_ligne_vide(
+        self, export, monkeypatch
+    ):
+        """Le même défaut, vu depuis la commande : si la recherche de ticker ne trouve rien
+        mais que la liste des ETF connaît l'ISIN, la ligne doit rester « à compléter »."""
+        nommer_les_comptes(POCHE_CORRIGEE)
+        brancher(monkeypatch, FauxYahoo())  # aucune proposition de ticker
+        brancher_la_liste_des_etf(monkeypatch, {fictifs.ACTIF_ETF: ("0.20", None, None)})
+
+        assert cli.main(["actifs"]) == 0
+
+        contenu = config_actifs.chemin().read_text(encoding="utf-8")
+        assert 'ticker = ""' not in contenu
+        assert "TER proposé" in contenu
+        # Et l'actif reste bien non déclaré aux yeux de l'application.
+        assert config_actifs.charger().declaration(fictifs.ACTIF_ETF) is None

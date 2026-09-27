@@ -18,6 +18,7 @@ lisible et vérifiable à la main.
 | [docs/contexte-produit.md](docs/contexte-produit.md) | Objectif, public, contraintes, hors périmètre |
 | [docs/glossaire.md](docs/glossaire.md) | Notions financières : définition et formule retenue |
 | [docs/sources-de-cours.md](docs/sources-de-cours.md) | **Comparatif des sources de cours** (étape 4) : ce qui est vérifié, ce qui est écarté, et les pièges |
+| [docs/couts-et-fiscalite.md](docs/couts-et-fiscalite.md) | **Comparatif des coûts estimés et des règles fiscales** (étape 6) : TER, spreads, impôt par poche, avec les sources officielles |
 | [docs/inventaire-donnees.md](docs/inventaire-donnees.md) | Structure des données pytr, type par type, et pièges. **Le §11 recense ceux trouvés en écrivant l'adaptateur** |
 | [docs/verification/](docs/verification/) | Cahiers de vérification : cas fictifs refaisables à la main, et contrôles sur les vraies données |
 | [docs/decisions.md](docs/decisions.md) | Journal des décisions (raison + ce qui est écarté) |
@@ -38,5 +39,8 @@ lisible et vérifiable à la main.
    - la performance est calculée en montants bruts, les frais et taxes à part (D-21) ;
    - le moteur ne lit que le format pivot, Trade Republic n'étant qu'un adaptateur (D-26) ;
    - les cours sont **bruts** (jamais retraités des dividendes) et leur **devise est vérifiée**,
-     jamais convertie (D-48, D-51). Aucun cours ne passe par Trade Republic (D-49).
+     jamais convertie (D-48, D-51). Aucun cours ne passe par Trade Republic (D-49) ;
+   - **un taux estimé (spread, TER, impôt) porte sa valeur, sa date et sa source**, dans un
+     fichier de `dashboard_tr/parametres/` ; sans date ni source, il est refusé (D-58). Les
+     estimations ne se mélangent jamais aux coûts payés ni à la performance (D-17).
 9. Toute décision structurante est ajoutée à `docs/decisions.md`. Tout point d'architecture qui apparaît en discussion est noté dans `docs/architecture-notes.md`. Les notes initiales évoluent quand le propriétaire change de cap.

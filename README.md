@@ -4,13 +4,13 @@ Tableau de bord **local** et **gratuit** pour suivre les actifs d'un portefeuill
 (PEA, CTO, crypto), destiné aux investisseurs long terme. Les données ne quittent jamais la
 machine.
 
-> **Projet en construction.** Étape 3 sur 12 : l'application sait **lire** un export Trade
-> Republic et en tirer, pour chaque actif, la quantité détenue, le capital investi, le prix de
-> revient, les frais, les taxes, les dividendes et les plus-values réalisées. Il lui manque
-> encore les **cours de marché** — donc la valeur du portefeuille et les rendements — et une
-> interface. L'avancement est suivi dans
-> [docs/feuille-de-route.md](docs/feuille-de-route.md). Le guide d'installation complet viendra à
-> l'étape 10.
+> **Projet en construction.** Étape 6 sur 12 : l'application lit un export Trade Republic, va
+> chercher les cours de marché, et en tire par actif la quantité détenue, le capital investi, le
+> prix de revient, la valeur, le gain, le TRI et le TWRR — puis ce que tout cela **coûte** (frais
+> et taxes payés, spread et frais courants estimés) et ce qu'on récupérerait en **vendant tout**,
+> impôt estimé compris. Il lui manque la **diversification** et une **interface**. L'avancement
+> est suivi dans [docs/feuille-de-route.md](docs/feuille-de-route.md). Le guide d'installation
+> complet viendra à l'étape 10.
 
 ## Installation, pour l'instant
 
@@ -68,6 +68,13 @@ place de cotation comprise — et un même titre cote souvent sur plusieurs plac
 monnaies. `actifs` **propose** une correspondance, **vous la validez** dans un fichier lisible. Un
 actif que vous laissez vide n'est pas valorisé : il est signalé, jamais estimé.
 
+Le même fichier porte, depuis l'étape 6, le **type** de chaque actif (ETF, action, crypto) et les
+**frais courants** d'un ETF (TER). Les deux sont proposés — le type par la source de cours, le TER
+par la liste publique des ETF de Xetra — et **relus par vous** : cette liste est parfois en retard
+sur une baisse de frais, et les ETF français de type « PEA » n'y figurent pas
+([D-61](docs/decisions.md)). Sans type, aucun écart de prix n'est estimé pour cet actif ; sans
+TER, aucun frais courant.
+
 La devise attendue est déclarée à côté du ticker. Un cours qui arrive dans une autre monnaie est
 **refusé, jamais converti** ([D-48](docs/decisions.md)) : c'est ce qui empêche des dollars d'être
 comptés comme des euros.
@@ -83,8 +90,9 @@ D'où viennent ces cours et pourquoi cette source : [sources-de-cours.md](docs/s
 
 ```bash
 uv run dashboard positions           # quantités, capital investi, prix de revient,
-                                     # valeur des actifs, gain, TRI et TWRR
-uv run dashboard exporter-positions  # six CSV pour le tableur, dont le journal et les flux
+                                     # valeur des actifs, gain, TRI et TWRR,
+                                     # coûts payés et estimés, valeur réelle
+uv run dashboard exporter-positions  # huit CSV pour le tableur, dont le journal et les flux
 uv run dashboard positions-reelles   # demande à la banque ce qu'elle dit détenir
 ```
 
@@ -133,6 +141,40 @@ avis.
 Les deux premières commandes acceptent `--au AAAA-MM-JJ` pour arrêter les chiffres à une date,
 qui devient aussi la date de valorisation.
 
+## Ce que ça coûte, et ce qu'il reste si on vend tout
+
+Trois blocs de plus dans `dashboard positions`, tenus **à part** de la performance, qui reste
+brute ([D-21](docs/decisions.md)) :
+
+- **les coûts payés**, opération par opération, avec leur **poids** : 1 € de frais sur un achat de
+  25 € pèse 4 %. C'est ce qui montre qu'un petit ordre ponctuel coûte cher ;
+- **les coûts estimés** ([D-17](docs/decisions.md)) : l'**écart de prix** (spread) payé à chaque
+  achat et à chaque vente ([D-30](docs/decisions.md)), et les **frais courants** d'un ETF. Le
+  spread n'apparaît sur aucun relevé — il est fondu dans le prix d'exécution — d'où l'estimation,
+  par un taux par côté selon le type d'actif ([D-56](docs/decisions.md)) ;
+- **la valeur réelle** ([D-23](docs/decisions.md)) : valeur de marché − frais de vente − écart de
+  prix − **impôt estimé**, poche par poche. Le PEA selon son ancienneté, le CTO avec ses pertes
+  compensées, la crypto avec son seuil d'exonération.
+
+**C'est une estimation, pas une déclaration** ([D-26](docs/decisions.md)). Chaque taux vit dans un
+fichier avec sa **date** et sa **source** ([D-58](docs/decisions.md)) : le rapport les cite sous
+chaque chiffre, et corriger un taux quand la loi change ne demande aucune ligne de code. Les
+hypothèses du calcul sont écrites à l'écran, et ce qui manque est nommé plutôt que compté pour
+zéro : un actif sans type, un ETF sans TER, un PEA dont la date de premier versement n'a pas été
+déclarée.
+
+L'impôt du PEA a besoin de cette date, parce que cinq ans changent le taux de 31,4 % à 18,6 %.
+Écrivez-la dans `fiscalite.toml`, dans votre dossier de configuration :
+
+```toml
+[pea]
+premier_versement = 2024-03-15
+```
+
+D'où viennent les taux, les spreads et le TER, et ce qu'ils valent :
+[couts-et-fiscalite.md](docs/couts-et-fiscalite.md). Comment les vérifier vous-même :
+[cahier de l'étape 6](docs/verification/etape-6.md).
+
 ## Comment c'est construit
 
 ```
@@ -152,6 +194,7 @@ demande que d'écrire un nouvel adaptateur ([D-26](docs/decisions.md)).
 | [docs/format-pivot.md](docs/format-pivot.md) | Le format des opérations, champ par champ |
 | [docs/glossaire.md](docs/glossaire.md) | Chaque notion financière et sa formule |
 | [docs/sources-de-cours.md](docs/sources-de-cours.md) | D'où viennent les cours, et pourquoi cette source |
+| [docs/couts-et-fiscalite.md](docs/couts-et-fiscalite.md) | D'où viennent les spreads, le TER et les règles fiscales |
 | [docs/decisions.md](docs/decisions.md) | Les décisions prises, avec leurs raisons |
 | [docs/inventaire-donnees.md](docs/inventaire-donnees.md) | Ce que contiennent les exports pytr, et leurs pièges |
 | [docs/verification/](docs/verification/) | Comment vérifier les chiffres soi-même, étape par étape |

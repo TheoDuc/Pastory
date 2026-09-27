@@ -13,10 +13,10 @@ choix dans [decisions.md](decisions.md) ; le détail du contrat entre couches da
 [format-pivot.md](format-pivot.md). Ici, aucune raison n'est réexpliquée : elle est citée
 (`D-xx`).
 
-> État à la dernière mise à jour (fin de l'étape 5) : les couches **adaptateur**, **pivot**,
-> **moteur** (rejeu, valorisation et rendements compris) et **données externes** sont écrites.
-> La couche **vues** existe comme dossier vide, avec sa place déjà définie. Le §10 dit ce qui
-> s'y branchera.
+> État à la dernière mise à jour (fin de l'étape 6) : les couches **adaptateur**, **pivot**,
+> **moteur** (rejeu, valorisation, rendements, coûts, fiscalité et valeur réelle) et **données
+> externes** sont écrites, ainsi que les **paramètres** datés et sourcés. La couche **vues**
+> existe comme dossier vide, avec sa place déjà définie. Le §10 dit ce qui s'y branchera.
 
 ---
 
@@ -57,8 +57,14 @@ choix dans [decisions.md](decisions.md) ; le détail du contrat entre couches da
    │  MOTEUR  moteur/                                          │
    │  rejeu par actif · journal · agrégation · rapprochement   │
    │  valorisation · gain, TRI, TWRR (D-22)                    │
+   │  coûts payés et estimés · impôt estimé · valeur réelle    │
    └───────────────────────┬───────────────────────────────────┘
-                           │  positions, valeurs, rendements, signalements
+                           │           ▲
+                           │           └── PARAMÈTRES  parametres/
+                           │               taux fiscaux, frais par ordre, spreads :
+                           │               une valeur, une date, une source (D-58),
+                           │               passés au moteur **par paramètre**
+                           │  positions, valeurs, rendements, coûts, signalements
                            ▼
    ┌───────────────────────────────────────────────────────────┐
    │  SORTIES   cli.py (aujourd'hui) · vues/ (étape 9)         │
@@ -81,7 +87,8 @@ L'interdiction compte autant que le rôle : c'est elle qui garantit qu'un défau
 | `adaptateurs/` | Comprendre les fichiers d'**une** banque et les traduire en pivot | Ce qu'est un prix de revient, un gain, un rendement |
 | `pivot/` | Décrire une opération et une position réelle, et vérifier qu'une ligne se tient | Qui l'a produite, qui va la lire |
 | `donnees_externes/` | Aller chercher un cours, le garder, et **compléter un prix manquant** | Ce qu'est une position, un prix de revient, une plus-value |
-| `moteur/` | Rejouer les opérations, tenir le journal, agréger, rapprocher, **valoriser** et calculer gain, TRI et TWRR | Le nom d'un champ Trade Republic, l'emplacement d'un fichier, **d'où viennent les cours** — il dit seulement la forme qu'il en attend |
+| `moteur/` | Rejouer les opérations, tenir le journal, agréger, rapprocher, **valoriser**, calculer gain, TRI et TWRR, puis les **coûts**, l'**impôt estimé** et la **valeur réelle** | Le nom d'un champ Trade Republic, l'emplacement d'un fichier, **d'où viennent les cours et les taux** — il dit seulement la forme qu'il en attend. Il ne sait pas ce qu'est un ETF : il demande un taux pour un actif |
+| `parametres/` | Porter les taux fiscaux, les frais par ordre et les spreads par défaut, chacun avec sa date et sa source | Ce qu'on en fera. Ils sont **livrés avec l'application** et versionnés : rien de personnel |
 | `vues/` (étape 9) | Montrer, expliquer, laisser filtrer | Tout calcul — elle n'appelle que le moteur |
 
 Deux conséquences pratiques :
@@ -105,12 +112,17 @@ qu'elles sortent des `import` :
 config/  ──────────────┐
                        ▼
 adaptateurs/  ──────► pivot/  ◄────── moteur/
-       donnees_externes/ ──┘           │
+       donnees_externes/ ──┤           │
+             parametres/ ──┘           │
                        │               │
                        └──► tableur.py ◄┘
 
 cli.py ──► tout ce qui précède
 ```
+
+`parametres/` lit `config/actifs.py` et `pivot/operation.py`, pour croiser le barème avec ce que
+l'utilisateur a déclaré et parler des mêmes poches que tout le monde. **Aucune flèche ne part de
+`moteur/`** : c'est lui qui déclare ce qu'il attend, et `cli.py` qui le lui donne.
 
 Ce qui en découle, et qui se vérifie en lisant les imports :
 
@@ -121,6 +133,10 @@ Ce qui en découle, et qui se vérifie en lisant les imports :
 - **`moteur/` n'importe que `pivot/`, `tableur.py` et lui-même.** C'est la propriété la plus
   importante du projet, et la plus facile à casser par inadvertance : un seul import
   d'adaptateur dans `moteur/` annulerait l'ouverture aux autres banques ;
+- **`moteur/` n'importe ni `parametres/` ni `config/`**, exactement comme il n'importe pas
+  `donnees_externes/` : il déclare deux protocoles (`ParametresDeCouts` dans `moteur/couts.py`,
+  `ReglesFiscales` dans `moteur/fiscalite.py`) et `cli.py` lui passe des objets qui les
+  satisfont. Un taux fiscal entre dans le moteur comme un cours : **par paramètre** ;
 - **`moteur/` n'importe pas `donnees_externes/` non plus**, et c'est ce qui surprend le plus.
   Les cours y entrent de deux façons, et aucune n'est un import : les prix manquants
   **complètent des opérations pivot avant lui** (§5.7) ; et pour valoriser, le moteur
@@ -151,7 +167,8 @@ dashboard_tr/
 ├── config/
 │   ├── emplacements.py        où vivent les fichiers personnels (D-37)
 │   ├── comptes.py             le rôle de chaque compte espèces, déclaré par l'utilisateur (D-10)
-│   └── actifs.py              de l'ISIN au ticker, et la devise attendue (D-48, D-51)
+│   ├── actifs.py              de l'ISIN au ticker, la devise, le type et le TER (D-48, D-55)
+│   └── fiscalite.py           la date du premier versement du PEA, déclarée (D-59)
 ├── adaptateurs/
 │   └── trade_republic/
 │       ├── source.py          où sont les fichiers, et comment les rafraîchir via pytr
@@ -176,15 +193,25 @@ dashboard_tr/
 │   ├── valorisation.py        ce que valent les actifs à une date, et ce qu'il attend d'une
 │   │                          source de cours (D-52, D-53)
 │   ├── rendements.py          gain, TRI, TWRR par actif, poche et total (D-22, D-54)
+│   ├── couts.py               coûts payés (avec leur poids) et estimés : spread, TER (D-17)
+│   ├── fiscalite.py           l'impôt estimé par poche, si on vendait tout (D-59, D-60)
+│   ├── valeur_reelle.py       valeur brute moins frais, spread et impôt (D-23)
 │   ├── signalement.py         ce que le moteur n'a pas pu calculer normalement (D-45)
 │   ├── rapport.py             le rapport de « dashboard positions »
-│   └── export_csv.py          les six CSV : positions, journal, valorisation, flux,
-│                              sous-périodes du TWRR, évolution
+│   └── export_csv.py          les huit CSV : positions, journal, valorisation, flux,
+│                              sous-périodes du TWRR, évolution, coûts, valeur réelle
 ├── donnees_externes/
 │   ├── cours.py               le contrat : un cours, un refus, une source interchangeable
 │   ├── cache.py               un CSV par actif, définitif et oubliable (D-50)
 │   ├── yahoo.py               la source retenue, et ses trois garde-fous (D-51)
+│   ├── xetra.py               la liste des ETF : le TER par ISIN, à valider (D-61)
 │   └── completion.py          les prix manquants complétés, du pivot vers du pivot (D-15)
+├── parametres/
+│   ├── lecture.py             un taux sans date ni source est refusé (D-58)
+│   ├── fiscalite.toml         12,8 % + 18,6 %, durée du PEA, seuil crypto — datés et sourcés
+│   ├── couts.toml             frais par ordre, spreads par défaut avec leur fourchette
+│   ├── fiscalite.py           les règles fiscales, telles que le moteur les attend
+│   └── couts.py               le barème croisé avec ce que l'utilisateur a déclaré
 └── vues/                      vide — l'interface Dash (étapes 8 et 9)
 
 scripts/
@@ -314,6 +341,24 @@ le portefeuille — et `Synthese` réunit les trois niveaux. Ce qui n'a pas de s
 **motif** au lieu d'un nombre : montant encore à compléter, cours manquant un jour de flux,
 flux tous du même signe.
 
+`couts.py`, `fiscalite.py` et `valeur_reelle.py` sont l'étape 6, et ils ne touchent à rien de
+ce qui précède. `couts.py` détaille les coûts **payés** — une ligne par opération, avec leur
+**poids** dans l'opération — et estime ceux que personne ne facture : le spread à chaque achat et
+à chaque vente ([D-30](decisions.md), [D-56](decisions.md)), le TER pendant la détention.
+`fiscalite.py` calcule la base imposable et l'**impôt estimé** de chaque poche dans le scénario
+« tout vendre aujourd'hui », chacune avec sa règle : plus-values compensées en CTO, gain **du
+plan** en PEA ([D-59](decisions.md)), seuil d'exonération en crypto. `valeur_reelle.py` assemble :
+valeur brute − frais de vente − spread − impôt ([D-23](decisions.md)), et hérite de
+[D-53](decisions.md) — un actif sans cours n'a pas de valeur réelle, et le total le dit.
+
+Trois propriétés les rendent vérifiables :
+
+- **chaque estimation porte le paramètre qui l'a produite** (valeur, date, source), et le rapport
+  l'écrit sous le chiffre. Un taux qu'on ne peut plus retrouver ne se vérifie plus ;
+- **le capital fiscal est tenu dans le rejeu**, une colonne à côté du capital investi
+  ([D-57](decisions.md)) : le prix de revient fiscal se suit dans `journal.csv` comme l'autre ;
+- **ce qui manque est nommé** : actif sans type, ETF sans TER, PEA sans date. Jamais un zéro.
+
 `rapprochement.py` est **le contrôle le plus fort du projet** : il ne dépend d'aucune lecture de
 texte ni d'aucune déduction. La quantité est un contrôle, le prix de revient de la banque une
 simple information ([D-46](decisions.md)). Une poche que la photo ne couvre pas du tout est
@@ -324,8 +369,9 @@ ligne par ligne ([D-47](decisions.md)).
 que le moteur ne connaît pas l'adaptateur.
 
 **Deux comptabilités séparées dès le moteur** ([D-21](decisions.md)) : la *performance* sur
-montants bruts, et les *coûts* — frais et taxes réels, déjà rangés par moment (achat, vente,
-revenus). Elles ne se mélangent dans aucun chiffre.
+montants bruts, et les *coûts* — frais et taxes réels rangés par moment, puis spread et TER
+estimés, impôt estimé, valeur réelle. Elles ne se mélangent dans aucun chiffre, et l'étape 6 n'a
+pas déplacé un centime de la première : les tests de l'étape 5 le prouvent, inchangés.
 
 ### 5.5 `tableur.py` — les CSV que le propriétaire ouvre
 
@@ -353,8 +399,8 @@ l'adaptateur sur le moteur. Aucune couche n'appelle l'autre d'elle-même.
 | `comptes` | adaptateur → `config` | le TOML des rôles de comptes |
 | `lire` | adaptateur | **non** — un rapport à l'écran |
 | `exporter-pivot` | adaptateur → `pivot` | les opérations en CSV |
-| `positions` | adaptateur → `pivot` → `donnees_externes` → moteur | **non** — un rapport à l'écran |
-| `exporter-positions` | adaptateur → `pivot` → `donnees_externes` → moteur | les six CSV du moteur |
+| `positions` | adaptateur → `pivot` → `donnees_externes` → `parametres` → moteur | **non** — un rapport à l'écran |
+| `exporter-positions` | idem | les huit CSV du moteur |
 | `positions-reelles` | `pytr` → adaptateur → moteur | **non** — le rapprochement à l'écran |
 | `ouvrir` | *(étape 9)* | — |
 
@@ -366,7 +412,14 @@ faire commencer cette période ailleurs qu'à la première opération.
 
 Pour `positions` et `exporter-positions`, **un seul** `FournisseurDeCours` sert à la fois à la
 complétion des prix manquants et à la valorisation : ses refus couvrent les deux, et le bloc
-« Cours de marché » du rapport les liste tous.
+« Cours de marché » du rapport les liste tous. De même, **une seule** valorisation sert aux
+rendements, aux coûts et à la valeur réelle : deux valorisations du même jour pourraient différer
+d'un centime, et le rapport montrerait deux valeurs brutes.
+
+C'est aussi ici que les **paramètres** entrent : `_parametres_des_couts()` croise le barème livré
+avec ce que l'utilisateur a déclaré, `_regles_fiscales()` réunit les taux et la date du PEA, et
+`_liste_des_etf()` est le seul endroit qui nomme la source du TER — comme `_fournisseur_de_cours()`
+est le seul qui nomme celle des cours.
 
 ### 5.7 `donnees_externes/` — les cours, et ce qu'on refuse d'inventer
 
@@ -429,6 +482,7 @@ Six règles ne sont la propriété d'aucune couche, et se retrouvent dans toutes
 | **`Decimal`, jamais de flottant** ([D-33](decisions.md)) | Tout montant est écrit sous forme de texte : `Decimal("2")`. Une règle de `ruff` qui voudrait l'inverse est désactivée dans `pyproject.toml` |
 | **Chaque valeur dit d'où elle vient** | `Provenance` sur chaque champ du pivot, colonne dédiée dans le CSV, affichage à l'étape 9 |
 | **Aucun silence** (règles 5 et 6 de CLAUDE.md) | Deux canaux : le `Rapport` de l'adaptateur et les `Signalement` du moteur. Un cas bancal n'arrête rien et ne se corrige jamais tout seul |
+| **Une estimation dit qu'elle en est une** ([D-17](decisions.md)) | Spread, TER et impôt sont dans des blocs à part, et chaque montant cite le taux qui l'a produit, avec sa date et sa source ([D-58](decisions.md)) |
 | **Vocabulaire métier en français** ([D-34](decisions.md)) | Noms de modules, de classes et de champs. Le propriétaire doit pouvoir lire un nom de fonction |
 | **Aucune donnée réelle nulle part** ([D-01](decisions.md), [D-03](decisions.md)) | Dossier personnel hors projet, tests sur données fictives, valeurs fictives dans toute la doc, scripts de diagnostic qui n'affichent aucune valeur |
 | **Affichable sur une console Windows** | La console écrit en cp1252 : ni trait de tableau, ni coche, ni flèche dans un rapport. Le CLI force UTF-8, et deux tests vérifient que les rapports restent imprimables. **En ajouter un pour tout nouveau rapport** |
@@ -475,19 +529,18 @@ données est un exercice séparé, fait par le propriétaire, guidé par un
 
 | À venir | Où | Ce qui ne changera pas |
 |---|---|---|
-| Spread, TER, valeur réelle *(étape 6)* | `moteur/`, côté **coûts** | La séparation performance / coûts est déjà en place ([D-21](decisions.md)) ; la valeur brute de `valorisation.py` est le point de départ de la valeur réelle ([D-23](decisions.md)) |
-| Diversification *(étape 7)* | `donnees_externes/` + `moteur/` | — |
+| Diversification *(étape 7)* | `donnees_externes/` + `moteur/` | La composition d'un ETF est une donnée externe de plus : elle entrera par un protocole déclaré dans le moteur, comme les cours et les taux |
 | Interface Dash *(étapes 8 et 9)* | `vues/` | Les vues n'appellent que le moteur — jamais l'adaptateur ni une source externe |
 | Monte-Carlo *(étape 12)* | Module indépendant, branché sur les résultats du moteur | Rien ne dépendra de lui ([D-27](decisions.md)) |
 
 Les deux branchements des cours sont **faits** : les **titres reçus sans prix**
 ([D-15](decisions.md)) reçoivent le cours de leur jour d'apparition (étape 4), et le moteur
 **valorise** et calcule les rendements en recevant la source de cours en paramètre (étape 5).
+L'étape 6 a suivi le même chemin pour les taux : deux protocoles déclarés dans le moteur, deux
+objets fournis par `cli.py`, et **aucun import nouveau** entre les couches.
 
-Ce que l'étape 6 trouvera en place : la valeur brute de chaque position à une date, ses
-plus-values latentes et réalisées, ses coûts payés rangés par moment — tout ce qu'il faut pour
-poser à côté les coûts **estimés** (spread, TER) et la **valeur réelle** ([D-23](decisions.md)),
-sans toucher à la performance brute.
+Ce que l'étape 7 trouvera en place : une couche de données externes qui sait chercher, mettre en
+cache et **refuser**, et un moteur qui reçoit ce dont il a besoin sans savoir d'où ça vient.
 
 ---
 
@@ -550,6 +603,17 @@ fier à un chiffre.
 - **La valeur affichée n'est pas celle de Trade Republic**, par construction
   ([D-48](decisions.md)) : cours du marché principal, à la clôture, contre un prix courant de la
   banque. Le demi-pour-cent mesuré par cours se retrouve sur le total et sur le gain.
+- **Le spread, le TER et l'impôt sont des estimations**, et trois d'entre elles ne pourront
+  jamais être confirmées depuis cette machine : le spread n'existe dans aucune donnée (il est
+  fondu dans le prix d'exécution), le TER est un taux annoncé, et l'impôt dépend de la situation
+  fiscale entière du foyer. Les hypothèses sont affichées à côté de chaque chiffre, et les taux
+  vivent dans des fichiers qu'on corrige sans toucher au code ([D-58](decisions.md)).
+- **Le gain du PEA est approché depuis les titres** ([D-59](decisions.md)), l'application ne
+  suivant pas les espèces. L'égalité avec « valeur liquidative − versements » est démontrée, mais
+  elle tombe si un retrait a eu lieu, ou si le plan a été **transféré** d'un autre établissement.
+- **La liste des ETF de Xetra est en retard sur environ 5 % des lignes** et ignore les ETF
+  français de type « PEA ». C'est pourquoi le TER est proposé et non appliqué
+  ([D-61](decisions.md)).
 - **Le TWRR est calculé aux cours de clôture**, la valeur après un flux étant prise « parts après
   × clôture du jour » et non « valeur avant + montant du flux » ([D-54](decisions.md)). L'écart
   entre prix d'exécution et clôture n'est donc attribué à aucune sous-période. C'est un choix, et

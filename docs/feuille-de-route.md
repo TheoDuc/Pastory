@@ -268,9 +268,74 @@ interne et non par un ISIN, doit recevoir son ticker **à la main** : l'assistan
 
 **Session :** nouvelle session. `/code-review` à la fin.
 
-## Étape 6 · Frais, taxes et valeur réelle 🔜
+## Étape 6 · Frais, taxes et valeur réelle ✅
 **But :** tout ce qui se passe à l'entrée et à la sortie, traité à part de l'évolution (D-21), et la
 valeur « si on retirait tout » (D-23).
+
+**Fait :** trois recherches ([couts-et-fiscalite.md](couts-et-fiscalite.md) — TER, spreads et
+tarifs, fiscalité française sur sources officielles), puis trois modules dans le moteur
+(`couts.py`, `fiscalite.py`, `valeur_reelle.py`), un paquet de **paramètres datés et sourcés**
+(`dashboard_tr/parametres/`), une source de TER (`donnees_externes/xetra.py`), trois blocs de plus
+dans `dashboard positions`, deux CSV de plus, et le [cahier de vérification](verification/etape-6.md).
+
+**Sept décisions** (D-55 à D-61). La plus structurante, [D-58](decisions.md) : **un taux est une
+valeur, une date et une source**, dans un fichier TOML versionné — sans date ni source, il est
+refusé à la lecture. Corriger un taux quand la loi change ne demande aucune ligne de code.
+
+La recherche fiscale a trouvé ce qu'aucune mémoire n'aurait donné : **les prélèvements sociaux
+sont passés de 17,2 % à 18,6 %** en 2026 (la loi de financement de la sécurité sociale a relevé la
+CSG sur les revenus du capital), donc le prélèvement forfaitaire unique vaut **31,4 %**. Recoupé
+sur impots.gouv.fr. Un projet qui aurait gardé 30 % de tête se serait trompé sur tous ses chiffres
+d'impôt.
+
+[D-57](decisions.md) règle une dette laissée par [D-13](decisions.md) : le moteur tient désormais
+un **capital fiscal** à côté du capital investi — le prix de revient au sens de l'impôt inclut les
+frais d'achat, celui du projet les exclut. Les deux sont justes, ils ne répondent pas à la même
+question, et le journal les montre côte à côte.
+
+**Le moteur n'importe toujours ni les paramètres ni la configuration** : il déclare deux
+protocoles de plus (`ParametresDeCouts`, `ReglesFiscales`), et `cli.py` fait le lien — le même
+chemin que la source de cours à l'étape 5.
+
+La relecture indépendante a rendu six remarques, toutes traitées, et chacune couverte par un
+test. Les deux premières étaient des erreurs de calcul, et toutes deux venaient du **même angle
+mort** — ce que l'application ne voit pas :
+
+- **la valeur réelle du PEA pouvait être négative.** L'impôt du plan porte sur son gain entier,
+  ventes passées et dividendes compris, mais leur argent est dans les **espèces du plan**, hors
+  périmètre ([D-11](decisions.md)) : on retranchait un impôt dont la contrepartie manquait à
+  l'actif. Un PEA entièrement vendu affichait « VALEUR REELLE −30,77 ». Désormais la valeur du PEA
+  est marquée **minorée**, avec le montant concerné, et aucun chiffre n'est affiché si le résultat
+  devient négatif ;
+- **le seuil d'exonération de la crypto ignorait les ventes déjà faites dans l'année.** Le seuil
+  de 305 € est annuel : deux ventes de 200 € le dépassent. L'application annonçait « exonéré » et
+  un impôt nul là où il y en avait un — une erreur qui donne zéro, donc invisible.
+
+Les quatre autres étaient des pièges de robustesse : une proposition de TER sans ticker écrivait
+dans `actifs.toml` une ligne d'apparence valide que la lecture écartait en silence ; le fichier
+`.xlsx` de Xetra était lu **par le rang des cellules**, alors qu'un tableur omet les cases vides —
+un ISIN pouvait être lu dans la colonne du nom ; une date de PEA écrite avec une heure faisait
+remonter une trace technique au lieu du message prévu ; et « TER à compléter » s'affichait pour une
+action, qui n'en a pas.
+
+Deux choses restent à sa charge, écrites dans le cahier : ouvrir la **liste des prix française**
+dans son application (le document public refuse les téléchargements automatiques) pour confirmer
+les 1 € par ordre, et savoir que les taux fiscaux n'ont **pas** été relus par un tiers — il a
+choisi de s'en tenir aux sources officielles (Q-38).
+
+**Le propriétaire a configuré ses actifs, vérifié ses chiffres et les confirme (2026-09-27).**
+Sa vérification a produit la dernière amélioration de l'étape, et elle vaut d'être retenue : il a
+buté sur des **plus-values plus faibles que prévu**, dont une **négative** sur une petite position
+en crypto, alors que celle-ci avait gagné. La cause n'était pas un calcul faux mais un affichage
+incomplet — la ligne arrivait **déjà nette** des coûts de sortie, sans montrer l'étape d'avant.
+Deux facteurs se cumulaient, et aucun n'était visible : l'euro de frais de vente, facturé **par
+ligne** et non par poche, qui pèse plusieurs pour cent d'une petite position ; et l'écart entre le
+cours de clôture du marché principal et le prix courant de la banque ([D-48](decisions.md)).
+
+Le détail de chaque impôt montre donc désormais la plus-value **en deux temps** : avant coûts de
+sortie — la ligne qui se compare à l'application de la banque — puis ces coûts retranchés. La
+leçon est générale et vaut pour les étapes suivantes : **un chiffre juste mais impossible à
+rapprocher d'une autre source est un chiffre qu'on ne croit pas.**
 
 **Claude :**
 - Présente le détail des **coûts payés** (issus de l'étape 3) : par opération, actif, poche et
@@ -290,7 +355,7 @@ valeur « si on retirait tout » (D-23).
 - Valider les spreads par défaut et les règles fiscales retenues (idéalement, avec une personne à
   l'aise avec la fiscalité).
 
-## Étape 7 · Diversification ⏳
+## Étape 7 · Diversification 🔜
 **But :** répartition géographique et sectorielle réelle, en regardant à l'intérieur des ETF
 (Q-22).
 

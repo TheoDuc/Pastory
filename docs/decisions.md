@@ -733,3 +733,138 @@ d'exécution ; un TRI par la méthode de Newton (plus rapide, mais qui peut ne p
 dire).
 **Limite connue :** un taux annuel sur trois mois est exact et ne veut rien dire ; c'est le
 drapeau « peu significatif » (sous 365 jours) qui porte ce jugement, pas une borne de calcul.
+
+
+---
+
+*Étape 6 (frais, taxes et valeur réelle). Les sept décisions suivantes suivent les
+recommandations du plan, approuvées par le propriétaire le 2026-09-27, après trois recherches
+dont le comparatif est dans [couts-et-fiscalite.md](couts-et-fiscalite.md).*
+
+### D-55 · 2026-09-27 · Le type d'un actif est déclaré par l'utilisateur, jamais deviné · Validée
+**Décision :** le type d'un actif — `etf`, `action` ou `crypto` — est **déclaré** dans
+`actifs.toml`, à côté du ticker. L'assistant `dashboard actifs` le **propose** (la recherche de la
+source de cours l'annonce), l'utilisateur **valide**. Une crypto l'est d'office par sa poche
+([D-16](#d-16)). Le type **n'entre pas dans le format pivot** : il ne décrit pas une opération, il
+sert à choisir un taux d'estimation.
+**Raison :** c'est lui qui choisit le taux de spread par défaut ([D-56](#d-56)) et qui dit si un
+TER est attendu. L'export ne le donne pas de façon exploitable : le champ `instrumentType` de
+Trade Republic n'existe que sur les **ordres**, donc pas pour un actif reçu sans achat, et il ne
+distingue pas un ETF de niche d'un ETF large. Deviner un type, c'est deviner un coût.
+**Écarte :** déduire le type de l'export ; appliquer un taux « moyen tous actifs » quand le type
+manque. **Conséquence assumée :** un actif sans type n'a **aucun** spread estimé et **aucune**
+valeur réelle ; il est listé, jamais compté pour zéro ([D-45](#d-45)).
+
+### D-56 · 2026-09-27 · Le spread est un taux par côté, par type d'actif · Validée
+**Décision :** le spread estimé d'un achat ou d'une vente vaut `montant brut × taux par côté`.
+Le taux par côté est la **moitié** de l'écart achat/vente publié. Trois valeurs par défaut, avec
+leur fourchette mesurée : **ETF 0,05 %** [0,01 – 0,15], **action 0,10 %** [0,02 – 0,25],
+**crypto 0,50 %** [0,25 – 1,50]. Un actif peut recevoir son propre taux dans `actifs.toml`.
+L'heure de l'ordre n'est **pas** prise en compte.
+**Raison :** précise [D-30](#d-30), qui disait « à chaque achat et à chaque vente » sans dire
+combien. Les valeurs viennent de trois familles de sources : la mesure de liquidité que
+Deutsche Börse publie par ISIN (1,7 point de base aller-retour pour un ETF monde, médiane 25),
+les études des régulateurs néerlandais et espagnol (surcoût de 5 à 15 points de base par ordre),
+et les comparatifs crypto (0,5 à 1,5 % d'écart total). La convention « par côté » est celle de la
+mesure de Deutsche Börse, explicitement un aller-retour.
+**Écarte :** un taux unique pour tous les actifs ; un taux dépendant de l'heure (hors des heures
+de Xetra les écarts sont trois à cinq fois plus larges, mais l'horodatage de l'export et le
+régime d'exécution de la banque ont changé en cours d'histoire : deviner ferait pire) ; déduire
+le spread réel des cours de clôture, impossible — un ETF bouge de 0,5 % dans la journée, l'écart
+cherché vaut 0,01 à 0,1 %.
+**Limite connue :** aucune mesure indépendante n'existe depuis que Trade Republic exécute les
+ordres lui-même (2 juillet 2026, fin de la rémunération du flux d'ordres). Les taux sont ceux de
+l'ancien régime, et le comparatif le dit.
+
+### D-57 · 2026-09-27 · Le capital fiscal est tenu dans le rejeu, à côté du capital investi · Validée
+**Décision :** `EtatPosition` porte un **capital fiscal** en plus du capital net investi : un
+achat y ajoute `montant brut + frais + taxes`, une vente en retire la part vendue **au prorata
+des parts**, une distribution de capital le réduit, avec un plancher à zéro. On en déduit un
+**prix de revient fiscal**, affiché à côté du prix de revient et exporté dans `positions.csv` et
+`journal.csv`. Il est rangé côté **coûts** : aucun chiffre de performance ne le lit
+([D-21](#d-21)).
+**Raison :** [D-13](#d-13) l'annonçait — « le prix de revient fiscal français inclut les frais
+d'achat ; il faudra un calcul séparé si l'impôt est un jour estimé ». Le BOFiP est explicite : le
+prix d'acquisition est majoré des frais (courtages, commissions, impôts supportés à
+l'acquisition), et c'est obligatoirement une moyenne pondérée que les ventes ne modifient pas.
+Le tenir **dans le rejeu**, et non dans un module séparé, fait que la règle du prorata n'existe
+qu'une fois et que le propriétaire la vérifie dans le journal, une colonne à côté de l'autre.
+**Écarte :** recalculer le prix de revient fiscal après coup à partir des totaux (la règle du
+prorata serait écrite deux fois) ; inclure les frais dans le capital net investi, ce que
+[D-12](#d-12) interdit.
+**Conséquence :** pour la **crypto**, la base imposable part du capital net investi (frais
+exclus), la loi ne nommant pas les frais d'acquisition : les deux colonnes servent, chacune à sa
+poche.
+
+### D-58 · 2026-09-27 · Un taux est une valeur, une date et une source · Validée
+**Décision :** les taux fiscaux et les paramètres de coûts vivent dans deux fichiers TOML
+**versionnés** (`dashboard_tr/parametres/fiscalite.toml` et `couts.toml`). Chaque paramètre porte
+`valeur`, `unite`, `en_vigueur_depuis`, `source` (le texte de loi ou la mesure, avec son adresse)
+et `verifie_le`. **Un paramètre sans date ou sans source est refusé à la lecture.** Le rapport
+cite, sous chaque impôt estimé, le taux employé et d'où il vient.
+**Raison :** la loi change, et le propriétaire ne code pas. Mettre à jour un taux doit être une
+ligne de TOML, jamais une ligne de Python. Et un chiffre dont on ne peut plus retrouver l'origine
+ne se vérifie plus : le refuser à la lecture est le seul moyen d'empêcher qu'il s'installe.
+**Écarte :** des taux en constantes dans le code ; un fichier de taux sans dates (on ne saurait
+plus si 17,2 % est un oubli ou un choix).
+**Précision :** les valeurs sont converties en `Decimal` **par le texte** — TOML lit `18.6` comme
+un flottant, et `Decimal(18.6)` vaut 18,600000000000001421… ([D-33](#d-33)).
+
+### D-59 · 2026-09-27 · Le gain du PEA est approché depuis les titres, sur une date déclarée · Validée
+**Décision :** l'impôt du PEA se calcule sur le **gain du plan**, approché par
+`plus-values latentes + plus-values réalisées brutes + dividendes bruts − frais − taxes`, sur
+**toutes** les positions du PEA, soldées comprises. L'ancienneté vient d'une date de **premier
+versement déclarée** par l'utilisateur dans `fiscalite.toml`. Sans cette date, l'impôt du PEA est
+« non calculable » et le rapport dit où l'écrire. Si **une seule** position du PEA n'a pas de
+cours, la poche entière est non calculable.
+**Raison :** le fisc apprécie le gain d'un PEA **au niveau du plan** (valeur liquidative moins
+versements), or l'application ne suit pas les espèces ([D-11](#d-11)). La démonstration
+([couts-et-fiscalite.md](couts-et-fiscalite.md) §5.3) montre que les deux écritures sont
+**exactement égales** sous trois hypothèses, affichées dans le rapport : aucun retrait passé, ni
+intérêt ni frais sur les espèces, tout mouvement d'espèces rattaché à une opération connue.
+L'ancienneté, elle, ne se déduit pas : un PEA fermé puis rouvert repart de zéro
+([Q-11](questions-ouvertes.md)), et un PEA transféré garde une date d'origine invisible ici.
+**Écarte :** approcher l'ancienneté par la date du premier achat (prudent, mais faux après un
+transfert ou une réouverture, et un impôt faux par excès reste un impôt faux) ; calculer l'impôt
+du PEA sur les seules positions valorisées, ce qui donnerait un impôt de plan partiel — un
+chiffre qui n'existe pas.
+**Limite connue :** un PEA **transféré** d'un autre établissement met l'approximation en défaut,
+l'histoire d'avant manquant. C'est le cas du tiers ([Q-10](questions-ouvertes.md)).
+
+### D-60 · 2026-09-27 · L'impôt estimé est le PFU, sur les seules plus-values latentes · Validée
+**Décision :** l'impôt estimé applique le **prélèvement forfaitaire unique** de plein droit
+(12,8 % d'impôt sur le revenu + 18,6 % de prélèvements sociaux en 2026, soit **31,4 %**). La base
+ne compte que ce qui **serait réalisé par la vente** : les plus-values latentes, gains et pertes
+compensés par poche, avec un plancher à zéro. Ce qui est **déjà encaissé** — dividendes reçus,
+plus-values déjà réalisées dans l'année — n'entre **pas** dans la valeur réelle, et le rapport le
+dit en une ligne.
+**Raison :** la valeur réelle répond à « combien je récupérerais si je vendais tout »
+([D-23](#d-23)) : c'est un **coût de sortie**. L'impôt sur un dividende déjà encaissé est dû que
+l'on vende ou non ; le compter ferait payer deux fois la même question. Le PFU est le régime de
+plein droit ; l'option pour le barème dépend de l'ensemble du foyer, que l'application ne connaît
+pas.
+**Écarte :** l'option pour le barème progressif ; les moins-values reportées des années
+antérieures (inconnues) ; l'ajout des plus-values déjà réalisées de l'année, qui relèvent de la
+déclaration et non de la sortie.
+**Limite connue, et assumée :** ce n'est pas le montant que l'utilisateur paiera. Les hypothèses
+sont affichées, et la production de déclarations reste hors périmètre ([D-26](#d-26)).
+
+### D-61 · 2026-09-27 · Le TER est proposé depuis la liste de Xetra, et validé par l'utilisateur · Validée
+**Décision :** les frais courants d'un ETF sont **proposés** depuis la « List of Tradable ETFs &
+ETPs » de Deutsche Börse — fichier public, sans clé, une ligne par ISIN — et **validés** par
+l'utilisateur dans `actifs.toml`. Un ETF sans TER validé n'a **aucun** frais courant estimé, avec
+le motif. Un TER hors de **0,03 %–1,00 %** est refusé à la lecture comme une erreur d'unité.
+**Raison :** même schéma que la correspondance ISIN → ticker ([D-48](#d-48)), et pour la même
+raison : la source se trompe. Mesuré le 2026-09-27 sur 520 ISIN comparés au fichier d'un
+émetteur, **28 valeurs (5,4 %) sont en retard** sur une baisse de frais, toutes dans le sens
+« trop élevé ». Et les ETF **français de type « PEA »** sont absents du fichier. La proposition
+porte le nom de la part, sa politique de distribution et la date du fichier, pour que
+l'utilisateur reconnaisse la bonne part avant de valider.
+**Écarte :** Yahoo Finance (60 % de couverture seulement, aucun Vanguard, pas de date) — gardé
+comme secours documenté, non implémenté ; justETF (pas d'interface, extraction fragile) ;
+Boursorama (extraction automatique interdite par ses conditions) ; les listes des émetteurs (un
+adaptateur par émetteur) ; Trade Republic ([D-49](#d-49)).
+**Pièges traités, tous vérifiés :** le fichier porte l'extension `.xls` mais c'est un `.xlsx` ;
+son adresse change à chaque publication, donc elle est relue sur la page ; la valeur est une
+**fraction** avec du bruit de flottant, arrondie à quatre décimales ; un ISIN apparaît une fois
+par devise de négociation.

@@ -368,3 +368,20 @@ class TestEvolution:
         assert lignes[1]["valeur_crypto"] == "0,00"
         assert lignes[1]["capital_net_investi"] == "400,00"
         assert lignes[1]["positions_non_valorisees"] == "0"
+
+
+# --- Étape 6 : le prix de revient fiscal, et les deux fichiers de plus ------------------
+
+
+def test_le_journal_porte_le_prix_de_revient_fiscal(tmp_path):
+    """D-57 : c'est la colonne qui permet de refaire l'impôt à la main, ligne par ligne."""
+    portefeuille = Portefeuille.construire(enchainement_du_glossaire())
+
+    lignes = relire(export_csv.ecrire_journal(portefeuille, tmp_path / "journal.csv"))
+
+    premier = lignes[0]
+    # 201 € payés pour 10 parts : 20,10 € fiscal contre 20,00 € de prix de revient.
+    assert nombre(premier["capital_apres"]) == Decimal("200.00")
+    assert nombre(premier["capital_fiscal_apres"]) == Decimal("201.00")
+    assert premier["prix_de_revient_apres"] == "20,000000"
+    assert premier["prix_de_revient_fiscal_apres"] == "20,100000"

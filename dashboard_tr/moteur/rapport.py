@@ -24,11 +24,13 @@ from datetime import date as Date
 from decimal import ROUND_HALF_UP, Decimal
 
 from dashboard_tr import tableur
+from dashboard_tr.moteur.couts import DetailDesCouts
 from dashboard_tr.moteur.portefeuille import Portefeuille, Totaux
 from dashboard_tr.moteur.position import Position
 from dashboard_tr.moteur.rapprochement import Accord, Rapprochement
 from dashboard_tr.moteur.rendements import Rendements, Synthese
 from dashboard_tr.moteur.signalement import Signalement
+from dashboard_tr.moteur.valeur_reelle import ValeurReelle
 from dashboard_tr.moteur.valorisation import PositionValorisee
 from dashboard_tr.pivot.operation import Poche
 
@@ -90,6 +92,8 @@ def resume(
     rapprochement: Rapprochement | None = None,
     arrete_au: Date | None = None,
     synthese: Synthese | None = None,
+    detail_des_couts: DetailDesCouts | None = None,
+    valeur_reelle_estimee: ValeurReelle | None = None,
 ) -> str:
     """Le rapport complet, prêt à être affiché.
 
@@ -99,6 +103,10 @@ def resume(
 
     `synthese` apporte ce que les cours permettent : la valeur des actifs, et les trois
     chiffres clés (D-22). Sans elle, le rapport dit qu'ils manquent.
+
+    `detail_des_couts` et `valeur_reelle_estimee` apportent l'étape 6 : les coûts payés en
+    détail, les coûts estimés (D-17) et la valeur réelle (D-23). Sans eux, le rapport s'arrête
+    aux coûts payés, comme avant.
     """
     lignes: list[str] = []
 
@@ -116,6 +124,11 @@ def resume(
     if synthese is not None:
         _chiffres_cles(lignes, titre, synthese)
     _couts(lignes, titre, portefeuille)
+    if detail_des_couts is not None:
+        _detail_des_couts(lignes, titre, detail_des_couts, portefeuille)
+        _couts_estimes(lignes, titre, detail_des_couts)
+    if valeur_reelle_estimee is not None:
+        _valeur_reelle(lignes, titre, valeur_reelle_estimee)
     _a_surveiller(lignes, titre, portefeuille)
     _rapprochement(lignes, titre, rapprochement, arrete_au)
 
@@ -409,6 +422,312 @@ def _couts(lignes: list[str], titre: Titre, portefeuille: Portefeuille) -> None:
     lignes.append("")
     lignes.append("  Le spread et les frais courants des ETF ne sont pas là : ce sont des")
     lignes.append("  estimations, qui arrivent à l'étape 6 (D-17).")
+
+
+# --- Les coûts payés en détail, et les coûts estimés (étape 6) -------------------------
+
+LARGEUR_LIBELLE_COUTS = 46
+ENTETE_COUTS_PAR_ACTIF = (
+    f"  {'actif':<14} {'nom':<{LARGEUR_NOM}} {'frais':>10} {'taxes':>10} "
+    f"{'poids':>8} {'spread est.':>12}"
+)
+
+
+def _detail_des_couts(
+    lignes: list[str], titre: Titre, detail: DetailDesCouts, portefeuille: Portefeuille
+) -> None:
+    """Les coûts payés, opération par opération puis actif par actif, avec leur poids.
+
+    Le bloc précédent donne les mêmes totaux rangés par moment ; celui-ci dit **où** ils ont
+    été pris, et ce qu'ils pèsent. Le poids répond à la question du propriétaire : « est-ce
+    qu'un petit ordre ponctuel me coûte cher ? » (Q-21).
+    """
+    titre(f"Coûts payés du {_debut_en_clair(detail.periode)} au {detail.periode.fin.isoformat()}")
+    if not detail.lignes:
+        lignes.append("  Aucune opération sur cette période.")
+        return
+
+    lignes.append("  Le poids est la part des frais et taxes dans le montant brut de")
+    lignes.append("  l'opération : 1,00 de frais sur un achat de 25,00 pèse 4,00 %.")
+
+    par_poche = detail.par_poche()
+    par_actif = detail.par_actif()
+    for poche in Poche:
+        if poche not in par_poche:
+            continue
+        lignes.append("")
+        lignes.append(f"  {poche.value}")
+        lignes.append(ENTETE_COUTS_PAR_ACTIF)
+        for (actif, sa_poche), totaux in par_actif.items():
+            if sa_poche is not poche:
+                continue
+            nom = _nom_court(detail.nom_de(actif, poche), LARGEUR_NOM)
+            lignes.append(
+                f"  {actif:<14} {nom:<{LARGEUR_NOM}} "
+                f"{_lisible(totaux.frais):>10} {_lisible(totaux.taxes):>10} "
+                f"{_pourcentage(totaux.poids_moyen):>8} "
+                f"{_lisible(totaux.spread_estime, absent=SANS_OBJET):>12}"
+            )
+        groupe = par_poche[poche]
+        lignes.append(
+            f"  {'payé dans la poche':<{14 + 1 + LARGEUR_NOM}} "
+            f"{_lisible(groupe.frais):>10} {_lisible(groupe.taxes):>10} "
+            f"{_pourcentage(groupe.poids_moyen):>8} "
+            f"{_lisible(groupe.spread_estime, absent=SANS_OBJET):>12}"
+        )
+
+    total = detail.total
+    lignes.append("")
+    for libelle, valeur in total.par_moment().items():
+        # « autres » ne ramasse que ce que les trois moments nommés ne couvrent pas (des frais
+        # sur une distribution de capital, par exemple). À zéro, il n'apprend rien : même
+        # règle que dans le bloc des coûts payés au-dessus.
+        if libelle == "autres" and valeur == Decimal("0.00"):
+            continue
+        lignes.append(f"  {libelle:<{LARGEUR_LIBELLE_COUTS}} {_lisible(valeur):>16}")
+    lignes.append(f"  {'total payé':<{LARGEUR_LIBELLE_COUTS}} {_lisible(total.cout_paye):>16}")
+    if detail.periode.depuis_le_debut:
+        # Sur toute l'histoire, ce total doit valoir celui du bloc précédent : c'est le
+        # contrôle que le propriétaire refait en additionnant couts.csv.
+        attendu = portefeuille.total.frais + portefeuille.total.taxes
+        if total.cout_paye != attendu:  # pragma: no cover - garde-fou
+            lignes.append(
+                f"  (écart avec le total du bloc précédent : {_lisible(attendu)} - à signaler)"
+            )
+
+
+def _debut_en_clair(periode) -> str:
+    return "début" if periode.debut is None else periode.debut.isoformat()
+
+
+def _couts_estimes(lignes: list[str], titre: Titre, detail: DetailDesCouts) -> None:
+    """Le spread et les frais courants : estimés, donc annoncés comme tels (D-17)."""
+    titre("Coûts estimés, jamais facturés (D-17)")
+    lignes.append("  Ce bloc n'est pas une facture : ce sont des ordres de grandeur, calculés")
+    lignes.append("  avec des taux par défaut. Ils ne figurent dans aucun chiffre ci-dessus.")
+
+    total = detail.total
+    lignes.append("")
+    lignes.append("  L'ECART DE PRIX (SPREAD), payé à chaque achat et à chaque vente (D-30)")
+    lignes.append("  Il est déjà compris dans le prix d'exécution : aucun relevé ne le montre,")
+    lignes.append("  et c'est pour cela qu'il faut l'estimer.")
+    par_poche = detail.par_poche()
+    for poche in Poche:
+        if poche not in par_poche:
+            continue
+        lignes.append(
+            f"  {'spread estimé, poche ' + poche.value:<{LARGEUR_LIBELLE_COUTS}} "
+            f"{_lisible(par_poche[poche].spread_estime):>16}"
+        )
+    lignes.append(
+        f"  {'spread estimé, total':<{LARGEUR_LIBELLE_COUTS}} {_lisible(total.spread_estime):>16}"
+    )
+    if total.actifs_sans_type:
+        lignes += _enveloppe(
+            "PARTIEL : aucun spread n'est estimé pour "
+            f"{', '.join(total.actifs_sans_type)} - leur « type » n'est pas déclaré dans "
+            "actifs.toml. Lancez « dashboard actifs », qui le propose.",
+            "  ",
+            "    ",
+        )
+
+    lignes.append("")
+    lignes.append("  LES FRAIS COURANTS DES ETF (TER), prélevés dans la valeur du fonds")
+    if not detail.frais_courants:
+        lignes.append("  Aucun ETF déclaré : rien à estimer. Le « type » de chaque actif se")
+        lignes.append("  déclare dans actifs.toml (« dashboard actifs » le propose).")
+    else:
+        lignes.append(f"  {'actif':<14} {'valeur':>14} {'TER':>8} {'par an':>12}")
+        for frais in detail.frais_courants:
+            if frais.estimation is None:
+                lignes.append(
+                    f"  {frais.actif:<14} {_lisible(frais.position.valeur):>14} "
+                    f"{SANS_OBJET:>8} {SANS_OBJET:>12}"
+                )
+                lignes += _enveloppe(str(frais.motif), "    ", "      ")
+                continue
+            lignes.append(
+                f"  {frais.actif:<14} {_lisible(frais.estimation.base):>14} "
+                f"{_pourcentage(frais.estimation.parametre.valeur / Decimal('100')):>8} "
+                f"{_lisible(frais.estimation.montant):>12}"
+            )
+        estimes = [frais for frais in detail.frais_courants if frais.estimation]
+        somme = sum((frais.estimation.montant for frais in estimes), Decimal("0.00"))
+        lignes.append(
+            f"  {'frais courants estimés, par an':<{LARGEUR_LIBELLE_COUTS}} {_lisible(somme):>16}"
+        )
+        lignes.append("")
+        lignes.append("  C'est un coût de détention : il court chaque année, sans être prélevé")
+        lignes.append("  sur votre compte. Le TER vient de votre déclaration dans actifs.toml.")
+
+
+# --- La valeur réelle : si on vendait tout aujourd'hui (D-23) ---------------------------
+
+LARGEUR_LIBELLE_REELLE = 40
+
+
+def _valeur_reelle(lignes: list[str], titre: Titre, valeur: ValeurReelle) -> None:
+    """Valeur brute moins ce que la sortie coûterait, poche par poche.
+
+    C'est la seconde lecture voulue par le propriétaire (D-23) : la synthèse est brute et
+    volontairement flatteuse, celle-ci répond à « combien j'ai vraiment ? ». Chaque retenue
+    est une **estimation**, et chaque taux dit d'où il vient.
+    """
+    titre(f"Valeur réelle au {valeur.date.isoformat()} : si vous vendiez tout (D-23)")
+    if not valeur.par_poche:
+        lignes.append("  Aucune position détenue : rien à vendre.")
+        return
+
+    lignes.append("  Tout ce qui est retranché ici est estimé : les frais de vente d'après la")
+    lignes.append("  grille de la banque, l'écart de prix d'après des mesures de marché, et")
+    lignes.append("  l'impôt d'après les règles françaises. Ce n'est pas une déclaration.")
+
+    colonnes = [(poche.value, du_groupe) for poche, du_groupe in valeur.par_poche.items()]
+    largeur = 14
+
+    def ligne(libelle: str, valeur_de) -> None:
+        cellules = "".join(f" {valeur_de(groupe):>{largeur}}" for _, groupe in colonnes)
+        lignes.append(f"  {libelle:<{LARGEUR_LIBELLE_REELLE}}{cellules}")
+
+    lignes.append("")
+    entete = "".join(f" {nom:>{largeur}}" for nom, _ in colonnes)
+    lignes.append(f"  {'':<{LARGEUR_LIBELLE_REELLE}}{entete}")
+    ligne("valeur brute", lambda groupe: _lisible(groupe.valeur_brute))
+    ligne("frais de vente estimés", lambda groupe: _lisible(-groupe.frais_de_vente))
+    ligne("écart de prix estimé", lambda groupe: _lisible(-groupe.spread))
+    ligne(
+        "impôt estimé",
+        lambda groupe: _lisible(
+            -groupe.impot.impot if groupe.impot.impot is not None else None,
+            absent=SANS_OBJET,
+        ),
+    )
+    ligne(
+        "VALEUR REELLE",
+        lambda groupe: _lisible(groupe.valeur_reelle, absent=SANS_OBJET),
+    )
+
+    lignes.append("")
+    lignes.append(
+        f"  {'valeur réelle totale':<{LARGEUR_LIBELLE_REELLE}} "
+        f"{_lisible(valeur.valeur_reelle, absent=SANS_OBJET):>{largeur}}"
+    )
+    if valeur.valeur_reelle is not None:
+        ecart = valeur.valeur_brute - valeur.valeur_reelle
+        lignes.append(
+            f"  {'ce que la sortie coûterait':<{LARGEUR_LIBELLE_REELLE}} "
+            f"{_lisible(ecart):>{largeur}}"
+        )
+
+    if valeur.minoree:
+        # Le cas du PEA : son impôt porte sur le gain du plan, dont une part est déjà en
+        # espèces. L'argent n'est pas compté à l'actif, son impôt l'est au passif : le taire
+        # ferait passer une valeur minorée pour une valeur exacte.
+        lignes.append("")
+        lignes += _enveloppe(
+            f"MINORÉE : au moins {_lisible(valeur.hors_des_titres)} de gains déjà encaissés "
+            "dans un plan (ventes passées, dividendes) sont restés dans ses espèces, que "
+            "l'application ne suit pas (D-11). Leur impôt est compté ci-dessus, leur argent "
+            "non : vous toucheriez davantage.",
+            "  ",
+            "  ",
+        )
+
+    if valeur.partielle:
+        lignes.append("")
+        lignes.append("  PARTIEL : tout n'entre pas dans ces chiffres.")
+        for exclue in valeur.exclues:
+            lignes += _enveloppe(
+                f"{exclue.position.actif} ({exclue.position.poche.value}) : {exclue.motif}",
+                "    - ",
+                "      ",
+            )
+        for groupe in valeur.poches_non_calculables:
+            motif = groupe.motif_incalculable
+            if motif:
+                lignes += _enveloppe(
+                    f"poche {groupe.poche.value} : {motif}", "    - ", "      "
+                )
+
+    _detail_des_impots(lignes, valeur)
+
+
+def _detail_des_impots(lignes: list[str], valeur: ValeurReelle) -> None:
+    """Pour chaque poche : la base, la règle, et les sources des taux. C'est ce qui rend
+    l'impôt refaisable à la main."""
+    lignes.append("")
+    lignes.append("  Comment chaque impôt est calculé")
+    for poche, groupe in valeur.par_poche.items():
+        impot = groupe.impot
+        lignes.append("")
+        lignes.append(f"  {poche.value}")
+        lignes += _enveloppe(impot.regle, "    ", "      ")
+        if impot.composantes:
+            for libelle, montant in impot.composantes:
+                lignes.append(
+                    f"    {libelle:<{LARGEUR_LIBELLE_REELLE + 18}} {_lisible(montant):>14}"
+                )
+            # La première ligne se compare à l'application de la banque, la deuxième explique
+            # l'écart : c'est la lecture que le propriétaire a demandée après avoir buté sur une
+            # plus-value négative qu'aucun chiffre du rapport ne justifiait.
+            lignes.append("      (ces deux lignes s'additionnent dans le total ci-dessous)")
+        if impot.base is None:
+            lignes += _enveloppe(f"non calculable : {impot.motif}", "    ", "      ")
+            continue
+        if impot.hors_des_titres > Decimal("0.00"):
+            lignes += _enveloppe(
+                f"dont {_lisible(impot.hors_des_titres)} de gains déjà encaissés, restés dans "
+                "les espèces du plan : leur impôt est compté, leur argent n'est pas dans la "
+                "valeur ci-dessus",
+                "    ",
+                "      ",
+            )
+        if impot.base_avant_plancher is not None and impot.base_avant_plancher != impot.base:
+            lignes.append(
+                f"    {'somme des plus-values et moins-values':<{LARGEUR_LIBELLE_REELLE + 18}} "
+                f"{_lisible(impot.base_avant_plancher):>14}"
+            )
+            lignes.append("      (négative ou exonérée : la base imposable retombe à zéro)")
+        lignes.append(
+            f"    {'base imposable':<{LARGEUR_LIBELLE_REELLE + 18}} {_lisible(impot.base):>14}"
+        )
+        lignes.append(
+            f"    {'taux appliqué':<{LARGEUR_LIBELLE_REELLE + 18}} "
+            f"{_pourcentage((impot.taux or Decimal('0')) / Decimal('100')):>14}"
+        )
+        lignes.append(
+            f"    {'impôt estimé':<{LARGEUR_LIBELLE_REELLE + 18}} {_lisible(impot.impot):>14}"
+        )
+        if not impot.fiable:
+            lignes.append("      NON FIABLE : une position repose sur une histoire incomplète")
+
+    _sources_et_hypotheses(lignes, valeur)
+
+
+def _sources_et_hypotheses(lignes: list[str], valeur: ValeurReelle) -> None:
+    lignes.append("")
+    lignes.append("  D'où viennent les taux")
+    for parametre in valeur.parametres_cites:
+        lignes += _enveloppe(
+            f"{parametre.en_clair} - {parametre.nom} ({parametre.origine}) : {parametre.source}",
+            "    - ",
+            "      ",
+        )
+
+    hypotheses: list[str] = []
+    for groupe in valeur.par_poche.values():
+        for hypothese in groupe.impot.hypotheses:
+            if hypothese not in hypotheses:
+                hypotheses.append(hypothese)
+    if hypotheses:
+        lignes.append("")
+        lignes.append("  Ce que ce calcul suppose")
+        for hypothese in hypotheses:
+            lignes += _enveloppe(hypothese, "    - ", "      ")
+    lignes.append("")
+    lignes.append("  Ne sont pas comptés : l'impôt sur les dividendes déjà reçus et sur les")
+    lignes.append("  ventes déjà faites. Ils sont dus quoi qu'il arrive, ce ne sont pas des")
+    lignes.append("  coûts de sortie. L'application estime, elle ne déclare pas (D-26).")
 
 
 # --- Ce qui demande l'attention de l'utilisateur ---------------------------------------

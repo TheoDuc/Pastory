@@ -122,8 +122,9 @@ après l'étape 2, toujours 25 € après l'étape 3.
   chiffre crédible et faux. L'application écrit « à compléter » : le nombre reviendra quand les
   cours de l'étape 4 auront rempli les prix manquants.
 
-> Le prix de revient **fiscal** français inclut les frais d'achat. Si l'application estime un jour
-> l'impôt, il sera recalculé à part.
+> Le prix de revient **fiscal** français inclut les frais d'achat. L'application le tient
+> désormais **à côté** de celui-ci, dans une colonne séparée, pour estimer l'impôt de sortie :
+> voir le §6 ([D-57](decisions.md)).
 
 ### Capital brut (valeur)
 Valeur de marché des actifs détenus. **Sans les espèces.**
@@ -275,26 +276,24 @@ différence entre les deux.
 ## 6. Coûts et valeur réelle
 
 La synthèse est volontairement « brute ». Les coûts sont analysés à part
-([D-21](decisions.md), [D-23](decisions.md)). Présentation à trancher : Q-21.
+([D-21](decisions.md), [D-23](decisions.md)). Présentation à l'écran à trancher à l'étape 8
+(Q-21) ; les calculs, eux, sont écrits ici.
+
+**Une distinction porte tout ce paragraphe** : ce qui est **payé** est lu dans les données ; ce
+qui est **estimé** est reconstitué avec un taux. Les deux ne se mélangent jamais dans un total,
+et l'application écrit « estimé » partout où ça l'est ([D-17](decisions.md)).
 
 ### Coûts payés
-Frais et taxes réellement prélevés, lus dans les données : frais d'ordre, taxes à l'achat, taxes sur
-dividendes.
-```
-Poids d'un coût dans son opération = coût / montant brut de l'opération
-```
-Exemple : 1 € de frais sur un achat brut de 25 € → 4 %.
+Frais et taxes réellement prélevés, lus dans les données : frais d'ordre, taxes à l'achat, taxes
+sur dividendes. Ils se rangent par **moment** : à l'entrée, à la sortie, sur les revenus (les
+trois niveaux de Q-21).
 
-### Valeur réelle — **règles fiscales à documenter**
-Ce qu'on récupérerait en vendant tout aujourd'hui.
 ```
-Valeur réelle = capital brut − frais de vente estimés − spread de vente estimé − impôts estimés sur les plus-values
+Poids d'un coût dans son opération = (frais + taxes) / montant brut de l'opération
 ```
-- Frais de vente estimés : selon le type d'ordre de la poche (ex. frais fixe d'un ordre ponctuel).
-- Spread de vente estimé : voir ci-dessous.
-- Impôts estimés : selon la poche (PEA, CTO, crypto), l'ancienneté du PEA, et avec le prix de revient
-  **fiscal** (frais d'achat inclus). Taux et règles à documenter avec leur source officielle.
-  Estimation seulement, jamais une déclaration ([D-26](decisions.md)).
+
+Exemple : 1 € de frais sur un achat brut de 25 € → **4 %**. Le poids n'existe pas quand le
+montant brut est inconnu ([D-15](decisions.md)) : la case reste vide, jamais à zéro.
 
 ### Coûts estimés
 
@@ -302,20 +301,123 @@ Coûts que Trade Republic n'affiche pas comme des frais. Ils sont **estimés**, 
 comme estimations, et **jamais** mélangés aux frais réels ([D-17](decisions.md)).
 
 #### Écart de prix (spread)
-Différence entre le prix d'exécution et le prix de marché. **C'est un coût d'entrée et de sortie** :
-il est payé à l'achat et à la vente, pas pendant la détention. Notable sur la crypto : « Kostenlos »
-ne veut pas dire gratuit.
+Différence entre le prix d'exécution et le prix de marché. **C'est un coût d'entrée et de
+sortie** : il est payé à l'achat et à la vente, pas pendant la détention
+([D-30](decisions.md)). Notable sur la crypto : « Kostenlos » ne veut pas dire gratuit.
+
 ```
-Spread estimé d'un achat ou d'une vente = montant brut × taux de spread par défaut du type d'actif
+Spread estimé d'un achat ou d'une vente = montant brut × taux par côté du type d'actif
 ```
-Les taux par défaut sont à documenter avec leur source.
+
+Le **taux par côté** est la moitié de l'écart achat/vente publié : on en paie une moitié en
+achetant, l'autre en vendant ([D-56](decisions.md)). Les taux par défaut — ETF 0,05 %, action
+0,10 %, crypto 0,50 % — vivent dans `parametres/couts.toml` avec leur fourchette et leur source
+([couts-et-fiscalite.md §4](couts-et-fiscalite.md)). Un actif peut recevoir le sien dans
+`actifs.toml`.
+
+Un actif **sans type déclaré** n'a aucun spread estimé, et le total est marqué partiel
+([D-55](decisions.md)). Une opération sans exécution — dividende, titres reçus — n'en paie aucun.
 
 #### Frais courants d'un fonds (TER)
-Frais annuels prélevés dans la valeur d'un ETF. **C'est le seul coût payé pendant la détention.**
+Frais annuels prélevés dans la valeur d'un ETF. **C'est le seul coût payé pendant la
+détention.**
+
 ```
 Coût annuel estimé = capital brut de l'actif × TER
 ```
-Le TER vient d'une base de données d'actifs, à trouver.
+
+Exemple : 600 € à 0,20 % → **1,20 € par an**. Le TER est **proposé** depuis la liste des ETF de
+Xetra et **validé** par l'utilisateur ([D-61](decisions.md)) ; sans valeur validée, rien n'est
+estimé.
+
+### Prix de revient fiscal
+Prix de revient au sens de l'impôt français : c'est une moyenne pondérée, **frais et taxes
+d'acquisition compris** ([D-57](decisions.md)). Il vit à côté du prix de revient
+([D-13](decisions.md)), qui les exclut — les deux sont justes, ils ne répondent pas à la même
+question.
+
+```
+Achat :  capital fiscal ← capital fiscal + montant brut + frais + taxes
+Vente :  capital fiscal ← capital fiscal − capital fiscal × (quantité vendue / quantité détenue)
+Prix de revient fiscal = capital fiscal / quantité détenue
+```
+
+Comme le capital investi, il est arrêté au centime après chaque opération, et il n'est **pas
+affiché** quand l'histoire est incomplète ([D-45](decisions.md)). Il n'entre dans aucune
+performance ([D-21](decisions.md)). Pour la **crypto**, la base imposable part du capital net
+investi, frais exclus : la loi ne nomme pas les frais d'acquisition, et l'application retient la
+lecture prudente.
+
+### Valeur réelle
+Ce qu'on récupérerait en vendant tout aujourd'hui ([D-23](decisions.md)).
+
+```
+Cession nette d'une position = capital brut − spread de vente estimé − frais de vente estimés
+Valeur réelle d'une poche    = Σ cessions nettes − impôt estimé de la poche
+Valeur réelle totale         = Σ valeurs réelles des poches
+```
+
+Les frais de vente estimés valent **un ordre par ligne vendue** (1 € chez Trade Republic, titres
+comme crypto, `parametres/couts.toml`). Une position détenue **sans cours** n'a pas de valeur
+réelle : elle sort du total, qui est marqué partiel ([D-53](decisions.md)). Un actif **sans type**
+en sort aussi, faute de pouvoir estimer son spread.
+
+**Le cas du PEA, et pourquoi sa valeur réelle est minorée.** L'impôt du PEA porte sur le gain
+**du plan**, qui compte les ventes passées et les dividendes. Leur argent est dans les **espèces
+du plan**, que l'application ne suit pas ([D-11](decisions.md)) : son impôt est donc retranché,
+alors que lui-même n'est pas compté dans la valeur. La valeur réelle du PEA est ainsi **inférieure
+à ce qu'on toucherait**, et le rapport l'écrit avec le montant concerné. Si l'impôt du plan
+dépassait ce que les titres rapporteraient — un PEA presque entièrement vendu —, **aucun chiffre
+n'est affiché** : un nombre négatif laisserait croire à une perte.
+
+### Impôt estimé
+Une **estimation**, jamais une déclaration ([D-26](decisions.md)). Le prélèvement forfaitaire
+unique s'applique de plein droit ([D-60](decisions.md)) ; les taux et leurs sources sont dans
+`parametres/fiscalite.toml`. En 2026 : impôt sur le revenu **12,8 %**, prélèvements sociaux
+**18,6 %**, soit **31,4 %**. Le détail des textes est dans
+[couts-et-fiscalite.md §5](couts-et-fiscalite.md).
+
+**CTO** — plus-values de cession de valeurs mobilières :
+```
+Base = Σ (cession nette − capital fiscal) sur les lignes du CTO, pertes comprises
+       puis plancher à zéro
+Impôt = base × (12,8 % + 18,6 %)
+```
+Les pertes se déduisent des gains ; si le total est négatif, l'impôt est nul.
+
+**PEA** — le gain est celui du **plan**, pas des titres :
+```
+Gain du plan = Σ plus-values latentes (après spread et frais de vente)
+             + Σ plus-values réalisées brutes
+             + Σ dividendes bruts
+             − Σ frais − Σ taxes payés dans le plan
+Impôt = gain × 31,4 %   si le plan a moins de 5 ans (et retirer le clôture)
+      = gain × 18,6 %   à partir de 5 ans (exonéré d'impôt sur le revenu)
+```
+Les cinq ans se comptent depuis le **premier versement**, une date que l'utilisateur déclare
+([D-59](decisions.md)). L'égalité entre ce gain et « valeur liquidative − versements » est
+démontrée dans [couts-et-fiscalite.md §5.3](couts-et-fiscalite.md), sous trois hypothèses que le
+rapport affiche : aucun retrait passé, ni intérêt ni frais sur les espèces, tout mouvement
+d'espèces rattaché à une opération connue. Si **une** position du PEA n'a pas de cours, la poche
+entière est non calculable : un gain de plan à moitié n'existe pas.
+
+**Crypto** — actifs numériques :
+```
+Base = Σ (cession nette − capital net investi), plancher à zéro
+     = 0 si le total des cessions de l'année ne dépasse pas 305 €
+Impôt = base × 31,4 %
+```
+Le seuil de 305 € porte sur **toutes les cessions de l'année civile** : celles déjà faites, lues
+dans l'export, **plus** celle qu'on simule. Deux ventes de 200 € font 400 €, donc plus
+d'exonération. Les cessions déjà faites comptent dans le seuil mais **pas dans la base** : leur
+impôt est dû quoi qu'il arrive ([D-60](decisions.md)).
+Trois approximations, affichées : les frais d'achat n'entrent pas dans le prix d'acquisition ; la
+réduction du prix d'acquisition après une vente passée se fait au prorata des parts et non en
+valeur comme le veut la loi ; tout le portefeuille crypto est supposé chez Trade Republic.
+
+**Ce que l'impôt estimé ne compte pas** : les dividendes déjà reçus et les plus-values déjà
+réalisées dans l'année. Ces impôts sont dus que l'on vende ou non : ce ne sont pas des coûts de
+sortie ([D-60](decisions.md)).
 
 ---
 

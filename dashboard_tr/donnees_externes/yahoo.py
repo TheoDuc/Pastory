@@ -41,7 +41,7 @@ from datetime import date as Date
 from decimal import Decimal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from dashboard_tr.config.actifs import Declaration, Proposition
+from dashboard_tr.config.actifs import Declaration, Proposition, TypeActif
 from dashboard_tr.donnees_externes.cours import (
     Cours,
     DeviseInattendue,
@@ -165,6 +165,7 @@ class Yahoo:
             place=place_complete or (str(place) if place else None),
             devise=devise,
             nom=str(nom) if nom else None,
+            type=_type_actif(premier.get("quoteType")),
         )
 
     def _identite(self, ticker: str) -> tuple[str | None, str | None]:
@@ -183,6 +184,22 @@ class Yahoo:
 
 
 # --- Lecture de la réponse ---------------------------------------------------------------
+
+
+TYPES_DE_LA_SOURCE: dict[str, TypeActif] = {
+    "ETF": TypeActif.ETF,
+    "EQUITY": TypeActif.ACTION,
+    "CRYPTOCURRENCY": TypeActif.CRYPTO,
+}
+"""Ce que la recherche annonce dans `quoteType`, traduit dans les types du projet (D-55).
+
+Vérifié en direct le 2026-09-27 : la recherche d'un ISIN d'ETF répond `"quoteType": "ETF"`.
+Tout autre libellé (fonds classique, indice, devise…) ne donne **aucun** type : l'utilisateur
+décide, l'application ne range rien par défaut."""
+
+
+def _type_actif(brut: object) -> TypeActif | None:
+    return TYPES_DE_LA_SOURCE.get(str(brut or "").strip().upper())
 
 
 class ErreurDeReseau(SourceInjoignable):
