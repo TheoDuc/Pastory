@@ -97,10 +97,23 @@ réelle, la diversification, l'interface.
 - **Tout nouveau bloc de rapport a son test cp1252** (trois existent : lecture, moteur, cours ; le
   moteur en a un de plus pour la synthèse).
 
-**Ce que le propriétaire a vérifié à l'étape 5 :** *à compléter par l'instance qui fusionne*, après
-la partie B du [cahier](verification/etape-5.md). À reporter ici : l'écart constaté entre la valeur
-totale et l'application Trade Republic (attendu : de l'ordre du demi-pour-cent, D-48), et si le
-TRI recalculé dans un tableur retombe sur celui du rapport.
+**Ce que le propriétaire a vérifié à l'étape 5 (2026-09-27) :** il a comparé la valeur totale de
+ses actifs à celle de son application Trade Republic. L'écart est de **moins de deux dixièmes de
+pour cent**, réparti sur les poches, et il l'accepte : c'est l'écart de place et de source annoncé
+par [D-48](decisions.md). Son essai a révélé un piège d'usage, pas de calcul : **une crypto n'a pas
+d'ISIN**, Trade Republic l'identifie par un code interne `XF…` qu'aucune source ne connaît, donc
+`dashboard actifs` ne peut rien proposer et sa ligne reste vide — la poche crypto sortait des
+totaux. Il a rempli la ligne à la main (`BTC-EUR`), et l'assistant le dit désormais en toutes
+lettres pour toute crypto. Il a aussi trouvé un défaut d'affichage, corrigé : une poche
+entièrement non valorisée montrait « 0,00 » d'achats au lieu de « - ».
+
+**Sa question, et la réponse à garder en tête :** « si je vends tout, l'écart entre le cours Yahoo
+et le prix de Trade Republic va-t-il laisser quelques centimes ? » Non : le moteur ne travaille
+que sur les **quantités** et sur les **montants réels** des opérations. Une vente totale ramène la
+quantité à zéro exactement, le capital à zéro sans reliquat, et la plus-value réalisée part du
+montant brut réellement encaissé. Le cours de la source ne sert qu'à valoriser ce qui est **encore
+détenu** : zéro part, zéro valeur, aucun cours demandé. Le seul risque de reliquat vient d'une
+quantité mal lue dans un texte, et c'est le rapprochement avec la banque qui le verrait.
 
 **Ce qu'il n'a pas pu vérifier, et c'est à garder en tête :** son portefeuille est **jeune**. TRI
 et TWRR y sont exacts et **peu significatifs**, et le rapport le dit. Les règles délicates de

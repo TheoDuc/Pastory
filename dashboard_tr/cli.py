@@ -62,6 +62,7 @@ from dashboard_tr.moteur import valorisation as valorisation_moteur
 from dashboard_tr.moteur.portefeuille import Portefeuille
 from dashboard_tr.moteur.rapprochement import rapprocher
 from dashboard_tr.pivot import export_csv
+from dashboard_tr.pivot.operation import Poche
 from dashboard_tr.pivot.position_reelle import PositionReelle
 
 NOM = "dashboard"
@@ -737,6 +738,13 @@ def commande_actifs(dossier_export: Path | None, hors_ligne: bool = False) -> in
             if proposition is not None:
                 propositions[actif] = proposition
 
+    # Une crypto est identifiée par un code interne à la banque, qu'aucune source de cours ne
+    # connaît : la recherche automatique ne trouvera jamais rien, et il faut le dire plutôt que
+    # de laisser croire à un échec passager. Constaté par le propriétaire sur son bitcoin.
+    cryptos = {
+        operation.actif for operation in rapport.operations if operation.poche is Poche.CRYPTO
+    }
+
     print(f"\n{len(apercu)} actif(s) dans l'export, {len(manquants)} sans correspondance.")
     for actif in sorted(apercu):
         declaration = configuration.declaration(actif)
@@ -749,6 +757,11 @@ def commande_actifs(dossier_export: Path | None, hors_ligne: bool = False) -> in
                 etat += f" ({proposition.devise})"
             if proposition.douteuse:
                 etat += " - ATTENTION, pas en euros, à ne pas retenir tel quel"
+        elif actif in cryptos:
+            etat = (
+                "à compléter à la main : une crypto n'a pas d'ISIN, aucune source ne connaît "
+                "ce code. Son ticker est de la forme BTC-EUR (la cotation en euros)"
+            )
         else:
             etat = "à compléter à la main"
         print(f"  {actif:<14} {etat}")

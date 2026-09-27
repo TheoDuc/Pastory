@@ -250,8 +250,12 @@ séparément de celle qui sert au TRI (elles sont maintenant une seule). Le four
 cherche le dernier jour coté par dichotomie : l'évolution jour par jour ne ralentit plus avec la
 taille du cache.
 
-**Reste à faire avant la fusion :** la vérification du propriétaire (partie B du cahier : la
-valeur par position face à l'application, le TRI dans un tableur).
+**Le propriétaire a vérifié ses chiffres et les confirme (2026-09-27).** La valeur totale de ses
+actifs s'écarte de celle de son application de moins de deux dixièmes de pour cent, l'écart de
+place annoncé par [D-48](decisions.md). Son essai a montré qu'une crypto, identifiée par un code
+interne et non par un ISIN, doit recevoir son ticker **à la main** : l'assistant le dit désormais.
+
+**Reste à faire avant la fusion :** son accord.
 
 **Claude :**
 - Implémente les formules du glossaire (et Q-25 pour les dividendes).

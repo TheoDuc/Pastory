@@ -228,6 +228,14 @@ Dans le bloc **« Valeur des actifs au … »**, pour chaque ligne :
       dans `actifs.toml`, par exemple), et le bloc « Cours de marché » en donne la raison ;
 - [ ] compare au total de ton application, en gardant l'écart du B.1 en tête.
 
+> **Si ta poche crypto sort en « non valorisé »**, c'est presque sûrement sa ligne dans
+> `actifs.toml`. Une crypto n'a pas d'ISIN : Trade Republic l'identifie par un code interne
+> `XF…`, qu'aucune source de cours ne connaît. L'assistant `dashboard actifs` ne peut donc rien
+> proposer, et la ligne reste vide. Écris-la toi-même, sur le modèle
+> `"XF000…" = { ticker = "BTC-EUR", devise = "EUR" }`, puis `dashboard cours --actif XF000…`.
+> *Constaté par le propriétaire le 2026-09-27 : une fois la ligne remplie, l'écart avec son
+> application était de moins de deux dixièmes de pour cent sur la valeur totale.*
+
 ### B.3 — Le gain
 
 Depuis le début, le gain doit valoir **plus-values latentes + plus-values réalisées brutes +

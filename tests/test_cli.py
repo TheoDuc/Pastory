@@ -536,6 +536,26 @@ class TestDeclarerLesActifs:
         assert fictifs.ACTIF_ETF in contenu
         assert fictifs.ACTIF_CRYPTO in contenu
 
+    def test_une_crypto_est_dite_a_completer_a_la_main_avec_la_forme_du_ticker(
+        self, export, capsys
+    ):
+        # Une crypto n'a pas d'ISIN : aucune source ne connaît son code interne, et l'assistant
+        # doit le dire au lieu de laisser croire à un échec passager de la recherche.
+        nommer_les_comptes(POCHE_CORRIGEE)
+
+        cli.main(["actifs", "--hors-ligne"])
+        affichage = capsys.readouterr().out
+
+        def ligne_de(actif: str) -> str:
+            return next(
+                ligne for ligne in affichage.splitlines() if ligne.strip().startswith(actif)
+            )
+
+        assert "à compléter à la main" in ligne_de(fictifs.ACTIF_CRYPTO)
+        assert "BTC-EUR" in ligne_de(fictifs.ACTIF_CRYPTO)
+        # Les autres actifs, eux, n'ont pas ce message : la recherche pourrait les trouver.
+        assert "BTC-EUR" not in ligne_de(fictifs.ACTIF_ETF)
+
     def test_le_fichier_rappelle_les_poches_de_chaque_actif(self, export):
         nommer_les_comptes(POCHE_CORRIGEE)
 
