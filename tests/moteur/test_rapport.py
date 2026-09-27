@@ -263,8 +263,11 @@ class TestValeurEtChiffresCles:
         assert "PEA : gain et TRI non calculables" in texte
         # Et sa colonne ne montre aucun chiffre — pas même « 0,00 » d'achats, qui se lirait
         # comme « rien n'a été investi » alors que 200 € l'ont été.
+        entete = next(ligne for ligne in texte.splitlines() if ligne.strip().startswith("total"))
         ligne_achats = next(ligne for ligne in texte.splitlines() if "achats (titres" in ligne)
-        assert ligne_achats.split()[-1] == "-"
+        colonnes = entete.split()
+        cellules = ligne_achats.split()[-len(colonnes) :]
+        assert dict(zip(colonnes, cellules, strict=True))["PEA"] == "-"
         assert "200,00" not in ligne_achats
 
     def test_un_twrr_non_calculable_est_explique(self):
