@@ -8,13 +8,18 @@ l'opération ajoute ou retire, et l'état d'après — et que les deux se recoll
 from __future__ import annotations
 
 import csv
+from datetime import date
 from decimal import Decimal
 
 from dashboard_tr import tableur
-from dashboard_tr.moteur import export_csv
+from dashboard_tr.moteur import export_csv, valorisation
 from dashboard_tr.moteur.portefeuille import Portefeuille
-from dashboard_tr.pivot.operation import TypeOperation
-from tests.moteur.operations_fictives import enchainement_du_glossaire, operation
+from dashboard_tr.moteur.rendements import Periode, synthese
+from dashboard_tr.pivot.operation import Poche, TypeOperation
+from tests.moteur.cours_fictifs import SourceFixe, cours_constant
+from tests.moteur.operations_fictives import ACTIF, enchainement_du_glossaire, operation
+
+AUTRE_ACTIF = "XX0000000002"
 
 
 def relire(fichier):
@@ -182,3 +187,178 @@ class TestLisibiliteDansUnTableur:
         fichier = export_csv.ecrire_positions(portefeuille, tmp_path / "positions.csv")
 
         assert fichier.read_bytes().startswith(b"\xef\xbb\xbf")
+
+
+# --- Les fichiers de l'étape 5 ------------------------------------------------------------
+
+
+def portefeuille_a_deux_actifs() -> Portefeuille:
+    """L'enchaînement du glossaire (CTO), plus un actif en PEA entièrement revendu."""
+    return Portefeuille.construire(
+        [
+            *enchainement_du_glossaire(),
+            operation(
+                TypeOperation.ACHAT,
+                horodatage="2026-01-10 09:00",
+                actif=AUTRE_ACTIF,
+                poche=Poche.PEA,
+                quantite="4",
+                prix_unitaire="50.00",
+            ),
+            operation(
+                TypeOperation.VENTE,
+                horodatage="2026-02-10 09:00",
+                actif=AUTRE_ACTIF,
+                poche=Poche.PEA,
+                quantite="4",
+                prix_unitaire="55.00",
+            ),
+        ]
+    )
+
+
+def source_a_deux_actifs() -> SourceFixe:
+    return SourceFixe(
+        {
+            **cours_constant(ACTIF, "40.00", date(2026, 1, 1), date(2026, 3, 31)),
+            **cours_constant(AUTRE_ACTIF, "50.00", date(2026, 1, 1), date(2026, 3, 31)),
+        }
+    )
+
+
+def synthese_a_deux_actifs():
+    return synthese(
+        portefeuille_a_deux_actifs(), Periode(date(2026, 3, 31)), source_a_deux_actifs()
+    )
+
+
+class TestValorisation:
+    def test_une_ligne_par_position_soldee_comprise(self, tmp_path):
+        fichier = export_csv.ecrire_valorisation(
+            portefeuille_a_deux_actifs(), synthese_a_deux_actifs(), tmp_path / "v.csv"
+        )
+
+        lignes = relire(fichier)
+        assert [ligne["actif"] for ligne in lignes] == [ACTIF, AUTRE_ACTIF]
+        detenue, soldee = lignes
+        assert detenue["quantite"] == "15"
+        assert detenue["cours"] == "40,00"
+        assert detenue["valeur"] == "600,00"
+        assert detenue["plus_value_latente"] == "225,00"
+        assert detenue["gain"] == "300,00"
+        assert detenue["twrr"] == "0,000000"  # 40 tout le temps : la stratégie n'a rien fait
+        # La position soldée vaut zéro, mais elle a un gain : 220 - 200.
+        assert soldee["quantite"] == "0"
+        assert soldee["valeur"] == "0,00"
+        assert soldee["gain"] == "20,00"
+
+    def test_la_colonne_gain_s_additionne_en_le_gain_total(self, tmp_path):
+        resultat = synthese_a_deux_actifs()
+        fichier = export_csv.ecrire_valorisation(
+            portefeuille_a_deux_actifs(), resultat, tmp_path / "v.csv"
+        )
+
+        somme = sum(nombre(ligne["gain"]) for ligne in relire(fichier))
+        assert somme == resultat.total.gain == Decimal("320.00")
+
+    def test_une_position_sans_cours_est_ecrite_sans_zero(self, tmp_path):
+        portefeuille = portefeuille_a_deux_actifs()
+        source = SourceFixe(
+            cours_constant(AUTRE_ACTIF, "50.00", date(2026, 1, 1), date(2026, 3, 31))
+        )
+        resultat = synthese(portefeuille, Periode(date(2026, 3, 31)), source)
+
+        fichier = export_csv.ecrire_valorisation(portefeuille, resultat, tmp_path / "v.csv")
+
+        sans_cours = relire(fichier)[0]
+        assert sans_cours["valeur"] == tableur.VALEUR_SANS_OBJET
+        assert sans_cours["cours"] == tableur.VALEUR_SANS_OBJET
+        assert sans_cours["gain"] == tableur.VALEUR_SANS_OBJET
+        assert "Cours de marché" in sans_cours["remarque"]
+
+
+class TestFlux:
+    def test_la_table_du_total_commence_par_les_flux_et_finit_par_la_valeur(self, tmp_path):
+        fichier = export_csv.ecrire_flux(synthese_a_deux_actifs(), tmp_path / "flux.csv")
+
+        total = [ligne for ligne in relire(fichier) if ligne["groupe"] == "total"]
+        assert [(ligne["date"], ligne["montant"]) for ligne in total] == [
+            ("2026-01-05", "-200,00"),
+            ("2026-01-10", "-200,00"),
+            ("2026-02-05", "-300,00"),
+            ("2026-02-10", "220,00"),
+            ("2026-03-05", "200,00"),
+            ("2026-03-31", "600,00"),
+        ]
+        assert total[-1]["libelle"] == "valeur à la fin"
+        # -200 - 200 - 300 + 220 + 200 + 600 = 320 : c'est le gain, et c'est la table
+        # qu'on colle dans TRI.PAIEMENTS.
+        assert sum(nombre(ligne["montant"]) for ligne in total) == Decimal("320.00")
+
+    def test_chaque_poche_et_chaque_position_a_sa_table(self, tmp_path):
+        fichier = export_csv.ecrire_flux(synthese_a_deux_actifs(), tmp_path / "flux.csv")
+
+        groupes = {ligne["groupe"] for ligne in relire(fichier)}
+        assert groupes == {"total", "CTO", "PEA", f"{ACTIF} (CTO)", f"{AUTRE_ACTIF} (PEA)"}
+
+    def test_la_valeur_au_debut_est_un_flux_negatif_a_la_veille(self, tmp_path):
+        resultat = synthese(
+            portefeuille_a_deux_actifs(),
+            Periode(fin=date(2026, 3, 31), debut=date(2026, 3, 1)),
+            source_a_deux_actifs(),
+        )
+        fichier = export_csv.ecrire_flux(resultat, tmp_path / "flux.csv")
+
+        premiere = next(ligne for ligne in relire(fichier) if ligne["groupe"] == "total")
+        assert premiere["date"] == "2026-02-28"
+        assert premiere["montant"] == "-800,00"  # 20 parts x 40
+        assert premiere["libelle"] == "valeur au début"
+
+
+class TestSousPeriodes:
+    def test_le_produit_des_rendements_redonne_le_twrr(self, tmp_path):
+        source = SourceFixe(
+            {
+                ACTIF: {
+                    date(2026, 1, 5): "20.00",
+                    date(2026, 2, 5): "22.00",
+                    date(2026, 3, 5): "24.20",
+                    date(2026, 3, 31): "24.20",
+                }
+            }
+        )
+        resultat = synthese(
+            Portefeuille.construire(enchainement_du_glossaire()), Periode(date(2026, 3, 31)), source
+        )
+        fichier = export_csv.ecrire_sous_periodes(resultat, tmp_path / "sp.csv")
+
+        total = [ligne for ligne in relire(fichier) if ligne["groupe"] == "total"]
+        produit = Decimal("1")
+        for ligne in total:
+            produit *= Decimal("1") + nombre(ligne["rendement"])
+        assert [ligne["rendement"] for ligne in total] == ["0,100000", "0,100000", "0,000000"]
+        assert (produit - 1).quantize(Decimal("0.000001")) == resultat.total.twrr.taux
+        assert total[0]["valeur_debut"] == "200,00"
+        assert total[0]["flux"] == "200,00"
+        assert total[0]["valeur_fin"] == "220,00"
+
+
+class TestEvolution:
+    def test_un_jour_par_ligne_avec_les_poches(self, tmp_path):
+        points = valorisation.evolution(
+            portefeuille_a_deux_actifs(),
+            date(2026, 1, 9),
+            date(2026, 1, 11),
+            source_a_deux_actifs(),
+        )
+        fichier = export_csv.ecrire_evolution(points, tmp_path / "evolution.csv")
+
+        lignes = relire(fichier)
+        assert [ligne["date"] for ligne in lignes] == ["2026-01-09", "2026-01-10", "2026-01-11"]
+        assert lignes[0]["valeur_totale"] == "400,00"  # 10 parts x 40
+        assert lignes[1]["valeur_totale"] == "600,00"  # + 4 parts x 50
+        assert lignes[1]["valeur_PEA"] == "200,00"
+        assert lignes[1]["valeur_CTO"] == "400,00"
+        assert lignes[1]["valeur_crypto"] == "0,00"
+        assert lignes[1]["capital_net_investi"] == "400,00"
+        assert lignes[1]["positions_non_valorisees"] == "0"

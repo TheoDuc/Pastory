@@ -7,7 +7,7 @@ commencer.
 > **À mettre à jour par l'instance qui termine une étape**, avant la fusion dans `main`. La
 > dernière section dit comment.
 >
-> Dernière mise à jour : **2026-09-26**, fin de l'étape 4.
+> Dernière mise à jour : **2026-09-27**, fin de l'étape 5.
 
 ---
 
@@ -15,21 +15,24 @@ commencer.
 
 ```
 Lis CLAUDE.md puis docs/feuille-de-route.md, et docs/prompt-session-suivante.md.
-On attaque l'étape 5 : la valorisation et les rendements.
+On attaque l'étape 6 : les frais, les taxes et la valeur réelle.
 ```
 
 ---
 
 ## Où en est le projet
 
-- **Étapes 0 à 4 terminées.** L'application lit un export Trade Republic, en sort des opérations
-  au format pivot, va chercher les **cours de marché**, et en déduit **quantité détenue, capital
-  net investi, prix de revient, frais, taxes, dividendes et plus-values réalisées**. Elle peut
-  aussi comparer ses quantités avec ce que la banque dit détenir.
-- **Prochaine : étape 5**, la valorisation et les rendements — la valeur des actifs aujourd'hui et
-  dans le temps, puis le **gain en €**, le **TRI** et le **TWRR** (D-22).
+- **Étapes 0 à 5 terminées.** L'application lit un export Trade Republic, en sort des opérations
+  au format pivot, va chercher les **cours de marché**, en déduit **quantité détenue, capital net
+  investi, prix de revient, frais, taxes, dividendes et plus-values réalisées**, puis **la valeur
+  des actifs** et les **trois chiffres clés** — gain en €, TRI, TWRR (D-22) — par actif, par
+  poche et au total, sur une période choisie. Elle peut aussi comparer ses quantités avec ce que
+  la banque dit détenir.
+- **Prochaine : étape 6**, les frais, les taxes et la valeur réelle — les coûts **estimés**
+  (spread, TER, D-17), les règles fiscales par poche, et la valeur « si on retirait tout » (D-23).
+  Elle commence par un **agent de recherche** (TER, spreads, fiscalité française), comme l'étape 4.
 - Deux questions ouvertes : **Q-21** (présentation des frais), qui attend l'étape 8, et
-  **Q-26** (rapprocher le PEA, voir plus bas), qui n'est pas bloquante.
+  **Q-26** (rapprocher le PEA), qui n'est pas bloquante.
 
 **Ce qui existe déjà :**
 
@@ -37,97 +40,81 @@ On attaque l'étape 5 : la valorisation et les rendements.
 |---|---|
 | [format-pivot.md](format-pivot.md) | **Le contrat**, en deux parties : les opérations (§1 à §8) et la photo du portefeuille (§9) |
 | [architecture.md](architecture.md) | **Comment c'est construit** : les couches, leurs frontières, le trajet d'un chiffre |
+| [glossaire.md](glossaire.md) | Chaque formule, dont celles du gain, du TRI et du TWRR (§4 et §5) telles que le code les applique |
 | `dashboard_tr/pivot/` | `Operation`, `PositionReelle`, les contrôles de cohérence et l'export CSV |
 | `dashboard_tr/adaptateurs/trade_republic/` | L'adaptateur complet, en couches testables |
 | `dashboard_tr/donnees_externes/` | `cours.py` (le contrat), `cache.py`, `yahoo.py`, `completion.py` |
-| `dashboard_tr/moteur/` | `position.py` (le rejeu), `portefeuille.py`, `rapprochement.py`, `export_csv.py`, `rapport.py` |
+| `dashboard_tr/moteur/` | `position.py` (le rejeu), `portefeuille.py`, `valorisation.py`, `rendements.py`, `rapprochement.py`, `export_csv.py` (six CSV), `rapport.py` |
 | `dashboard_tr/tableur.py` | Les conventions d'écriture des nombres, communes à tous les CSV |
-| `dashboard_tr/cli.py` | 10 commandes ; `ouvrir` arrive à l'étape 9 |
-| [decisions.md](decisions.md) | D-01 à D-51. L'étape 4 a ajouté D-48 à D-51 |
-| [sources-de-cours.md](sources-de-cours.md) | Le comparatif des sources de cours, et les pièges vérifiés |
-| [verification/etape-4.md](verification/etape-4.md) | Le cahier de vérification des cours |
+| `dashboard_tr/cli.py` | 10 commandes, options `--au` et `--depuis` ; `ouvrir` arrive à l'étape 9 |
+| [decisions.md](decisions.md) | D-01 à D-54. L'étape 5 a ajouté D-52 à D-54 |
+| [verification/etape-5.md](verification/etape-5.md) | Le cahier de vérification des rendements, avec la démarche `TRI.PAIEMENTS` |
 | [scripts/diagnostic_comptes_titres.py](../scripts/diagnostic_comptes_titres.py) | Diagnostic structurel pour Q-26. **Jamais lancé pour l'instant** |
 
-**Ce qui n'existe pas encore :** les rendements, les coûts estimés (TER, spread), la
-diversification, l'interface.
+**Ce qui n'existe pas encore :** les coûts estimés (TER, spread), la fiscalité et la valeur
+réelle, la diversification, l'interface.
 
 ---
 
-## Ce que l'étape 5 doit savoir de l'étape 4
+## Ce que l'étape 6 doit savoir de l'étape 5
 
-- **Un cours se demande en une ligne.** `FournisseurDeCours.cours(actif, date)` rend un `Cours` ou
-  `None`. Il ne lève jamais d'exception sur un cours manquant : il accumule des `Refus` avec leur
-  motif, que l'appelant affiche. Le construire se fait par `cli._fournisseur_de_cours()`, **le seul
-  endroit de l'application qui nomme Yahoo**.
-- **Un `Cours` porte sa propre date**, qui peut être **antérieure** à celle demandée : un samedi
-  prend le cours du vendredi (jusqu'à dix jours de recul, au-delà c'est un refus). Rien n'est
-  interpolé. La valorisation devra donc afficher *quel jour* elle a utilisé, comme le fait déjà le
-  bloc « Cours de marché » du rapport.
-- **Le cache est déjà rempli jour par jour** depuis la première opération de chaque actif, moins
-  trente jours. `dashboard cours` le complète, et un cours écrit n'est jamais redemandé
-  ([D-50](decisions.md)). Une valorisation sur toute la durée de détention ne demandera donc aucun
-  appel réseau supplémentaire.
-- **`Portefeuille.au(date)` existe depuis l'étape 3** : l'état à n'importe quel jour passé s'obtient
-  en coupant le journal, sans rien rejouer. Avec le cache, la valeur du portefeuille jour par jour
-  est à portée.
-- **Le moteur ne connaît pas les cours, et cela doit rester vrai.** Les prix manquants sont
-  complétés **avant** lui, dans `donnees_externes/completion.py`, qui transforme du pivot en pivot
-  ([architecture.md §5.7](architecture.md)). Si l'étape 5 a besoin d'un cours dans `moteur/`, la
-  bonne façon est de **lui passer les cours en paramètre** — pas d'importer `donnees_externes`
-  depuis le moteur, ce qui casserait [D-26](decisions.md).
-- **Trois pièges de la source sont déjà neutralisés**, et il ne faut pas les réintroduire :
-  1. `adjclose` n'est **jamais** lu — il réinjecte les dividendes, que le moteur compte déjà
-     ([D-29](decisions.md)). L'erreur est **invisible sur un ETF capitalisant** ;
-  2. la **devise** annoncée est confrontée à celle déclarée ([D-48](decisions.md)) ; un cours dans
-     une autre monnaie est refusé, jamais converti ;
-  3. une plage nommée (`range=max`) renvoie du **mensuel** en annonçant du quotidien : les périodes
-     sont toujours bornées par dates explicites.
-- **Le cache ne contient jamais le jour même**, et c'est volontaire : la séance en cours n'a pas de
-  cours de clôture, et le cache étant définitif, l'y écrire figerait un prix intermédiaire pour
-  toujours. La source s'arrête à la dernière séance close. **L'étape 5 devra donc prévoir un chemin
-  à part** pour valoriser « aujourd'hui » — un cours du jour qu'on affiche sans l'enregistrer.
-- **Ce qui n'est pas valorisé est dit, jamais estimé** ([D-45](decisions.md)). Un actif sans
-  correspondance ISIN → ticker, ou sans cours, doit ressortir comme **non valorisé** dans les
-  totaux de l'étape 5 — un zéro silencieux ferait un gain faux.
-- **Le rapprochement ne couvre pas le PEA** ([D-47](decisions.md)), et ce n'est pas un défaut du
-  moteur : `pytr` ne demande les positions que d'**un seul** compte-titres, et Trade Republic loge
-  le PEA dans un second. **Conséquence pour la suite : sur le PEA, aucune seconde source ne
-  confirme les quantités.** Q-26 reste ouverte, et le
-  [diagnostic](../scripts/diagnostic_comptes_titres.py) écrit pour la trancher **n'a pas encore été
-  lancé** — le proposer au propriétaire quand l'occasion se présente, il ne prend qu'une minute et
-  n'affiche aucune valeur personnelle.
+- **La valeur brute d'une position existe et se demande en une ligne** :
+  `valorisation.valoriser(portefeuille, date, source)` rend une `Valorisation` avec, par position,
+  la quantité, le cours retenu (et sa date), la valeur et la plus-value latente. C'est le point de
+  départ de la **valeur réelle** (D-23) : valeur brute − frais de vente estimés − spread estimé −
+  impôt estimé. Ne pas recalculer la valeur ailleurs.
+- **Les coûts payés sont déjà rangés par moment** (`Position.couts_par_moment()` : frais et taxes
+  d'achat, de vente, sur revenus) et le rapport les affiche dans le bloc « Coûts réellement
+  payés ». Les coûts **estimés** doivent vivre à côté, jamais mélangés (D-17, D-21) : la
+  `Provenance.ESTIMATION` du pivot est réservée à ça, et n'a encore jamais servi.
+- **Le moteur reçoit les cours par un protocole qu'il déclare** (`SourceDeValorisation`, dans
+  `moteur/valorisation.py`) et **n'importe toujours pas `donnees_externes/`**. Si l'étape 6 a
+  besoin d'une donnée externe dans le moteur (un TER, un taux de spread, un taux d'impôt), la bonne
+  façon est la même : déclarer la forme attendue dans le moteur, la fournir depuis `cli.py`. Pas
+  d'import en sens inverse (D-26).
+- **Les paramètres datés et sourcés** (taux fiscaux, spreads par défaut) sont prévus en fichiers
+  lisibles, mis à jour sans toucher au code (architecture-notes §6). Le TOML de `config/` est le
+  modèle. Chaque taux doit porter sa **date** et sa **source officielle**.
+- **Un seul `FournisseurDeCours` par commande**, construit par `cli._fournisseur_de_cours()`, sert
+  à la complétion des prix et à la valorisation. Ses refus couvrent les deux et sont listés dans
+  le bloc « Cours de marché ». Une troisième utilisation doit passer par le même objet.
+- **La valeur d'« aujourd'hui » est celle de la dernière clôture** (D-52) : le cache ne contient
+  jamais le jour même, et rien de la séance en cours n'est affiché. L'interface (étape 9) pourra
+  reposer la question ; l'étape 6 n'a pas à y toucher.
+- **Ce qui n'a pas de cours sort des totaux, marqués partiels** (D-53). Toute vue « valeur
+  réelle » doit hériter de ce comportement : un actif non valorisé n'a pas de valeur réelle, et le
+  total le dit.
+- **Le TWRR est calculé aux cours de clôture**, pas aux prix d'exécution (D-54, glossaire §5).
+  C'est un choix écrit, né d'un cas fictif où la formule littérale donnait −100 % sur un actif
+  gagnant. Ne pas « corriger » en revenant à `V_avant + F`.
+- **La formule du gain compte les distributions de capital** (D-54). Le glossaire d'origine les
+  omettait ; le pivot les comptait déjà. Un test vérifie l'identité gain = latente + réalisée +
+  dividendes.
+- **Six CSV sortent d'`exporter-positions`.** `flux.csv` est la table de `TRI.PAIEMENTS`,
+  `sous_periodes_twrr.csv` celle du TWRR, `evolution.csv` la valeur jour par jour. Un nouveau
+  fichier suit les conventions de `tableur.py` et jamais une case vide pour une valeur absente
+  (`VALEUR_SANS_OBJET` / `VALEUR_A_COMPLETER`).
+- **Tout nouveau bloc de rapport a son test cp1252** (trois existent : lecture, moteur, cours ; le
+  moteur en a un de plus pour la synthèse).
 
-**Ce que le propriétaire a vérifié à l'étape 3 (2026-09-21) :** il a lancé le moteur sur ses données
-et **confirme que les chiffres sont bons**. Un seul écart, expliqué et corrigé depuis : tous ses
-actifs de PEA ressortaient « absent de la banque » au rapprochement, ce qui a donné D-47 et Q-26.
+**Ce que le propriétaire a vérifié à l'étape 5 :** *à compléter par l'instance qui fusionne*, après
+la partie B du [cahier](verification/etape-5.md). À reporter ici : l'écart constaté entre la valeur
+totale et l'application Trade Republic (attendu : de l'ordre du demi-pour-cent, D-48), et si le
+TRI recalculé dans un tableur retombe sur celui du rapport.
 
-**Ce que le propriétaire a vérifié à l'étape 4 (2026-09-26) :** il a confronté les cours du cache à
-son application, sur plusieurs actifs. Les écarts sont **de l'ordre du demi-pour-cent**, et il les
-accepte : Trade Republic a sa propre source. C'est le contrôle B.2 du cahier, et il valide ce qu'il
-devait valider — la correspondance ISIN → ticker est juste, car une mauvaise ligne de cotation
-donnerait un écart de plusieurs pour cent, ou un facteur.
-
-**Conséquence pour l'étape 5, et il faut l'assumer dès la conception :** la valeur du portefeuille
-affichée par cette application **ne tombera pas** sur celle de l'application Trade Republic. Un
-demi-pour-cent d'écart sur chaque cours se retrouvera sur le total, et donc sur le gain. Ce n'est
-pas un défaut ([D-48](decisions.md)), mais c'est le premier chiffre que le propriétaire comparera :
-l'interface doit **dire** d'où viennent les cours et à quelle date, sans quoi il croira à une
-erreur de calcul.
-
-**Ce qu'il n'a pas pu vérifier, et c'est à garder en tête :** son portefeuille est **jeune**. Peu de
-ventes, peu de dividendes, pas de distribution de capital, aucun recul dans le temps. Les règles les
-plus délicates du moteur — vente partielle au prorata, plus-values réalisées — sont donc validées
-par les cas fictifs du cahier, **pas par ses données**. Cela vaut aussi pour l'étape 5 : un TRI et
-un TWRR sur un portefeuille de quelques mois ne diront pas grand-chose, et les cas fictifs
-refaisables dans un tableur seront la seule vraie preuve. Les étapes suivantes ne doivent pas
-prendre « vérifié sur les vraies données » pour acquis au-delà de ce qui l'a réellement été.
+**Ce qu'il n'a pas pu vérifier, et c'est à garder en tête :** son portefeuille est **jeune**. TRI
+et TWRR y sont exacts et **peu significatifs**, et le rapport le dit. Les règles délicates de
+l'étape — période commençant en cours de route, distribution de capital comme flux, tout vendre
+puis racheter — ne sont prouvées que par les cas fictifs du cahier, dont chacun est un test. Les
+étapes suivantes ne doivent pas prendre « vérifié sur les vraies données » pour acquis au-delà de
+ce qui l'a réellement été.
 
 ---
 
 ## À savoir pour travailler sur cette machine
 
 - **`uv` a besoin de `--native-tls`** : l'antivirus Norton inspecte le trafic chiffré, et le jeu
-  de certificats par défaut ne le reconnaît pas. `uv sync --native-tls`.
+  de certificats par défaut ne le reconnaît pas. `uv sync --native-tls`, `uv run --native-tls …`.
 - **L'antivirus peut couper Claude Code en pleine session.** Le 2026-09-26, **Avast WebShield** a
   bloqué `api.anthropic.com` en annonçant un contenu « malveillant » — un faux positif de son
   inspection HTTPS, même mécanisme que le point précédent. Conséquences en chaîne, à reconnaître
@@ -143,13 +130,16 @@ prendre « vérifié sur les vraies données » pour acquis au-delà de ce qui l
   **Prévention :** ajouter `api.anthropic.com` aux exclusions d'Avast (*Menu → Paramètres →
   Protection → Web Shield*). Et pour toute recherche en ligne longue : écrire les trouvailles dans
   un fichier au fur et à mesure, plutôt que de les garder dans la conversation.
+- **L'éditeur applique une limite de 88 caractères, le projet en fixe 100** (`pyproject.toml`).
+  Les diagnostics E501 de l'IDE sous 100 caractères ne sont pas des erreurs du projet :
+  `uv run ruff check .` fait foi.
 - **OneDrive synchronise le projet** (D-24). Si une commande échoue avec un « accès refusé »
   inexpliqué, c'est la première piste. Le `.venv` a déjà dû être recréé pour cette raison.
 - **La console Windows écrit en cp1252** : elle ne sait afficher ni les traits de tableau, ni les
   coches, ni les flèches. Un rapport qui en contiendrait ferait échouer la commande **au moment
   de l'afficher**, alors que le calcul, lui, s'est bien passé. Le CLI force la sortie en UTF-8
-  par précaution, et **deux tests** vérifient que les rapports restent affichables en cp1252 —
-  celui de la lecture et celui du moteur. En ajouter un pour tout nouveau rapport.
+  par précaution, et des tests vérifient que les rapports restent affichables en cp1252. En
+  ajouter un pour tout nouveau rapport.
 - **La saisie du PIN n'affiche rien du tout.** Sous Windows, `getpass` lit les caractères
   directement depuis la console (`msvcrt.getwch`) : ni chiffres, ni étoiles, ni curseur qui
   avance. Le propriétaire a cru à un blocage la première fois. `rafraichir` et
@@ -160,7 +150,6 @@ prendre « vérifié sur les vraies données » pour acquis au-delà de ce qui l
 - **Chaque appel à pytr est une connexion complète** : comme rien n'est enregistré (D-41), le
   numéro, le PIN et la confirmation dans l'application sont redemandés à chaque fois. C'est
   pourquoi `positions-reelles` est une commande à part et non un morceau de `rafraichir` (D-46).
-  À garder en tête si l'étape 4 envisage d'appeler pytr pour des cours.
 - **Utiliser pytr comme bibliothèque réserve deux pièges**, tous deux rencontrés en écrivant le
   diagnostic des comptes-titres. La commande `pytr` ne les a pas, parce qu'elle règle ces deux
   points elle-même :

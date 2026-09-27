@@ -213,10 +213,38 @@ change avec la place, dont un cas où la recherche par ISIN renvoie des dollars 
 
 **Session :** nouvelle session : recherche d'abord, code ensuite.
 
-## Étape 5 · Valorisation et rendements 🔜
+## Étape 5 · Valorisation et rendements ✅
 **But :** capital brut dans le temps et les trois chiffres clés (D-22) : **gain en €**, **TRI**,
 **TWRR**. Par actif, par poche et au total, selon la période choisie. Tout en montants bruts, sans
 frais ni taxes (D-21).
+
+**Fait :** deux modules dans le moteur (`valorisation.py`, `rendements.py`), deux blocs de plus
+dans `dashboard positions` (« Valeur des actifs au … » et « Les trois chiffres clés »), quatre
+CSV de plus dans `exporter-positions` (valorisation, flux, sous-périodes du TWRR, évolution jour
+par jour), l'option `--depuis`, et le [cahier de vérification](verification/etape-5.md).
+
+**Trois décisions** : la valeur d'« aujourd'hui » est celle de la **dernière clôture connue**,
+datée ([D-52](decisions.md)) ; un actif sans cours **sort des totaux**, qui sont marqués partiels
+([D-53](decisions.md)) ; et les **conventions de calcul** qui rendent les chiffres refaisables
+dans un tableur — période bornes comprises, flux signés selon le pivot, TRI façon
+`TRI.PAIEMENTS`, TWRR aux cours de clôture ([D-54](decisions.md)).
+
+**Le moteur n'importe toujours pas la couche des cours** : il déclare la forme qu'il attend
+d'une source (une méthode), le fournisseur de l'étape 4 la satisfait sans le savoir, et
+`cli.py` fait le lien. Un test prouve l'emboîtement.
+
+Deux corrections au glossaire en chemin, toutes deux nées d'un cas fictif : la formule du gain
+**omettait les distributions de capital** (le pivot les comptait déjà comme flux, et sans elles
+la décomposition latente + réalisée + dividendes ne tenait plus) ; et la formule littérale du
+TWRR, avec des clôtures et un flux au prix d'exécution, donnait **−100 % sur un actif gagnant**
+dès qu'on vendait tout légèrement au-dessus de la clôture.
+
+Les cas du cahier sont construits pour tomber juste — 10,00 % exactement, un TWRR de 0 % contre
+un TRI de −26,79 % sur le même portefeuille — et chacun est un test.
+
+**Reste à faire avant la fusion :** la relecture indépendante, puis la vérification du
+propriétaire (partie B du cahier : la valeur par position face à l'application, le TRI dans un
+tableur).
 
 **Claude :**
 - Implémente les formules du glossaire (et Q-25 pour les dividendes).
@@ -229,7 +257,7 @@ frais ni taxes (D-21).
 
 **Session :** nouvelle session. `/code-review` à la fin.
 
-## Étape 6 · Frais, taxes et valeur réelle ⏳
+## Étape 6 · Frais, taxes et valeur réelle 🔜
 **But :** tout ce qui se passe à l'entrée et à la sortie, traité à part de l'évolution (D-21), et la
 valeur « si on retirait tout » (D-23).
 

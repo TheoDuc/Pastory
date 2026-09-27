@@ -13,13 +13,23 @@ from decimal import Decimal
 from dashboard_tr.moteur import rapport as rapport_moteur
 from dashboard_tr.moteur.portefeuille import Portefeuille
 from dashboard_tr.moteur.rapprochement import rapprocher
+from dashboard_tr.moteur.rendements import Periode, Synthese, synthese
 from dashboard_tr.pivot.operation import Poche, TypeOperation
 from dashboard_tr.pivot.position_reelle import PositionReelle
+from tests.moteur.cours_fictifs import SourceFixe, cours_constant
 from tests.moteur.operations_fictives import ACTIF, enchainement_du_glossaire, operation
+
+AUTRE_ACTIF = "XX0000000002"
 
 
 def portefeuille_complet() -> Portefeuille:
     return Portefeuille.construire(enchainement_du_glossaire())
+
+
+def synthese_du_glossaire(fin: date = date(2026, 3, 31), **series) -> Synthese:
+    """L'enchaînement du glossaire valorisé à 40 € : 15 parts, 600 €, gain 300 €."""
+    source = SourceFixe({**cours_constant(ACTIF, "40.00", date(2026, 1, 1), fin), **series})
+    return synthese(portefeuille_complet(), Periode(fin), source)
 
 
 def portefeuille_incomplet() -> Portefeuille:
@@ -56,11 +66,11 @@ class TestCeQuiDoitYEtre:
         assert "Coûts réellement payés" in texte
         assert texte.index("Ce qui est placé") < texte.index("Coûts réellement payés")
 
-    def test_le_rapport_dit_ce_qui_n_est_pas_encore_calculable(self):
+    def test_sans_synthese_le_rapport_dit_ce_qui_manque(self):
         texte = rapport_moteur.resume(portefeuille_complet())
 
         assert "TRI" in texte
-        assert "étapes 4 et 5" in texte
+        assert "ont besoin des cours de marché" in texte
 
     def test_le_rapport_previent_qu_il_contient_des_chiffres_personnels(self):
         assert "pas fait pour être partagé" in rapport_moteur.resume(portefeuille_complet())
@@ -184,7 +194,115 @@ class TestRapprochement:
         assert "aucun écart n'est une anomalie" in texte
 
 
+class TestValeurEtChiffresCles:
+    """Les deux blocs de l'étape 5 : la valeur des actifs, et gain / TRI / TWRR."""
+
+    def test_la_valeur_des_actifs_est_datee_et_sourcee(self):
+        texte = rapport_moteur.resume(portefeuille_complet(), synthese=synthese_du_glossaire())
+
+        assert "Valeur des actifs au 2026-03-31" in texte
+        assert "source : Source de test" in texte
+        assert "600,00" in texte  # 15 x 40
+        assert "D-48" in texte  # l'écart avec Trade Republic est annoncé
+
+    def test_les_trois_chiffres_cles_sont_la(self):
+        texte = rapport_moteur.resume(portefeuille_complet(), synthese=synthese_du_glossaire())
+
+        assert "Les trois chiffres clés (D-22)" in texte
+        assert "GAIN en euros" in texte
+        assert "300,00" in texte  # 600 - 500 + 200
+        assert "TRI (annuel)" in texte
+        assert "TWRR (sur la période)" in texte
+        assert "depuis la première opération (2026-01-05) jusqu'au 2026-03-31" in texte
+        assert "peu significatifs" in texte  # 85 jours
+
+    def test_les_blocs_sont_dans_l_ordre_de_lecture(self):
+        texte = rapport_moteur.resume(portefeuille_complet(), synthese=synthese_du_glossaire())
+
+        assert (
+            texte.index("Positions détenues")
+            < texte.index("Valeur des actifs")
+            < texte.index("Ce qui est placé")
+            < texte.index("Les trois chiffres clés")
+            < texte.index("Coûts réellement payés")
+        )
+
+    def test_un_cours_d_un_autre_jour_est_signale(self):
+        # Le 2026-03-28 est un samedi : le cours retenu est celui du vendredi.
+        source = SourceFixe({ACTIF: {date(2026, 3, 27): "40.00"}})
+        resultat = synthese(portefeuille_complet(), Periode(date(2026, 3, 28)), source)
+
+        texte = rapport_moteur.resume(portefeuille_complet(), synthese=resultat)
+
+        assert "cours du 2026-03-27 (dernier jour coté avant le 2026-03-28)" in texte
+
+    def test_un_actif_sans_cours_sort_des_totaux_et_le_rapport_le_dit(self):
+        portefeuille = Portefeuille.construire(
+            enchainement_du_glossaire()
+            + [
+                operation(
+                    TypeOperation.ACHAT,
+                    horodatage="2026-01-10 09:00",
+                    actif=AUTRE_ACTIF,
+                    poche=Poche.PEA,
+                    quantite="4",
+                    prix_unitaire="50.00",
+                )
+            ]
+        )
+        source = SourceFixe(cours_constant(ACTIF, "40.00", date(2026, 1, 1), date(2026, 3, 31)))
+        resultat = synthese(portefeuille, Periode(date(2026, 3, 31)), source)
+
+        texte = rapport_moteur.resume(portefeuille, synthese=resultat)
+
+        assert "Non valorisés, exclus de tous les totaux (D-53) : 1" in texte
+        assert AUTRE_ACTIF in texte
+        assert "PARTIEL : 1 actif(s)" in texte
+        assert "valeur totale" in texte
+        # La poche PEA n'a que cet actif : ses chiffres sont sans objet, et c'est expliqué.
+        assert "PEA : gain et TRI non calculables" in texte
+
+    def test_un_twrr_non_calculable_est_explique(self):
+        # Aucun cours au 2026-02-05, jour du second achat : le TWRR ne peut pas découper là.
+        source = SourceFixe({ACTIF: {date(2026, 1, 5): "20.00", date(2026, 3, 31): "40.00"}})
+        resultat = synthese(portefeuille_complet(), Periode(date(2026, 3, 31)), source)
+
+        texte = rapport_moteur.resume(portefeuille_complet(), synthese=resultat)
+
+        assert "300,00" in texte  # le gain, lui, se calcule
+        assert "total : TWRR non calculable" in texte
+        assert "2026-02-05" in texte
+
+    def test_une_periode_bornee_est_ecrite_en_clair(self):
+        source = SourceFixe(cours_constant(ACTIF, "40.00", date(2026, 1, 1), date(2026, 3, 31)))
+        resultat = synthese(
+            portefeuille_complet(),
+            Periode(fin=date(2026, 3, 31), debut=date(2026, 3, 1)),
+            source,
+        )
+
+        texte = rapport_moteur.resume(portefeuille_complet(), synthese=resultat)
+
+        assert "du 2026-03-01 jusqu'au 2026-03-31" in texte
+        assert "800,00" in texte  # 20 parts x 40 au soir du 28 février
+
+    def test_un_portefeuille_vide_a_une_synthese_vide(self):
+        portefeuille = Portefeuille.construire([])
+        resultat = synthese(portefeuille, Periode(date(2026, 3, 31)), SourceFixe())
+
+        texte = rapport_moteur.resume(portefeuille, synthese=resultat)
+
+        assert "rien à valoriser" in texte
+        assert "aucune opération sur la période" in texte
+        texte.encode("cp1252")
+
+
 class TestAffichageSurUneConsoleWindows:
+    def test_la_synthese_s_ecrit_en_cp1252(self):
+        texte = rapport_moteur.resume(portefeuille_complet(), synthese=synthese_du_glossaire())
+
+        texte.encode("cp1252")
+
     def test_le_rapport_s_ecrit_en_cp1252(self):
         # La console Windows par défaut écrit en cp1252. Un rapport qui contiendrait un
         # trait de tableau ferait planter la commande au moment de l'afficher, alors que

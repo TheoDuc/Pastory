@@ -132,6 +132,18 @@ Valeur de marché des actifs détenus. **Sans les espèces.**
 Capital brut(t) = Σ_actifs quantité détenue(t) × cours(t)
 ```
 
+- `cours(t)` : le **cours de clôture** du dernier jour coté au plus tard `t` (dix jours de recul
+  au maximum, jamais d'interpolation). Un samedi prend le vendredi, et **la date du cours est
+  affichée**. La valeur d'« aujourd'hui » est donc celle de la **dernière séance close**
+  ([D-52](decisions.md)).
+- La valeur d'une position est arrêtée au centime. Le cours, lui, est gardé tel quel pour que
+  la multiplication se refasse à la main.
+- Un actif **sans cours utilisable** (non déclaré, ticker inconnu, devise inattendue, cours
+  trop ancien) n'est **pas valorisé** : il sort du total, qui est alors marqué **partiel** et
+  dit lequel manque ([D-53](decisions.md)). Jamais un zéro silencieux.
+
+Exemple : 15 parts, cours de clôture 40,00 € → capital brut **600,00 €**.
+
 ---
 
 ## 4. Gains
@@ -154,32 +166,57 @@ Dividendes versés par un actif. **Comptent comme rendement de l'actif**, jamais
 ([D-14](decisions.md)). Le montant brut, la taxe et le montant net sont conservés. Une fois versé,
 l'argent part dans les espèces et sort du périmètre.
 
+### Période
+Les trois chiffres clés se calculent sur une période `[début, fin]`, **bornes comprises**
+([D-54](decisions.md)) :
+
+- `V_début` est le capital brut **au soir de la veille** du début : les opérations du jour de
+  début sont dans la période. Sans début (« depuis le début »), `V_début = 0` ;
+- `V_fin` est le capital brut au soir de la fin. Sans `--au`, la fin est aujourd'hui, valorisé à
+  la dernière clôture connue ([D-52](decisions.md)).
+
+### Flux
+Les mouvements d'argent entre les espèces (hors périmètre) et les actifs, **en montants bruts**,
+vus par l'investisseur ([format-pivot §3](format-pivot.md)) :
+
+| Type | Signe | Pourquoi |
+|---|---|---|
+| `achat`, `titres_recus` | **négatif** | de l'argent entre dans l'actif ; des titres reçus valent leur cours du jour ([D-15](decisions.md)) |
+| `vente`, `dividende`, `distribution_capital` | **positif** | de l'argent en sort |
+
+Frais et taxes n'y entrent pas ([D-21](decisions.md)) ; le dividende est **brut**
+([D-29](decisions.md)). Une opération dont le montant brut attend encore un cours rend le gain,
+le TRI et le TWRR de son actif **non calculables** sur toute période qui la contient
+([D-45](decisions.md)) : la valeur reste affichée, les trois chiffres non.
+
 ### Gain (chiffre clé n° 1, en €)
 Combien les actifs ont rapporté sur la période et les poches filtrées. **Montants bruts, sans frais
 ni taxes** ([D-21](decisions.md), [D-22](decisions.md)).
 
 ```
-Gain(période) = V_fin − V_début − Σ achats bruts + Σ ventes brutes + Σ dividendes
+Gain(période) = V_fin − V_début + Σ flux
+              = V_fin − V_début − achats + ventes + dividendes + distributions de capital
 ```
 
-- `V_début`, `V_fin` : capital brut au début et à la fin de la période (0 avant le premier achat).
-- Achats et ventes **bruts** : quantité × prix.
-- Dividendes : **bruts**. La retenue d'impôt va dans les coûts ([D-29](decisions.md)).
-
-Depuis le début, il se décompose en : plus-values latentes + plus-values réalisées brutes +
-dividendes.
+Depuis le début, il se décompose **exactement** en : plus-values latentes + plus-values réalisées
+brutes + dividendes. (C'est parce que la distribution de capital est un flux que l'identité
+tient : elle a baissé le capital net investi, donc gonflé la plus-value latente d'autant.) Un
+test du moteur vérifie cette identité.
 
 Exemple depuis le début : achat de 200 € brut, vente de 50 € brut, dividende de 5 €, valeur
 actuelle 180 € → gain = 180 − 0 − 200 + 50 + 5 = **+35 €**.
+
+Un actif détenu sans cours à la date de fin sort du gain, **achats compris** : le chiffre décrit
+les actifs valorisés, et il est marqué partiel ([D-53](decisions.md)).
 
 ---
 
 ## 5. Rendements
 
-Chiffres clés n° 2 et 3. Ils mesurent le périmètre « actifs ». Les **flux** sont les mouvements
-d'argent entre les espèces (hors périmètre) et les actifs : achats, ventes, dividendes, **pris en
-montants bruts**. Frais et taxes n'y entrent pas ([D-21](decisions.md)). Sur un portefeuille de
-moins d'un an environ, ces deux taux sont peu significatifs, et l'interface peut le signaler.
+Chiffres clés n° 2 et 3. Ils mesurent le périmètre « actifs », sur les flux définis au §4.
+**Sur moins de 365 jours, ces deux taux sont marqués « peu significatifs »** : un gain de 20 % en
+un mois fait plus de 700 % par an, et le chiffre est exact sans rien vouloir dire
+([D-22](decisions.md)). Les taux sont arrêtés à six décimales (0,0001 %).
 
 ### TRI (taux de rendement interne, XIRR) — « rendement réel du capital »
 Rendement annuel réellement obtenu, compte tenu de la date et du montant de chaque flux.
@@ -187,32 +224,51 @@ Rendement annuel réellement obtenu, compte tenu de la date et du montant de cha
 Le TRI est le taux `r` qui annule :
 
 ```
-Σ_k  F_k / (1 + r)^((t_k − t_0) / 365)  +  V_T / (1 + r)^((T − t_0) / 365)  = 0
+−V_début  +  Σ_k  F_k / (1 + r)^((t_k − t_0) / 365)  +  V_fin / (1 + r)^((T − t_0) / 365)  = 0
 ```
 
-- `F_k` : flux vu par l'investisseur. Achat = négatif, vente et dividende = positif.
-- `V_T` : capital brut à la date de fin `T`.
-- Si la période commence après le premier achat, le capital brut au début compte comme un achat
-  à cette date.
+- `F_k` : flux signés du §4, à leur date `t_k`. `t_0` est la première date de la table.
+- `V_début`, s'il n'est pas nul, compte comme un achat **à la veille** du début.
+- `V_fin` : capital brut à la date de fin `T`.
+- C'est exactement la convention de `TRI.PAIEMENTS` (`XIRR`) dans un tableur, avec des années
+  de 365 jours : `flux.csv` donne la table à coller ([D-54](decisions.md)).
+- Le taux est cherché **par dichotomie** entre −99 % et +100 000 % par an. S'il n'y en a pas
+  (flux tous du même signe, résultat hors de toute mesure), l'application le dit au lieu
+  d'afficher un nombre.
 
-Exemple : 1 000 € investis le 1er janvier, valeur 1 100 € le 31 décembre, aucun autre flux →
-TRI ≈ 10 %.
+Exemple : 1 000 € investis le 1er janvier 2025, valeur 1 100 € le 1er janvier 2026, aucun autre
+flux → TRI = **10,00 %** exactement (365 jours).
 
 ### TWRR (taux de rendement pondéré dans le temps) — « rendement théorique de la stratégie »
 Rendement des placements **indépendamment** du calendrier des achats et des ventes. On découpe la
-période à chaque flux et on enchaîne les sous-périodes :
+période à chaque **jour** portant un flux et on enchaîne les sous-périodes :
 
 ```
-TWRR = Π_i (1 + r_i) − 1        avec   r_i = V_fin,i / (V_début,i + F_i) − 1
+TWRR = Π_i (1 + r_i) − 1        avec   r_i = V_fin,i / V_début,i − 1
 ```
 
-- `V_début,i` : capital brut juste avant le flux.
-- `F_i` : flux au début de la sous-période (achat +, vente et dividende −, vus depuis le
-  portefeuille).
-- `V_fin,i` : capital brut juste avant le flux suivant.
+- `V_début,i` : capital brut **juste après** les flux du jour qui ouvre la sous-période, pris
+  **aux cours de clôture de ce jour** : parts détenues après les opérations × clôture.
+- `V_fin,i` : capital brut **juste avant** les flux du jour qui la ferme : parts détenues la
+  veille × clôture de ce jour. Pour la dernière sous-période, c'est `V_fin`.
+- Si `V_début` n'est pas nul, une première sous-période part de lui.
+- Une sous-période où rien n'est détenu d'un bout à l'autre ne compte pas (tout vendu, puis
+  racheté plus tard).
 
-Annualisé si la période dépasse un an : `(1 + TWRR)^(365 / jours) − 1`. Nécessite un historique
-de cours.
+> **Pourquoi « après le flux, aux cours de clôture » et non « avant le flux + le flux »** : avec
+> des cours de clôture et des flux au prix d'exécution, la seconde écriture donne une base
+> négative dès qu'on vend tout quelques centimes au-dessus de la clôture — et un TWRR de −100 %
+> sur un actif qui a gagné. La première n'invente aucun rendement entre le prix d'exécution et la
+> clôture : cet écart-là est attribué au moment du flux, pas à la stratégie
+> ([D-54](decisions.md)). Les deux écritures se refont dans un tableur à partir des quantités et
+> des cours ; `sous_periodes_twrr.csv` donne chaque `V_début,i` et `V_fin,i`.
+
+**Annualisé** seulement si la période dépasse 365 jours : `(1 + TWRR)^(365 / jours) − 1`.
+
+Exemple : 10 parts à 100 € ; le cours double ; on rachète 10 parts à 200 € ; le cours revient à
+100 €. TWRR = (1 + 100 %) × (1 − 50 %) − 1 = **0 %** — la stratégie n'a rien gagné — alors que
+le TRI vaut **−26,79 %** : l'investisseur a mis le plus gros au plus haut. C'est toute la
+différence entre les deux.
 
 ---
 
