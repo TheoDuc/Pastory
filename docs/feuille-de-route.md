@@ -397,7 +397,23 @@ libellé affiché**, ce qui satisfait la règle 4.
 
 **Toi :** choisir la source et comparer le résultat avec la fiche émetteur d'un ETF.
 
-**Reste à faire avant la fusion :** ta vérification, et ton accord.
+**Le propriétaire a vérifié ses chiffres et les confirme (2026-09-28).** Sa vérification a produit
+les deux dernières corrections de l'étape, et elles se ressemblent : **l'application disait
+« inconnu » là où la réponse était « sans objet »**. Un ETF d'obligations et un ETF de matières
+premières étaient annoncés « non couvert : composition inconnue » alors qu'ils ont bien une
+composition — elle n'a simplement ni pays ni secteur au sens des actions, comme un actif numérique.
+D'où le **contenu déclaré** ([D-71](decisions.md)), les matières premières promues en classe
+d'actifs, et des montants hors géographie affichés **classe par classe** au lieu d'un fourre-tout
+qui faisait passer de l'or pour de la dette. Sur ses données, « non couvert » est passé de 35,3 % à
+17,9 %.
+
+Il a aussi demandé d'investiguer le seul fonds d'**actions** resté sans composition, plutôt que de
+le masquer par une déclaration. Le diagnostic a écarté trois fausses pistes — ce n'est pas un
+problème de **part**, rien n'est récupérable par **région**, et la source **couvre bien** les fonds
+émergents à réplication **physique** (35 et 28 pays sur deux fonds testés). La lacune porte sur
+certains fonds **à swap**, fonds par fonds. Il a tranché une **source de secours par actif, nommée à
+l'écran** ([D-72](decisions.md)), à réaliser à l'étape 8 parce que c'est d'abord un problème de
+présentation.
 
 ## Étape 8 · Conception de l'interface 🔜
 **But :** concevoir l'application à neuf. La maquette du PDF n'est pas un modèle (D-20).
