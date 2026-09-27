@@ -261,6 +261,11 @@ class TestValeurEtChiffresCles:
         assert "valeur totale" in texte
         # La poche PEA n'a que cet actif : ses chiffres sont sans objet, et c'est expliqué.
         assert "PEA : gain et TRI non calculables" in texte
+        # Et sa colonne ne montre aucun chiffre — pas même « 0,00 » d'achats, qui se lirait
+        # comme « rien n'a été investi » alors que 200 € l'ont été.
+        ligne_achats = next(ligne for ligne in texte.splitlines() if "achats (titres" in ligne)
+        assert ligne_achats.split()[-1] == "-"
+        assert "200,00" not in ligne_achats
 
     def test_un_twrr_non_calculable_est_explique(self):
         # Aucun cours au 2026-02-05, jour du second achat : le TWRR ne peut pas découper là.

@@ -322,8 +322,14 @@ def _chiffres_cles(lignes: list[str], titre: Titre, synthese: Synthese) -> None:
         (poche.value, rendements) for poche, rendements in synthese.par_poche.items()
     ]
 
+    def cellule(rendements: Rendements, valeur: Callable[[Rendements], str]) -> str:
+        # Un groupe dont rien n'est calculable — une poche entière sans cours, par exemple —
+        # n'affiche **aucun** chiffre, pas même un « 0,00 » d'achats : ce zéro serait lu comme
+        # « rien n'a été investi », alors qu'on ne sait simplement pas ce que ça vaut (D-53).
+        return valeur(rendements) if rendements.calculable else SANS_OBJET
+
     def ligne(libelle: str, valeur: Callable[[Rendements], str]) -> None:
-        cellules = "".join(f" {valeur(r):>{LARGEUR_COLONNE_CLES}}" for _, r in colonnes)
+        cellules = "".join(f" {cellule(r, valeur):>{LARGEUR_COLONNE_CLES}}" for _, r in colonnes)
         lignes.append(f"  {libelle:<{LARGEUR_LIBELLE_CLES}}{cellules}")
 
     # L'en-tête : le nom de chaque colonne, aligné comme ses chiffres.
