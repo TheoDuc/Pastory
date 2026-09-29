@@ -89,6 +89,39 @@ entre le cœur (synthèse) et ce qui se passe à l'entrée et à la sortie.
 question que « combien ça m'a coûté ? ». Cette question peut rester ouverte jusqu'à l'étape de
 conception de l'interface (étape 8), mais les calculs des niveaux 1 et 3 se préparent avant.
 
+### Q-48 · « Non transparisé » : le retirer du vocabulaire, ou le faire produire ?
+*Ouverte le 2026-09-29, en relevant l'inventaire de ce que le moteur produit (étape 8).*
+
+**Le constat.** Le mot **« non transparisé »** — un ETF dont les lignes sont elles-mêmes des fonds,
+que l'application affiche plutôt que de deviner — est promis à trois endroits :
+[glossaire §8](glossaire.md), [feuille de route](feuille-de-route.md) et
+[comparatif des compositions](composition-des-etf.md). **Aucun champ du code ne le produit.** Ce
+n'est pas un oubli d'affichage comme celui trouvé à l'étape 7 : la donnée n'existe pas du tout.
+
+**Pourquoi ça compte maintenant.** L'étape 8 écrit le vocabulaire d'écran. Un mot documenté que
+l'application ne dira jamais est une promesse en l'air ; et s'il doit être dit, c'est le moteur qui
+doit le produire, donc c'est du code.
+
+**Ce qu'il faut savoir avant de trancher :** un **fonds de fonds** est rare dans une offre de
+courtier grand public, mais il n'est pas absent — on en trouve chez les ETF « multi-actifs » et
+les fonds à allocation toute faite, que Trade Republic référence. [D-62](decisions.md) demande de
+traiter ce qui est courant **chez cette banque**, et non ce que détient le propriétaire.
+
+**Options :**
+- (a) **Le retirer du vocabulaire.** Un fonds de fonds tomberait alors dans « non couvert » ou
+  dans « non attribué » selon ce que la source en dit. Coût : nul. Contrepartie : un utilisateur
+  qui en détient un lit un message qui ne décrit pas sa situation, et les trois documents qui
+  promettent le mot doivent être corrigés.
+- (b) **Le faire produire.** Un champ de plus sur la composition, alimenté quand la source annonce
+  que les lignes du fonds sont des fonds. Coût : petit dans le moteur, mais **il faut vérifier que
+  la source le dit** — sinon on ne saurait pas le remplir, et on retomberait sur (a) sans l'avoir
+  décidé.
+- (c) **Le garder au glossaire, hors de l'écran**, comme une notion expliquée mais jamais affichée.
+
+**Recommandation :** (b) **si et seulement si** la recherche de la phase 5 (source de secours,
+[D-72](decisions.md)) montre qu'une source l'indique de façon fiable ; sinon (a), en corrigeant les
+trois documents. Trancher après la recherche évite de promettre deux fois la même chose.
+
 ---
 
 ## Tranchées
