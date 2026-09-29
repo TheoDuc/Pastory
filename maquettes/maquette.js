@@ -18,7 +18,31 @@
 
   const D = window.MAQUETTE;
   const POCHES = D.poches;
-  const COULEUR_POCHE = { PEA: "var(--poche-1)", CTO: "var(--poche-2)", Crypto: "var(--poche-3)" };
+
+  /* LA PALETTE, EN VALEURS LITTERALES.
+   *
+   * Elle double les variables de la feuille de style, et c'est une necessite, pas une
+   * negligence : `stroke="var(--poche-1)"` dans un ATTRIBUT SVG n'est pas interprete par
+   * Chrome ni Safari — seule une declaration CSS substitue une variable. Tous les SVG de
+   * la maquette avaient donc des couleurs invalides, et l'anneau des poches ne montrait
+   * pas les couleurs de ses poches. C'est le defaut signale par le proprietaire.
+   *
+   * Regle qui en sort, et qui vaut pour l'etape 9 : une couleur posee en attribut SVG
+   * est ecrite en clair ; une couleur posee en CSS passe par la variable. */
+  const COULEURS = {
+    papier: "#f6f1e7",
+    surface: "#fbf8f2",
+    surfaceCreuse: "#eee7d8",
+    trait: "#ded5c2",
+    encre: "#2c2722",
+    encreDouce: "#6e6459",
+    encreTresDouce: "#8d8378",
+    courbeBrut: "#1d6c93",
+    courbeInvesti: "#6e6459",
+    absent: "#b9ad97",
+    poche: { PEA: "#1b4a63", CTO: "#37738c", Crypto: "#6fa0b4" },
+  };
+  const COULEUR_POCHE = COULEURS.poche;
 
   // ==========================================================================
   // 1. MISE EN FORME
@@ -146,6 +170,11 @@
     CH: [["#d52b1e", 0, 0, 20, 14], ["#ffffff", 8.2, 3, 3.6, 8], ["#ffffff", 6, 5.2, 8, 3.6]],
     CA: [["#ff0000", 0, 0, 5, 14], ["#ffffff", 5, 0, 10, 14], ["#ff0000", 15, 0, 5, 14],
          ["#ff0000", 9, 4.5, 2, 5]],
+    SE: [["#006aa7", 0, 0, 20, 14], ["#fecc00", 0, 5.5, 20, 3], ["#fecc00", 6, 0, 3, 14]],
+    AU: [["#00008b", 0, 0, 20, 14], ["#ffffff", 0, 0, 8.6, 6.6],
+         ["#00008b", 0.9, 0.9, 6.8, 4.8], ["#ffffff", 13.4, 8.4, 2, 2]],
+    TW: [["#fe0000", 0, 0, 20, 14], ["#000095", 0, 0, 10, 7],
+         ["#ffffff", 4, 2.4, 2.2, 2.2]],
   };
 
   /** Un drapeau simplifié, ou un globe quand la ligne n'est pas un pays. */
@@ -154,11 +183,11 @@
       return svgEl("svg", { class: "fanion", viewBox: "0 0 20 14", "aria-hidden": "true" }, [
         svgEl("circle", {
           cx: 10, cy: 7, r: 5.6, fill: "none",
-          stroke: "var(--encre-tres-douce)", "stroke-width": 1.2,
+          stroke: COULEURS.encreTresDouce, "stroke-width": 1.2,
         }),
         svgEl("path", {
           d: "M4.4 7h11.2M10 1.4c2.5 2.7 2.5 8.5 0 11.2M10 1.4c-2.5 2.7-2.5 8.5 0 11.2",
-          fill: "none", stroke: "var(--encre-tres-douce)", "stroke-width": 1,
+          fill: "none", stroke: COULEURS.encreTresDouce, "stroke-width": 1,
         }),
       ]);
     }
@@ -192,6 +221,8 @@
     obligations: "M4.5 5h8.5l3 3v7.5H4.5zM13 5v3.2h3M7.5 11h5M7.5 13.2h3.5",
     matieres: "M10 4l5.5 3.2v6.4L10 16.8 4.5 13.6V7.2zM10 4v12.8",
     numeriques: "M10 3.5l6 3.4v6.8L10 17l-6-3.3V6.9zM7 8.6l3 1.7 3-1.7M10 10.3v4.2",
+    // Une zone n'a pas de drapeau : toutes portent le meme reperage.
+    zone: "M10 3.2a6.8 6.8 0 100 13.6 6.8 6.8 0 000-13.6M3.4 10h13.2M10 3.2c2.7 3 2.7 10.6 0 13.6M10 3.2c-2.7 3-2.7 10.6 0 13.6",
   };
 
   function icone(nom) {
@@ -560,7 +591,7 @@
     jeu: "complet",
     tri: { colonne: "valeur", sens: -1 },
     filtreType: "tous",
-    rubrique: "classes",
+    rubrique: "general",
     arrangementFrais: "a",
     pageActifs: 0,
   };
@@ -861,16 +892,16 @@
     svg.append(
       svgEl("circle", {
         cx: x(points.length - 1), cy: y(dernier.valeur), r: 3.5,
-        fill: "var(--courbe-brut)", stroke: "var(--surface)", "stroke-width": 2,
+        fill: COULEURS.courbeBrut, stroke: COULEURS.surface, "stroke-width": 2,
       })
     );
 
     const viseur = svgEl("line", { class: "viseur", y1: mg.h, y2: mg.h + haut });
     const pointBrut = svgEl("circle", {
-      r: 4, fill: "var(--courbe-brut)", stroke: "var(--surface)", "stroke-width": 2,
+      r: 4, fill: COULEURS.courbeBrut, stroke: COULEURS.surface, "stroke-width": 2,
     });
     const pointInvesti = svgEl("circle", {
-      r: 3.5, fill: "var(--courbe-investi)", stroke: "var(--surface)", "stroke-width": 2,
+      r: 3.5, fill: COULEURS.courbeInvesti, stroke: COULEURS.surface, "stroke-width": 2,
     });
     const groupeSurvol = svgEl("g", {}, [viseur, pointBrut, pointInvesti]);
     groupeSurvol.style.display = "none";
@@ -953,16 +984,27 @@
 
   // --- L'anneau ------------------------------------------------------------
 
-  /** Un anneau. `parts` = [{libelle, montant, couleur, absent}]. Les parts « absent »
-   *  sont hachurées : ce qui manque se voit, sans se confondre avec un poste réel. */
+  /** Un anneau, dessine en ARCS EXPLICITES, un chemin par part.
+   *
+   * La version precedente empilait un seul cercle par part avec `stroke-dasharray` et
+   * `stroke-dashoffset`. C'est la technique habituelle, mais elle est impossible a
+   * verifier a l'oeil : rien ne dit qu'une part est au bon endroit ni a la bonne taille.
+   * Ici chaque part est un arc de son angle de depart a son angle d'arrivee, et sa
+   * couleur est ecrite en clair. On peut lire le code et savoir ce qui sera dessine.
+   *
+   * `parts` = [{libelle, montant, couleur, absent}]. Les parts « absent » sont hachurees :
+   * ce qui manque se voit, sans se confondre avec un poste reel.
+   */
   function anneau(parts, taille, legendeAuCentre) {
     const total = parts.reduce(function (s, p) {
       return s + p.montant;
     }, 0);
     if (total <= 0) return null;
-    const epaisseur = Math.round(taille * 0.14);
-    const r = taille / 2 - epaisseur / 2 - 2;
-    const circonference = 2 * Math.PI * r;
+
+    const epaisseur = Math.round(taille * 0.15);
+    const r = taille / 2 - epaisseur / 2 - 1;
+    const centre = taille / 2;
+    const ECART_DEGRES = 1.2; // le filet de papier entre deux parts
 
     const idHachures = "hachures-" + ++compteurIds;
     const motif = svgEl(
@@ -970,13 +1012,16 @@
       {
         id: idHachures,
         patternUnits: "userSpaceOnUse",
-        width: 6,
-        height: 6,
+        width: 5,
+        height: 5,
         patternTransform: "rotate(45)",
       },
       [
-        svgEl("rect", { width: 6, height: 6, fill: "var(--papier)" }),
-        svgEl("line", { x1: 0, y1: 0, x2: 0, y2: 6, stroke: "var(--absent)", "stroke-width": 3 }),
+        svgEl("rect", { width: 5, height: 5, fill: COULEURS.papier }),
+        svgEl("line", {
+          x1: 0, y1: 0, x2: 0, y2: 5,
+          stroke: COULEURS.absent, "stroke-width": 2.6,
+        }),
       ]
     );
 
@@ -992,33 +1037,66 @@
       [svgEl("defs", {}, [motif])]
     );
 
-    let parcouru = 0;
-    for (const p of parts) {
-      const part = p.montant / total;
-      svg.append(
-        svgEl("circle", {
-          cx: taille / 2,
-          cy: taille / 2,
-          r: r,
-          fill: "none",
-          stroke: p.absent ? "url(#" + idHachures + ")" : p.couleur,
-          "stroke-width": epaisseur,
-          // Un filet de papier sépare deux parts.
-          "stroke-dasharray": Math.max(0, part * circonference - 2) + " " + circonference,
-          "stroke-dashoffset": -parcouru * circonference,
-          transform: "rotate(-90 " + taille / 2 + " " + taille / 2 + ")",
-        })
-      );
-      parcouru += part;
+    /** Un point du cercle, l'angle etant compte depuis le haut, dans le sens horaire. */
+    function point(angleDegres) {
+      const rad = ((angleDegres - 90) * Math.PI) / 180;
+      return [centre + r * Math.cos(rad), centre + r * Math.sin(rad)];
+    }
+
+    let angle = 0;
+    for (const part of parts) {
+      const ouverture = (part.montant / total) * 360;
+      const couleur = part.absent ? "url(#" + idHachures + ")" : part.couleur;
+
+      if (ouverture >= 359.9) {
+        // Une part unique ne peut pas se dessiner comme un arc : c'est un cercle.
+        svg.append(
+          svgEl("circle", {
+            cx: centre, cy: centre, r: r,
+            fill: "none", stroke: couleur, "stroke-width": epaisseur,
+          })
+        );
+      } else if (ouverture > ECART_DEGRES) {
+        const debutArc = angle + ECART_DEGRES / 2;
+        const finArc = angle + ouverture - ECART_DEGRES / 2;
+        const [x1, y1] = point(debutArc);
+        const [x2, y2] = point(finArc);
+        svg.append(
+          svgEl("path", {
+            d:
+              "M " + x1.toFixed(2) + " " + y1.toFixed(2) +
+              " A " + r + " " + r + " 0 " +
+              (finArc - debutArc > 180 ? 1 : 0) + " 1 " +
+              x2.toFixed(2) + " " + y2.toFixed(2),
+            fill: "none",
+            stroke: couleur,
+            "stroke-width": epaisseur,
+          })
+        );
+      } else if (ouverture > 0) {
+        // Une part minuscule reste visible : un trait, plutot que rien du tout.
+        const [x1, y1] = point(angle);
+        const [x2, y2] = point(angle + ouverture);
+        svg.append(
+          svgEl("path", {
+            d: "M " + x1.toFixed(2) + " " + y1.toFixed(2) + " L " + x2.toFixed(2) + " " + y2.toFixed(2),
+            fill: "none",
+            stroke: part.absent ? COULEURS.absent : part.couleur,
+            "stroke-width": epaisseur,
+            "stroke-linecap": "butt",
+          })
+        );
+      }
+      angle += ouverture;
     }
 
     if (legendeAuCentre) {
       const t1 = svgEl("text", {
-        x: taille / 2, y: taille / 2 + 1, "text-anchor": "middle", class: "anneau__centre",
+        x: centre, y: centre + 1, "text-anchor": "middle", class: "anneau__centre",
       });
       t1.textContent = legendeAuCentre;
       const t2 = svgEl("text", {
-        x: taille / 2, y: taille / 2 + 15, "text-anchor": "middle", class: "anneau__sous",
+        x: centre, y: centre + 15, "text-anchor": "middle", class: "anneau__sous",
       });
       t2.textContent = "au total";
       svg.append(t1, t2);
@@ -1069,11 +1147,13 @@
     const total = parts.reduce(function (s, p) {
       return s + p.montant;
     }, 0);
+    // L'anneau en haut, au milieu, et les lignes en dessous : c'est la disposition
+    // demandee par le proprietaire, et elle rend la colonne plus lisible.
     return bloc(
-      "Où est l'argent",
+      "Où est l'argent que j'investis",
       null,
-      el("div", { class: "anneau-bloc" }, [
-        anneau(parts, 150, fEntier.format(total) + " €"),
+      el("div", { class: "anneau-bloc anneau-bloc--colonne" }, [
+        anneau(parts, 156, fEntier.format(total) + " €"),
         listeDeParts(parts, total),
       ])
     );
@@ -1428,10 +1508,12 @@
 
   // --- Diversification ------------------------------------------------------
 
+  // Les classes d'actifs et les zones tenaient chacune dans un bloc trop petit pour
+  // ce qu'elles disent. Elles partagent desormais une vue d'ensemble : ce sont les deux
+  // reponses larges, avant d'entrer dans le detail des pays et des secteurs.
   const RUBRIQUES = [
-    { cle: "classes", nom: "Classes d'actifs" },
+    { cle: "general", nom: "Vue d'ensemble" },
     { cle: "pays", nom: "Pays" },
-    { cle: "zones", nom: "Zones" },
     { cle: "secteurs", nom: "Secteurs" },
   ];
 
@@ -1496,27 +1578,6 @@
   function teinte(i, combien) {
     const clarte = 28 + (i / Math.max(1, combien - 1)) * 38;
     return "hsl(197 58% " + clarte.toFixed(0) + "%)";
-  }
-
-  function tableauSources(postes) {
-    return el("div", { class: "cadre-tableau" }, [
-      el("table", {}, [
-        el("thead", {}, el("tr", {}, [
-          el("th", { texte: "Poste" }),
-          el("th", { texte: "Source" }),
-          el("th", { texte: "Règle de pays" }),
-          el("th", { class: "num", texte: "Part" }),
-        ])),
-        el("tbody", {}, postes.map(function (p) {
-          return el("tr", {}, [
-            el("td", { class: "avec-fanion" }, [drapeau(p.code), el("span", { texte: p.libelle })]),
-            el("td", { texte: p.source }),
-            el("td", { texte: p.regle }),
-            el("td", { class: "num", texte: pourCent(p.pourCent) }),
-          ]);
-        })),
-      ]),
-    ]);
   }
 
   function remarquesDiversification(d) {
@@ -1590,7 +1651,9 @@
       return page;
     }
 
-    if (etat.rubrique === "classes") {
+    if (etat.rubrique === "general") {
+      // Les deux reponses larges, cote a cote et en grand : de quoi est fait le
+      // portefeuille, et ou dans le monde il est expose.
       const parts = d.classes.postes
         .map(function (p, i) {
           return {
@@ -1604,28 +1667,34 @@
             return { libelle: p.libelle, montant: p.montant, absent: true };
           })
         );
+
       page.append(
-        el("div", { class: "rangee rangee--apres" }, [
+        el("div", { class: "rangee rangee--deux rangee--apres" }, [
           bloc(
             "Par classe d'actifs",
             "base " + euros(d.base),
-            blocClassement(d.classes, false),
+            el("div", { class: "double" }, [
+              el("div", { class: "anneau-bloc anneau-bloc--colonne" }, [
+                anneau(parts, 184, fEntier.format(d.base) + " €"),
+                listeDeParts(parts, d.base),
+              ]),
+              blocClassement(d.classes, false),
+            ]),
             null,
             "pasCent"
           ),
           bloc(
-            "Vu en anneau",
+            "Par zone d'investisseur",
+            "convention datée et sourcée",
+            blocClassement({ postes: d.pays.zones, restes: d.pays.restes }, false),
             null,
-            el("div", { class: "anneau-bloc anneau-bloc--colonne" }, [
-              anneau(parts, 176, fEntier.format(d.base) + " €"),
-              listeDeParts(parts, d.base),
-            ])
+            "zones"
           ),
         ])
       );
     } else if (etat.rubrique === "pays") {
       page.append(
-        el("div", { class: "rangee rangee--large rangee--apres" }, [
+        el("div", { class: "rangee rangee--apres" }, [
           bloc(
             "Par pays",
             "règle dominante : " + d.pays.regleDominante,
@@ -1633,30 +1702,7 @@
             null,
             "regleDePays"
           ),
-        ])
-      );
-      page.append(
-        el("div", { class: "rangee rangee--apres" }, [
-          bloc(
-            "D'où vient chaque chiffre",
-            "arrêtés du " + dateCourte(d.arreteDu) + " au " + dateCourte(d.arreteAu),
-            tableauSources(d.pays.postes),
-            "bloc--plein",
-            "arrete"
-          ),
           bloc("Ce qu'il faut savoir de ces chiffres", null, remarquesDiversification(d)),
-        ])
-      );
-    } else if (etat.rubrique === "zones") {
-      page.append(
-        el("div", { class: "rangee rangee--large rangee--apres" }, [
-          bloc(
-            "Par zone d'investisseur",
-            "convention datée et sourcée",
-            blocClassement({ postes: d.pays.zones, restes: d.pays.restes }, true),
-            null,
-            "zones"
-          ),
         ])
       );
     } else {
@@ -1869,10 +1915,12 @@
     ]);
 
     if (etat.arrangementFrais === "a") {
+      // « Par poche » est un tableau de sept colonnes : c'est lui qui a besoin de place,
+      // pas la cascade, qui tient en cinq lignes.
       page.append(
         el("div", { class: "rangee rangee--apres" }, [
-          blocValeurReelle,
           bloc("Par poche", null, parPoche, "bloc--plein", "baseImposable"),
+          blocValeurReelle,
         ])
       );
       page.append(
@@ -1933,8 +1981,8 @@
       );
       page.append(
         el("div", { class: "rangee rangee--apres" }, [
-          blocValeurReelle,
           bloc("3. À la sortie — par poche", null, parPoche, "bloc--plein", "baseImposable"),
+          blocValeurReelle,
         ])
       );
     }

@@ -842,12 +842,6 @@ tfoot td {
   bottom: 0;
 }
 
-td.avec-fanion {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
 /* Le nom d'un actif ne se coupe jamais en silence : il passe à la ligne.
    Un libellé tronqué n'explique plus rien (défaut trouvé à l'étape 7). */
 .actif__nom {
@@ -976,13 +970,16 @@ tr.sans-valeur td {
   flex: none;
 }
 
+/* La legende est centree sous le graphique : c'est la place demandee par le
+   proprietaire, et elle equilibre le bloc au lieu de le tirer vers la gauche. */
 .legende {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 16px;
+  justify-content: center;
+  gap: 4px 20px;
   font-size: 11.5px;
   color: var(--encre-douce);
-  margin: 7px 0 0;
+  margin: 9px 0 0;
   padding: 0;
   list-style: none;
 }
@@ -1105,6 +1102,20 @@ tr.sans-valeur td {
   display: flex;
   flex-direction: column;
   flex: 1;
+}
+
+/* Deux contenus dans un meme bloc : l'anneau, puis le classement. */
+.double {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+
+.double > .classement {
+  border-top: 1px solid var(--trait-fort);
+  padding-top: 8px;
+  flex: none;
 }
 
 .rang {

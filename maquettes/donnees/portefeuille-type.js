@@ -483,6 +483,10 @@ window.MAQUETTE = (function () {
     { libelle: "Non couvert", montant: NON_COUVERT, mot: "non-couvert" },
   ];
 
+  // Tous les pays qui pèsent au moins 0,5 % du portefeuille sont nommés. En dessous,
+  // ils sont regroupés — mais le regroupement dit combien ils sont, et il reste visible
+  // à sa vraie taille.
+  const SEUIL_PAYS = 0.5; // en pour cent de la base
   const PAYS_TETE = [
     { libelle: "États-Unis", code: "US", zone: "Amérique du Nord", montant: 2043.8, source: "extraETF", regle: "pays d'activité" },
     { libelle: "Japon", code: "JP", zone: "Japon", montant: 421.36, source: "extraETF", regle: "pays d'activité" },
@@ -492,28 +496,50 @@ window.MAQUETTE = (function () {
     { libelle: "Canada", code: "CA", zone: "Amérique du Nord", montant: 96.4, source: "extraETF", regle: "pays d'activité" },
     { libelle: "Suisse", code: "CH", zone: "Europe", montant: 84.15, source: "extraETF", regle: "pays d'activité" },
     { libelle: "Pays-Bas", code: "NL", zone: "Europe", montant: 71.3, source: "extraETF", regle: "pays d'activité" },
+    { libelle: "Australie", code: "AU", zone: "Asie-Pacifique développée", montant: 38.4, source: "extraETF", regle: "pays d'activité" },
+    { libelle: "Taïwan", code: "TW", zone: "Marchés émergents", montant: 34.2, source: "extraETF", regle: "pays d'activité" },
+    { libelle: "Suède", code: "SE", zone: "Europe", montant: 28.6, source: "extraETF", regle: "pays d'activité" },
   ];
-  const AUTRES_PAYS = sou(
-    ACTIONS - PAYS_TETE.reduce(function (s, p) { return s + p.montant; }, 0)
-  );
-  const PAYS = PAYS_TETE.concat([
-    { libelle: "Autres pays (18)", code: null, zone: "—", montant: AUTRES_PAYS, source: "extraETF", regle: "pays d'activité" },
-  ]);
 
-  const AUTRES_PAR_ZONE = { Europe: 62.3, "Asie-Pacifique développée": 54.2 };
+  // Ce qui reste est le RELIQUAT des pays trop petits pour être nommés. Il est calculé,
+  // pas écrit : la somme des pays doit faire exactement la part investie en actions,
+  // sinon la répartition ne se recoupe plus.
+  const AUTRES_PAYS = sou(
+    ACTIONS -
+      PAYS_TETE.reduce(function (s, p) {
+        return s + p.montant;
+      }, 0)
+  );
+  // Il se répartit entre trois zones ; la dernière absorbe l'arrondi.
+  const AUTRES_PAR_ZONE = { Europe: 24.0, "Asie-Pacifique développée": 18.15 };
   AUTRES_PAR_ZONE["Marchés émergents"] = sou(
     AUTRES_PAYS - AUTRES_PAR_ZONE.Europe - AUTRES_PAR_ZONE["Asie-Pacifique développée"]
   );
+
+  const PAYS = PAYS_TETE.concat([
+    {
+      libelle: "Autres pays (15), chacun sous " + SEUIL_PAYS.toFixed(1).replace(".", ",") + " %",
+      code: null,
+      zone: "—",
+      montant: AUTRES_PAYS,
+      source: "extraETF",
+      regle: "pays d'activité",
+    },
+  ]);
+
   const ZONES = [
-    { libelle: "Amérique du Nord", code: "AN" },
-    { libelle: "Europe", code: "EU" },
-    { libelle: "Japon", code: "JP" },
-    { libelle: "Asie-Pacifique développée", code: "AP" },
-    { libelle: "Marchés émergents", code: "EM" },
-  ].map(function (z) {
-    let montant = AUTRES_PAR_ZONE[z.libelle] || 0;
-    for (const p of PAYS_TETE) if (p.zone === z.libelle) montant += p.montant;
-    return { libelle: z.libelle, code: z.code, montant: sou(montant) };
+    "Amérique du Nord",
+    "Europe",
+    "Japon",
+    "Asie-Pacifique développée",
+    "Marchés émergents",
+  ].map(function (zone) {
+    let montant = AUTRES_PAR_ZONE[zone] || 0;
+    for (const p of PAYS_TETE) if (p.zone === zone) montant += p.montant;
+    // Une zone n'a pas de drapeau : il n'en existe pas pour l'Amérique du Nord ni pour
+    // l'Asie-Pacifique. Elles portent donc TOUTES le même pictogramme — ou aucune
+    // n'en porterait. Un seul drapeau au milieu de libellés nus était le vrai défaut.
+    return { libelle: zone, icone: "zone", montant: sou(montant) };
   });
 
   // Les 11 secteurs Morningstar. Le dernier absorbe l'arrondi.
