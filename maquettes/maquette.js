@@ -30,16 +30,16 @@
    * Regle qui en sort, et qui vaut pour l'etape 9 : une couleur posee en attribut SVG
    * est ecrite en clair ; une couleur posee en CSS passe par la variable. */
   const COULEURS = {
-    papier: "#f6f1e7",
-    surface: "#fbf8f2",
-    surfaceCreuse: "#eee7d8",
-    trait: "#ded5c2",
+    papier: "#ece3d0",
+    surface: "#f3ecdd",
+    surfaceCreuse: "#e0d5bd",
+    trait: "#d2c7ae",
     encre: "#2c2722",
-    encreDouce: "#6e6459",
-    encreTresDouce: "#8d8378",
+    encreDouce: "#665c51",
+    encreTresDouce: "#6f6559",
     courbeBrut: "#1d6c93",
-    courbeInvesti: "#6e6459",
-    absent: "#b9ad97",
+    courbeInvesti: "#665c51",
+    absent: "#ada08a",
     poche: { PEA: "#1b4a63", CTO: "#37738c", Crypto: "#6fa0b4" },
   };
   const COULEUR_POCHE = COULEURS.poche;

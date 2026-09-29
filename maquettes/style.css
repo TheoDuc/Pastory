@@ -110,23 +110,23 @@
   color-scheme: only light;
 
   /* --- Le papier et l'encre --- */
-  --papier: #f6f1e7;
-  --surface: #fbf8f2;
-  --surface-creuse: #eee7d8;
-  --trait: #ded5c2;
-  --trait-fort: #c3b79f;
+  --papier: #ece3d0;
+  --surface: #f3ecdd;
+  --surface-creuse: #e0d5bd;
+  --trait: #d2c7ae;
+  --trait-fort: #b3a68a;
   --encre: #2c2722;
-  --encre-douce: #6e6459;
-  --encre-tres-douce: #8d8378;
+  --encre-douce: #665c51;
+  --encre-tres-douce: #6f6559;
 
   /* --- Le bandeau : une manchette d'encre, pour qu'il ne se confonde pas
          avec la page. Les trois rangées vont du plus sombre au plus clair. --- */
-  --bandeau: #332e27;
-  --bandeau-clair: #443d34;
+  --bandeau: #2e2922;
+  --bandeau-clair: #3f382f;
   --bandeau-encre: #f4eee1;
   --bandeau-douce: #b7ab98;
-  --bandeau-trait: #524a3f;
-  --sous-bandeau: #ece4d3;
+  --bandeau-trait: #4d463b;
+  --sous-bandeau: #e2d8c2;
 
   /* --- Les trois couleurs de statut. Elles ne servent JAMAIS de couleur de série. --- */
   --gain: #456a4b; /* sauge      — 5,46:1 sur le papier */
@@ -137,11 +137,11 @@
 
   /* --- Les séries des graphiques --- */
   --courbe-brut: #1d6c93;
-  --courbe-investi: #6e6459;
+  --courbe-investi: #665c51;
   --poche-1: #1b4a63;
   --poche-2: #37738c;
   --poche-3: #6fa0b4;
-  --absent: #b9ad97; /* ce qui manque : non couvert, non attribué, hors actions */
+  --absent: #ada08a; /* ce qui manque : non couvert, non attribué, hors actions */
 
   --serif: "Plex Serif", Georgia, "Palatino Linotype", serif;
   --sans: "Plex Sans", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
@@ -170,7 +170,7 @@ body {
   /* Une trame de papier très discrète, dessinée en CSS : aucune image distante. */
   background-image: radial-gradient(
     circle at 1px 1px,
-    rgba(120, 104, 82, 0.05) 1px,
+    rgba(96, 82, 62, 0.055) 1px,
     transparent 0
   );
   background-size: 7px 7px;
@@ -1123,6 +1123,98 @@ tr.sans-valeur td {
   display: flex;
   flex-direction: column;
   flex: 1;
+}
+
+.rang {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.5fr) minmax(90px, 3fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 0;
+  border-top: 1px solid var(--trait);
+  font-size: 12.5px;
+}
+
+.rang:first-child {
+  border-top: 0;
+}
+
+.rang__libelle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--encre-douce);
+}
+
+.rang__texte {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--encre);
+}
+
+.rang--absent .rang__texte {
+  color: var(--encre-douce);
+  font-style: italic;
+}
+
+/* Un SVG sans dimension prend sa taille intrinseque, qui est ENORME. Ces deux regles
+   ne sont donc pas cosmetiques : sans elles, chaque drapeau et chaque pictogramme
+   remplit la page. Le defaut est arrive en supprimant une classe voisine inutilisee,
+   qui a emporte tout le bloc avec elle. */
+.fanion {
+  width: 20px;
+  height: 14px;
+  flex: none;
+  border-radius: 1px;
+  display: block;
+}
+
+.picto {
+  width: 17px;
+  height: 17px;
+  flex: none;
+  color: var(--encre-tres-douce);
+  display: block;
+}
+
+.rang__piste {
+  height: 12px;
+  background: var(--surface-creuse);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.rang__barre {
+  height: 100%;
+  background: var(--courbe-brut);
+  border-radius: 1px;
+  display: block;
+}
+
+/* Ce qui n'est PAS attribué se dessine en hachures : on le voit sans le confondre
+   avec un poste réel, et la couleur ne porte pas seule l'information. */
+.rang__barre--absent {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--absent),
+    var(--absent) 3px,
+    transparent 3px,
+    transparent 6px
+  );
+  box-shadow: inset 0 0 0 1px var(--absent);
+}
+
+.rang__montant,
+.rang__part {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.rang__part {
+  color: var(--encre-douce);
+  min-width: 56px;
 }
 
 .classement__coupure {
