@@ -44,6 +44,47 @@
   };
   const COULEUR_POCHE = COULEURS.poche;
 
+  /** Une teinte d'une rampe d'une seule couleur, du fonce au clair, rendue en
+   *  hexadecimal : il faut une valeur lisible par calcul pour choisir la couleur du
+   *  texte pose dessus. */
+  function hslEnHex(teinteDegres, saturation, clarte) {
+    const s = saturation / 100;
+    const l = clarte / 100;
+    const k = function (n) {
+      return (n + teinteDegres / 30) % 12;
+    };
+    const a = s * Math.min(l, 1 - l);
+    const f = function (n) {
+      const valeur = l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+      return Math.round(255 * valeur)
+        .toString(16)
+        .padStart(2, "0");
+    };
+    return "#" + f(0) + f(8) + f(4);
+  }
+
+  /** La couleur de texte lisible sur un fond donne : l'encre ou le papier, selon la
+   *  luminance du fond. Aucune etiquette ne doit se perdre dans sa part. */
+  function encreLisible(hex) {
+    const composante = function (i) {
+      const c = parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16) / 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    };
+    const luminance =
+      0.2126 * composante(0) + 0.7152 * composante(1) + 0.0722 * composante(2);
+    return luminance > 0.38 ? COULEURS.encre : COULEURS.papier;
+  }
+
+  /** Une copie triee de la plus grosse part a la plus petite. Les anneaux et les
+   *  classements se lisent ainsi de haut en bas et dans le sens horaire, ce qui rend le
+   *  sens de lecture evident — sans quoi la petite part collee avant midi se confond
+   *  avec la premiere ligne de la legende. */
+  function parTaille(liste, champ) {
+    return liste.slice().sort(function (a, b) {
+      return (b[champ] || 0) - (a[champ] || 0);
+    });
+  }
+
   // ==========================================================================
   // 1. MISE EN FORME
   // Deux unités, deux fonctions. Les confondre a déjà produit « 6264,00 % » au
@@ -1087,6 +1128,25 @@
           })
         );
       }
+      /* Le pourcentage est ecrit DANS la part, quand elle est assez grande pour le
+       * porter. C'est ce qui supprime toute ambiguite : plus besoin d'apparier une
+       * couleur de legende avec un arc a l'oeil, le chiffre est sur l'arc. La couleur du
+       * texte est choisie par calcul de luminance, pour rester lisible sur le fonce
+       * comme sur le clair. */
+      if (part.montant / total >= 0.07 && !part.absent) {
+        const milieu = angle + ouverture / 2;
+        const rad = ((milieu - 90) * Math.PI) / 180;
+        const etiquette = svgEl("text", {
+          x: (centre + r * Math.cos(rad)).toFixed(1),
+          y: (centre + r * Math.sin(rad)).toFixed(1),
+          "text-anchor": "middle",
+          "dominant-baseline": "central",
+          class: "anneau__part",
+          fill: encreLisible(part.couleur),
+        });
+        etiquette.textContent = fEntier.format((part.montant / total) * 100) + " %";
+        svg.append(etiquette);
+      }
       angle += ouverture;
     }
 
@@ -1147,14 +1207,16 @@
     const total = parts.reduce(function (s, p) {
       return s + p.montant;
     }, 0);
-    // L'anneau en haut, au milieu, et les lignes en dessous : c'est la disposition
-    // demandee par le proprietaire, et elle rend la colonne plus lisible.
+    // Triees de la plus grosse a la plus petite : l'anneau part alors de midi avec la
+    // part principale, et la legende se lit dans le meme ordre.
+    const triees = parTaille(parts, "montant");
+    // L'anneau en haut, au milieu, et les lignes en dessous.
     return bloc(
       "Où est l'argent que j'investis",
       null,
       el("div", { class: "anneau-bloc anneau-bloc--colonne" }, [
-        anneau(parts, 156, fEntier.format(total) + " €"),
-        listeDeParts(parts, total),
+        anneau(triees, 156, fEntier.format(total) + " €"),
+        listeDeParts(triees, total),
       ])
     );
   }
@@ -1513,8 +1575,8 @@
   // reponses larges, avant d'entrer dans le detail des pays et des secteurs.
   const RUBRIQUES = [
     { cle: "general", nom: "Vue d'ensemble" },
-    { cle: "pays", nom: "Pays" },
-    { cle: "secteurs", nom: "Secteurs" },
+    { cle: "pays", nom: "Le détail par pays" },
+    { cle: "secteurs", nom: "Le détail par secteur" },
   ];
 
   function cleAideDuReste(mot) {
@@ -1555,7 +1617,7 @@
       })
     );
     const liste = el("div", { class: "classement" });
-    for (const poste of rubrique.postes) {
+    for (const poste of parTaille(rubrique.postes, "pourCent")) {
       liste.append(ligneMesuree(poste, maxi, { drapeau: avecDrapeaux }));
     }
     if (restes.length) {
@@ -1565,7 +1627,7 @@
       const secoursCent = aide("pasCent");
       if (secoursCent) coupure.append(secoursCent[0]);
       liste.append(coupure);
-      for (const reste of restes) {
+      for (const reste of parTaille(restes, "pourCent")) {
         const ligne = ligneMesuree(reste, maxi, { drapeau: false, absent: true });
         const secours = aide(cleAideDuReste(reste.mot));
         if (secours) ligne.firstChild.append(secours[0]);
@@ -1575,9 +1637,11 @@
     return liste;
   }
 
+  /** La rampe d'une seule teinte, du fonce au clair. Une couleur suit TOUJOURS son
+   *  poste, jamais son rang : on la calcule sur la position canonique du poste, et on
+   *  trie ensuite pour l'affichage. */
   function teinte(i, combien) {
-    const clarte = 28 + (i / Math.max(1, combien - 1)) * 38;
-    return "hsl(197 58% " + clarte.toFixed(0) + "%)";
+    return hslEnHex(197, 58, 26 + (i / Math.max(1, combien - 1)) * 40);
   }
 
   function remarquesDiversification(d) {
@@ -1652,44 +1716,104 @@
     }
 
     if (etat.rubrique === "general") {
-      // Les deux reponses larges, cote a cote et en grand : de quoi est fait le
-      // portefeuille, et ou dans le monde il est expose.
-      const parts = d.classes.postes
-        .map(function (p, i) {
-          return {
-            libelle: p.libelle,
-            montant: p.montant,
-            couleur: teinte(i, d.classes.postes.length),
-          };
-        })
-        .concat(
-          d.classes.restes.map(function (p) {
-            return { libelle: p.libelle, montant: p.montant, absent: true };
+      /* Les trois reponses larges, cote a cote : de quoi le portefeuille est fait, ou
+       * dans le monde il est expose, et dans quels metiers.
+       *
+       * Une couleur suit son POSTE, pas son rang : elle est calculee sur la position
+       * canonique du poste dans le referentiel, puis les parts sont triees par taille
+       * pour l'affichage. Sans cela, decocher une poche repeindrait les survivants. */
+      const partsClasses = parTaille(
+        d.classes.postes
+          .map(function (poste, i) {
+            return {
+              libelle: poste.libelle,
+              montant: poste.montant,
+              couleur: teinte(i, d.classes.postes.length),
+            };
           })
+          .concat(
+            d.classes.restes.map(function (poste) {
+              return { libelle: poste.libelle, montant: poste.montant, absent: true };
+            })
+          ),
+        "montant"
+      );
+
+      const partsZones = parTaille(
+        d.pays.zones
+          .map(function (zone, i) {
+            return {
+              libelle: zone.libelle,
+              montant: zone.montant,
+              couleur: teinte(i, d.pays.zones.length),
+            };
+          })
+          .concat(
+            d.pays.restes.map(function (poste) {
+              return { libelle: poste.libelle, montant: poste.montant, absent: true };
+            })
+          ),
+        "montant"
+      );
+
+      /* Pour les secteurs, les cinq postes hors repartition sont REGROUPES dans une
+       * seule part hachuree et nommee, avec son montant : seize arcs d'une meme teinte
+       * seraient illisibles. Rien n'est masque pour autant — le classement juste en
+       * dessous les detaille un par un. */
+      const horsSecteurs = d.secteurs.restes.reduce(function (s, poste) {
+        return s + poste.montant;
+      }, 0);
+      const partsSecteurs = parTaille(
+        d.secteurs.postes.map(function (poste, i) {
+          return {
+            libelle: poste.libelle,
+            montant: poste.montant,
+            couleur: teinte(i, d.secteurs.postes.length),
+          };
+        }),
+        "montant"
+      ).concat([
+        {
+          libelle: "Hors répartition sectorielle",
+          montant: Math.round(horsSecteurs * 100) / 100,
+          absent: true,
+        },
+      ]);
+
+      function volet(titre, note, cleAide, parts, rubrique, avecDrapeaux) {
+        return bloc(
+          titre,
+          note,
+          el("div", { class: "double" }, [
+            el("div", { class: "anneau-bloc anneau-bloc--colonne" }, [
+              anneau(parts, 176, fEntier.format(d.base) + " €"),
+            ]),
+            blocClassement(rubrique, avecDrapeaux),
+          ]),
+          null,
+          cleAide
         );
+      }
 
       page.append(
-        el("div", { class: "rangee rangee--deux rangee--apres" }, [
-          bloc(
+        el("div", { class: "rangee rangee--trois rangee--apres" }, [
+          volet(
             "Par classe d'actifs",
             "base " + euros(d.base),
-            el("div", { class: "double" }, [
-              el("div", { class: "anneau-bloc anneau-bloc--colonne" }, [
-                anneau(parts, 184, fEntier.format(d.base) + " €"),
-                listeDeParts(parts, d.base),
-              ]),
-              blocClassement(d.classes, false),
-            ]),
-            null,
-            "pasCent"
+            "pasCent",
+            partsClasses,
+            d.classes,
+            false
           ),
-          bloc(
+          volet(
             "Par zone d'investisseur",
-            "convention datée et sourcée",
-            blocClassement({ postes: d.pays.zones, restes: d.pays.restes }, false),
-            null,
-            "zones"
+            "convention datée",
+            "zones",
+            partsZones,
+            { postes: d.pays.zones, restes: d.pays.restes },
+            false
           ),
+          volet("Par secteur", d.nomenclature, "secteurs", partsSecteurs, d.secteurs, false),
         ])
       );
     } else if (etat.rubrique === "pays") {
@@ -2257,17 +2381,28 @@
   // ==========================================================================
 
   const ONGLETS = [
-    { cle: "synthese", nom: "Synthèse", dessin: ongletSynthese, periode: true, type: false },
-    { cle: "actifs", nom: "Les actifs", dessin: ongletActifs, periode: false, type: true },
     {
-      cle: "diversification",
-      nom: "Diversification",
-      dessin: ongletDiversification,
-      periode: false,
-      type: false,
+      cle: "synthese", nom: "Synthèse", dessin: ongletSynthese,
+      periode: true, type: false, poches: true,
     },
-    { cle: "frais", nom: "Frais et taxes", dessin: ongletFrais, periode: false, type: false },
-    { cle: "detail", nom: "Détail des calculs", dessin: ongletDetail, periode: true, type: false },
+    {
+      cle: "actifs", nom: "Les actifs", dessin: ongletActifs,
+      periode: false, type: true, poches: true,
+    },
+    {
+      // Aucun filtre ici : une répartition est la photo d'un tout, il n'y a rien à
+      // filtrer. Un filtre qui n'agit sur rien est pire qu'absent.
+      cle: "diversification", nom: "Diversification", dessin: ongletDiversification,
+      periode: false, type: false, poches: false,
+    },
+    {
+      cle: "frais", nom: "Frais et taxes", dessin: ongletFrais,
+      periode: false, type: false, poches: false,
+    },
+    {
+      cle: "detail", nom: "Détail des calculs", dessin: ongletDetail,
+      periode: true, type: false, poches: true,
+    },
   ];
 
   function squelette() {
@@ -2364,7 +2499,8 @@
         )
       );
     }
-    filtres.append(
+    if (onglet.poches) {
+      filtres.append(
       el("span", { class: "etiquette", texte: "Poches" }),
       el(
         "div",
@@ -2393,7 +2529,10 @@
           return b;
         })
       )
-    );
+      );
+    }
+    // Une bande de filtres vide n'a pas lieu d'exister : elle se retire.
+    filtres.hidden = filtres.childNodes.length === 0;
 
     // --- Le compteur de signalements, qui mène au détail ---
     const zoneSignalements = document.getElementById("signalements");

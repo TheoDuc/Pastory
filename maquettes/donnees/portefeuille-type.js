@@ -676,7 +676,11 @@ window.MAQUETTE = (function () {
 
   const TAUX_IMPOT = 31.4; // IR et prélèvements sociaux réunis, en pour cent
   const REGLE_PAR_POCHE = {
-    PEA: "plan de moins de cinq ans : le gain du plan est approché depuis les titres",
+    // Un PEA de MOINS de cinq ans est imposé comme un compte-titres : afficher zéro
+    // d'impôt sur lui était une erreur, et elle rendait la valeur réelle trop flatteuse.
+    // Ce qui reste particulier, c'est que le gain du plan ne peut pas être calculé depuis
+    // les seuls titres : il est approché, donc l'estimation est marquée minorée (D-59).
+    PEA: "plan de moins de cinq ans, imposé comme un compte-titres ; le gain du plan est approché depuis les titres",
     CTO: "prélèvement forfaitaire unique sur les seules plus-values latentes",
     Crypto: "prélèvement forfaitaire unique, seuil de cession de 305 € dépassé",
   };
@@ -689,8 +693,8 @@ window.MAQUETTE = (function () {
     const spread = sou(detenues.reduce(function (s, p) { return s + spreadDe(p); }, 0));
     const brute = PAR_POCHE[poche].valeur;
     // La base imposable : les plus-values latentes compensées, plancher à zéro (D-60).
-    // Le PEA n'est pas imposé s'il a plus de cinq ans ; ici il en a moins, et le gain
-    // du plan est approché depuis les titres, donc l'estimation est minorée (D-59).
+    // Les frais et le spread de sortie viennent en déduction, puisqu'ils réduisent le
+    // produit de la cession.
     const baseImposable = sou(
       Math.max(
         0,
@@ -701,14 +705,16 @@ window.MAQUETTE = (function () {
           spread
       )
     );
-    const impot = poche === "PEA" ? 0 : sou((baseImposable * TAUX_IMPOT) / 100);
+    // Toutes les poches portent le même taux ici. Ce qui les distingue est la RÈGLE
+    // qui définit la base, pas le taux — et un PEA de moins de cinq ans n'est pas exonéré.
+    const impot = sou((baseImposable * TAUX_IMPOT) / 100);
     return {
       poche: poche,
       valeurBrute: brute,
       fraisDeVente: fraisDeVente,
       spread: spread,
       baseImposable: baseImposable,
-      tauxImpot: poche === "PEA" ? null : TAUX_IMPOT,
+      tauxImpot: TAUX_IMPOT,
       impot: impot,
       valeurReelle: sou(brute - fraisDeVente - spread - impot),
       regle: REGLE_PAR_POCHE[poche],

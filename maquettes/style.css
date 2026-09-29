@@ -449,6 +449,10 @@ body {
   grid-template-columns: repeat(auto-fit, minmax(430px, 1fr));
 }
 
+.rangee--trois {
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+}
+
 /* ============================================================================
    LE BLOC : la brique de la grille
    ========================================================================== */
@@ -1031,6 +1035,16 @@ tr.sans-valeur td {
 .anneau__sous {
   font-size: 10px;
   fill: var(--encre-tres-douce);
+}
+
+/* Le pourcentage ecrit DANS la part : c'est lui qui rend la correspondance entre une
+   couleur et un chiffre indiscutable, sans obliger l'oeil a apparier un arc et une
+   ligne de legende. Sa couleur est choisie par calcul, dans le script. */
+.anneau__part {
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums lining-nums;
+  pointer-events: none;
 }
 
 .liste-parts {
