@@ -9,13 +9,12 @@
  * contient ce qu'il ne détient pas — deux actions en direct, un ETF obligataire, un ETC
  * sur l'or, un fonds non couvert, une position sans cours.
  *
- * TOUT CE QUI PEUT ÊTRE CALCULÉ L'EST.
- * Les totaux, les plus-values, les pourcentages et la courbe sont dérivés des lignes et
- * des flux ci-dessous, jamais recopiés. C'est ce qui garantit qu'une somme affichée à
- * l'écran tombe juste — et la première version de cette maquette prouve que c'était
- * nécessaire : trois totaux écrits à la main se contredisaient, et la courbe, qui
- * montait de façon lisse alors que les flux arrivent par paliers, produisait un TWRR
- * de −126 %.
+ * TOUT CE QUI PEUT ÊTRE CALCULÉ L'EST, et chaque ordre appartient à UN actif.
+ * C'est ce qui permet d'afficher la variation d'un actif sur la période choisie, et
+ * c'est aussi ce qui garantit que la courbe du portefeuille est la somme des courbes de
+ * ses lignes. Les deux versions précédentes de cette maquette l'ont appris à leurs
+ * dépens : des totaux écrits à la main se contredisaient, et une courbe qui montait
+ * indépendamment des flux produisait un TWRR de −126 %.
  *
  * Fichier en .js et non en .json : le .gitignore exclut *.json (règle 1).
  */
@@ -24,15 +23,19 @@ window.MAQUETTE = (function () {
   "use strict";
 
   const FRAIS_PAR_ORDRE = 1.0; // liste des prix : 1 € par ordre
+  const DATE_ARRETE = "2026-09-25";
+  const DEBUT_COURBE = "2025-03-07"; // une semaine avant le premier achat, à zéro
+  const JOURS = 567; // DEBUT_COURBE + 567 jours = DATE_ARRETE
+  const POCHES = ["PEA", "CTO", "Crypto"];
+
   const sou = function (n) {
     return Math.round(n * 100) / 100;
   };
 
   // ==========================================================================
   // LES POSITIONS
-  // La valeur et la plus-value latente sont CALCULÉES : valeur = quantité x cours,
-  // plus-value latente = valeur − capital net investi. Ce sont les deux vérifications
-  // que le propriétaire fera en premier.
+  // valeur = quantité x cours, plus-value latente = valeur − capital net investi.
+  // Ce sont les deux vérifications que le propriétaire fera en premier.
   // ==========================================================================
 
   const lignes = [
@@ -99,6 +102,7 @@ window.MAQUETTE = (function () {
       cours: 35.4,
       capitalNetInvesti: 285.0,
       pays: "France",
+      codePays: "FR",
       secteur: "Industrie",
       regleDePays: "siège social",
       ter: null,
@@ -112,6 +116,7 @@ window.MAQUETTE = (function () {
       cours: 16.27,
       capitalNetInvesti: 225.0,
       pays: "Japon",
+      codePays: "JP",
       secteur: "Technologie",
       regleDePays: "siège social",
       ter: null,
@@ -168,57 +173,225 @@ window.MAQUETTE = (function () {
     return Object.assign({}, l, {
       valeur: valeur,
       plusValueLatente: valeur === null ? null : sou(valeur - l.capitalNetInvesti),
-      // Prix de revient : le capital rapporté à la quantité détenue.
       prixDeRevient: sou(l.capitalNetInvesti / l.quantite),
       terMontant: l.ter === null || valeur === null ? null : sou((valeur * l.ter) / 100),
     });
   });
 
+  const parCode = {};
+  for (const p of positions) parCode[p.code] = p;
+
   // ==========================================================================
-  // LES FLUX
-  // Chaque ordre est une ligne, avec sa poche : c'est ce qui permet de recalculer les
-  // chiffres clés quand on décoche une poche, au lieu de les mettre à l'échelle.
+  // LES FLUX — un ordre, un actif
   //
   // `montant` est le montant BRUT, du point de vue de l'investisseur : un achat sort de
   // sa poche (négatif), une vente et un dividende y rentrent (positif). C'est lui qui
   // sert au gain et au TRI (D-21 : la performance se calcule sur les montants bruts).
   //
-  // `frais` est prélevé en plus, et ne compte PAS dans la performance : il réduit le
+  // `frais` est prélevé en plus. Il ne compte PAS dans la performance : il réduit le
   // capital net investi (D-12), et il est analysé dans l'onglet « Frais et taxes ».
   //
-  // `prorata` n'existe que sur une vente : c'est la part du capital net investi qui
-  // sort, au prorata des parts vendues — et non le produit de la vente.
+  // `prorata` n'existe que sur une vente : la part du capital net investi qui sort, au
+  // prorata des parts vendues — et non le produit de la vente.
   // ==========================================================================
 
+  function achat(date, code, montant) {
+    return { date: date, libelle: "Achat", actif: code, montant: -montant, frais: FRAIS_PAR_ORDRE };
+  }
+  function vente(date, code, montant, prorata) {
+    return {
+      date: date,
+      libelle: "Vente",
+      actif: code,
+      montant: montant,
+      frais: FRAIS_PAR_ORDRE,
+      prorata: prorata,
+    };
+  }
+  function dividende(date, code, montant) {
+    return { date: date, libelle: "Dividende", actif: code, montant: montant, frais: 0 };
+  }
+
   const flux = [
-    { date: "2025-03-14", libelle: "Achat", poche: "PEA", montant: -700.0, frais: FRAIS_PAR_ORDRE },
-    { date: "2025-03-14", libelle: "Achat", poche: "CTO", montant: -400.0, frais: FRAIS_PAR_ORDRE },
-    { date: "2025-03-14", libelle: "Achat", poche: "Crypto", montant: -100.0, frais: FRAIS_PAR_ORDRE },
-    { date: "2025-06-13", libelle: "Achat", poche: "PEA", montant: -300.0, frais: FRAIS_PAR_ORDRE },
-    { date: "2025-06-13", libelle: "Achat", poche: "CTO", montant: -500.0, frais: FRAIS_PAR_ORDRE },
-    { date: "2025-06-13", libelle: "Achat", poche: "Crypto", montant: -100.0, frais: FRAIS_PAR_ORDRE },
-    { date: "2025-09-05", libelle: "Achat", poche: "PEA", montant: -250.0, frais: FRAIS_PAR_ORDRE },
-    { date: "2025-09-05", libelle: "Achat", poche: "CTO", montant: -500.0, frais: FRAIS_PAR_ORDRE },
-    { date: "2025-09-05", libelle: "Achat", poche: "Crypto", montant: -100.0, frais: FRAIS_PAR_ORDRE },
-    { date: "2025-11-21", libelle: "Dividende", poche: "CTO", montant: 18.4, frais: 0 },
-    { date: "2026-01-16", libelle: "Achat", poche: "PEA", montant: -300.0, frais: FRAIS_PAR_ORDRE },
-    { date: "2026-01-16", libelle: "Achat", poche: "CTO", montant: -650.0, frais: FRAIS_PAR_ORDRE },
-    { date: "2026-01-16", libelle: "Achat", poche: "Crypto", montant: -100.0, frais: FRAIS_PAR_ORDRE },
-    { date: "2026-03-06", libelle: "Vente", poche: "PEA", montant: 186.4, frais: FRAIS_PAR_ORDRE, prorata: 125.5 },
-    { date: "2026-04-24", libelle: "Achat", poche: "PEA", montant: -200.0, frais: FRAIS_PAR_ORDRE },
-    { date: "2026-04-24", libelle: "Achat", poche: "CTO", montant: -450.0, frais: FRAIS_PAR_ORDRE },
-    { date: "2026-04-24", libelle: "Achat", poche: "Crypto", montant: -50.0, frais: FRAIS_PAR_ORDRE },
-    { date: "2026-06-12", libelle: "Dividende", poche: "CTO", montant: 26.5, frais: 0 },
-    { date: "2026-07-31", libelle: "Achat", poche: "PEA", montant: -150.0, frais: FRAIS_PAR_ORDRE },
-    { date: "2026-07-31", libelle: "Achat", poche: "CTO", montant: -300.0, frais: FRAIS_PAR_ORDRE },
-    { date: "2026-07-31", libelle: "Achat", poche: "Crypto", montant: -50.0, frais: FRAIS_PAR_ORDRE },
-    { date: "2026-09-11", libelle: "Dividende", poche: "CTO", montant: 18.3, frais: 0 },
+    achat("2025-03-14", "XX0000000011", 400),
+    achat("2025-03-14", "XX0000000012", 200),
+    achat("2025-03-14", "XX0000000021", 300),
+    achat("2025-03-14", "XX0000000041", 120),
+
+    achat("2025-06-13", "XX0000000012", 150),
+    achat("2025-06-13", "XX0000000022", 300),
+    achat("2025-06-13", "XX0000000031", 150),
+    achat("2025-06-13", "XX0000000042", 80),
+
+    achat("2025-09-05", "XX0000000011", 350),
+    achat("2025-09-05", "XX0000000021", 300),
+    achat("2025-09-05", "XX0000000023", 250),
+    achat("2025-09-05", "XX0000000041", 120),
+
+    achat("2025-11-21", "XX0000000032", 120),
+    achat("2025-11-21", "XX0000000024", 130),
+    dividende("2025-11-21", "XX0000000021", 18.4),
+
+    achat("2026-01-16", "XX0000000011", 300),
+    achat("2026-01-16", "XX0000000012", 150),
+    achat("2026-01-16", "XX0000000022", 272),
+    achat("2026-01-16", "XX0000000042", 75),
+
+    vente("2026-03-06", "XX0000000012", 186.4, 125.5),
+
+    achat("2026-04-24", "XX0000000012", 98),
+    achat("2026-04-24", "XX0000000021", 293),
+    achat("2026-04-24", "XX0000000031", 137),
+    achat("2026-04-24", "XX0000000041", 104),
+
+    achat("2026-06-12", "XX0000000023", 237),
+    achat("2026-06-12", "XX0000000032", 107),
+    achat("2026-06-12", "XX0000000033", 95),
+    dividende("2026-06-12", "XX0000000022", 26.5),
+
+    achat("2026-07-31", "XX0000000011", 254),
+    achat("2026-07-31", "XX0000000024", 117),
+
+    dividende("2026-09-11", "XX0000000031", 18.3),
   ];
 
-  const POCHES = ["PEA", "CTO", "Crypto"];
-  const DATE_ARRETE = "2026-09-25";
+  for (const f of flux) f.poche = parCode[f.actif].poche;
 
-  // --- Les totaux, calculés ---------------------------------------------------
+  // ==========================================================================
+  // LA COURBE
+  //
+  // Chaque actif a sa propre histoire :
+  //  - « base » est la valeur d'acquisition de ce qu'il détient : elle monte du montant
+  //    brut à chaque achat, et descend à chaque vente et à chaque dividende, parce que
+  //    l'argent quitte alors les actifs. C'est sur elle que la performance s'applique ;
+  //  - « investi » est le capital net investi (D-12) : montant brut moins les frais,
+  //    réduit au prorata des parts vendues. Il monte EN ESCALIER.
+  //
+  // La courbe du portefeuille est la SOMME des courbes de ses lignes. Une position sans
+  // cours n'entre pas dans la valeur — elle n'a pas de valeur connue — mais son capital
+  // entre dans le capital investi. C'est exactement ce que veut dire « partiel » (D-53).
+  // ==========================================================================
+
+  const fluxParActif = {};
+  for (const f of flux) {
+    if (!fluxParActif[f.actif]) fluxParActif[f.actif] = [];
+    fluxParActif[f.actif].push(f);
+  }
+
+  function cumulsActif(code, date) {
+    let base = 0;
+    let investi = 0;
+    for (const f of fluxParActif[code] || []) {
+      if (f.date > date) break;
+      base += -f.montant;
+      if (f.libelle === "Achat") investi += -f.montant - f.frais;
+      else if (f.libelle === "Vente") investi -= f.prorata || 0;
+    }
+    return { base: sou(base), investi: sou(investi) };
+  }
+
+  // La croissance de chaque actif est celle qui fait arriver sa courbe exactement sur
+  // sa valeur du jour. Rien n'est ajusté après coup.
+  const CROISSANCE = {};
+  const AMPLITUDE = { ETF: 1, Action: 1.7, Crypto: 3.2 };
+  const PHASE = {};
+  positions.forEach(function (p, rang) {
+    const base = cumulsActif(p.code, DATE_ARRETE).base;
+    CROISSANCE[p.code] = p.valeur !== null && base > 0 ? p.valeur / base - 1 : 0;
+    // Une phase par actif, tirée de son rang : déterministe, donc la maquette est
+    // identique à chaque ouverture.
+    PHASE[p.code] = (rang * 2.39) % 6.283;
+  });
+
+  const listeJours = (function () {
+    const jours = [];
+    const depart = Date.parse(DEBUT_COURBE + "T00:00:00Z");
+    for (let i = 0; i <= JOURS; i++) {
+      jours.push({
+        indice: i,
+        date: new Date(depart + i * 86400000).toISOString().slice(0, 10),
+      });
+    }
+    return jours;
+  })();
+
+  /** Le facteur de performance d'un actif à une date : sa valeur rapportée à ce qu'il a
+   *  coûté. C'est lui qui donne la variation en pour cent, indépendamment des versements. */
+  function facteurActif(code, indice) {
+    const t = indice / JOURS;
+    const p = parCode[code];
+    if (!p || p.valeur === null) return null;
+    return (
+      1 +
+      CROISSANCE[code] * t +
+      AMPLITUDE[p.type] *
+        (0.026 * Math.sin(indice / 37 + PHASE[code]) + 0.014 * Math.sin(indice / 14.7 + PHASE[code]))
+    );
+  }
+
+  /** La courbe du portefeuille, restreinte à un ensemble de codes d'actifs. */
+  function construireCourbe(codes) {
+    const retenus = codes || positions.map(function (p) {
+      return p.code;
+    });
+    const points = [];
+    for (const jour of listeJours) {
+      let valeur = 0;
+      let investi = 0;
+      for (const code of retenus) {
+        const cumuls = cumulsActif(code, jour.date);
+        investi += cumuls.investi;
+        if (parCode[code].valeur === null || cumuls.base <= 0) continue;
+        valeur += Math.max(0, cumuls.base * facteurActif(code, jour.indice));
+      }
+      points.push({ date: jour.date, valeur: sou(valeur), investi: sou(investi) });
+    }
+    // Le dernier point est forcé sur les valeurs exactes des positions : la courbe doit
+    // finir sur le chiffre affiché en haut de l'écran.
+    let valeurFinale = 0;
+    let investiFinal = 0;
+    for (const code of retenus) {
+      if (parCode[code].valeur !== null) valeurFinale += parCode[code].valeur;
+      investiFinal += parCode[code].capitalNetInvesti;
+    }
+    points[points.length - 1] = {
+      date: DATE_ARRETE,
+      valeur: sou(valeurFinale),
+      investi: sou(investiFinal),
+    };
+    return points;
+  }
+
+  const indiceDeDate = {};
+  for (const jour of listeJours) indiceDeDate[jour.date] = jour.indice;
+
+  /** La variation d'un actif entre deux dates, hors versements : c'est la performance
+   *  de l'actif lui-même, pas celle de l'argent qu'on y a mis. Rend `null` quand l'actif
+   *  n'était pas encore détenu au début. */
+  function variationActif(code, debut, fin) {
+    const p = parCode[code];
+    if (!p || p.valeur === null) return null;
+    const iDebut = indiceDeDate[debut];
+    const iFin = indiceDeDate[fin];
+    if (iDebut === undefined || iFin === undefined) return null;
+    // On part du premier jour où l'actif est détenu, si l'achat est postérieur au début
+    // de la période : sinon on annoncerait une variation depuis un capital nul.
+    let depart = iDebut;
+    while (depart <= iFin && cumulsActif(code, listeJours[depart].date).base <= 0) depart++;
+    if (depart > iFin) return null;
+    const f1 = facteurActif(code, depart);
+    const f2 = facteurActif(code, iFin);
+    if (!f1 || !f2) return null;
+    return {
+      taux: f2 / f1 - 1,
+      depuisLAchat: depart > iDebut,
+      depuis: listeJours[depart].date,
+    };
+  }
+
+  // ==========================================================================
+  // LES TOTAUX
+  // ==========================================================================
 
   function totaliser(filtre) {
     let valeur = 0;
@@ -254,99 +427,6 @@ window.MAQUETTE = (function () {
     return { brut: sou(brut), frais: sou(frais) };
   }
 
-  // ==========================================================================
-  // LA COURBE
-  // Elle est DÉRIVÉE DES FLUX, et c'est le point essentiel : deux séries qui ne
-  // bougeraient pas aux mêmes dates rendraient le TWRR absurde.
-  //
-  //  - « base » est la valeur d'acquisition des actifs détenus : elle monte du montant
-  //    brut à chaque achat, et descend à chaque vente et à chaque dividende (l'argent
-  //    quitte les actifs). C'est sur elle que la performance s'applique ;
-  //  - « investi » est le capital net investi (D-12) : montant brut moins les frais, et
-  //    réduit au prorata des parts vendues. Il monte EN ESCALIER.
-  // ==========================================================================
-
-  function cumulsAu(date, poche) {
-    let base = 0;
-    let investi = 0;
-    for (const f of flux) {
-      if (f.date > date) break;
-      if (poche && f.poche !== poche) continue;
-      base += -f.montant;
-      if (f.libelle === "Achat") investi += -f.montant - (f.frais || 0);
-      else if (f.libelle === "Vente") investi -= f.prorata || 0;
-    }
-    return { base: sou(base), investi: sou(investi) };
-  }
-
-  // La croissance de chaque poche est celle qui fait arriver la courbe exactement sur
-  // la valeur affichée en haut de l'écran. Rien n'est ajusté après coup.
-  const CROISSANCE = {};
-  for (const poche of POCHES) {
-    const finale = cumulsAu(DATE_ARRETE, poche);
-    CROISSANCE[poche] = finale.base > 0 ? PAR_POCHE[poche].valeur / finale.base - 1 : 0;
-  }
-
-  // La crypto ondule trois fois plus que le reste, comme dans la vie.
-  const HOULE = { PEA: 1, CTO: 0.8, Crypto: 3.2 };
-
-  function courbe() {
-    const points = [];
-    // UN POINT PAR JOUR, comme le fait `moteur/valorisation.evolution()`. C'est
-    // nécessaire, pas décoratif : avec une maille hebdomadaire, l'effet d'un flux
-    // n'apparaissait qu'au point suivant, et le TWRR perdait une semaine de croissance
-    // à chaque opération — l'écart mesuré atteignait six points de rendement.
-    //
-    // On démarre une semaine AVANT le premier achat, à zéro : c'est ce qui permet de
-    // compter les tout premiers achats dans la période « depuis le début ».
-    const depart = new Date("2025-03-07T00:00:00Z");
-    const jours = 567; // 2025-03-07 + 567 jours = 2026-09-25, la date d'arrêté
-    for (let i = 0; i <= jours; i++) {
-      const date = new Date(depart.getTime() + i * 86400000).toISOString().slice(0, 10);
-      const t = i / jours;
-      const parPoche = {};
-      let valeur = 0;
-      let investi = 0;
-      for (const poche of POCHES) {
-        const cumuls = cumulsAu(date, poche);
-        const tendance = cumuls.base * (1 + CROISSANCE[poche] * t);
-        const houle =
-          cumuls.base *
-          HOULE[poche] *
-          (0.038 * Math.sin(i / 37 + (poche === "CTO" ? 1.1 : 0)) +
-            0.02 * Math.sin(i / 14.7 + 1.4));
-        parPoche[poche] = {
-          valeur: sou(Math.max(0, tendance + houle)),
-          investi: cumuls.investi,
-        };
-        valeur += parPoche[poche].valeur;
-        investi += cumuls.investi;
-      }
-      points.push({ date: date, valeur: sou(valeur), investi: sou(investi), parPoche: parPoche });
-    }
-    // Le dernier point est forcé sur les valeurs exactes des positions.
-    const parPocheFinal = {};
-    for (const poche of POCHES) {
-      parPocheFinal[poche] = {
-        valeur: PAR_POCHE[poche].valeur,
-        investi: cumulsAu(DATE_ARRETE, poche).investi,
-      };
-    }
-    points[points.length - 1] = {
-      date: DATE_ARRETE,
-      valeur: TOTAL.valeur,
-      investi: TOTAL.capital,
-      parPoche: parPocheFinal,
-    };
-    return points;
-  }
-
-  // ==========================================================================
-  // LA SYNTHÈSE
-  // ==========================================================================
-
-  const fluxTotaux = sommeFlux(null);
-
   const synthese = {
     arreteAu: DATE_ARRETE,
     sourceDesCours: "Yahoo Finance",
@@ -356,7 +436,7 @@ window.MAQUETTE = (function () {
     achatsBruts: sou(-sommeFlux(function (f) { return f.libelle === "Achat"; }).brut),
     ventesBrutes: sommeFlux(function (f) { return f.libelle === "Vente"; }).brut,
     dividendesBruts: sommeFlux(function (f) { return f.libelle === "Dividende"; }).brut,
-    fraisPayes: fluxTotaux.frais,
+    fraisPayes: sommeFlux(null).frais,
     // Retenue à la source sur les dividendes, à part des frais d'ordre.
     taxesPayees: 7.58,
     nombreOrdres: flux.filter(function (f) {
@@ -387,87 +467,74 @@ window.MAQUETTE = (function () {
     });
   }
 
-  // Ce que les fonds n'attribuent à rien : liquidités, dérivés, lignes non classées.
-  const NON_ATTRIBUE = 13.89;
-  const NON_COUVERT = positions.find(function (p) {
-    return p.nonCouvert;
-  }).valeur;
-  const OBLIGATIONS = positions.find(function (p) {
-    return p.contenuDeclare === "obligations";
-  }).valeur;
-  const MATIERES = positions.find(function (p) {
-    return p.contenuDeclare === "matières premières";
-  }).valeur;
+  const NON_ATTRIBUE = 13.89; // liquidités des fonds, dérivés, lignes non classées
+  const NON_COUVERT = parCode["XX0000000023"].valeur;
+  const OBLIGATIONS = parCode["XX0000000022"].valeur;
+  const MATIERES = parCode["XX0000000024"].valeur;
   const NUMERIQUES = PAR_POCHE.Crypto.valeur;
   // Les actions sont ce qui reste : tout est donc attribué, et le total fait la base.
   const ACTIONS = sou(BASE - NON_ATTRIBUE - NON_COUVERT - OBLIGATIONS - MATIERES - NUMERIQUES);
 
   const RESTES_GEO = [
     { libelle: "Non attribué par les fonds", montant: NON_ATTRIBUE, mot: "non-attribue" },
-    { libelle: "Obligations", montant: OBLIGATIONS, mot: "hors-actions" },
-    { libelle: "Matières premières", montant: MATIERES, mot: "hors-actions" },
-    { libelle: "Actifs numériques", montant: NUMERIQUES, mot: "hors-classification" },
+    { libelle: "Obligations", montant: OBLIGATIONS, mot: "hors-actions", icone: "obligations" },
+    { libelle: "Matières premières", montant: MATIERES, mot: "hors-actions", icone: "matieres" },
+    { libelle: "Actifs numériques", montant: NUMERIQUES, mot: "hors-classification", icone: "numeriques" },
     { libelle: "Non couvert", montant: NON_COUVERT, mot: "non-couvert" },
   ];
 
-  // Les pays. Le dernier poste absorbe l'arrondi, pour que la somme fasse exactement
-  // le montant investi en actions.
   const PAYS_TETE = [
-    { libelle: "États-Unis", zone: "Amérique du Nord", montant: 2043.8, source: "extraETF", regle: "pays d'activité" },
-    { libelle: "Japon", zone: "Japon", montant: 421.36, source: "extraETF", regle: "pays d'activité" },
-    { libelle: "France", zone: "Europe", montant: 268.94, source: "extraETF + GLEIF", regle: "mixte" },
-    { libelle: "Royaume-Uni", zone: "Europe", montant: 152.6, source: "extraETF", regle: "pays d'activité" },
-    { libelle: "Allemagne", zone: "Europe", montant: 138.22, source: "extraETF", regle: "pays d'activité" },
-    { libelle: "Canada", zone: "Amérique du Nord", montant: 96.4, source: "extraETF", regle: "pays d'activité" },
-    { libelle: "Suisse", zone: "Europe", montant: 84.15, source: "extraETF", regle: "pays d'activité" },
-    { libelle: "Pays-Bas", zone: "Europe", montant: 71.3, source: "extraETF", regle: "pays d'activité" },
+    { libelle: "États-Unis", code: "US", zone: "Amérique du Nord", montant: 2043.8, source: "extraETF", regle: "pays d'activité" },
+    { libelle: "Japon", code: "JP", zone: "Japon", montant: 421.36, source: "extraETF", regle: "pays d'activité" },
+    { libelle: "France", code: "FR", zone: "Europe", montant: 268.94, source: "extraETF + GLEIF", regle: "mixte" },
+    { libelle: "Royaume-Uni", code: "GB", zone: "Europe", montant: 152.6, source: "extraETF", regle: "pays d'activité" },
+    { libelle: "Allemagne", code: "DE", zone: "Europe", montant: 138.22, source: "extraETF", regle: "pays d'activité" },
+    { libelle: "Canada", code: "CA", zone: "Amérique du Nord", montant: 96.4, source: "extraETF", regle: "pays d'activité" },
+    { libelle: "Suisse", code: "CH", zone: "Europe", montant: 84.15, source: "extraETF", regle: "pays d'activité" },
+    { libelle: "Pays-Bas", code: "NL", zone: "Europe", montant: 71.3, source: "extraETF", regle: "pays d'activité" },
   ];
   const AUTRES_PAYS = sou(
-    ACTIONS -
-      PAYS_TETE.reduce(function (s, p) {
-        return s + p.montant;
-      }, 0)
+    ACTIONS - PAYS_TETE.reduce(function (s, p) { return s + p.montant; }, 0)
   );
   const PAYS = PAYS_TETE.concat([
-    { libelle: "Autres pays (18)", zone: "—", montant: AUTRES_PAYS, source: "extraETF", regle: "pays d'activité" },
+    { libelle: "Autres pays (18)", code: null, zone: "—", montant: AUTRES_PAYS, source: "extraETF", regle: "pays d'activité" },
   ]);
 
-  // Les zones : un regroupement des pays ci-dessus, plus la part des « autres pays »
-  // qui leur revient. C'est une convention, pas une donnée (D-67).
   const AUTRES_PAR_ZONE = { Europe: 62.3, "Asie-Pacifique développée": 54.2 };
   AUTRES_PAR_ZONE["Marchés émergents"] = sou(
     AUTRES_PAYS - AUTRES_PAR_ZONE.Europe - AUTRES_PAR_ZONE["Asie-Pacifique développée"]
   );
-  const ZONES = ["Amérique du Nord", "Europe", "Japon", "Asie-Pacifique développée", "Marchés émergents"].map(
-    function (zone) {
-      let montant = AUTRES_PAR_ZONE[zone] || 0;
-      for (const p of PAYS_TETE) if (p.zone === zone) montant += p.montant;
-      return { libelle: zone, montant: sou(montant) };
-    }
-  );
+  const ZONES = [
+    { libelle: "Amérique du Nord", code: "AN" },
+    { libelle: "Europe", code: "EU" },
+    { libelle: "Japon", code: "JP" },
+    { libelle: "Asie-Pacifique développée", code: "AP" },
+    { libelle: "Marchés émergents", code: "EM" },
+  ].map(function (z) {
+    let montant = AUTRES_PAR_ZONE[z.libelle] || 0;
+    for (const p of PAYS_TETE) if (p.zone === z.libelle) montant += p.montant;
+    return { libelle: z.libelle, code: z.code, montant: sou(montant) };
+  });
 
-  // Les secteurs, dans la nomenclature Morningstar en 11 postes. Le dernier absorbe
-  // l'arrondi, pour la même raison que les pays.
+  // Les 11 secteurs Morningstar. Le dernier absorbe l'arrondi.
   const SECTEURS_TETE = [
-    { libelle: "Technologie", montant: 823.4 },
-    { libelle: "Services financiers", montant: 574.1 },
-    { libelle: "Santé", montant: 421.85 },
-    { libelle: "Consommation cyclique", montant: 372.6 },
-    { libelle: "Industrie", montant: 358.9 },
-    { libelle: "Services de communication", montant: 289.45 },
-    { libelle: "Consommation défensive", montant: 241.3 },
-    { libelle: "Énergie", montant: 152.7 },
-    { libelle: "Services aux collectivités", montant: 98.4 },
-    { libelle: "Immobilier", montant: 78.25 },
+    { libelle: "Technologie", icone: "technologie", montant: 823.4 },
+    { libelle: "Services financiers", icone: "finance", montant: 574.1 },
+    { libelle: "Santé", icone: "sante", montant: 421.85 },
+    { libelle: "Consommation cyclique", icone: "cyclique", montant: 372.6 },
+    { libelle: "Industrie", icone: "industrie", montant: 358.9 },
+    { libelle: "Services de communication", icone: "communication", montant: 289.45 },
+    { libelle: "Consommation défensive", icone: "defensive", montant: 241.3 },
+    { libelle: "Énergie", icone: "energie", montant: 152.7 },
+    { libelle: "Services aux collectivités", icone: "collectivites", montant: 98.4 },
+    { libelle: "Immobilier", icone: "immobilier", montant: 78.25 },
   ];
   const SECTEURS = SECTEURS_TETE.concat([
     {
       libelle: "Matériaux de base",
+      icone: "materiaux",
       montant: sou(
-        ACTIONS -
-          SECTEURS_TETE.reduce(function (s, p) {
-            return s + p.montant;
-          }, 0)
+        ACTIONS - SECTEURS_TETE.reduce(function (s, p) { return s + p.montant; }, 0)
       ),
     },
   ]);
@@ -478,55 +545,37 @@ window.MAQUETTE = (function () {
     arreteAu: "2026-08-31",
     sources: ["extraETF", "GLEIF"],
     nomenclature: "Morningstar, 11 secteurs",
-
     classes: {
       postes: enPourCent([
-        { libelle: "Actions", montant: ACTIONS },
-        { libelle: "Obligations", montant: OBLIGATIONS },
-        { libelle: "Matières premières", montant: MATIERES },
-        { libelle: "Actifs numériques", montant: NUMERIQUES },
+        { libelle: "Actions", icone: "actions", montant: ACTIONS },
+        { libelle: "Obligations", icone: "obligations", montant: OBLIGATIONS },
+        { libelle: "Matières premières", icone: "matieres", montant: MATIERES },
+        { libelle: "Actifs numériques", icone: "numeriques", montant: NUMERIQUES },
       ]),
       restes: enPourCent([
         { libelle: "Non attribué par les fonds", montant: NON_ATTRIBUE, mot: "non-attribue" },
         { libelle: "Non couvert", montant: NON_COUVERT, mot: "non-couvert" },
       ]),
     },
-
     pays: {
       regleDominante: "pays d'activité",
       postes: enPourCent(PAYS),
       zones: enPourCent(ZONES),
       restes: enPourCent(RESTES_GEO),
     },
-
     secteurs: {
       postes: enPourCent(SECTEURS),
       restes: enPourCent(RESTES_GEO),
     },
-
     actifsNonCouverts: [
       {
-        nom: positions.find(function (p) {
-          return p.nonCouvert;
-        }).nom,
+        nom: parCode["XX0000000023"].nom,
         montant: NON_COUVERT,
         motif: "la source ne publie aucune répartition pour cet ISIN",
       },
     ],
-    actifsSynthetiques: positions
-      .filter(function (p) {
-        return p.synthetique;
-      })
-      .map(function (p) {
-        return p.nom;
-      }),
-    declareesALaMain: positions
-      .filter(function (p) {
-        return p.contenuDeclare;
-      })
-      .map(function (p) {
-        return p.nom;
-      }),
+    actifsSynthetiques: positions.filter(function (p) { return p.synthetique; }).map(function (p) { return p.nom; }),
+    declareesALaMain: positions.filter(function (p) { return p.contenuDeclare; }).map(function (p) { return p.nom; }),
   };
 
   // ==========================================================================
@@ -535,6 +584,11 @@ window.MAQUETTE = (function () {
 
   // Les spreads par côté, par type d'actif (D-56), avec leur fourchette mesurée.
   const SPREAD = { ETF: 0.05, Action: 0.1, Crypto: 0.5 };
+  const FOURCHETTE = {
+    ETF: "entre 0,02 % et 0,09 %",
+    Action: "entre 0,04 % et 0,21 %",
+    Crypto: "entre 0,20 % et 1,10 %",
+  };
 
   function spreadDe(position) {
     const taux = SPREAD[position.type];
@@ -542,9 +596,16 @@ window.MAQUETTE = (function () {
     return sou((position.valeur * taux) / 100);
   }
 
-  const terAnnuel = sou(
+  const spreadSortie = sou(
     positions.reduce(function (s, p) {
-      return s + (p.terMontant || 0);
+      return s + spreadDe(p);
+    }, 0)
+  );
+  const spreadEntree = sou(
+    flux.reduce(function (s, f) {
+      if (f.libelle !== "Achat") return s;
+      const taux = SPREAD[parCode[f.actif].type] || 0;
+      return s + (-f.montant * taux) / 100;
     }, 0)
   );
 
@@ -553,36 +614,41 @@ window.MAQUETTE = (function () {
     taxesPayees: synthese.taxesPayees,
     coutPaye: sou(synthese.fraisPayes + synthese.taxesPayees),
     nombreOrdres: synthese.nombreOrdres,
-    // Le poids d'un coût dans son opération : frais rapportés au montant brut échangé.
-    // Attention : c'est un TAUX (0,0035 pour 0,35 %), pas un pour cent. Et il ne doit
-    // surtout pas être arrondi au centime, sinon il tombe à zéro.
+    // ATTENTION : des TAUX (0,0035 pour 0,35 %), jamais des pour cent, et surtout pas
+    // arrondis au centime — ils tomberaient à zéro.
     poidsMoyen: synthese.fraisPayes / (synthese.achatsBruts + synthese.ventesBrutes),
-    spreadEstimeEntree: sou(
-      flux.reduce(function (s, f) {
-        if (f.libelle !== "Achat") return s;
-        // Le spread d'entrée dépend du type d'actif acheté ; la poche crypto en porte
-        // le plus, et c'est précisément ce qu'on veut rendre visible.
-        const taux = f.poche === "Crypto" ? SPREAD.Crypto : SPREAD.ETF;
-        return s + (-f.montant * taux) / 100;
+    spreadEstimeEntree: spreadEntree,
+    // Le taux moyen, pondéré par ce qui a été acheté : c'est lui qui se compare à un
+    // taux publié, là où le montant en euros dépend de la taille du portefeuille.
+    tauxSpreadEntree: spreadEntree / synthese.achatsBruts,
+    spreadEstimeSortie: spreadSortie,
+    tauxSpreadSortie: spreadSortie / TOTAL.valeur,
+    terAnnuel: sou(
+      positions.reduce(function (s, p) {
+        return s + (p.terMontant || 0);
       }, 0)
     ),
-    terAnnuel: terAnnuel,
+    tauxTerMoyen:
+      positions.reduce(function (s, p) {
+        return s + (p.terMontant || 0);
+      }, 0) / TOTAL.valeur,
     spreads: SPREAD,
+    fourchettes: FOURCHETTE,
     exemple: {
-      libelle: "Achat du 16/01/2026 · Cardinal Monde Développé UCITS ETF",
-      montantBrut: 650.0,
+      libelle: "Achat du 16/01/2026 · Alizé Obligations Euro UCITS ETF",
+      montantBrut: 272.0,
       frais: FRAIS_PAR_ORDRE,
-      poids: FRAIS_PAR_ORDRE / 650.0, // un taux, pas un pour cent
-      formuleSpread: "650,00 x 0,05 % = 0,33",
+      poids: FRAIS_PAR_ORDRE / 272.0,
+      formuleSpread: "272,00 x 0,05 % = 0,14",
       taux: "0,05 %",
-      fourchette: "entre 0,02 % et 0,09 %",
+      fourchette: FOURCHETTE.ETF,
       source: "relevés Xetra, vérifié le 27/09/2026",
     },
   };
 
   // --- La valeur réelle : ce qu'on récupérerait en vendant tout aujourd'hui ---
 
-  const IMPOT_PAR_POCHE = { PEA: 0, CTO: 54.87, Crypto: 41.53 };
+  const TAUX_IMPOT = 31.4; // IR et prélèvements sociaux réunis, en pour cent
   const REGLE_PAR_POCHE = {
     PEA: "plan de moins de cinq ans : le gain du plan est approché depuis les titres",
     CTO: "prélèvement forfaitaire unique sur les seules plus-values latentes",
@@ -594,18 +660,29 @@ window.MAQUETTE = (function () {
       return p.poche === poche && p.valeur !== null;
     });
     const fraisDeVente = sou(detenues.length * FRAIS_PAR_ORDRE);
-    const spread = sou(
-      detenues.reduce(function (s, p) {
-        return s + spreadDe(p);
-      }, 0)
-    );
+    const spread = sou(detenues.reduce(function (s, p) { return s + spreadDe(p); }, 0));
     const brute = PAR_POCHE[poche].valeur;
-    const impot = IMPOT_PAR_POCHE[poche];
+    // La base imposable : les plus-values latentes compensées, plancher à zéro (D-60).
+    // Le PEA n'est pas imposé s'il a plus de cinq ans ; ici il en a moins, et le gain
+    // du plan est approché depuis les titres, donc l'estimation est minorée (D-59).
+    const baseImposable = sou(
+      Math.max(
+        0,
+        detenues.reduce(function (s, p) {
+          return s + p.plusValueLatente;
+        }, 0) -
+          fraisDeVente -
+          spread
+      )
+    );
+    const impot = poche === "PEA" ? 0 : sou((baseImposable * TAUX_IMPOT) / 100);
     return {
       poche: poche,
       valeurBrute: brute,
       fraisDeVente: fraisDeVente,
       spread: spread,
+      baseImposable: baseImposable,
+      tauxImpot: poche === "PEA" ? null : TAUX_IMPOT,
       impot: impot,
       valeurReelle: sou(brute - fraisDeVente - spread - impot),
       regle: REGLE_PAR_POCHE[poche],
@@ -625,8 +702,10 @@ window.MAQUETTE = (function () {
     valeurBrute: sommePoches("valeurBrute"),
     fraisDeVente: sommePoches("fraisDeVente"),
     spreadDeSortie: sommePoches("spread"),
+    baseImposable: sommePoches("baseImposable"),
     impot: sommePoches("impot"),
     valeurReelle: sommePoches("valeurReelle"),
+    tauxImpot: TAUX_IMPOT,
     minoree: true,
     partielle: true,
     parPoche: valeurReellePoches,
@@ -641,7 +720,7 @@ window.MAQUETTE = (function () {
         return p.valeur === null;
       })
       .map(function (p) {
-        return { nom: p.nom, motif: "sans cours (D-53)" };
+        return { nom: p.nom, motif: "sans cours (D-53)", capital: p.capitalNetInvesti };
       }),
   };
 
@@ -678,9 +757,14 @@ window.MAQUETTE = (function () {
 
   return {
     positions: positions,
+    parCode: parCode,
+    poches: POCHES,
     synthese: synthese,
-    courbe: courbe(),
     flux: flux,
+    construireCourbe: construireCourbe,
+    variationActif: variationActif,
+    dateArrete: DATE_ARRETE,
+    debutCourbe: DEBUT_COURBE,
     diversification: diversification,
     couts: couts,
     valeurReelle: valeurReelle,

@@ -1,4 +1,4 @@
-/* Feuille de style des maquettes de l'étape 8 — deuxième version.
+/* Feuille de style des maquettes de l'étape 8 — troisième version.
  *
  * ELLE EST LE LIVRABLE. À l'étape 9 elle devient `dashboard_tr/vues/assets/dashboard.css`
  * telle quelle : seule la structure HTML sera retranscrite en composants Dash (D-31).
@@ -7,18 +7,22 @@
  * bordures fines gris très doux, vert sauge pour les gains, brique/terracotta pour les
  * pertes. Sobre, et surtout PAS le sombre moderne sur-utilisé.
  *
- * CE QUI A CHANGÉ APRÈS SA PREMIÈRE RELECTURE :
- *  1. la typographie est EMBARQUÉE (IBM Plex). Georgia dessinait des chiffres
- *     elzéviriens — qui montent et descendent comme des minuscules — donc illisibles en
- *     colonne. Plex Sans a des chiffres à hauteur constante et à chasse fixe ;
- *  2. la page n'est plus une pile : c'est une GRILLE. L'essentiel d'un onglet tient
- *     en 1920x1080 sans défiler ;
- *  3. le vert et le rouge s'appliquent aussi au TRI et au TWRR ;
- *  4. les détails de calcul quittent les tuiles pour un onglet « Détail » ;
- *  5. les explications quittent le corps du texte pour un bouton « ? ».
+ * CE QUI A CHANGÉ APRÈS SA DEUXIÈME RELECTURE :
+ *  1. le bandeau du haut ne se confond plus avec la page : c'est un bandeau d'encre,
+ *     comme la manchette d'un journal, et non une variante du même crème ;
+ *  2. les bulles du bouton « ? » sont posées en position FIXE et ramenées dans l'écran :
+ *     plus de texte coupé au bord de la page, plus de bulle loin de son bouton ;
+ *  3. le bouton « ? » est collé au mot qu'il explique, et non repoussé au bord du bloc ;
+ *  4. la grille du graphique est un trait plein, pour ne plus se confondre avec la
+ *     courbe du capital investi, qui est en pointillé ;
+ *  5. la synthèse montre les actifs en CARTES triées par variation, et non un doublon
+ *     du tableau de l'onglet « Les actifs » ;
+ *  6. la diversification se lit rubrique par rubrique, avec drapeaux et pictogrammes ;
+ *  7. un tableau qui peut grandir n'est plus jamais posé à côté d'un bloc de hauteur
+ *     fixe : c'est ce qui creusait des vides. Les rangées s'étirent à la même hauteur ;
+ *  8. les réglages de la maquette sont descendus en pied de page.
  *
  * THÈME UNIQUE, ASSUMÉ. Pas de variante sombre : elle est explicitement écartée.
- *
  * AUCUN APPEL RÉSEAU : les polices sont dans le dépôt (D-31).
  *
  * Les couleurs ne sont pas choisies à l'œil : la rampe des poches et la paire de
@@ -30,6 +34,9 @@
 /* ============================================================================
    LA TYPOGRAPHIE, EMBARQUÉE
    IBM Plex, sous licence SIL Open Font 1.1 (voir polices/LICENCE-IBM-Plex.txt).
+   Ses chiffres sont à hauteur constante et à chasse fixe — ce qui manquait à la
+   première maquette, dont les chiffres montaient et descendaient comme des
+   minuscules et devenaient illisibles en colonne.
    ========================================================================== */
 
 @font-face {
@@ -98,10 +105,21 @@
   --encre-douce: #6e6459;
   --encre-tres-douce: #8d8378;
 
+  /* --- Le bandeau : une manchette d'encre, pour qu'il ne se confonde pas
+         avec la page. Les trois rangées vont du plus sombre au plus clair. --- */
+  --bandeau: #332e27;
+  --bandeau-clair: #443d34;
+  --bandeau-encre: #f4eee1;
+  --bandeau-douce: #b7ab98;
+  --bandeau-trait: #524a3f;
+  --sous-bandeau: #ece4d3;
+
   /* --- Les trois couleurs de statut. Elles ne servent JAMAIS de couleur de série. --- */
   --gain: #456a4b; /* sauge      — 5,46:1 sur le papier */
   --perte: #a34b2e; /* terracotta — 5,18:1 */
   --reserve: #7d5f1b; /* ocre       — 5,29:1 : estimé, minoré, à surveiller */
+  --gain-clair: #8fbf98; /* les mêmes, lisibles sur le bandeau d'encre */
+  --perte-clair: #e09578;
 
   /* --- Les séries des graphiques --- */
   --courbe-brut: #1d6c93;
@@ -111,12 +129,12 @@
   --poche-3: #6fa0b4;
   --absent: #b9ad97; /* ce qui manque : non couvert, non attribué, hors actions */
 
-  /* --- Typographie --- */
   --serif: "Plex Serif", Georgia, "Palatino Linotype", serif;
   --sans: "Plex Sans", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
 
   --rayon: 3px;
-  --ombre: 0 1px 2px rgba(80, 66, 44, 0.05);
+  --ombre: 0 1px 2px rgba(80, 66, 44, 0.06);
+  --ecart: 10px; /* l'écart unique entre deux blocs de la grille */
 }
 
 * {
@@ -144,9 +162,7 @@ body {
   background-size: 7px 7px;
 }
 
-/* Tout ce qui est un chiffre s'aligne et se compare.
-   « tabular-nums » fixe la largeur, « lining-nums » interdit les chiffres qui
-   descendent sous la ligne — c'était le défaut de la première maquette. */
+/* Tout ce qui est un chiffre s'aligne et se compare. */
 .nb {
   font-variant-numeric: tabular-nums lining-nums;
   font-feature-settings: "tnum", "lnum";
@@ -162,39 +178,53 @@ body {
 }
 
 /* ============================================================================
-   L'EN-TÊTE : onglets, filtres, état des données. Tout tient en trois bandes.
+   LE BANDEAU : manchette, filtres, état des données
    ========================================================================== */
 
 .entete {
   position: sticky;
   top: env(safe-area-inset-top, 0px);
   z-index: 40;
-  background: var(--papier);
-  border-bottom: 1px solid var(--trait-fort);
+  background: var(--bandeau);
+  box-shadow: 0 1px 0 var(--trait-fort), 0 6px 14px rgba(60, 50, 34, 0.07);
 }
 
 .bande {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 18px;
-  max-width: 1860px;
+  gap: 7px 16px;
+  max-width: 1880px;
   margin: 0 auto;
   padding-inline: 20px;
+  width: 100%;
 }
 
 .bande--titre {
   padding-block: 9px;
+  color: var(--bandeau-encre);
 }
 
+/* Ces deux bandes portent un fond qui doit courir sur TOUTE la largeur de l'écran.
+   Elles renoncent donc au `max-width` et recréent la gouttière de la page avec un
+   padding calculé — c'est la seule façon d'avoir un fond pleine largeur et un
+   contenu aligné sur la colonne de texte. Une seule règle par bande, pour qu'aucune
+   autre ne vienne l'annuler par spécificité. */
 .bande--filtres {
-  padding-block: 8px;
-  border-top: 1px solid var(--trait);
+  max-width: none;
+  background: var(--bandeau-clair);
+  border-top: 1px solid var(--bandeau-trait);
+  color: var(--bandeau-douce);
+  padding-block: 7px;
+  padding-inline: max(20px, calc((100% - 1880px) / 2 + 20px));
 }
 
 .bande--etat {
-  padding-block: 6px;
-  border-top: 1px solid var(--trait);
+  max-width: none;
+  background: var(--sous-bandeau);
+  border-top: 1px solid var(--trait-fort);
+  padding-block: 5px;
+  padding-inline: max(20px, calc((100% - 1880px) / 2 + 20px));
   font-size: 12px;
   color: var(--encre-douce);
   gap: 3px 14px;
@@ -207,25 +237,30 @@ body {
 
 .marque {
   font-family: var(--serif);
-  font-size: 16px;
+  font-size: 15.5px;
   font-weight: 600;
-  margin: 0;
-  letter-spacing: 0.005em;
+  letter-spacing: 0.01em;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--bandeau-encre);
 }
 
-.marque span {
-  color: var(--encre-tres-douce);
-  font-weight: 400;
-  font-family: var(--sans);
-  font-size: 12px;
+/* Un point sauge : la seule note de couleur de la manchette. */
+.marque__point {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gain-clair);
+  flex: none;
 }
 
 .pousse {
   margin-left: auto;
 }
 
-/* --- Les onglets --- */
+/* --- Les onglets, dans la manchette --- */
 
 .onglets {
   display: flex;
@@ -235,28 +270,54 @@ body {
 
 .onglets button {
   font: inherit;
-  font-size: 13.5px;
-  color: var(--encre-douce);
+  font-size: 13px;
+  color: var(--bandeau-douce);
   background: transparent;
   border: 1px solid transparent;
-  border-bottom: 0;
-  border-radius: var(--rayon) var(--rayon) 0 0;
-  padding: 7px 14px 8px;
+  border-radius: var(--rayon);
+  padding: 5px 12px 6px;
   cursor: pointer;
-  margin-bottom: -10px;
-  position: relative;
+  white-space: nowrap;
 }
 
 .onglets button:hover {
-  color: var(--encre);
-  background: var(--surface);
+  color: var(--bandeau-encre);
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .onglets button[aria-selected="true"] {
   color: var(--encre);
   font-weight: 600;
+  background: var(--papier);
+}
+
+/* --- Les onglets secondaires, dans la page : le choix de ce qu'on regarde --- */
+
+.onglets--secondaires {
+  gap: 3px;
+  margin-bottom: var(--ecart);
+  border-bottom: 1px solid var(--trait-fort);
+  padding-bottom: 0;
+}
+
+.onglets--secondaires button {
+  color: var(--encre-douce);
+  border-radius: var(--rayon) var(--rayon) 0 0;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  margin-bottom: -1px;
+  padding: 6px 14px 7px;
+}
+
+.onglets--secondaires button:hover {
+  background: var(--surface-creuse);
+  color: var(--encre);
+}
+
+.onglets--secondaires button[aria-selected="true"] {
   background: var(--surface);
   border-color: var(--trait-fort);
+  color: var(--encre);
   box-shadow: inset 0 2px 0 var(--encre);
 }
 
@@ -264,67 +325,84 @@ body {
 
 .groupe {
   display: inline-flex;
-  border: 1px solid var(--trait-fort);
+  border: 1px solid var(--bandeau-trait);
   border-radius: var(--rayon);
   overflow: hidden;
-  background: var(--surface);
+  background: rgba(255, 255, 255, 0.05);
 }
 
-.groupe button,
-.bouton {
+.groupe button {
   font: inherit;
   font-size: 12.5px;
-  color: var(--encre-douce);
+  color: var(--bandeau-douce);
   background: transparent;
   border: 0;
-  padding: 4px 10px 5px;
+  padding: 4px 11px 5px;
   cursor: pointer;
   white-space: nowrap;
 }
 
 .groupe button + button {
-  border-left: 1px solid var(--trait);
+  border-left: 1px solid var(--bandeau-trait);
 }
 
-.groupe button:hover {
-  background: var(--surface-creuse);
-  color: var(--encre);
+.groupe button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--bandeau-encre);
 }
 
 .groupe button[aria-pressed="true"] {
-  background: var(--encre);
-  color: var(--papier);
+  background: var(--papier);
+  color: var(--encre);
   font-weight: 600;
+}
+
+.groupe button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  text-decoration: line-through;
 }
 
 /* Une poche décochée reste lisible : elle est barrée, pas seulement pâlie. */
-.groupe button[aria-pressed="false"].poche-eteinte {
+.groupe button.poche-eteinte[aria-pressed="false"]:not(:disabled) {
   text-decoration: line-through;
-  color: var(--encre-tres-douce);
 }
 
 .bouton {
-  border: 1px solid var(--trait-fort);
+  font: inherit;
+  font-size: 12.5px;
+  border: 1px solid var(--reserve);
   border-radius: var(--rayon);
-  background: var(--surface);
-}
-
-.bouton:hover {
-  background: var(--surface-creuse);
+  background: transparent;
+  padding: 4px 11px 5px;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
 .bouton--surveiller {
-  color: var(--reserve);
-  border-color: var(--reserve);
+  color: #e2c078;
+  border-color: #8a7038;
   font-weight: 600;
+}
+
+.bouton--surveiller:hover {
+  background: rgba(226, 192, 120, 0.12);
 }
 
 .etiquette {
   font-size: 10.5px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--encre-tres-douce);
   font-weight: 600;
+  color: inherit;
+  opacity: 0.75;
+}
+
+.bande--etat .etiquette,
+.page .etiquette,
+.pied .etiquette {
+  color: var(--encre-tres-douce);
+  opacity: 1;
 }
 
 :where(button, a, summary, [tabindex], th[role="button"]):focus-visible {
@@ -337,29 +415,30 @@ body {
    ========================================================================== */
 
 .page {
-  max-width: 1860px;
+  max-width: 1880px;
   margin: 0 auto;
   padding-inline: 20px;
-  padding-block: 14px 40px;
+  padding-block: var(--ecart) 28px;
 }
 
-/* Les tuiles de chiffres clés : une seule rangée, qui se replie sur petits écrans. */
 .tuiles {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(178px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(176px, 1fr));
+  gap: var(--ecart);
 }
 
-/* La rangée principale : le graphique large, et une colonne compacte à droite.
-   Le graphique prend deux tiers, la colonne un tiers — c'est le rapport qui donne
-   au graphique assez de largeur pour être lu, sans que la colonne devienne un
-   ruban inutilisable. */
+/* La rangée principale : le graphique large, une colonne compacte à droite.
+   `align-items: stretch` est essentiel — c'est lui qui empêche un bloc plus court
+   de laisser un vide à côté d'un bloc plus grand. */
 .rangee {
   display: grid;
-  grid-template-columns: minmax(0, 2.15fr) minmax(280px, 1fr);
-  gap: 10px;
-  margin-top: 10px;
-  align-items: start;
+  grid-template-columns: minmax(0, 2.2fr) minmax(290px, 1fr);
+  gap: var(--ecart);
+  align-items: stretch;
+}
+
+.rangee--apres {
+  margin-top: var(--ecart);
 }
 
 .rangee--large {
@@ -367,13 +446,7 @@ body {
 }
 
 .rangee--deux {
-  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
-}
-
-.colonne {
-  display: grid;
-  gap: 10px;
-  align-content: start;
+  grid-template-columns: repeat(auto-fit, minmax(430px, 1fr));
 }
 
 /* ============================================================================
@@ -385,15 +458,18 @@ body {
   border: 1px solid var(--trait);
   border-radius: var(--rayon);
   box-shadow: var(--ombre);
-  padding: 12px 14px 14px;
+  padding: 11px 14px 14px;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .bloc__entete {
   display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin-bottom: 10px;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 9px;
+  flex: none;
 }
 
 .bloc__titre {
@@ -409,25 +485,39 @@ body {
   color: var(--encre-tres-douce);
   margin-left: auto;
   text-align: right;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
 }
 
+/* Un bloc dont le contenu est un tableau : le tableau touche les bords. */
 .bloc--plein {
-  padding: 0;
+  padding: 11px 0 0;
   overflow: hidden;
+}
+
+.bloc--plein > .bloc__entete {
+  padding-inline: 14px;
+}
+
+.bloc--plein > .cadre-tableau {
+  flex: 1;
 }
 
 /* --- La tuile de chiffre clé --- */
 
 .tuile {
-  position: relative;
   background: var(--surface);
   border: 1px solid var(--trait);
   border-radius: var(--rayon);
   box-shadow: var(--ombre);
-  padding: 10px 12px 12px;
+  padding: 9px 12px 11px;
   /* Un filet de couleur sur le bord haut : c'est ce qui distingue une tuile de
      chiffre clé d'un bloc ordinaire, sans ajouter d'ornement. */
   border-top: 2px solid var(--trait-fort);
+  display: flex;
+  flex-direction: column;
 }
 
 .tuile--gain {
@@ -442,18 +532,19 @@ body {
   border-top-color: var(--courbe-brut);
 }
 
+/* Le « ? » est collé à l'étiquette, pas repoussé au bord de la tuile. */
 .tuile__haut {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .tuile__valeur {
   font-size: 25px;
-  line-height: 1.12;
+  line-height: 1.1;
   font-weight: 600;
   display: block;
-  margin-top: 4px;
+  margin-top: 3px;
   letter-spacing: -0.015em;
   font-variant-numeric: tabular-nums lining-nums;
 }
@@ -470,15 +561,19 @@ body {
   min-height: 17px;
 }
 
-/* --- Le bouton « ? » et sa bulle --- */
+/* ============================================================================
+   LE BOUTON « ? » ET SA BULLE
+   La bulle est en position FIXE, posée à la racine du document : aucun conteneur
+   ne peut la rogner, et le script la ramène toujours dans l'écran.
+   ========================================================================== */
 
 .aide {
   font: inherit;
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 700;
   line-height: 1;
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   flex: none;
   border-radius: 50%;
   border: 1px solid var(--trait-fort);
@@ -486,7 +581,6 @@ body {
   color: var(--encre-douce);
   cursor: help;
   padding: 0;
-  margin-left: auto;
 }
 
 .aide:hover,
@@ -497,16 +591,14 @@ body {
 }
 
 .bulle {
-  position: absolute;
-  z-index: 30;
-  top: calc(100% + 6px);
-  right: 8px;
-  width: min(330px, calc(100vw - 48px));
+  position: fixed;
+  z-index: 200;
+  width: min(340px, calc(100vw - 20px));
   background: var(--papier);
   border: 1px solid var(--trait-fort);
   border-left: 3px solid var(--reserve);
   border-radius: var(--rayon);
-  box-shadow: 0 6px 18px rgba(70, 58, 40, 0.14);
+  box-shadow: 0 8px 24px rgba(60, 50, 34, 0.2);
   padding: 11px 13px;
   font-size: 12.5px;
   line-height: 1.5;
@@ -527,10 +619,9 @@ body {
   margin-bottom: 3px;
 }
 
-/* La marque textuelle courte (« partiel », « estimé »), quand il faut la poser
-   à côté d'un chiffre dans un tableau. */
+/* La marque textuelle courte, quand il faut la poser à côté d'un chiffre. */
 .mot {
-  font-size: 10.5px;
+  font-size: 10px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   font-weight: 600;
@@ -544,6 +635,130 @@ body {
 
 .mot--absent {
   color: var(--encre-douce);
+}
+
+/* ============================================================================
+   LES CARTES D'ACTIFS
+   ========================================================================== */
+
+.cartes {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--ecart);
+}
+
+.carte {
+  border: 1px solid var(--trait);
+  border-left: 3px solid var(--trait-fort);
+  border-radius: var(--rayon);
+  background: var(--papier);
+  padding: 8px 11px 10px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.carte--gain {
+  border-left-color: var(--gain);
+}
+
+.carte--perte {
+  border-left-color: var(--perte);
+}
+
+.carte__haut {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 3px;
+}
+
+.jeton {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+  background: var(--surface-creuse);
+  border-radius: 2px;
+  padding: 1px 5px 2px;
+  color: var(--encre-douce);
+}
+
+.carte__type {
+  font-size: 11px;
+  color: var(--encre-tres-douce);
+  margin-left: auto;
+}
+
+/* Le nom tient sur deux lignes puis s'arrête : jamais tronqué en plein mot sans
+   que le nom entier reste accessible au survol. */
+.carte__nom {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 2.6em;
+}
+
+.carte__taux {
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  margin-top: 4px;
+}
+
+.carte__precision {
+  font-size: 10.5px;
+  color: var(--encre-tres-douce);
+  min-height: 15px;
+}
+
+.carte__chiffres {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1px 8px;
+  margin: 7px 0 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--trait);
+  font-size: 11.5px;
+}
+
+.carte__chiffres dt {
+  color: var(--encre-tres-douce);
+}
+
+.carte__chiffres dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.fleche {
+  font: inherit;
+  font-size: 15px;
+  line-height: 1;
+  width: 21px;
+  height: 21px;
+  border: 1px solid var(--trait-fort);
+  border-radius: var(--rayon);
+  background: var(--papier);
+  color: var(--encre-douce);
+  cursor: pointer;
+  padding: 0;
+}
+
+.fleche:hover:not(:disabled) {
+  background: var(--surface-creuse);
+  color: var(--encre);
+}
+
+.fleche:disabled {
+  opacity: 0.32;
+  cursor: not-allowed;
 }
 
 /* ============================================================================
@@ -577,7 +792,6 @@ thead th {
   z-index: 2;
 }
 
-/* Un en-tête triable annonce qu'il est cliquable, et dit dans quel sens il trie. */
 th.triable {
   cursor: pointer;
   user-select: none;
@@ -592,8 +806,8 @@ th.triable[aria-sort]:not([aria-sort="none"]) {
   color: var(--encre);
 }
 
-th.triable .fleche {
-  font-size: 9px;
+.fleche-tri {
+  font-size: 8px;
   margin-left: 3px;
   color: var(--courbe-brut);
 }
@@ -626,6 +840,12 @@ tfoot td {
   background: var(--surface);
   position: sticky;
   bottom: 0;
+}
+
+td.avec-fanion {
+  display: flex;
+  align-items: center;
+  gap: 7px;
 }
 
 /* Le nom d'un actif ne se coupe jamais en silence : il passe à la ligne.
@@ -668,10 +888,11 @@ tr.sans-valeur td {
   font-variant-numeric: tabular-nums lining-nums;
 }
 
+/* La grille est un trait PLEIN très pâle. En pointillé, elle se confondait avec la
+   courbe du capital net investi, qui est elle-même en pointillé. */
 .graphique .grille {
   stroke: var(--trait);
   stroke-width: 1;
-  stroke-dasharray: 2 4;
 }
 
 .serie {
@@ -689,7 +910,7 @@ tr.sans-valeur td {
    pointillé, en escalier. Il se distingue par la FORME autant que par la couleur. */
 .serie--investi {
   stroke: var(--courbe-investi);
-  stroke-dasharray: 5 4;
+  stroke-dasharray: 6 4;
 }
 
 .aire-brut {
@@ -698,7 +919,6 @@ tr.sans-valeur td {
   stroke: none;
 }
 
-/* Le survol : un trait vertical, deux points, et une étiquette. */
 .viseur {
   stroke: var(--encre);
   stroke-width: 1;
@@ -708,6 +928,7 @@ tr.sans-valeur td {
 .infobulle {
   position: absolute;
   z-index: 20;
+  top: 4px;
   pointer-events: none;
   background: var(--papier);
   border: 1px solid var(--trait-fort);
@@ -715,7 +936,7 @@ tr.sans-valeur td {
   box-shadow: 0 4px 14px rgba(70, 58, 40, 0.16);
   padding: 8px 10px;
   font-size: 12px;
-  min-width: 182px;
+  min-width: 196px;
 }
 
 .infobulle__date {
@@ -732,6 +953,12 @@ tr.sans-valeur td {
   align-items: baseline;
   gap: 8px;
   color: var(--encre-douce);
+}
+
+.infobulle__ecart {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--trait);
 }
 
 .infobulle__ligne b {
@@ -755,7 +982,7 @@ tr.sans-valeur td {
   gap: 4px 16px;
   font-size: 11.5px;
   color: var(--encre-douce);
-  margin: 8px 0 0;
+  margin: 7px 0 0;
   padding: 0;
   list-style: none;
 }
@@ -775,23 +1002,38 @@ tr.sans-valeur td {
 }
 
 /* ============================================================================
-   LA RÉPARTITION — barres mesurées sur une base commune
+   L'ANNEAU ET LES LISTES DE PARTS
    ========================================================================== */
 
-/* La barre fine des poches : compacte, puisque l'anneau prenait trop de place
-   pour ce qu'il disait. */
-.barre {
+.anneau-bloc {
   display: flex;
-  width: 100%;
-  height: 12px;
-  gap: 2px;
-  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  align-items: center;
+  flex: 1;
 }
 
-.barre__part {
-  height: 100%;
-  border-radius: 1px;
-  min-width: 2px;
+.anneau-bloc--colonne {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.anneau {
+  flex: none;
+  margin: 0 auto;
+  display: block;
+}
+
+.anneau__centre {
+  font-size: 15px;
+  font-weight: 600;
+  fill: var(--encre);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.anneau__sous {
+  font-size: 10px;
+  fill: var(--encre-tres-douce);
 }
 
 .liste-parts {
@@ -799,6 +1041,8 @@ tr.sans-valeur td {
   padding: 0;
   list-style: none;
   font-size: 12.5px;
+  flex: 1;
+  min-width: 190px;
 }
 
 .liste-parts li {
@@ -813,6 +1057,16 @@ tr.sans-valeur td {
   border-top: 0;
 }
 
+.liste-parts__nom {
+  min-width: 0;
+}
+
+.liste-parts__total {
+  border-top: 1px solid var(--trait-fort) !important;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
 .puce {
   width: 9px;
   height: 9px;
@@ -821,48 +1075,105 @@ tr.sans-valeur td {
   transform: translateY(1px);
 }
 
+/* Ce qui manque est hachuré, jamais coloré comme un poste réel. */
+.puce--absent {
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--absent),
+    var(--absent) 2px,
+    transparent 2px,
+    transparent 4px
+  );
+  border: 1px solid var(--absent);
+}
+
 .liste-parts .nb {
   margin-left: auto;
-  font-variant-numeric: tabular-nums lining-nums;
 }
 
 .liste-parts .part {
   color: var(--encre-douce);
-  min-width: 58px;
+  min-width: 56px;
   text-align: right;
-  font-variant-numeric: tabular-nums lining-nums;
 }
 
-/* --- Les barres de répartition mesurées sur la base --- */
+/* ============================================================================
+   LE CLASSEMENT — les répartitions, mesurées sur une base commune
+   ========================================================================== */
 
-.mesure {
+.classement {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.rang {
   display: grid;
-  grid-template-columns: minmax(120px, 1.4fr) minmax(90px, 2.6fr) auto auto;
+  grid-template-columns: minmax(150px, 1.5fr) minmax(90px, 3fr) auto auto;
   align-items: center;
-  gap: 5px 10px;
+  gap: 10px;
+  padding: 5px 0;
+  border-top: 1px solid var(--trait);
   font-size: 12.5px;
 }
 
-.mesure__libelle {
-  min-width: 0;
+.rang:first-child {
+  border-top: 0;
 }
 
-.mesure__piste {
-  height: 11px;
+.rang__libelle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--encre-douce);
+}
+
+.rang__texte {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--encre);
+}
+
+.rang--absent .rang__texte {
+  color: var(--encre-douce);
+  font-style: italic;
+}
+
+.fanion {
+  width: 20px;
+  height: 14px;
+  flex: none;
+  border-radius: 1px;
+  display: block;
+}
+
+.picto {
+  width: 17px;
+  height: 17px;
+  flex: none;
+  color: var(--encre-tres-douce);
+  display: block;
+}
+
+.rang__piste {
+  height: 12px;
   background: var(--surface-creuse);
   border-radius: 1px;
   overflow: hidden;
 }
 
-.mesure__barre {
+.rang__barre {
   height: 100%;
   background: var(--courbe-brut);
   border-radius: 1px;
+  display: block;
 }
 
 /* Ce qui n'est PAS attribué se dessine en hachures : on le voit sans le confondre
    avec un poste réel, et la couleur ne porte pas seule l'information. */
-.mesure__barre--absent {
+.rang__barre--absent {
   background: repeating-linear-gradient(
     135deg,
     var(--absent),
@@ -870,69 +1181,43 @@ tr.sans-valeur td {
     transparent 3px,
     transparent 6px
   );
-  border: 1px solid var(--absent);
-  border-radius: 1px;
+  box-shadow: inset 0 0 0 1px var(--absent);
 }
 
-.mesure__montant,
-.mesure__part {
-  font-variant-numeric: tabular-nums lining-nums;
+.rang__montant,
+.rang__part {
   white-space: nowrap;
   text-align: right;
 }
 
-.mesure__part {
+.rang__part {
   color: var(--encre-douce);
-  min-width: 54px;
+  min-width: 56px;
 }
 
-.ligne-reste .mesure__libelle {
-  color: var(--encre-douce);
-  font-style: italic;
-}
-
-.separateur {
-  grid-column: 1 / -1;
-  border: 0;
-  border-top: 1px solid var(--trait);
-  margin: 4px 0;
-}
-
-/* --- Le tour du portefeuille : une seule barre, dont le vide est nommé --- */
-
-.tour {
+.classement__coupure {
   display: flex;
-  width: 100%;
-  height: 30px;
-  gap: 2px;
-  border: 1px solid var(--trait-fort);
-  border-radius: var(--rayon);
-  padding: 2px;
-  background: var(--papier);
-}
-
-.tour__part {
-  height: 100%;
-  border-radius: 1px;
-  min-width: 3px;
-  position: relative;
-}
-
-.tour__part--absent {
-  background: repeating-linear-gradient(
-    135deg,
-    var(--absent),
-    var(--absent) 3px,
-    transparent 3px,
-    transparent 6px
-  );
-  outline: 1px solid var(--absent);
-  outline-offset: -1px;
+  align-items: center;
+  gap: 7px;
+  margin: 8px 0 2px;
+  padding-top: 8px;
+  border-top: 1px solid var(--trait-fort);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--encre-tres-douce);
 }
 
 /* ============================================================================
-   LE PANNEAU « À SURVEILLER »
+   « À SURVEILLER »
    ========================================================================== */
+
+.surveiller ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
 
 .surveiller li {
   padding: 7px 0;
@@ -943,12 +1228,6 @@ tr.sans-valeur td {
 
 .surveiller li:first-child {
   border-top: 0;
-}
-
-.surveiller ul {
-  margin: 0;
-  padding: 0;
-  list-style: none;
 }
 
 .surveiller b {
@@ -969,10 +1248,10 @@ tr.sans-valeur td {
    ========================================================================== */
 
 .chapeau {
-  margin: 0 0 10px;
+  margin: 0 0 var(--ecart);
   color: var(--encre-douce);
   font-size: 12.5px;
-  max-width: 78ch;
+  max-width: 92ch;
 }
 
 .vide {
@@ -982,35 +1261,50 @@ tr.sans-valeur td {
   margin: 0;
 }
 
-.note-maquette {
-  margin-top: 26px;
-  padding: 12px 14px;
-  border: 1px dashed var(--trait-fort);
-  border-radius: var(--rayon);
-  font-size: 12.5px;
+/* ============================================================================
+   LE PIED : les réglages de la MAQUETTE, hors de l'application
+   ========================================================================== */
+
+.pied {
+  border-top: 1px solid var(--trait-fort);
+  background: var(--sous-bandeau);
+  padding-block: 8px;
+  font-size: 12px;
   color: var(--encre-douce);
-  max-width: 96ch;
 }
 
-.note-maquette h2 {
-  font-family: var(--serif);
-  font-size: 13px;
-  margin: 0 0 5px;
+.pied .groupe {
+  border-color: var(--trait-fort);
+  background: var(--papier);
+}
+
+.pied .groupe button {
+  color: var(--encre-douce);
+}
+
+.pied .groupe button:hover:not(:disabled) {
+  background: var(--surface-creuse);
   color: var(--encre);
 }
 
-.note-maquette ul {
-  margin: 5px 0 0;
-  padding-left: 17px;
+.pied .groupe button[aria-pressed="true"] {
+  background: var(--encre);
+  color: var(--papier);
 }
 
-.note-maquette li {
-  margin-bottom: 3px;
+.pied .groupe button + button {
+  border-left-color: var(--trait);
 }
 
 /* ============================================================================
    PETITS ÉCRANS — la grille se replie, rien ne disparaît
    ========================================================================== */
+
+@media (max-width: 1400px) {
+  .cartes {
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  }
+}
 
 @media (max-width: 1080px) {
   .rangee {
@@ -1019,14 +1313,18 @@ tr.sans-valeur td {
 }
 
 @media (max-width: 620px) {
-  .mesure {
+  .rang {
     grid-template-columns: 1fr auto auto;
   }
-  .mesure__piste {
+  .rang__piste {
     grid-column: 1 / -1;
+    order: 3;
   }
   .tuile__valeur {
     font-size: 22px;
+  }
+  .actif__nom {
+    max-width: 22ch;
   }
 }
 
