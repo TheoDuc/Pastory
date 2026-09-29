@@ -63,18 +63,6 @@
     return "#" + f(0) + f(8) + f(4);
   }
 
-  /** La couleur de texte lisible sur un fond donne : l'encre ou le papier, selon la
-   *  luminance du fond. Aucune etiquette ne doit se perdre dans sa part. */
-  function encreLisible(hex) {
-    const composante = function (i) {
-      const c = parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16) / 255;
-      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-    };
-    const luminance =
-      0.2126 * composante(0) + 0.7152 * composante(1) + 0.0722 * composante(2);
-    return luminance > 0.38 ? COULEURS.encre : COULEURS.papier;
-  }
-
   /** Une copie triee de la plus grosse part a la plus petite. Les anneaux et les
    *  classements se lisent ainsi de haut en bas et dans le sens horaire, ce qui rend le
    *  sens de lecture evident — sans quoi la petite part collee avant midi se confond
@@ -632,7 +620,7 @@
     jeu: "complet",
     tri: { colonne: "valeur", sens: -1 },
     filtreType: "tous",
-    rubrique: "general",
+    rubrique: "classes",
     arrangementFrais: "a",
     pageActifs: 0,
   };
@@ -1035,6 +1023,12 @@
    *
    * `parts` = [{libelle, montant, couleur, absent}]. Les parts « absent » sont hachurees :
    * ce qui manque se voit, sans se confondre avec un poste reel.
+   *
+   * AUCUN CHIFFRE N'EST ECRIT SUR L'ANNEAU. Un pourcentage pose dans une part doit
+   * choisir sa couleur selon celle de la part, et il finit par etre peu lisible sur les
+   * teintes intermediaires. Chaque anneau est donc accompagne — d'une legende sur la
+   * synthese, du classement chiffre a cote sur la diversification — et l'anneau ne
+   * porte que la forme.
    */
   function anneau(parts, taille, legendeAuCentre) {
     const total = parts.reduce(function (s, p) {
@@ -1127,25 +1121,6 @@
             "stroke-linecap": "butt",
           })
         );
-      }
-      /* Le pourcentage est ecrit DANS la part, quand elle est assez grande pour le
-       * porter. C'est ce qui supprime toute ambiguite : plus besoin d'apparier une
-       * couleur de legende avec un arc a l'oeil, le chiffre est sur l'arc. La couleur du
-       * texte est choisie par calcul de luminance, pour rester lisible sur le fonce
-       * comme sur le clair. */
-      if (part.montant / total >= 0.07 && !part.absent) {
-        const milieu = angle + ouverture / 2;
-        const rad = ((milieu - 90) * Math.PI) / 180;
-        const etiquette = svgEl("text", {
-          x: (centre + r * Math.cos(rad)).toFixed(1),
-          y: (centre + r * Math.sin(rad)).toFixed(1),
-          "text-anchor": "middle",
-          "dominant-baseline": "central",
-          class: "anneau__part",
-          fill: encreLisible(part.couleur),
-        });
-        etiquette.textContent = fEntier.format((part.montant / total) * 100) + " %";
-        svg.append(etiquette);
       }
       angle += ouverture;
     }
@@ -1573,10 +1548,14 @@
   // Les classes d'actifs et les zones tenaient chacune dans un bloc trop petit pour
   // ce qu'elles disent. Elles partagent desormais une vue d'ensemble : ce sont les deux
   // reponses larges, avant d'entrer dans le detail des pays et des secteurs.
+  /* Une rubrique par onglet, dans l'ordre où on se pose les questions : de quoi mon
+   * argent est-il fait, où dans le monde, dans quel pays précisément, dans quels
+   * métiers. Les mettre toutes sur un même écran écrasait chacune d'elles. */
   const RUBRIQUES = [
-    { cle: "general", nom: "Vue d'ensemble" },
-    { cle: "pays", nom: "Le détail par pays" },
-    { cle: "secteurs", nom: "Le détail par secteur" },
+    { cle: "classes", nom: "Actifs" },
+    { cle: "zones", nom: "Zone géographique" },
+    { cle: "pays", nom: "Pays" },
+    { cle: "secteurs", nom: "Secteur" },
   ];
 
   function cleAideDuReste(mot) {
@@ -1715,125 +1694,104 @@
       return page;
     }
 
-    if (etat.rubrique === "general") {
-      /* Les trois reponses larges, cote a cote : de quoi le portefeuille est fait, ou
-       * dans le monde il est expose, et dans quels metiers.
-       *
-       * Une couleur suit son POSTE, pas son rang : elle est calculee sur la position
-       * canonique du poste dans le referentiel, puis les parts sont triees par taille
-       * pour l'affichage. Sans cela, decocher une poche repeindrait les survivants. */
-      const partsClasses = parTaille(
-        d.classes.postes
-          .map(function (poste, i) {
-            return {
-              libelle: poste.libelle,
-              montant: poste.montant,
-              couleur: teinte(i, d.classes.postes.length),
-            };
-          })
-          .concat(
-            d.classes.restes.map(function (poste) {
-              return { libelle: poste.libelle, montant: poste.montant, absent: true };
-            })
-          ),
-        "montant"
-      );
-
-      const partsZones = parTaille(
-        d.pays.zones
-          .map(function (zone, i) {
-            return {
-              libelle: zone.libelle,
-              montant: zone.montant,
-              couleur: teinte(i, d.pays.zones.length),
-            };
-          })
-          .concat(
-            d.pays.restes.map(function (poste) {
-              return { libelle: poste.libelle, montant: poste.montant, absent: true };
-            })
-          ),
-        "montant"
-      );
-
-      /* Pour les secteurs, les cinq postes hors repartition sont REGROUPES dans une
-       * seule part hachuree et nommee, avec son montant : seize arcs d'une meme teinte
-       * seraient illisibles. Rien n'est masque pour autant — le classement juste en
-       * dessous les detaille un par un. */
-      const horsSecteurs = d.secteurs.restes.reduce(function (s, poste) {
-        return s + poste.montant;
-      }, 0);
-      const partsSecteurs = parTaille(
-        d.secteurs.postes.map(function (poste, i) {
-          return {
-            libelle: poste.libelle,
-            montant: poste.montant,
-            couleur: teinte(i, d.secteurs.postes.length),
-          };
-        }),
-        "montant"
-      ).concat([
-        {
-          libelle: "Hors répartition sectorielle",
-          montant: Math.round(horsSecteurs * 100) / 100,
-          absent: true,
-        },
-      ]);
-
-      function volet(titre, note, cleAide, parts, rubrique, avecDrapeaux) {
-        return bloc(
-          titre,
-          note,
-          el("div", { class: "double" }, [
-            el("div", { class: "anneau-bloc anneau-bloc--colonne" }, [
-              anneau(parts, 176, fEntier.format(d.base) + " €"),
-            ]),
-            blocClassement(rubrique, avecDrapeaux),
-          ]),
-          null,
-          cleAide
-        );
+    /* Les parts de l'anneau. Une couleur suit son POSTE, jamais son rang : elle est
+     * calculee sur la position canonique du poste dans le referentiel, puis les parts
+     * sont triees par taille pour l'affichage. Sans cela, decocher une poche
+     * repeindrait les survivants.
+     *
+     * Au-dela de deux postes hors repartition, ils sont REGROUPES en une seule part
+     * hachuree et nommee, avec son montant : une quinzaine d'arcs d'une meme teinte
+     * serait illisible. Rien n'est masque — le classement a cote les detaille un par
+     * un, et le total du regroupement est ecrit. */
+    function partsDeLAnneau(rubrique) {
+      const restes = rubrique.restes || [];
+      const postes = rubrique.postes.map(function (poste, i) {
+        return {
+          libelle: poste.libelle,
+          montant: poste.montant,
+          couleur: teinte(i, rubrique.postes.length),
+        };
+      });
+      let absentes;
+      if (restes.length > 2) {
+        const total = restes.reduce(function (s, poste) {
+          return s + poste.montant;
+        }, 0);
+        absentes = [
+          {
+            libelle: "Hors cette répartition",
+            montant: Math.round(total * 100) / 100,
+            absent: true,
+          },
+        ];
+      } else {
+        absentes = restes.map(function (poste) {
+          return { libelle: poste.libelle, montant: poste.montant, absent: true };
+        });
       }
+      return parTaille(postes, "montant").concat(absentes);
+    }
 
+    /** Un écran de répartition : le classement chiffré à gauche, l'anneau à droite.
+     *  L'anneau ne porte ni légende ni chiffre — le classement les donne tous, et à
+     *  côté. C'est lui qui fait foi. */
+    function ecranDeRepartition(titre, note, cleAide, rubrique, avecDrapeaux) {
+      return el("div", { class: "rangee rangee--trois-quarts rangee--apres" }, [
+        bloc(titre, note, blocClassement(rubrique, avecDrapeaux), null, cleAide),
+        bloc(
+          "Vu en anneau",
+          "base " + euros(d.base),
+          el("div", { class: "anneau-bloc anneau-bloc--colonne" }, [
+            anneau(partsDeLAnneau(rubrique), 170, fEntier.format(d.base) + " €"),
+            el("p", {
+              class: "reference",
+              style: "text-align:center; margin:10px 0 0",
+              texte: "Les montants et les parts sont dans le classement, à gauche.",
+            }),
+          ])
+        ),
+      ]);
+    }
+
+    if (etat.rubrique === "classes") {
       page.append(
-        el("div", { class: "rangee rangee--trois rangee--apres" }, [
-          volet(
-            "Par classe d'actifs",
-            "base " + euros(d.base),
-            "pasCent",
-            partsClasses,
-            d.classes,
-            false
-          ),
-          volet(
-            "Par zone d'investisseur",
-            "convention datée",
-            "zones",
-            partsZones,
-            { postes: d.pays.zones, restes: d.pays.restes },
-            false
-          ),
-          volet("Par secteur", d.nomenclature, "secteurs", partsSecteurs, d.secteurs, false),
-        ])
+        ecranDeRepartition(
+          "Par classe d'actifs",
+          "base " + euros(d.base),
+          "pasCent",
+          d.classes,
+          false
+        )
+      );
+    } else if (etat.rubrique === "zones") {
+      page.append(
+        ecranDeRepartition(
+          "Par zone d'investisseur",
+          "convention datée et sourcée",
+          "zones",
+          { postes: d.pays.zones, restes: d.pays.restes },
+          false
+        )
       );
     } else if (etat.rubrique === "pays") {
       page.append(
-        el("div", { class: "rangee rangee--apres" }, [
-          bloc(
-            "Par pays",
-            "règle dominante : " + d.pays.regleDominante,
-            blocClassement(d.pays, true),
-            null,
-            "regleDePays"
-          ),
+        ecranDeRepartition(
+          "Par pays",
+          "règle dominante : " + d.pays.regleDominante,
+          "regleDePays",
+          d.pays,
+          true
+        )
+      );
+      // Les compléments passent en dessous : ils expliquent, ils ne se comparent pas.
+      page.append(
+        el("div", { class: "rangee rangee--large rangee--apres" }, [
           bloc("Ce qu'il faut savoir de ces chiffres", null, remarquesDiversification(d)),
         ])
       );
     } else {
       page.append(
-        el("div", { class: "rangee rangee--large rangee--apres" }, [
-          bloc("Par secteur", d.nomenclature, blocClassement(d.secteurs, false), null, "secteurs"),
-        ])
+        ecranDeRepartition("Par secteur", d.nomenclature, "secteurs", d.secteurs, false)
       );
     }
 

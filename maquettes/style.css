@@ -95,6 +95,20 @@
 }
 
 :root {
+  /* LE POINT LE PLUS IMPORTANT DE CE FICHIER.
+   *
+   * `only light` interdit au navigateur d'assombrir la page tout seul. Sans cette
+   * ligne, le mode sombre automatique de Chrome inverse les clartés : le fond crème
+   * devient noir, et — beaucoup plus grave — le bleu le plus FONCÉ s'affiche le plus
+   * CLAIR. Dans un anneau, les parts changent alors visiblement de couleur, et le
+   * lecteur croit à une erreur de calcul. Le propriétaire l'a constaté sur une capture,
+   * et c'était bien un défaut, mais pas celui qu'on croyait.
+   *
+   * L'application est en clair par choix (notes initiales), et elle doit le DIRE au
+   * navigateur, sans quoi ses couleurs ne veulent plus rien dire. Vaut aussi pour la
+   * sauge et la terracotta : un gain inversé vire au rouge. */
+  color-scheme: only light;
+
   /* --- Le papier et l'encre --- */
   --papier: #f6f1e7;
   --surface: #fbf8f2;
@@ -449,8 +463,10 @@ body {
   grid-template-columns: repeat(auto-fit, minmax(430px, 1fr));
 }
 
-.rangee--trois {
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+/* Trois quarts pour le classement chiffre, un quart pour l'anneau : le chiffre fait
+   foi, la forme accompagne. */
+.rangee--trois-quarts {
+  grid-template-columns: minmax(0, 3fr) minmax(230px, 1fr);
 }
 
 /* ============================================================================
@@ -1037,15 +1053,6 @@ tr.sans-valeur td {
   fill: var(--encre-tres-douce);
 }
 
-/* Le pourcentage ecrit DANS la part : c'est lui qui rend la correspondance entre une
-   couleur et un chiffre indiscutable, sans obliger l'oeil a apparier un arc et une
-   ligne de legende. Sa couleur est choisie par calcul, dans le script. */
-.anneau__part {
-  font-size: 10px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums lining-nums;
-  pointer-events: none;
-}
 
 .liste-parts {
   margin: 0;
@@ -1116,108 +1123,6 @@ tr.sans-valeur td {
   display: flex;
   flex-direction: column;
   flex: 1;
-}
-
-/* Deux contenus dans un meme bloc : l'anneau, puis le classement. */
-.double {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  flex: 1;
-}
-
-.double > .classement {
-  border-top: 1px solid var(--trait-fort);
-  padding-top: 8px;
-  flex: none;
-}
-
-.rang {
-  display: grid;
-  grid-template-columns: minmax(150px, 1.5fr) minmax(90px, 3fr) auto auto;
-  align-items: center;
-  gap: 10px;
-  padding: 5px 0;
-  border-top: 1px solid var(--trait);
-  font-size: 12.5px;
-}
-
-.rang:first-child {
-  border-top: 0;
-}
-
-.rang__libelle {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-  color: var(--encre-douce);
-}
-
-.rang__texte {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--encre);
-}
-
-.rang--absent .rang__texte {
-  color: var(--encre-douce);
-  font-style: italic;
-}
-
-.fanion {
-  width: 20px;
-  height: 14px;
-  flex: none;
-  border-radius: 1px;
-  display: block;
-}
-
-.picto {
-  width: 17px;
-  height: 17px;
-  flex: none;
-  color: var(--encre-tres-douce);
-  display: block;
-}
-
-.rang__piste {
-  height: 12px;
-  background: var(--surface-creuse);
-  border-radius: 1px;
-  overflow: hidden;
-}
-
-.rang__barre {
-  height: 100%;
-  background: var(--courbe-brut);
-  border-radius: 1px;
-  display: block;
-}
-
-/* Ce qui n'est PAS attribué se dessine en hachures : on le voit sans le confondre
-   avec un poste réel, et la couleur ne porte pas seule l'information. */
-.rang__barre--absent {
-  background: repeating-linear-gradient(
-    135deg,
-    var(--absent),
-    var(--absent) 3px,
-    transparent 3px,
-    transparent 6px
-  );
-  box-shadow: inset 0 0 0 1px var(--absent);
-}
-
-.rang__montant,
-.rang__part {
-  white-space: nowrap;
-  text-align: right;
-}
-
-.rang__part {
-  color: var(--encre-douce);
-  min-width: 56px;
 }
 
 .classement__coupure {
