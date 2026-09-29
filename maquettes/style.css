@@ -1,22 +1,25 @@
-/* Feuille de style des maquettes de l'étape 8.
+/* Feuille de style des maquettes de l'étape 8 — deuxième version.
  *
  * ELLE EST LE LIVRABLE. À l'étape 9 elle devient `dashboard_tr/vues/assets/dashboard.css`
  * telle quelle : seule la structure HTML sera retranscrite en composants Dash (D-31).
  *
  * Style voulu par le propriétaire : crème et beige, papier, typographie soignée,
  * bordures fines gris très doux, vert sauge pour les gains, brique/terracotta pour les
- * pertes. Sobre, sans artifices. On s'écarte du sombre moderne sur-utilisé.
+ * pertes. Sobre, et surtout PAS le sombre moderne sur-utilisé.
  *
- * Le vocabulaire visuel est celui du RELEVÉ BANCAIRE, pas de la page d'accueil : des
- * filets horizontaux, des chiffres alignés à droite en chasse fixe, des intitulés
- * discrets en capitales espacées. Ce qui est mis en avant, ce sont les chiffres — le
- * propriétaire ne code pas, il vérifie.
+ * CE QUI A CHANGÉ APRÈS SA PREMIÈRE RELECTURE :
+ *  1. la typographie est EMBARQUÉE (IBM Plex). Georgia dessinait des chiffres
+ *     elzéviriens — qui montent et descendent comme des minuscules — donc illisibles en
+ *     colonne. Plex Sans a des chiffres à hauteur constante et à chasse fixe ;
+ *  2. la page n'est plus une pile : c'est une GRILLE. L'essentiel d'un onglet tient
+ *     en 1920x1080 sans défiler ;
+ *  3. le vert et le rouge s'appliquent aussi au TRI et au TWRR ;
+ *  4. les détails de calcul quittent les tuiles pour un onglet « Détail » ;
+ *  5. les explications quittent le corps du texte pour un bouton « ? ».
  *
- * THÈME UNIQUE, ASSUMÉ. Pas de variante sombre : elle est explicitement écartée par les
- * notes initiales. Toutes les couleurs et le fond sont donc posés en clair.
+ * THÈME UNIQUE, ASSUMÉ. Pas de variante sombre : elle est explicitement écartée.
  *
- * AUCUN APPEL RÉSEAU : ni police, ni script, ni image distante. L'application doit
- * s'ouvrir hors ligne (D-31).
+ * AUCUN APPEL RÉSEAU : les polices sont dans le dépôt (D-31).
  *
  * Les couleurs ne sont pas choisies à l'œil : la rampe des poches et la paire de
  * courbes ont passé le validateur de palette (bande de clarté, séparation sous vision
@@ -24,12 +27,72 @@
  * terracotta, ocre — sont vérifiées au contraste de texte (>= 4,5:1 sur le papier).
  */
 
+/* ============================================================================
+   LA TYPOGRAPHIE, EMBARQUÉE
+   IBM Plex, sous licence SIL Open Font 1.1 (voir polices/LICENCE-IBM-Plex.txt).
+   ========================================================================== */
+
+@font-face {
+  font-family: "Plex Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("polices/ibm-plex-sans-latin-400-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+2074,
+    U+20AC, U+2122, U+2191, U+2193, U+2212, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Plex Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("polices/ibm-plex-sans-latin-ext-400-normal.woff2") format("woff2");
+  unicode-range: U+0100-02AF, U+0304-0308, U+1E00-1EFF, U+2020, U+20A0-20AB,
+    U+20AD-20CF, U+2113, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Plex Sans";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("polices/ibm-plex-sans-latin-600-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+2074,
+    U+20AC, U+2122, U+2191, U+2193, U+2212, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Plex Sans";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("polices/ibm-plex-sans-latin-ext-600-normal.woff2") format("woff2");
+  unicode-range: U+0100-02AF, U+0304-0308, U+1E00-1EFF, U+2020, U+20A0-20AB,
+    U+20AD-20CF, U+2113, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Plex Serif";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("polices/ibm-plex-serif-latin-600-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+2074,
+    U+20AC, U+2122, U+2191, U+2193, U+2212, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Plex Serif";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("polices/ibm-plex-serif-latin-ext-600-normal.woff2") format("woff2");
+  unicode-range: U+0100-02AF, U+0304-0308, U+1E00-1EFF, U+2020, U+20A0-20AB,
+    U+20AD-20CF, U+2113, U+A720-A7FF;
+}
+
 :root {
   /* --- Le papier et l'encre --- */
   --papier: #f6f1e7;
   --surface: #fbf8f2;
-  --surface-creuse: #efe9db;
-  --trait: #dfd6c4;
+  --surface-creuse: #eee7d8;
+  --trait: #ded5c2;
   --trait-fort: #c3b79f;
   --encre: #2c2722;
   --encre-douce: #6e6459;
@@ -42,139 +105,162 @@
 
   /* --- Les séries des graphiques --- */
   --courbe-brut: #1d6c93;
-  --courbe-investi: var(--encre-douce);
+  --courbe-investi: #6e6459;
   --poche-1: #1b4a63;
   --poche-2: #37738c;
   --poche-3: #6fa0b4;
   --absent: #b9ad97; /* ce qui manque : non couvert, non attribué, hors actions */
 
   /* --- Typographie --- */
-  /* Aucune police distante. Une pile à empattements pour les chiffres et les titres,
-     une pile humaniste pour le texte courant et les tableaux denses. */
-  --serif: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
-  --sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --serif: "Plex Serif", Georgia, "Palatino Linotype", serif;
+  --sans: "Plex Sans", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
 
-  --pas: 4px;
-  --rayon: 2px; /* presque droit : c'est du papier, pas une carte */
+  --rayon: 3px;
+  --ombre: 0 1px 2px rgba(80, 66, 44, 0.05);
 }
 
 * {
   box-sizing: border-box;
 }
 
+html,
 body {
   margin: 0;
+}
+
+body {
   background: var(--papier);
   color: var(--encre);
   font-family: var(--sans);
-  font-size: 15px;
-  line-height: 1.55;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
   /* Une trame de papier très discrète, dessinée en CSS : aucune image distante. */
   background-image: radial-gradient(
-      circle at 1px 1px,
-      rgba(120, 104, 82, 0.045) 1px,
-      transparent 0
-    );
+    circle at 1px 1px,
+    rgba(120, 104, 82, 0.05) 1px,
+    transparent 0
+  );
   background-size: 7px 7px;
 }
 
-/* Tout ce qui est un chiffre s'aligne et se compare. */
+/* Tout ce qui est un chiffre s'aligne et se compare.
+   « tabular-nums » fixe la largeur, « lining-nums » interdit les chiffres qui
+   descendent sous la ligne — c'était le défaut de la première maquette. */
 .nb {
-  font-family: var(--serif);
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum", "lnum";
   white-space: nowrap;
 }
 
-/* ============================================================================
-   L'ENVELOPPE
-   ========================================================================== */
+.gain {
+  color: var(--gain);
+}
 
-.page {
-  max-width: 1080px;
-  margin: 0 auto;
-  padding-inline: 20px;
-  padding-block: 0 64px;
+.perte {
+  color: var(--perte);
 }
 
 /* ============================================================================
-   L'EN-TÊTE PERMANENT : les filtres, et l'état des données
+   L'EN-TÊTE : onglets, filtres, état des données. Tout tient en trois bandes.
    ========================================================================== */
 
 .entete {
   position: sticky;
   top: env(safe-area-inset-top, 0px);
-  z-index: 20;
+  z-index: 40;
   background: var(--papier);
   border-bottom: 1px solid var(--trait-fort);
 }
 
-.entete__interieur {
-  max-width: 1080px;
-  margin: 0 auto;
-  padding-inline: 20px;
-  padding-block: 12px;
+.bande {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 8px 20px;
+  align-items: center;
+  gap: 8px 18px;
+  max-width: 1860px;
+  margin: 0 auto;
+  padding-inline: 20px;
+}
+
+.bande--titre {
+  padding-block: 9px;
+}
+
+.bande--filtres {
+  padding-block: 8px;
+  border-top: 1px solid var(--trait);
+}
+
+.bande--etat {
+  padding-block: 6px;
+  border-top: 1px solid var(--trait);
+  font-size: 12px;
+  color: var(--encre-douce);
+  gap: 3px 14px;
+}
+
+.bande--etat b {
+  font-weight: 600;
+  color: var(--encre);
 }
 
 .marque {
   font-family: var(--serif);
-  font-size: 17px;
-  letter-spacing: 0.01em;
-  margin: 0;
+  font-size: 16px;
   font-weight: 600;
+  margin: 0;
+  letter-spacing: 0.005em;
+  white-space: nowrap;
 }
 
 .marque span {
   color: var(--encre-tres-douce);
   font-weight: 400;
+  font-family: var(--sans);
+  font-size: 12px;
 }
 
-.entete__pousse {
+.pousse {
   margin-left: auto;
 }
 
-/* L'état des données : ce sur quoi les chiffres reposent, toujours visible. */
-.etat {
+/* --- Les onglets --- */
+
+.onglets {
   display: flex;
+  gap: 2px;
   flex-wrap: wrap;
-  gap: 4px 16px;
-  font-size: 12.5px;
+}
+
+.onglets button {
+  font: inherit;
+  font-size: 13.5px;
   color: var(--encre-douce);
-  border-top: 1px solid var(--trait);
-  padding-block: 7px;
-  margin: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: var(--rayon) var(--rayon) 0 0;
+  padding: 7px 14px 8px;
+  cursor: pointer;
+  margin-bottom: -10px;
+  position: relative;
 }
 
-.etat__interieur {
-  max-width: 1080px;
-  margin: 0 auto;
-  padding-inline: 20px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-  width: 100%;
-  align-items: center;
-}
-
-.etat b {
-  font-weight: 600;
+.onglets button:hover {
   color: var(--encre);
+  background: var(--surface);
 }
 
-/* ============================================================================
-   LES COMMANDES : filtres de période et de poche, choix de direction et de jeu
-   ========================================================================== */
-
-.commandes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 10px;
-  align-items: center;
+.onglets button[aria-selected="true"] {
+  color: var(--encre);
+  font-weight: 600;
+  background: var(--surface);
+  border-color: var(--trait-fort);
+  box-shadow: inset 0 2px 0 var(--encre);
 }
+
+/* --- Les groupes de filtres --- */
 
 .groupe {
   display: inline-flex;
@@ -187,11 +273,11 @@ body {
 .groupe button,
 .bouton {
   font: inherit;
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--encre-douce);
   background: transparent;
   border: 0;
-  padding: 5px 11px;
+  padding: 4px 10px 5px;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -208,6 +294,13 @@ body {
 .groupe button[aria-pressed="true"] {
   background: var(--encre);
   color: var(--papier);
+  font-weight: 600;
+}
+
+/* Une poche décochée reste lisible : elle est barrée, pas seulement pâlie. */
+.groupe button[aria-pressed="false"].poche-eteinte {
+  text-decoration: line-through;
+  color: var(--encre-tres-douce);
 }
 
 .bouton {
@@ -220,133 +313,237 @@ body {
   background: var(--surface-creuse);
 }
 
-/* Le compteur « à surveiller ». L'ocre est doublé d'un chiffre et d'un mot :
-   la couleur ne porte jamais seule l'information. */
 .bouton--surveiller {
   color: var(--reserve);
   border-color: var(--reserve);
   font-weight: 600;
 }
 
-:where(button, a, summary, [tabindex]):focus-visible {
-  outline: 2px solid var(--courbe-brut);
-  outline-offset: 2px;
-}
-
 .etiquette {
-  font-size: 11px;
-  letter-spacing: 0.09em;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--encre-tres-douce);
   font-weight: 600;
 }
 
-/* ============================================================================
-   LES SECTIONS
-   ========================================================================== */
-
-.section {
-  margin-top: 40px;
-}
-
-.section__titre {
-  font-family: var(--serif);
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  margin: 0 0 2px;
-  text-wrap: balance;
-}
-
-/* Direction B : la question en français, qui tient lieu de titre. */
-.question {
-  font-family: var(--serif);
-  font-size: 22px;
-  font-weight: 400;
-  letter-spacing: -0.005em;
-  margin: 0 0 4px;
-  text-wrap: balance;
-}
-
-.section__chapeau {
-  margin: 0 0 14px;
-  color: var(--encre-douce);
-  font-size: 13.5px;
-  max-width: 62ch;
-}
-
-.filet {
-  border: 0;
-  border-top: 1px solid var(--trait);
-  margin: 0;
-}
-
-.filet--fort {
-  border-top-color: var(--trait-fort);
+:where(button, a, summary, [tabindex], th[role="button"]):focus-visible {
+  outline: 2px solid var(--courbe-brut);
+  outline-offset: 1px;
 }
 
 /* ============================================================================
-   LES CHIFFRES CLÉS
+   LA GRILLE — c'est ici que se joue la densité
    ========================================================================== */
 
-/* Direction A : un bandeau réglé, sans carte. Le chiffre d'abord. */
-.bandeau {
+.page {
+  max-width: 1860px;
+  margin: 0 auto;
+  padding-inline: 20px;
+  padding-block: 14px 40px;
+}
+
+/* Les tuiles de chiffres clés : une seule rangée, qui se replie sur petits écrans. */
+.tuiles {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  border-top: 1px solid var(--trait-fort);
-  border-bottom: 1px solid var(--trait-fort);
+  grid-template-columns: repeat(auto-fit, minmax(178px, 1fr));
+  gap: 10px;
 }
 
-.bandeau__case {
-  padding: 14px 18px 15px;
-  border-left: 1px solid var(--trait);
+/* La rangée principale : le graphique large, et une colonne compacte à droite.
+   Le graphique prend deux tiers, la colonne un tiers — c'est le rapport qui donne
+   au graphique assez de largeur pour être lu, sans que la colonne devienne un
+   ruban inutilisable. */
+.rangee {
+  display: grid;
+  grid-template-columns: minmax(0, 2.15fr) minmax(280px, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+  align-items: start;
 }
 
-.bandeau__case:first-child {
-  border-left: 0;
-  padding-left: 0;
+.rangee--large {
+  grid-template-columns: minmax(0, 1fr);
 }
 
-.bandeau__valeur {
+.rangee--deux {
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+}
+
+.colonne {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+/* ============================================================================
+   LE BLOC : la brique de la grille
+   ========================================================================== */
+
+.bloc {
+  background: var(--surface);
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+  box-shadow: var(--ombre);
+  padding: 12px 14px 14px;
+  min-width: 0;
+}
+
+.bloc__entete {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.bloc__titre {
   font-family: var(--serif);
-  font-variant-numeric: tabular-nums;
-  font-size: 27px;
-  line-height: 1.15;
-  letter-spacing: -0.01em;
-  display: block;
-  margin-top: 3px;
+  font-size: 13.5px;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: 0.01em;
 }
 
-.bandeau__note {
-  font-size: 12px;
+.bloc__note {
+  font-size: 11.5px;
+  color: var(--encre-tres-douce);
+  margin-left: auto;
+  text-align: right;
+}
+
+.bloc--plein {
+  padding: 0;
+  overflow: hidden;
+}
+
+/* --- La tuile de chiffre clé --- */
+
+.tuile {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+  box-shadow: var(--ombre);
+  padding: 10px 12px 12px;
+  /* Un filet de couleur sur le bord haut : c'est ce qui distingue une tuile de
+     chiffre clé d'un bloc ordinaire, sans ajouter d'ornement. */
+  border-top: 2px solid var(--trait-fort);
+}
+
+.tuile--gain {
+  border-top-color: var(--gain);
+}
+
+.tuile--perte {
+  border-top-color: var(--perte);
+}
+
+.tuile--neutre {
+  border-top-color: var(--courbe-brut);
+}
+
+.tuile__haut {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tuile__valeur {
+  font-size: 25px;
+  line-height: 1.12;
+  font-weight: 600;
+  display: block;
+  margin-top: 4px;
+  letter-spacing: -0.015em;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.tuile__valeur--petit {
+  font-size: 20px;
+}
+
+.tuile__pied {
+  font-size: 11.5px;
   color: var(--encre-douce);
   display: block;
   margin-top: 3px;
+  min-height: 17px;
 }
 
-/* Direction B : le chiffre dans une phrase. */
-.reponse {
-  font-family: var(--serif);
-  font-size: 19px;
-  line-height: 1.5;
-  margin: 0 0 10px;
-  max-width: 58ch;
-}
+/* --- Le bouton « ? » et sa bulle --- */
 
-.reponse .enorme {
-  font-size: 40px;
+.aide {
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 700;
   line-height: 1;
-  letter-spacing: -0.015em;
-  font-variant-numeric: tabular-nums;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  border-radius: 50%;
+  border: 1px solid var(--trait-fort);
+  background: var(--papier);
+  color: var(--encre-douce);
+  cursor: help;
+  padding: 0;
+  margin-left: auto;
+}
+
+.aide:hover,
+.aide[aria-expanded="true"] {
+  background: var(--encre);
+  border-color: var(--encre);
+  color: var(--papier);
+}
+
+.bulle {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  right: 8px;
+  width: min(330px, calc(100vw - 48px));
+  background: var(--papier);
+  border: 1px solid var(--trait-fort);
+  border-left: 3px solid var(--reserve);
+  border-radius: var(--rayon);
+  box-shadow: 0 6px 18px rgba(70, 58, 40, 0.14);
+  padding: 11px 13px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--encre-douce);
+  text-align: left;
+  font-weight: 400;
+}
+
+.bulle b {
+  color: var(--encre);
+}
+
+.bulle__titre {
+  display: block;
+  font-family: var(--serif);
+  font-size: 12.5px;
+  color: var(--encre);
+  margin-bottom: 3px;
+}
+
+/* La marque textuelle courte (« partiel », « estimé »), quand il faut la poser
+   à côté d'un chiffre dans un tableau. */
+.mot {
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--reserve);
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  padding: 0 4px 1px;
+  white-space: nowrap;
   display: inline-block;
 }
 
-.gain {
-  color: var(--gain);
-}
-
-.perte {
-  color: var(--perte);
+.mot--absent {
+  color: var(--encre-douce);
 }
 
 /* ============================================================================
@@ -354,54 +551,81 @@ body {
    ========================================================================== */
 
 .cadre-tableau {
-  overflow-x: auto;
-  border-top: 1px solid var(--trait-fort);
+  overflow: auto;
+  max-height: var(--hauteur-tableau, none);
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13.5px;
+  font-size: 13px;
 }
 
 thead th {
   text-align: left;
-  font-size: 11px;
-  letter-spacing: 0.08em;
+  font-size: 10.5px;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--encre-tres-douce);
   font-weight: 600;
-  padding: 8px 10px;
+  padding: 7px 9px;
   border-bottom: 1px solid var(--trait-fort);
   white-space: nowrap;
-  background: var(--papier);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+/* Un en-tête triable annonce qu'il est cliquable, et dit dans quel sens il trie. */
+th.triable {
+  cursor: pointer;
+  user-select: none;
+}
+
+th.triable:hover {
+  color: var(--encre);
+  background: var(--surface-creuse);
+}
+
+th.triable[aria-sort]:not([aria-sort="none"]) {
+  color: var(--encre);
+}
+
+th.triable .fleche {
+  font-size: 9px;
+  margin-left: 3px;
+  color: var(--courbe-brut);
 }
 
 tbody td {
-  padding: 9px 10px;
+  padding: 7px 9px;
   border-bottom: 1px solid var(--trait);
   vertical-align: top;
 }
 
 tbody tr:hover td {
-  background: var(--surface);
+  background: var(--surface-creuse);
 }
 
 th.num,
 td.num {
   text-align: right;
-  font-variant-numeric: tabular-nums;
 }
 
 td.num {
-  font-family: var(--serif);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum", "lnum";
+  white-space: nowrap;
 }
 
 tfoot td {
-  padding: 10px;
+  padding: 8px 9px;
   border-top: 1px solid var(--trait-fort);
   font-weight: 600;
-  font-size: 13.5px;
+  background: var(--surface);
+  position: sticky;
+  bottom: 0;
 }
 
 /* Le nom d'un actif ne se coupe jamais en silence : il passe à la ligne.
@@ -409,96 +633,39 @@ tfoot td {
 .actif__nom {
   font-weight: 600;
   display: block;
-  max-width: 34ch;
+  max-width: 30ch;
 }
 
 .actif__code {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--encre-tres-douce);
-  letter-spacing: 0.02em;
 }
 
-/* Une ligne dont un chiffre manque : signalée par le fond ET par le texte. */
 tr.sans-valeur td {
   background: var(--surface-creuse);
 }
 
-tr.sans-valeur:hover td {
-  background: var(--surface-creuse);
-}
-
 /* ============================================================================
-   LE VOCABULAIRE : une marque, et son explication à portée de clic
+   LE GRAPHIQUE
    ========================================================================== */
 
-.mot {
-  font: inherit;
-  font-size: 11.5px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  font-weight: 600;
-  color: var(--reserve);
-  background: transparent;
-  border: 1px solid currentColor;
-  border-radius: var(--rayon);
-  padding: 1px 6px 2px;
-  cursor: help;
-  white-space: nowrap;
-  line-height: 1.5;
+.cadre-graphique {
+  position: relative;
 }
-
-.mot:hover {
-  background: var(--surface-creuse);
-}
-
-.mot--absent {
-  color: var(--encre-douce);
-}
-
-.mot--gain {
-  color: var(--gain);
-}
-
-/* L'explication s'ouvre sous la marque, dans le flux : elle ne masque rien et ne
-   demande pas de viser une infobulle. */
-.explication {
-  display: block;
-  margin: 8px 0 2px;
-  padding: 10px 13px;
-  background: var(--surface);
-  border: 1px solid var(--trait);
-  border-left: 3px solid var(--reserve);
-  border-radius: var(--rayon);
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--encre-douce);
-  max-width: 64ch;
-}
-
-.explication b {
-  color: var(--encre);
-}
-
-/* ============================================================================
-   LES GRAPHIQUES
-   ========================================================================== */
 
 .graphique {
   width: 100%;
   height: auto;
   display: block;
   overflow: visible;
+  touch-action: pan-y;
 }
 
 .graphique text {
   font-family: var(--sans);
-  font-size: 11px;
+  font-size: 10.5px;
   fill: var(--encre-douce);
-}
-
-.graphique .axe {
-  stroke: var(--trait);
-  stroke-width: 1;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 .graphique .grille {
@@ -519,8 +686,7 @@ tr.sans-valeur:hover td {
 }
 
 /* Le capital net investi est une référence, pas une série concurrente : trait
-   pointillé, en escalier, dans l'encre douce. Il se distingue par la FORME autant
-   que par la couleur. */
+   pointillé, en escalier. Il se distingue par la FORME autant que par la couleur. */
 .serie--investi {
   stroke: var(--courbe-investi);
   stroke-dasharray: 5 4;
@@ -528,17 +694,68 @@ tr.sans-valeur:hover td {
 
 .aire-brut {
   fill: var(--courbe-brut);
-  opacity: 0.09;
+  opacity: 0.08;
   stroke: none;
+}
+
+/* Le survol : un trait vertical, deux points, et une étiquette. */
+.viseur {
+  stroke: var(--encre);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.infobulle {
+  position: absolute;
+  z-index: 20;
+  pointer-events: none;
+  background: var(--papier);
+  border: 1px solid var(--trait-fort);
+  border-radius: var(--rayon);
+  box-shadow: 0 4px 14px rgba(70, 58, 40, 0.16);
+  padding: 8px 10px;
+  font-size: 12px;
+  min-width: 182px;
+}
+
+.infobulle__date {
+  font-family: var(--serif);
+  font-weight: 600;
+  display: block;
+  margin-bottom: 5px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--trait);
+}
+
+.infobulle__ligne {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--encre-douce);
+}
+
+.infobulle__ligne b {
+  margin-left: auto;
+  color: var(--encre);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-weight: 600;
+}
+
+.infobulle__ligne i {
+  width: 14px;
+  height: 0;
+  border-top-width: 2px;
+  border-top-style: solid;
+  flex: none;
 }
 
 .legende {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 20px;
-  font-size: 12.5px;
+  gap: 4px 16px;
+  font-size: 11.5px;
   color: var(--encre-douce);
-  margin: 10px 0 0;
+  margin: 8px 0 0;
   padding: 0;
   list-style: none;
 }
@@ -546,25 +763,29 @@ tr.sans-valeur:hover td {
 .legende li {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
 }
 
 .legende i {
-  width: 22px;
+  width: 18px;
   height: 0;
   border-top-width: 2px;
   border-top-style: solid;
   flex: none;
 }
 
-/* --- La barre empilée des poches --- */
+/* ============================================================================
+   LA RÉPARTITION — barres mesurées sur une base commune
+   ========================================================================== */
 
+/* La barre fine des poches : compacte, puisque l'anneau prenait trop de place
+   pour ce qu'il disait. */
 .barre {
   display: flex;
   width: 100%;
-  height: 34px;
-  gap: 2px; /* le filet de fond qui sépare deux segments */
-  margin-top: 6px;
+  height: 12px;
+  gap: 2px;
+  margin-bottom: 8px;
 }
 
 .barre__part {
@@ -573,142 +794,239 @@ tr.sans-valeur:hover td {
   min-width: 2px;
 }
 
-.barre__legende {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 2px 18px;
-  margin: 12px 0 0;
+.liste-parts {
+  margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
-.barre__legende li {
+.liste-parts li {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  padding: 5px 0;
+  padding: 4px 0;
   border-top: 1px solid var(--trait);
 }
 
-.barre__puce {
-  width: 10px;
-  height: 10px;
+.liste-parts li:first-child {
+  border-top: 0;
+}
+
+.puce {
+  width: 9px;
+  height: 9px;
   border-radius: 1px;
   flex: none;
   transform: translateY(1px);
 }
 
-.barre__legende .nb {
+.liste-parts .nb {
   margin-left: auto;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
-/* --- L'anneau (direction B) --- */
+.liste-parts .part {
+  color: var(--encre-douce);
+  min-width: 58px;
+  text-align: right;
+  font-variant-numeric: tabular-nums lining-nums;
+}
 
-.anneau-bloc {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 28px;
+/* --- Les barres de répartition mesurées sur la base --- */
+
+.mesure {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.4fr) minmax(90px, 2.6fr) auto auto;
   align-items: center;
+  gap: 5px 10px;
+  font-size: 12.5px;
 }
 
-.anneau {
-  flex: none;
+.mesure__libelle {
+  min-width: 0;
+}
+
+.mesure__piste {
+  height: 11px;
+  background: var(--surface-creuse);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.mesure__barre {
+  height: 100%;
+  background: var(--courbe-brut);
+  border-radius: 1px;
+}
+
+/* Ce qui n'est PAS attribué se dessine en hachures : on le voit sans le confondre
+   avec un poste réel, et la couleur ne porte pas seule l'information. */
+.mesure__barre--absent {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--absent),
+    var(--absent) 3px,
+    transparent 3px,
+    transparent 6px
+  );
+  border: 1px solid var(--absent);
+  border-radius: 1px;
+}
+
+.mesure__montant,
+.mesure__part {
+  font-variant-numeric: tabular-nums lining-nums;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.mesure__part {
+  color: var(--encre-douce);
+  min-width: 54px;
+}
+
+.ligne-reste .mesure__libelle {
+  color: var(--encre-douce);
+  font-style: italic;
+}
+
+.separateur {
+  grid-column: 1 / -1;
+  border: 0;
+  border-top: 1px solid var(--trait);
+  margin: 4px 0;
+}
+
+/* --- Le tour du portefeuille : une seule barre, dont le vide est nommé --- */
+
+.tour {
+  display: flex;
+  width: 100%;
+  height: 30px;
+  gap: 2px;
+  border: 1px solid var(--trait-fort);
+  border-radius: var(--rayon);
+  padding: 2px;
+  background: var(--papier);
+}
+
+.tour__part {
+  height: 100%;
+  border-radius: 1px;
+  min-width: 3px;
+  position: relative;
+}
+
+.tour__part--absent {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--absent),
+    var(--absent) 3px,
+    transparent 3px,
+    transparent 6px
+  );
+  outline: 1px solid var(--absent);
+  outline-offset: -1px;
 }
 
 /* ============================================================================
    LE PANNEAU « À SURVEILLER »
    ========================================================================== */
 
-.surveiller {
-  margin-top: 14px;
-  border: 1px solid var(--reserve);
-  border-radius: var(--rayon);
-  background: var(--surface);
-  padding: 4px 16px 14px;
+.surveiller li {
+  padding: 7px 0;
+  border-top: 1px solid var(--trait);
+  font-size: 12.5px;
+  color: var(--encre-douce);
 }
 
-.surveiller h3 {
-  font-family: var(--serif);
-  font-size: 15px;
-  margin: 12px 0 2px;
+.surveiller li:first-child {
+  border-top: 0;
 }
 
 .surveiller ul {
-  margin: 8px 0 0;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.surveiller li {
-  padding: 10px 0;
-  border-top: 1px solid var(--trait);
-  font-size: 13.5px;
-  color: var(--encre-douce);
-}
-
-.surveiller li b {
-  color: var(--encre);
+.surveiller b {
+  color: var(--reserve);
   display: block;
-  font-size: 11px;
-  letter-spacing: 0.08em;
+  font-size: 10.5px;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
 }
 
-.surveiller .reference {
-  font-size: 11.5px;
+.reference {
+  font-size: 11px;
   color: var(--encre-tres-douce);
 }
 
 /* ============================================================================
-   LES NOTES DE MAQUETTE — elles n'iront PAS dans l'application
+   LE TEXTE COURANT — rare, et jamais dans le chemin d'un chiffre
    ========================================================================== */
 
+.chapeau {
+  margin: 0 0 10px;
+  color: var(--encre-douce);
+  font-size: 12.5px;
+  max-width: 78ch;
+}
+
+.vide {
+  color: var(--encre-douce);
+  font-size: 12.5px;
+  padding: 10px 0;
+  margin: 0;
+}
+
 .note-maquette {
-  margin-top: 44px;
-  padding: 14px 16px;
+  margin-top: 26px;
+  padding: 12px 14px;
   border: 1px dashed var(--trait-fort);
   border-radius: var(--rayon);
-  background: transparent;
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--encre-douce);
-  max-width: 72ch;
+  max-width: 96ch;
 }
 
 .note-maquette h2 {
   font-family: var(--serif);
-  font-size: 14px;
-  margin: 0 0 6px;
+  font-size: 13px;
+  margin: 0 0 5px;
   color: var(--encre);
 }
 
 .note-maquette ul {
-  margin: 6px 0 0;
-  padding-left: 18px;
+  margin: 5px 0 0;
+  padding-left: 17px;
 }
 
 .note-maquette li {
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 
 /* ============================================================================
-   PETITS ÉCRANS
+   PETITS ÉCRANS — la grille se replie, rien ne disparaît
    ========================================================================== */
 
+@media (max-width: 1080px) {
+  .rangee {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 620px) {
-  .bandeau__case {
-    border-left: 0;
-    border-top: 1px solid var(--trait);
-    padding-left: 0;
+  .mesure {
+    grid-template-columns: 1fr auto auto;
   }
-  .bandeau__case:first-child {
-    border-top: 0;
+  .mesure__piste {
+    grid-column: 1 / -1;
   }
-  .reponse .enorme {
-    font-size: 32px;
-  }
-  .anneau-bloc {
-    gap: 18px;
+  .tuile__valeur {
+    font-size: 22px;
   }
 }
 
