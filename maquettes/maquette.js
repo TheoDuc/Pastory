@@ -395,6 +395,16 @@
       texte:
         "Volontairement <b>prudente</b> : une partie de l'impôt ne peut pas être calculée depuis les seuls titres, elle est donc laissée de côté. Le montant réellement dû serait plus élevé, donc la valeur réelle un peu plus basse.",
     },
+    coutsPreleves: {
+      titre: "Ce qui a déjà été prélevé",
+      texte:
+        "Ces montants sont <b>réels</b> : ils ont été retirés de votre compte, et ils figurent sur vos relevés. Les deux blocs suivants, eux, sont des <b>estimations</b> — c'est ce qui sépare ce niveau des autres.",
+    },
+    retenueDividendes: {
+      titre: "Pourquoi la retenue sur dividendes est ici",
+      texte:
+        "Elle n'est pas prélevée à l'achat : elle l'est <b>à chaque versement de dividende</b>, donc pendant que vous détenez l'actif. Elle figure dans ce bloc parce qu'il rassemble tout ce qui a <b>déjà été payé</b>, par opposition aux deux suivants qui estiment ce qui court et ce qui resterait. Si vous préférez la voir au moment où elle tombe, elle a sa place dans le bloc « pendant la détention » : dites-le.",
+    },
     contenuDeclare: {
       titre: "Contenu déclaré",
       texte:
@@ -621,7 +631,7 @@
     tri: { colonne: "valeur", sens: -1 },
     filtreType: "tous",
     rubrique: "classes",
-    arrangementFrais: "a",
+    arrangementFrais: "b", // Q-21 tranchée : les trois niveaux à la file
     pageActifs: 0,
   };
 
@@ -2020,33 +2030,36 @@
       page.append(
         el("div", { class: "rangee rangee--large rangee--apres" }, [
           bloc(
-            "1. À l'entrée — ce qui a été prélevé",
+            "1. Ce qui a déjà été prélevé",
             "réel, sauf le spread",
             el("ul", { class: "liste-parts" }, [
               el("li", {}, [
                 el("span", {
                   class: "liste-parts__nom",
-                  texte: "Frais d'ordre réellement payés, sur " + k.nombreOrdres + " ordres",
+                  texte: "Frais d'ordre payés, sur " + k.nombreOrdres + " ordres",
                 }),
                 el("span", { class: "nb perte", texte: euros(k.fraisPayes) }),
               ]),
               el("li", {}, [
-                el("span", {
-                  class: "liste-parts__nom",
-                  texte: "Taxes réellement prélevées, dont la retenue sur dividendes",
-                }),
+                el("span", { class: "liste-parts__nom" }, [
+                  document.createTextNode("Retenue à la source sur les dividendes "),
+                  (aide("retenueDividendes") || [null])[0],
+                ]),
                 el("span", { class: "nb perte", texte: euros(k.taxesPayees) }),
               ]),
               el("li", {}, [
-                el("span", {
-                  class: "liste-parts__nom",
-                  texte:
-                    "Spread d'entrée estimé, " +
-                    tauxEnPourCent(k.tauxSpreadEntree, false) + " en moyenne",
-                }),
+                el("span", { class: "liste-parts__nom" }, [
+                  document.createTextNode(
+                    "Spread d'entrée, " + tauxEnPourCent(k.tauxSpreadEntree, false) + " en moyenne "
+                  ),
+                  el("span", { class: "mot", texte: "Estimé" }),
+                  (aide("spread") || [null])[0],
+                ]),
                 el("span", { class: "nb", texte: euros(k.spreadEstimeEntree) }),
               ]),
-            ])
+            ]),
+            null,
+            "coutsPreleves"
           ),
         ])
       );

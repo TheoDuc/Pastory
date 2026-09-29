@@ -47,48 +47,6 @@ l'explication ; **un seul** l'infirme, et la cause est ailleurs.
 préalable : les chiffres du PEA sont justes, ils sont seulement non confirmés par une seconde
 source. À reprendre si le diagnostic montre que le second compte est facile à atteindre.
 
-### Q-21 · Comment présenter les frais et les taxes ?
-*Le découpage en trois niveaux plaît au propriétaire (2026-09-17). Correction apportée : le
-spread est un coût d'entrée et de sortie, pas un coût courant.*
-
-> **Partiellement répondue à l'étape 6 (2026-09-27).** Les **calculs** des trois niveaux existent
-> et s'affichent dans `dashboard positions` : coûts payés avec leur poids, coûts estimés (spread
-> et TER), et valeur réelle dans un bloc à part — la recommandation (a). Ce qui reste ouvert est
-> la **présentation à l'écran** de l'interface, à reprendre à l'étape 8 avec les prototypes.
-
-Tu es ouvert aux suggestions. Voici une proposition en **trois niveaux**, qui suit ta séparation
-entre le cœur (synthèse) et ce qui se passe à l'entrée et à la sortie.
-
-**1. Coûts d'entrée (à l'achat)**
-- Réels, issus des données : frais d'ordre, taxes à l'achat, taxes sur dividendes. Totaux par
-  période, poche et actif.
-- Estimé : **spread payé à l'achat** (D-17), toujours distingué des coûts réels.
-- Poids de chaque coût dans son opération : `frais / montant brut` (ex. 1 € sur 25 € = 4 %). Utile
-  pour voir qu'un ordre ponctuel de petite taille coûte cher, et qu'un plan d'épargne gratuit est
-  préférable.
-- Cumul dans le temps : « depuis le début, tes frais et taxes représentent X € ».
-
-**2. Coûts courants (pendant la détention, estimés, D-17)**
-- Frais annuels des ETF (TER) en € par an, par actif.
-- Toujours affichés comme estimations, avec leur source.
-
-**3. Coûts de sortie (à la vente)**
-- Ventes passées : frais, taxes et spread estimé de chaque vente.
-- Vue « valeur réelle » (D-23), si tu vendais tout aujourd'hui : frais de vente estimés + spread de
-  vente estimé + impôts estimés selon la poche.
-- Résultat : **valeur réelle** = capital brut − coût de sortie.
-- Et l'écart « synthèse brute → valeur réelle », décomposé en coûts d'entrée, coûts courants et
-  coûts de sortie.
-
-**Options :**
-- (a) Un onglet « Frais et taxes » (niveaux 1 et 2) + une vue « Valeur réelle » (niveau 3).
-- (b) Un seul onglet regroupant les trois niveaux.
-- (c) Autre découpage à ta convenance.
-
-**Recommandation :** (a). La valeur réelle répond à « combien j'ai vraiment ? », qui est une autre
-question que « combien ça m'a coûté ? ». Cette question peut rester ouverte jusqu'à l'étape de
-conception de l'interface (étape 8), mais les calculs des niveaux 1 et 3 se préparent avant.
-
 ### Q-48 · « Non transparisé » : le retirer du vocabulaire, ou le faire produire ?
 *Ouverte le 2026-09-29, en relevant l'inventaire de ce que le moteur produit (étape 8).*
 
@@ -121,6 +79,37 @@ traiter ce qui est courant **chez cette banque**, et non ce que détient le prop
 **Recommandation :** (b) **si et seulement si** la recherche de la phase 5 (source de secours,
 [D-72](decisions.md)) montre qu'une source l'indique de façon fiable ; sinon (a), en corrigeant les
 trois documents. Trancher après la recherche évite de promettre deux fois la même chose.
+
+### Q-49 · La retenue sur dividendes est-elle un coût d'entrée ?
+*Ouverte le 2026-09-30, par le propriétaire en relisant l'onglet « Frais et taxes ».*
+
+**Le constat.** Les trois niveaux retenus par [Q-21](#q-21--comment-présenter-les-frais-et-les-taxes-)
+se lisent comme une **chronologie** : ce qu'on paie en entrant, ce qui court pendant qu'on
+détient, ce qu'il resterait en sortant. Or la **retenue à la source sur les dividendes** est
+aujourd'hui dans le premier niveau, alors qu'elle est prélevée **pendant la détention**, à chaque
+versement. Le propriétaire a buté dessus, ce qui est le meilleur des signaux.
+
+**D'où ça vient.** La proposition d'origine de Q-21 rangeait « taxes sur dividendes » dans les
+coûts d'entrée. Elle suivait un autre découpage, implicite : le premier niveau rassemblait le
+**réel** — ce qui a été prélevé — et les deux suivants l'**estimé**. Les deux lectures sont
+défendables, et elles ne donnent pas le même écran.
+
+**Options :**
+- (a) **Garder une chronologie**, et déplacer la retenue au niveau 2, où elle se produit. Le
+  niveau 2 mélangerait alors un coût réel et une estimation (le TER), ce que
+  [D-17](decisions.md) interdit de confondre — il faudrait donc les séparer visiblement à
+  l'intérieur du bloc.
+- (b) **Assumer que le premier niveau est « ce qui a déjà été prélevé »**, quel qu'en soit le
+  moment, et le renommer ainsi. C'est ce qui est en place depuis le 2026-09-30, avec un « ? » qui
+  l'explique. La séparation réel / estimé de D-17 est alors portée par le découpage lui-même.
+- (c) **Quatre niveaux** : entrée, détention réelle, détention estimée, sortie. Plus juste, plus
+  lourd.
+
+**Recommandation :** (b). Une chronologie dont la première étape contient un événement postérieur
+trompe le lecteur — c'est exactement ce qui vient de se produire. Et la séparation qui compte le
+plus dans ce projet n'est pas *quand* un coût tombe, mais **s'il a été payé ou s'il est estimé**
+([D-17](decisions.md)) : autant que le découpage la porte. À confirmer, le « ? » actuel décrivant
+déjà (b).
 
 ---
 
@@ -263,3 +252,17 @@ nature différente**, et les confondre aurait donné une mauvaise correction.
 `asset_class` qui semblait pouvoir distinguer actions, obligations et matières premières sans rien
 déclarer. Le rapprochement s'est révélé **faux sur deux actifs sur trois**. Une déclaration se
 vérifie, un code non documenté deviné non ([D-71](decisions.md)).
+
+### Lot 8 (2026-09-30) — la présentation des frais
+
+| Question | Réponse | Retenu | Décision |
+|---|---|---|---|
+| Q-21 Comment présenter les frais et les taxes ? | b | **Un seul écran, les trois niveaux à la file** : ce qui a déjà été prélevé, ce qui court pendant la détention, ce qu'il resterait à la sortie. L'arrangement (a) — deux vues séparées — est écarté après comparaison des deux maquettes | D-73 |
+
+Le propriétaire a comparé les deux arrangements sur la maquette de l'étape 8 et a choisi (b),
+contre la recommandation d'origine de Q-21 qui proposait (a). Sa raison : les trois niveaux se
+suivent et se lisent d'un trait, là où deux vues séparées obligent à faire des allers-retours
+pour répondre à une seule question — combien tout cela coûte.
+
+Cette lecture a immédiatement produit **Q-49** : si les trois niveaux sont une chronologie, la
+retenue sur dividendes n'est pas au bon endroit.

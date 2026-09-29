@@ -1081,3 +1081,24 @@ sans recours. **N'écarte pas** la déclaration à la main ([D-70](#d-70)), qui 
 est le seul recours d'ici là.
 **En attendant :** l'actif reste **non couvert**, avec son montant affiché, et la répartition est
 marquée partielle ([D-69](#d-69)).
+
+---
+
+*Arbitrage du propriétaire du 2026-09-30, rendu sur les maquettes de l'étape 8.*
+
+### D-73 · 2026-09-30 · Les frais et taxes tiennent sur un seul écran, en trois niveaux · Validée
+**Décision :** l'onglet « Frais et taxes » présente les trois niveaux **à la file, sur un seul
+écran** : ce qui a déjà été prélevé, ce qui court pendant la détention, et ce qu'il resterait à la
+sortie — la valeur réelle ([D-23](#d-23)) étant le dernier de ces niveaux, et non une vue séparée.
+**Raison :** [Q-21](questions-ouvertes.md). Le propriétaire a comparé les deux arrangements sur la
+maquette et a choisi celui-ci : les trois niveaux se suivent et se lisent d'un trait, là où deux
+vues séparées obligent à des allers-retours pour répondre à une seule question — combien tout cela
+coûte.
+**Écarte :** la recommandation d'origine de Q-21, qui proposait un onglet « Frais et taxes » et une
+vue « Valeur réelle » distincte. C'est le deuxième arbitrage rendu **contre** une recommandation,
+après [D-62](#d-62), et pour une raison de même nature : l'usage réel prime sur la symétrie du
+découpage.
+**Ne change pas :** [D-17](#d-17) — les estimations ne se mélangent jamais aux coûts payés. Ici la
+séparation est portée par le découpage lui-même, le premier niveau étant le réel et les deux
+suivants l'estimé. C'est d'ailleurs ce qui a ouvert [Q-49](questions-ouvertes.md), sur la place de
+la retenue à la source des dividendes.
