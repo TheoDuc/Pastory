@@ -415,7 +415,7 @@ certains fonds **à swap**, fonds par fonds. Il a tranché une **source de secou
 l'écran** ([D-72](decisions.md)), à réaliser à l'étape 8 parce que c'est d'abord un problème de
 présentation.
 
-## Étape 8 · Conception de l'interface 🔜
+## Étape 8 · Conception de l'interface ✅
 **But :** concevoir l'application à neuf. La maquette du PDF n'est pas un modèle (D-20).
 
 **Claude :**
@@ -446,6 +446,50 @@ présentation.
 **Toi :** choisir et corriger les prototypes. C'est l'étape où ton avis compte le plus.
 
 **Session :** session dédiée à la conception.
+
+**Fait (2026-09-30) : la conception, en sept passes de relecture.** Les maquettes vivent dans
+[maquettes/](../maquettes/) : de vrais fichiers HTML et CSS, avec un portefeuille fictif
+d'utilisateur type plus large que celui du propriétaire (actions en direct, ETF obligataire, or,
+fonds non couvert, position sans cours) et quatre jeux commutables pour éprouver les écrans sur ce
+qu'il ne détient pas. Cinq onglets : Synthèse, Les actifs, Diversification, Frais et taxes, Détail
+des calculs. La feuille de style deviendra `dashboard_tr/vues/assets/dashboard.css` telle quelle
+([D-31](decisions.md)).
+
+**Q-21 est tranchée** ([D-73](decisions.md)) : les trois niveaux à la file, sur un seul écran.
+
+**Ce que les relectures du propriétaire ont trouvé, et qui vaut pour l'étape 9 :**
+- `var()` **n'est pas interprété dans un attribut SVG** : une couleur posée en attribut s'écrit en
+  clair, une couleur posée en CSS passe par la variable ;
+- sans `color-scheme: only light`, le mode sombre automatique du navigateur **inverse les clartés**,
+  et les couleurs ne veulent plus rien dire — un gain en sauge peut virer au rouge ;
+- un **SVG sans règle de taille** prend sa taille intrinsèque, qui remplit la page ;
+- un anneau ne porte pas de chiffre : l'étiquette doit choisir sa couleur selon la part, et devient
+  illisible sur les teintes intermédiaires. Le classement chiffré à côté fait foi ;
+- **le gain n'est pas la somme d'une colonne** : il se calcule sur les montants bruts (D-21) là où
+  le capital net investi est net de frais et réduit au prorata des ventes (D-12).
+
+## Étape 8 bis · Compléments de décision 🔜
+**But :** finir ce que l'étape 8 laisse ouvert, avant de brancher quoi que ce soit.
+
+**Claude :**
+- **Réalise la source de secours par actif** ([D-72](decisions.md)) : recherche de ce qu'Amundi
+  publie réellement par ISIN, puis branchement par le protocole existant de
+  `moteur/diversification.py`, source **et règle de pays visibles ligne par ligne**, tests et cahier
+  de vérification. C'est ce qui fera disparaître les fonds « non couverts ».
+- **Fait trancher [Q-48](questions-ouvertes.md)** — « non transparisé » est promis par le
+  glossaire, la feuille de route et le comparatif, et **aucun champ du code ne le produit**. À
+  décider après la recherche ci-dessus, qui dira si une source l'indique de façon fiable.
+- **Fait trancher [Q-49](questions-ouvertes.md)** — la retenue à la source sur les dividendes est
+  dans le premier niveau des frais, alors qu'elle tombe pendant la détention.
+- **Écrit le document de conception** [conception-interface.md](conception-interface.md) : ses §1
+  (l'inventaire) et §2 (le vocabulaire d'écran) existent ; restent les écrans retenus, leurs états
+  (vide, partiel, estimé, en erreur) et les règles d'affichage. C'est le contrat que l'étape 9
+  exécute.
+
+**Toi :** trancher Q-48 et Q-49, et vérifier la répartition des fonds aujourd'hui non couverts une
+fois la source de secours en place.
+
+**Session :** session dédiée.
 
 ## Étape 9 · Réalisation de l'interface ⏳
 **But :** brancher l'interface retenue sur le moteur.

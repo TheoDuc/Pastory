@@ -631,7 +631,6 @@
     tri: { colonne: "valeur", sens: -1 },
     filtreType: "tous",
     rubrique: "classes",
-    arrangementFrais: "b", // Q-21 tranchée : les trois niveaux à la file
     pageActifs: 0,
   };
 
@@ -1816,29 +1815,6 @@
     const page = el("div", {});
 
     page.append(
-      el(
-        "div",
-        { class: "onglets onglets--secondaires", role: "tablist" },
-        [
-          { cle: "a", nom: "Ce que ça coûte · ce qu'il resterait" },
-          { cle: "b", nom: "Les trois niveaux à la file" },
-        ].map(function (o) {
-          const b = el("button", {
-            type: "button",
-            role: "tab",
-            "aria-selected": String(etat.arrangementFrais === o.cle),
-            texte: o.nom,
-          });
-          b.addEventListener("click", function () {
-            etat.arrangementFrais = o.cle;
-            dessiner();
-          });
-          return b;
-        })
-      )
-    );
-
-    page.append(
       el("div", { class: "tuiles" }, [
         tuile("Payé depuis le début", euros(k.coutPaye), {
           petit: true,
@@ -2006,81 +1982,59 @@
       ]),
     ]);
 
-    if (etat.arrangementFrais === "a") {
-      // « Par poche » est un tableau de sept colonnes : c'est lui qui a besoin de place,
-      // pas la cascade, qui tient en cinq lignes.
-      page.append(
-        el("div", { class: "rangee rangee--apres" }, [
-          bloc("Par poche", null, parPoche, "bloc--plein", "baseImposable"),
-          blocValeurReelle,
-        ])
-      );
-      page.append(
-        el("div", { class: "rangee rangee--large rangee--apres" }, [
-          bloc(
-            "Coûts courants et de sortie, actif par actif",
-            "estimés",
-            parActif,
-            "bloc--plein",
-            "estime"
-          ),
-        ])
-      );
-    } else {
-      page.append(
-        el("div", { class: "rangee rangee--large rangee--apres" }, [
-          bloc(
-            "1. Ce qui a déjà été prélevé",
-            "réel, sauf le spread",
-            el("ul", { class: "liste-parts" }, [
-              el("li", {}, [
-                el("span", {
-                  class: "liste-parts__nom",
-                  texte: "Frais d'ordre payés, sur " + k.nombreOrdres + " ordres",
-                }),
-                el("span", { class: "nb perte", texte: euros(k.fraisPayes) }),
-              ]),
-              el("li", {}, [
-                el("span", { class: "liste-parts__nom" }, [
-                  document.createTextNode("Retenue à la source sur les dividendes "),
-                  (aide("retenueDividendes") || [null])[0],
-                ]),
-                el("span", { class: "nb perte", texte: euros(k.taxesPayees) }),
-              ]),
-              el("li", {}, [
-                el("span", { class: "liste-parts__nom" }, [
-                  document.createTextNode(
-                    "Spread d'entrée, " + tauxEnPourCent(k.tauxSpreadEntree, false) + " en moyenne "
-                  ),
-                  el("span", { class: "mot", texte: "Estimé" }),
-                  (aide("spread") || [null])[0],
-                ]),
-                el("span", { class: "nb", texte: euros(k.spreadEstimeEntree) }),
-              ]),
+    page.append(
+      el("div", { class: "rangee rangee--large rangee--apres" }, [
+        bloc(
+          "1. Ce qui a déjà été prélevé",
+          "réel, sauf le spread",
+          el("ul", { class: "liste-parts" }, [
+            el("li", {}, [
+              el("span", {
+                class: "liste-parts__nom",
+                texte: "Frais d'ordre payés, sur " + k.nombreOrdres + " ordres",
+              }),
+              el("span", { class: "nb perte", texte: euros(k.fraisPayes) }),
             ]),
-            null,
-            "coutsPreleves"
-          ),
-        ])
-      );
-      page.append(
-        el("div", { class: "rangee rangee--large rangee--apres" }, [
-          bloc(
-            "2. Pendant la détention — les frais courants",
-            "estimés",
-            parActif,
-            "bloc--plein",
-            "ter"
-          ),
-        ])
-      );
-      page.append(
-        el("div", { class: "rangee rangee--apres" }, [
-          bloc("3. À la sortie — par poche", null, parPoche, "bloc--plein", "baseImposable"),
-          blocValeurReelle,
-        ])
-      );
-    }
+            el("li", {}, [
+              el("span", { class: "liste-parts__nom" }, [
+                document.createTextNode("Retenue à la source sur les dividendes "),
+                (aide("retenueDividendes") || [null])[0],
+              ]),
+              el("span", { class: "nb perte", texte: euros(k.taxesPayees) }),
+            ]),
+            el("li", {}, [
+              el("span", { class: "liste-parts__nom" }, [
+                document.createTextNode(
+                  "Spread d'entrée, " + tauxEnPourCent(k.tauxSpreadEntree, false) + " en moyenne "
+                ),
+                el("span", { class: "mot", texte: "Estimé" }),
+                (aide("spread") || [null])[0],
+              ]),
+              el("span", { class: "nb", texte: euros(k.spreadEstimeEntree) }),
+            ]),
+          ]),
+          null,
+          "coutsPreleves"
+        ),
+      ])
+    );
+    page.append(
+      el("div", { class: "rangee rangee--large rangee--apres" }, [
+        bloc(
+          "2. Pendant la détention — les frais courants",
+          "estimés",
+          parActif,
+          "bloc--plein",
+          "ter"
+        ),
+      ])
+    );
+    page.append(
+      el("div", { class: "rangee rangee--apres" }, [
+        bloc("3. À la sortie — par poche", null, parPoche, "bloc--plein", "baseImposable"),
+        blocValeurReelle,
+      ])
+    );
 
     return page;
   }

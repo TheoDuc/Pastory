@@ -657,6 +657,18 @@ body {
   color: var(--encre-douce);
 }
 
+/* Un « ? » qui suit une marque encadrée a besoin d'air : collés, les deux se lisent
+   comme un seul objet. */
+.mot + .aide,
+.aide + .mot {
+  margin-left: 7px;
+}
+
+/* Et dans une ligne de liste, la marque se détache du texte qui la précède. */
+.liste-parts__nom > .mot {
+  margin-left: 4px;
+}
+
 /* ============================================================================
    LES CARTES D'ACTIFS
    ========================================================================== */

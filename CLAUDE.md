@@ -13,6 +13,8 @@ lisible et vérifiable à la main.
 | [docs/feuille-de-route.md](docs/feuille-de-route.md) | **Étapes du projet**, étape en cours, méthode de travail |
 | [docs/notes-initiales.md](docs/notes-initiales.md) | **Référence** des intentions du propriétaire (notes + évolutions de cap) |
 | [docs/format-pivot.md](docs/format-pivot.md) | **Le format des opérations** : le contrat entre les adaptateurs et le moteur |
+| [docs/conception-interface.md](docs/conception-interface.md) | **Le contrat de l'interface** (étape 8) : ce que le moteur produit et où ça s'affiche, le vocabulaire d'écran, les règles d'affichage |
+| [maquettes/](maquettes/) | **Les écrans**, en HTML et CSS. `index.html` s'ouvre directement dans le navigateur ; `style.css` est repris tel quel à l'étape 9 |
 | [docs/architecture.md](docs/architecture.md) | **Comment c'est construit** : les couches, leurs frontières, et le trajet d'un chiffre de bout en bout |
 | [docs/architecture-notes.md](docs/architecture-notes.md) | Points d'architecture notés en chemin |
 | [docs/contexte-produit.md](docs/contexte-produit.md) | Objectif, public, contraintes, hors périmètre |
