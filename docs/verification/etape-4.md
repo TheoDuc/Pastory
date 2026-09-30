@@ -29,7 +29,7 @@ Ce sont tes arbitrages du 26 septembre 2026. Tout le reste en découle.
 |---|---|
 | [D-51](../decisions.md) | Les cours viennent de **Yahoo Finance**, en **cours brut** — jamais la série retraitée des dividendes, que le moteur compte déjà |
 | [D-48](../decisions.md) | Le cours de référence est celui du **marché principal en euros**. Un cours dans une autre monnaie est **refusé**, jamais converti |
-| [D-50](../decisions.md) | Un cours en cache est **définitif**. `dashboard oublier-cours` est la seule façon d'en changer |
+| [D-50](../decisions.md) | Un cours en cache est **définitif**. `pastory oublier-cours` est la seule façon d'en changer |
 
 ---
 
@@ -54,7 +54,7 @@ Personne ne peut faire cette correspondance à ta place en toute sécurité. L'a
   C'est ce qui empêche des dollars d'être comptés comme des euros ;
 - une ligne vide veut dire « pas valorisé » : l'actif est **signalé**, jamais estimé.
 
-Le fichier est dans ton dossier personnel (`dashboard emplacements` te dit où). Il n'entre jamais
+Le fichier est dans ton dossier personnel (`pastory emplacements` te dit où). Il n'entre jamais
 dans git.
 
 ---
@@ -153,18 +153,18 @@ Un cours de 100,00 € est en cache pour le 6 mars. La source en renvoie 999,99 
 
 C'est [D-50](../decisions.md) : le chiffre vu hier est celui que tu revois aujourd'hui. Pour en
 changer — correction de la source, regroupement d'actions —, il faut le demander :
-`dashboard oublier-cours --actif <ISIN>`.
+`pastory oublier-cours --actif <ISIN>`.
 
 ---
 
 ## B. Contrôles sur tes vraies données
 
 ```
-uv run dashboard actifs              dit où chercher le cours de chaque actif (une fois)
-uv run dashboard cours               récupère les cours et les met en cache
-uv run dashboard positions           les chiffres, avec le bloc « Cours de marché » à la fin
-uv run dashboard positions --hors-ligne   les mêmes, sans réseau
-uv run dashboard oublier-cours --actif <ISIN>   reprendre un actif à zéro
+uv run pastory actifs              dit où chercher le cours de chaque actif (une fois)
+uv run pastory cours               récupère les cours et les met en cache
+uv run pastory positions           les chiffres, avec le bloc « Cours de marché » à la fin
+uv run pastory positions --hors-ligne   les mêmes, sans réseau
+uv run pastory oublier-cours --actif <ISIN>   reprendre un actif à zéro
 ```
 
 Aucune de ces commandes ne demande ton PIN : **rien ne passe par Trade Republic**
@@ -172,7 +172,7 @@ Aucune de ces commandes ne demande ton PIN : **rien ne passe par Trade Republic*
 
 ### B.1 — Relire le fichier de correspondance, ligne par ligne
 
-`dashboard actifs` écrit le fichier et propose un ticker pour chaque actif. Ouvre-le et, pour
+`pastory actifs` écrit le fichier et propose un ticker pour chaque actif. Ouvre-le et, pour
 **chaque** ligne :
 
 - [ ] le **ticker** désigne bien cet actif — le commentaire au-dessus rappelle le nom et la place
@@ -188,7 +188,7 @@ rapport le dira.
 ### B.2 — Le contrôle principal : trois cours, en face de l'application
 
 Ouvre le cache : un fichier CSV par actif, dans le dossier `cache/cours` que
-`dashboard emplacements` t'indique. Choisis **trois actifs** et, pour chacun :
+`pastory emplacements` t'indique. Choisis **trois actifs** et, pour chacun :
 
 - [ ] prends une **date précise** dans le fichier — de préférence un jour où tu te souviens du
       cours, ou un jour récent ;
@@ -216,7 +216,7 @@ Ouvre le cache : un fichier CSV par actif, dans le dossier `cache/cours` que
 
 ### B.3 — Le contrôle qui prouve l'étape : un prix retrouvé
 
-Si tu as reçu des actions gratuites ou des titres transférés, `dashboard positions` affichait
+Si tu as reçu des actions gratuites ou des titres transférés, `pastory positions` affichait
 jusqu'ici un prix de revient **vide** pour cet actif, et le rapport disait « histoire
 incomplète ».
 
@@ -237,7 +237,7 @@ Le bloc « Cours de marché » peut aussi dire ce qu'il n'a **pas** pu faire. Vo
 
 | Ce que tu lis | Ce que ça veut dire | Quoi faire |
 |---|---|---|
-| **actif non déclaré** | pas de ticker dans le fichier de correspondance | `dashboard actifs`, puis remplis la ligne |
+| **actif non déclaré** | pas de ticker dans le fichier de correspondance | `pastory actifs`, puis remplis la ligne |
 | **ticker inconnu** | la source ne connaît pas ce code | corrige le ticker dans `actifs.toml` |
 | **devise inattendue** | la cotation trouvée n'est pas en euros | retiens une autre place, en euros |
 | **cours indisponible** | aucun cours à cette date ni dans les 10 jours précédents | vérifie le ticker ; le titre cote-t-il encore ? |
@@ -248,16 +248,16 @@ valorisation.
 
 ### B.5 — Le cache tient sans réseau
 
-- [ ] coupe le Wi-Fi, ou lance `dashboard positions --hors-ligne` ;
+- [ ] coupe le Wi-Fi, ou lance `pastory positions --hors-ligne` ;
 - [ ] les chiffres sont **les mêmes** qu'avec le réseau ;
 - [ ] aucun appel n'est fait : c'est ce qui permettra à l'interface de s'ouvrir instantanément
       (étapes 8 et 9).
 
 ### B.6 — Et l'oubli fonctionne
 
-- [ ] note le nombre de cours d'un actif affiché par `dashboard cours` ;
-- [ ] `dashboard oublier-cours --actif <ISIN>` ;
-- [ ] `dashboard cours` à nouveau : le même nombre revient, et les cours sont identiques.
+- [ ] note le nombre de cours d'un actif affiché par `pastory cours` ;
+- [ ] `pastory oublier-cours --actif <ISIN>` ;
+- [ ] `pastory cours` à nouveau : le même nombre revient, et les cours sont identiques.
 
 ---
 

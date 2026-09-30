@@ -13,7 +13,7 @@ from decimal import Decimal
 
 import pytest
 
-from dashboard_tr.adaptateurs.trade_republic.nombres import (
+from pastory.adaptateurs.trade_republic.nombres import (
     Convention,
     LectureImpossible,
     lire_nombre,

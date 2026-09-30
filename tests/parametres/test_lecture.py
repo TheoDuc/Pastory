@@ -7,8 +7,8 @@ from decimal import Decimal
 
 import pytest
 
-from dashboard_tr.parametres import ParametresInvalides, couts, fiscalite
-from dashboard_tr.parametres.lecture import Parametre, charger
+from pastory.parametres import ParametresInvalides, couts, fiscalite
+from pastory.parametres.lecture import Parametre, charger
 
 COMPLET = """\
 [impots.taux]

@@ -319,9 +319,9 @@ précédentes.
 ## B. Contrôles sur tes vraies données
 
 ```
-uv run dashboard actifs              propose le type et le TER de chaque actif
-uv run dashboard positions           les trois nouveaux blocs, après les anciens
-uv run dashboard exporter-positions  huit CSV, dont couts.csv et valeur_reelle.csv
+uv run pastory actifs              propose le type et le TER de chaque actif
+uv run pastory positions           les trois nouveaux blocs, après les anciens
+uv run pastory exporter-positions  huit CSV, dont couts.csv et valeur_reelle.csv
 ```
 
 Aucune de ces commandes ne demande ton PIN : **rien ne passe par Trade Republic**
@@ -329,7 +329,7 @@ Aucune de ces commandes ne demande ton PIN : **rien ne passe par Trade Republic*
 
 ### B.1 — D'abord : déclarer le type et le TER de tes actifs
 
-`dashboard actifs` te propose désormais, pour chaque actif, son **type** (d'après la source de
+`pastory actifs` te propose désormais, pour chaque actif, son **type** (d'après la source de
 cours) et son **TER** (d'après la liste des ETF de Xetra). Ouvre le fichier et relis chaque
 ligne :
 
@@ -348,7 +348,7 @@ ligne :
 ### B.2 — Puis : déclarer l'ancienneté de ton PEA
 
 Crée le fichier `fiscalite.toml` dans ton dossier de configuration
-(`uv run dashboard emplacements` dit où il est) :
+(`uv run pastory emplacements` dit où il est) :
 
 ```toml
 [pea]
@@ -439,7 +439,7 @@ ne les oublies pas :
    de transfert.
 2. **Les taux fiscaux.** Ils sont sourcés sur Légifrance, le BOFiP et impots.gouv.fr, et le
    principal (31,4 %) a été recoupé. Tu as choisi de t'en tenir là plutôt que de demander à un
-   tiers : si un jour tu fais relire ces règles, `dashboard_tr/parametres/fiscalite.toml`
+   tiers : si un jour tu fais relire ces règles, `pastory/parametres/fiscalite.toml`
    contient chaque taux avec sa source, et corriger un chiffre ne demande aucune ligne de code.
 
 ---

@@ -12,13 +12,13 @@ from decimal import Decimal
 
 import pytest
 
-from dashboard_tr import tableur
-from dashboard_tr.donnees_externes.cache import CacheIllisible
-from dashboard_tr.donnees_externes.cache_compositions import (
+from pastory import tableur
+from pastory.donnees_externes.cache import CacheIllisible
+from pastory.donnees_externes.cache_compositions import (
     COLONNES,
     CacheDeCompositions,
 )
-from dashboard_tr.donnees_externes.composition import Composition, Part
+from pastory.donnees_externes.composition import Composition, Part
 
 ACTIF = "XX0000000001"
 

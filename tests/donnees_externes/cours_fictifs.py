@@ -12,8 +12,8 @@ from collections.abc import Iterable, Mapping
 from datetime import date as Date
 from decimal import Decimal
 
-from dashboard_tr.config.actifs import Configuration, Declaration
-from dashboard_tr.donnees_externes.cours import Cours, ErreurDeSource
+from pastory.config.actifs import Configuration, Declaration
+from pastory.donnees_externes.cours import Cours, ErreurDeSource
 
 AUJOURD_HUI = Date(2026, 9, 26)
 

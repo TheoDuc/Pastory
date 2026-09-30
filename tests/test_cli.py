@@ -1,6 +1,6 @@
 """La ligne de commande, de bout en bout, sur un export fictif.
 
-Tous les tests détournent `DASHBOARD_TR_DOSSIER` vers un dossier temporaire : **aucun ne
+Tous les tests détournent `PASTORY_DOSSIER` vers un dossier temporaire : **aucun ne
 doit écrire dans le vrai dossier personnel** de la personne qui lance la suite.
 """
 
@@ -13,17 +13,17 @@ from decimal import Decimal
 
 import pytest
 
-from dashboard_tr import cli, tableur
-from dashboard_tr.adaptateurs.trade_republic import portefeuille as portefeuille_banque
-from dashboard_tr.config import actifs as config_actifs
-from dashboard_tr.config import comptes as config_comptes
-from dashboard_tr.config import emplacements
-from dashboard_tr.config import fiscalite as config_fiscalite
-from dashboard_tr.config.actifs import FraisCourantsProposes, Proposition, TypeActif
-from dashboard_tr.donnees_externes.cache import Cache
-from dashboard_tr.donnees_externes.cache_compositions import CacheDeCompositions
-from dashboard_tr.donnees_externes.composition import Composition, Part
-from dashboard_tr.donnees_externes.cours import Cours, ErreurDeSource
+from pastory import cli, tableur
+from pastory.adaptateurs.trade_republic import portefeuille as portefeuille_banque
+from pastory.config import actifs as config_actifs
+from pastory.config import comptes as config_comptes
+from pastory.config import emplacements
+from pastory.config import fiscalite as config_fiscalite
+from pastory.config.actifs import FraisCourantsProposes, Proposition, TypeActif
+from pastory.donnees_externes.cache import Cache
+from pastory.donnees_externes.cache_compositions import CacheDeCompositions
+from pastory.donnees_externes.composition import Composition, Part
+from pastory.donnees_externes.cours import Cours, ErreurDeSource
 from tests.adaptateurs.trade_republic import evenements_fictifs as fictifs
 
 
@@ -31,7 +31,7 @@ from tests.adaptateurs.trade_republic import evenements_fictifs as fictifs
 def dossier_personnel(tmp_path, monkeypatch):
     """Isole l'application du vrai dossier personnel, pour toute la durée du test."""
     personnel = tmp_path / "personnel"
-    monkeypatch.setenv("DASHBOARD_TR_DOSSIER", str(personnel))
+    monkeypatch.setenv("PASTORY_DOSSIER", str(personnel))
     return personnel
 
 
@@ -148,7 +148,7 @@ class TestBases:
             cli.main(["--version"])
 
         assert sortie.value.code == 0
-        assert "dashboard" in capsys.readouterr().out
+        assert "pastory" in capsys.readouterr().out
 
     def test_sans_commande_l_aide_s_affiche(self, capsys):
         assert cli.main([]) == 0
@@ -166,7 +166,7 @@ class TestBases:
 
 
 def deposer_portefeuille_reel(dossier, *lignes: str):
-    """Le fichier qu'aurait écrit « dashboard positions-reelles » (valeurs fictives)."""
+    """Le fichier qu'aurait écrit « pastory positions-reelles » (valeurs fictives)."""
     fichier = portefeuille_banque.chemin(dossier)
     fichier.parent.mkdir(parents=True, exist_ok=True)
     fichier.write_text(
@@ -184,6 +184,62 @@ class TestExportIntrouvable:
         erreur = capsys.readouterr().err
         assert "all_events.json" in erreur
         assert "rafraichir" in erreur
+
+
+def ancienne_installation(tmp_path, monkeypatch, avec_export: bool):
+    """Simule une machine où l'application tournait sous son ancien nom (D-74).
+
+    Le garde-fou du dossier personnel est volontairement levé — c'est le seul endroit du
+    dossier de tests où il l'est — puis remplacé par un faux `LOCALAPPDATA` : rien ne
+    sort pour autant du dossier temporaire du test.
+    """
+    monkeypatch.delenv("PASTORY_DOSSIER", raising=False)
+    monkeypatch.setattr(emplacements.sys, "platform", "win32")
+    local = tmp_path / "AppData" / "Local"
+    monkeypatch.setenv("LOCALAPPDATA", str(local))
+
+    ancien = local / "DashBoardTradeRepublic"
+    (ancien / "exports").mkdir(parents=True)
+    if avec_export:
+        (ancien / "exports" / "all_events.json").write_text("[]", encoding="utf-8")
+    return ancien
+
+
+class TestAncienNomDeLApplication:
+    """L'application s'appelait « DashBoard Trade Republic » (D-74).
+
+    Ses fichiers personnels sont restés dans un dossier à l'ancien nom. Rien n'est
+    déplacé automatiquement : sans ces deux messages, l'utilisateur croit avoir perdu son
+    export et son cache de cours.
+    """
+
+    def test_emplacements_signale_l_ancien_dossier(self, tmp_path, monkeypatch, capsys):
+        ancien = ancienne_installation(tmp_path, monkeypatch, avec_export=False)
+
+        assert cli.main(["emplacements"]) == 0
+
+        affichage = capsys.readouterr().out
+        assert str(ancien) in affichage
+        assert "DashBoard Trade Republic" in affichage
+        assert "Rien n'a été déplacé automatiquement" in affichage
+
+    def test_un_export_absent_renvoie_vers_l_ancien_dossier(self, tmp_path, monkeypatch, capsys):
+        ancien = ancienne_installation(tmp_path, monkeypatch, avec_export=True)
+
+        assert cli.main(["lire"]) == cli.CODE_ECHEC
+
+        erreur = capsys.readouterr().err
+        assert str(ancien / "exports") in erreur
+
+    def test_sans_export_a_l_ancien_nom_le_message_ne_promet_rien(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        """Un ancien dossier vide ne doit pas faire espérer un export qui n'existe pas."""
+        ancienne_installation(tmp_path, monkeypatch, avec_export=False)
+
+        assert cli.main(["lire"]) == cli.CODE_ECHEC
+
+        assert "ancien nom" not in capsys.readouterr().err
 
 
 class TestNommerLesComptes:
@@ -235,7 +291,7 @@ class TestLire:
         code = cli.main(["lire"])
 
         assert code == cli.CODE_DECLARATION_ATTENDUE
-        assert "dashboard comptes" in capsys.readouterr().out
+        assert "pastory comptes" in capsys.readouterr().out
 
     def test_avec_les_comptes_nommes_le_rapport_montre_les_operations(self, export, capsys):
         nommer_les_comptes(f'\n[poches]\n"{fictifs.ACTIF_ACTION_B}" = "CTO"\n')
@@ -331,7 +387,7 @@ class TestPositions:
         affichage = capsys.readouterr().out
 
         assert "type inconnu" in affichage
-        assert "dashboard lire" in affichage
+        assert "pastory lire" in affichage
 
     def test_les_actions_gratuites_sont_comptees_mais_sans_prix(self, export, capsys):
         nommer_les_comptes(f'\n[poches]\n"{fictifs.ACTIF_ACTION_B}" = "CTO"\n')
@@ -538,7 +594,7 @@ POCHE_CORRIGEE = '\n[poches]\n"XX0000000004" = "CTO"\n'
 
 
 def declarer_les_actifs(*actifs: str) -> None:
-    """Le fichier qu'aurait laissé « dashboard actifs » après relecture (valeurs fictives)."""
+    """Le fichier qu'aurait laissé « pastory actifs » après relecture (valeurs fictives)."""
     fichier = config_actifs.chemin()
     fichier.parent.mkdir(parents=True, exist_ok=True)
     lignes = ["[actifs]"] + [
@@ -699,7 +755,7 @@ class TestDeclarerLesActifs:
         code = cli.main(["actifs", "--hors-ligne"])
 
         assert code == cli.CODE_DECLARATION_ATTENDUE
-        assert "dashboard comptes" in capsys.readouterr().err
+        assert "pastory comptes" in capsys.readouterr().err
 
     def test_avec_un_export_d_ailleurs_aucune_recherche_n_est_lancee(
         self, export_ailleurs, monkeypatch, capsys
@@ -732,7 +788,7 @@ class TestCours:
         code = cli.main(["cours"])
 
         assert code == cli.CODE_DECLARATION_ATTENDUE
-        assert "dashboard actifs" in capsys.readouterr().err
+        assert "pastory actifs" in capsys.readouterr().err
 
     def test_les_cours_sont_recuperes_et_mis_en_cache(self, export, monkeypatch, capsys):
         nommer_les_comptes(POCHE_CORRIGEE)
@@ -862,7 +918,7 @@ class TestPositionsAvecCours:
 
         assert code == 0
         assert "attendent toujours un prix" in affichage
-        assert "dashboard actifs" in affichage
+        assert "pastory actifs" in affichage
         # Le moteur continue de dire que le capital est sous-estimé (D-45).
         assert "histoire est incomplète" in affichage
 
@@ -885,7 +941,7 @@ class TestPositionsAvecCours:
 
         assert cli.main(["positions", "--hors-ligne"]) == 0
         assert "serie" not in appels
-        assert "dashboard cours" in capsys.readouterr().out
+        assert "pastory cours" in capsys.readouterr().out
 
     def test_le_rapport_des_cours_s_affiche_en_cp1252(self, export, capsys):
         # La console Windows écrit en cp1252 : un rapport juste mais inaffichable ferait
@@ -995,7 +1051,7 @@ class TestValorisationEtRendements:
         assert "PARTIEL" in affichage
         # Le bloc « Cours de marché » explique pourquoi : ces actifs n'ont pas de ticker.
         assert "actif non déclaré" in affichage
-        assert "dashboard actifs" in affichage
+        assert "pastory actifs" in affichage
 
     def test_depuis_borne_la_periode(self, export, capsys):
         self.preparer()

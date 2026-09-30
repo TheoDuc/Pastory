@@ -15,8 +15,8 @@ from decimal import Decimal
 
 import pytest
 
-from dashboard_tr import tableur
-from dashboard_tr.donnees_externes.cache import Cache, CacheIllisible
+from pastory import tableur
+from pastory.donnees_externes.cache import Cache, CacheIllisible
 from tests.donnees_externes.cours_fictifs import ACTIF, CRYPTO, cours
 
 

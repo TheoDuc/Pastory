@@ -125,10 +125,10 @@ Sans le dernier terme, **chacun de tes achats de crypto serait signalé comme an
 ## B. Contrôles sur tes vraies données
 
 ```
-uv run dashboard rafraichir        récupère l'export (PIN demandé par Trade Republic, masqué)
-uv run dashboard comptes           une seule fois : donne un rôle à chaque compte
-uv run dashboard lire              le rapport
-uv run dashboard exporter-pivot    le CSV à ouvrir dans un tableur
+uv run pastory rafraichir        récupère l'export (PIN demandé par Trade Republic, masqué)
+uv run pastory comptes           une seule fois : donne un rôle à chaque compte
+uv run pastory lire              le rapport
+uv run pastory exporter-pivot    le CSV à ouvrir dans un tableur
 ```
 
 ### B.1 — Le rapport : quatre choses à regarder
@@ -213,7 +213,7 @@ rapport te le dit, et **rien n'est corrigé en silence**.
 ### B.5 — Sur un deuxième export (celui de ton ami)
 
 ```
-uv run dashboard lire --export <le dossier de son export>
+uv run pastory lire --export <le dossier de son export>
 ```
 
 Le dossier n'est jamais copié dans le projet. Regarde seulement **les comptages et les types

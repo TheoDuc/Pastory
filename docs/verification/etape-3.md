@@ -31,7 +31,7 @@ date        type     quantité   prix   | qté avant  qté après  capital avant
 Sur chaque ligne : **capital avant + ajouté − retiré = capital après**. Si un chiffre te
 surprend, c'est là que tu trouves d'où il vient, sans avoir à lire le code.
 
-C'est le fichier `journal.csv`, écrit par `dashboard exporter-positions`.
+C'est le fichier `journal.csv`, écrit par `pastory exporter-positions`.
 
 ---
 
@@ -197,11 +197,11 @@ puis le retranche, plutôt que de multiplier le capital par ce qui reste
 ## B. Contrôles sur tes vraies données
 
 ```
-uv run dashboard rafraichir          au besoin : récupère l'export
-uv run dashboard positions           le rapport du moteur
-uv run dashboard exporter-positions  positions.csv et journal.csv, pour le tableur
-uv run dashboard positions-reelles   demande à Trade Republic ce qu'il dit détenir
-uv run dashboard positions           à nouveau : le rapprochement apparaît
+uv run pastory rafraichir          au besoin : récupère l'export
+uv run pastory positions           le rapport du moteur
+uv run pastory exporter-positions  positions.csv et journal.csv, pour le tableur
+uv run pastory positions-reelles   demande à Trade Republic ce qu'il dit détenir
+uv run pastory positions           à nouveau : le rapprochement apparaît
 ```
 
 > **`positions-reelles` redemande ton numéro et ton PIN**, plus la confirmation dans
@@ -211,10 +211,10 @@ uv run dashboard positions           à nouveau : le rapprochement apparaît
 
 ### B.1 — Avant tout : la lecture est-elle propre ?
 
-Les deux premières lignes de `dashboard positions` te disent combien d'opérations ont été lues et
+Les deux premières lignes de `pastory positions` te disent combien d'opérations ont été lues et
 si un type d'événement est resté inconnu. **Si un type est inconnu, ne te fie à aucun chiffre**
 avant qu'on l'ait examiné : il peut cacher des opérations sur tes actifs. Lance
-`dashboard lire` pour le détail.
+`pastory lire` pour le détail.
 
 ### B.2 — Le contrôle principal : actif par actif, en face de l'application
 
@@ -251,7 +251,7 @@ le transfert de PEA sans événement (Q-10).
 
 > **Si le rapport annonce des lignes du fichier « non lues »**, ne conclus rien : un actif marqué
 > `absent de la banque` peut très bien se trouver dans l'une d'elles. Relance
-> `dashboard positions-reelles` d'abord.
+> `pastory positions-reelles` d'abord.
 
 **Ton PEA sort en `hors périmètre`, et c'est normal.** L'outil qui interroge Trade Republic ne
 demande les positions que d'**un seul** compte-titres, et ton PEA est dans un autre : aucune de
@@ -310,7 +310,7 @@ n'entrent jamais dans git ([D-01](../decisions.md), [D-37](../decisions.md)).
 ### B.7 — Arrêter les chiffres à une date
 
 ```
-uv run dashboard positions --au 2026-06-30
+uv run pastory positions --au 2026-06-30
 ```
 
 Utile pour comparer avec un relevé daté. C'est aussi le mécanisme qui servira à tracer

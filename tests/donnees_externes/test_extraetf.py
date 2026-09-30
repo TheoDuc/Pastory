@@ -15,8 +15,8 @@ from decimal import Decimal
 
 import pytest
 
-from dashboard_tr.donnees_externes import extraetf
-from dashboard_tr.donnees_externes.composition import (
+from pastory.donnees_externes import extraetf
+from pastory.donnees_externes.composition import (
     CompositionIncoherente,
     CompositionIndisponible,
     controler,

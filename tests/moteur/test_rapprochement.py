@@ -9,10 +9,10 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from dashboard_tr.moteur.portefeuille import Portefeuille
-from dashboard_tr.moteur.rapprochement import Accord, rapprocher
-from dashboard_tr.pivot.operation import Poche, TypeOperation
-from dashboard_tr.pivot.position_reelle import PositionReelle
+from pastory.moteur.portefeuille import Portefeuille
+from pastory.moteur.rapprochement import Accord, rapprocher
+from pastory.pivot.operation import Poche, TypeOperation
+from pastory.pivot.position_reelle import PositionReelle
 from tests.moteur.operations_fictives import ACTIF, operation
 
 AUTRE_ACTIF = "XX0000000002"

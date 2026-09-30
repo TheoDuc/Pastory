@@ -1,4 +1,4 @@
-# DashBoard Trade Republic
+# Pastory
 
 Tableau de bord local et gratuit pour suivre **les actifs** d'un portefeuille Trade Republic
 (PEA, CTO, crypto ; les espèces ne sont pas suivies), destiné à des investisseurs long terme. Les données viennent de `pytr` (export JSON d'événements + CSV).
@@ -44,7 +44,7 @@ lisible et vérifiable à la main.
    - les cours sont **bruts** (jamais retraités des dividendes) et leur **devise est vérifiée**,
      jamais convertie (D-48, D-51). Aucun cours ne passe par Trade Republic (D-49) ;
    - **un taux estimé (spread, TER, impôt) porte sa valeur, sa date et sa source**, dans un
-     fichier de `dashboard_tr/parametres/` ; sans date ni source, il est refusé (D-58). Les
+     fichier de `pastory/parametres/` ; sans date ni source, il est refusé (D-58). Les
      estimations ne se mélangent jamais aux coûts payés ni à la performance (D-17) ;
    - **une répartition se calcule sur des codes, jamais sur des libellés** (pays en ISO 3166-1,
      secteurs en code de nomenclature), avec **une seule nomenclature nommée à l'écran** — jamais

@@ -256,7 +256,7 @@ regardent pas au même endroit, et une crypto ne se regarde nulle part. Tu as d�
 à l'étape 6, dans `actifs.toml` — il n'y a donc normalement rien à faire.
 
 ```
-uv run dashboard composition
+uv run pastory composition
 ```
 
 La commande affiche, actif par actif, ce qu'elle sait de son intérieur. Lis la liste et vérifie :
@@ -309,7 +309,7 @@ C'est **le** contrôle de l'étape, et il ne demande aucune connaissance financi
 tableur.
 
 ```
-uv run dashboard exporter-positions
+uv run pastory exporter-positions
 ```
 
 Ouvre **`repartition_pays.csv`**. Il contient une ligne par pays, puis des lignes de « reste »
@@ -330,7 +330,7 @@ Ouvre **`repartition_pays.csv`**. Il contient une ligne par pays, puis des ligne
 Refais la même vérification sur `repartition_secteurs.csv` et `repartition_classes.csv`.
 
 - [ ] et vérifie que la colonne `base` vaut bien la **valeur de tes actifs** affichée par
-      `dashboard positions` au même jour.
+      `pastory positions` au même jour.
 
 ### B.3 — La comparaison avec la fiche d'un émetteur
 
@@ -341,9 +341,9 @@ Pour chacun :
 1. relève ce que l'application affiche dans `repartition_pays.csv` (colonne `montant` et
    `part_pour_cent`) — mais attention, ce fichier donne la répartition de **tout ton
    portefeuille**, pas celle d'un ETF pris seul. Pour un ETF isolé, ouvre plutôt le lien du
-   document d'information que `dashboard composition` affiche à côté de lui ;
+   document d'information que `pastory composition` affiche à côté de lui ;
 2. ouvre la **fiche de l'émetteur** ou son document d'information clé (le lien est donné par
-   `dashboard composition`) ;
+   `pastory composition`) ;
 3. compare les **trois ou quatre premiers pays** et les **trois premiers secteurs**.
 
 - [ ] les **gros postes** se retrouvent, dans le même ordre ;
@@ -363,7 +363,7 @@ voudrait dire qu'on lit le panier de swap et non l'indice. Dis-le-moi tout de su
       comptées en marchés émergents, et **Israël** est dans « Autres pays et territoires ».
 
 Si un rattachement ne te convient pas, **tu peux le changer sans toucher au code** : le fichier
-`dashboard_tr/parametres/zones.toml` porte une ligne par pays, avec sa zone, sa source et sa date
+`pastory/parametres/zones.toml` porte une ligne par pays, avec sa zone, sa source et sa date
 ([D-67](../decisions.md)).
 
 ### B.5 — Ce que les chiffres des étapes précédentes doivent devenir : rien
@@ -371,7 +371,7 @@ Si un rattachement ne te convient pas, **tu peux le changer sans toucher au code
 Cette étape n'ajoute que de l'affichage : elle ne touche ni aux quantités, ni au capital investi,
 ni aux rendements, ni aux coûts.
 
-- [ ] relance `dashboard positions --au <la même date qu'avant>` et vérifie que la **valeur de tes
+- [ ] relance `pastory positions --au <la même date qu'avant>` et vérifie que la **valeur de tes
       actifs**, le **gain**, le **TRI**, le **TWRR** et la **valeur réelle** sont **identiques** à
       ce qu'ils étaient avant l'étape 7.
 
@@ -381,7 +381,7 @@ Si l'un d'eux a bougé d'un centime, c'est un défaut : signale-le.
 
 Une composition n'est pas définitive, contrairement à un cours : celle d'un ETF change chaque mois.
 
-- [ ] `uv run dashboard oublier-composition --actif <ISIN>` puis `dashboard composition` : la
+- [ ] `uv run pastory oublier-composition --actif <ISIN>` puis `pastory composition` : la
       composition est redemandée, et sa date d'arrêté peut avoir avancé.
 
 Et si la composition d'un actif te paraît fausse, tu peux **la corriger à la main**. Dans
@@ -403,7 +403,7 @@ mention suffit ([D-71](../decisions.md)).
              contenu = "obligations" }
 ```
 
-- [ ] après avoir déclaré un contenu, `dashboard composition` dit « Obligations : ni pays ni secteur
+- [ ] après avoir déclaré un contenu, `pastory composition` dit « Obligations : ni pays ni secteur
       au sens des actions (ce n'est pas une donnée manquante) » au lieu d'un motif d'échec ;
 - [ ] et le bloc de répartition montre une ligne « Obligations (hors actions) » plutôt qu'un
       « Non couvert ».

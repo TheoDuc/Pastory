@@ -1,4 +1,4 @@
-"""Le rapport affiché par `dashboard positions`.
+"""Le rapport affiché par `pastory positions`.
 
 On n'y vérifie pas la mise en page, mais ce qui ne doit **jamais** manquer : ce qui est
 incertain est dit, la performance et les coûts ne se mélangent pas, et le tout s'affiche sur
@@ -10,17 +10,17 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-from dashboard_tr.moteur import couts as couts_moteur
-from dashboard_tr.moteur import diversification as diversification_moteur
-from dashboard_tr.moteur import rapport as rapport_moteur
-from dashboard_tr.moteur import valeur_reelle as valeur_reelle_moteur
-from dashboard_tr.moteur.portefeuille import Portefeuille
-from dashboard_tr.moteur.rapprochement import rapprocher
-from dashboard_tr.moteur.rendements import Periode, Synthese, synthese
-from dashboard_tr.parametres import referentiels as parametres_referentiels
-from dashboard_tr.parametres.referentiels import charger_tout as referentiels_du_projet
-from dashboard_tr.pivot.operation import Poche, TypeOperation
-from dashboard_tr.pivot.position_reelle import PositionReelle
+from pastory.moteur import couts as couts_moteur
+from pastory.moteur import diversification as diversification_moteur
+from pastory.moteur import rapport as rapport_moteur
+from pastory.moteur import valeur_reelle as valeur_reelle_moteur
+from pastory.moteur.portefeuille import Portefeuille
+from pastory.moteur.rapprochement import rapprocher
+from pastory.moteur.rendements import Periode, Synthese, synthese
+from pastory.parametres import referentiels as parametres_referentiels
+from pastory.parametres.referentiels import charger_tout as referentiels_du_projet
+from pastory.pivot.operation import Poche, TypeOperation
+from pastory.pivot.position_reelle import PositionReelle
 from tests.moteur.compositions_fictives import (
     CompositionFictive,
     SourceDeCompositionFictive,
@@ -585,7 +585,7 @@ class TestLesTroisBlocsDeLEtape6:
 
         assert "PARTIEL" in texte
         assert "type" in texte
-        assert "dashboard actifs" in texte
+        assert "pastory actifs" in texte
 
     def test_sans_ter_declare_le_bloc_le_dit_sans_afficher_zero(self):
         texte = rapport_complet(ter={})

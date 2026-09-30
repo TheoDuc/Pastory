@@ -7,13 +7,20 @@
 >
 > Les passages entre crochets `[…]` sont des remarques de retranscription, pas le texte original.
 
-Dernière mise à jour : 2026-09-27 (le public visé : l'utilisateur type, et non le seul propriétaire).
+Dernière mise à jour : 2026-09-30 (le nom de l'application : Pastory).
 
 ---
 
 ## Évolutions de cap
 
 Ces précisions **priment** sur le texte d'origine ci-dessous.
+
+### 2026-09-30 · L'application s'appelle Pastory ([D-74](decisions.md))
+> Le nom « DashBoard Trade Republic » n'est pas gardé. L'application s'appelle **Pastory**.
+
+Le nom de la banque reste **là où il désigne la banque** : l'adaptateur Trade Republic, l'export,
+et la documentation de ses données. Il ne nomme plus l'application, qui ne lit que le format pivot
+([D-26](decisions.md)).
 
 ### 2026-09-17 · La maquette n'est pas un modèle ([D-20](decisions.md))
 > La maquette était un premier jet, sans réflexion préalable. La disposition des filtres, du

@@ -13,13 +13,13 @@ from decimal import Decimal
 
 import pytest
 
-from dashboard_tr.config.actifs import Configuration, ContenuActif, Declaration, TypeActif
-from dashboard_tr.donnees_externes.composition import FournisseurDeCompositions
-from dashboard_tr.moteur import diversification as dv
-from dashboard_tr.moteur.portefeuille import Portefeuille
-from dashboard_tr.moteur.valorisation import valoriser
-from dashboard_tr.parametres import referentiels as parametres_referentiels
-from dashboard_tr.pivot.operation import Poche, TypeOperation
+from pastory.config.actifs import Configuration, ContenuActif, Declaration, TypeActif
+from pastory.donnees_externes.composition import FournisseurDeCompositions
+from pastory.moteur import diversification as dv
+from pastory.moteur.portefeuille import Portefeuille
+from pastory.moteur.valorisation import valoriser
+from pastory.parametres import referentiels as parametres_referentiels
+from pastory.pivot.operation import Poche, TypeOperation
 from tests.moteur.compositions_fictives import (
     ARRETE_LE,
     CompositionFictive,

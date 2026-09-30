@@ -11,10 +11,10 @@ from decimal import Decimal
 
 import pytest
 
-from dashboard_tr.moteur import fiscalite
-from dashboard_tr.moteur.fiscalite import Cession, anniversaire
-from dashboard_tr.moteur.portefeuille import Portefeuille
-from dashboard_tr.pivot.operation import Poche, TypeOperation
+from pastory.moteur import fiscalite
+from pastory.moteur.fiscalite import Cession, anniversaire
+from pastory.moteur.portefeuille import Portefeuille
+from pastory.pivot.operation import Poche, TypeOperation
 from tests.moteur.operations_fictives import ACTIF, operation
 from tests.moteur.parametres_fictifs import regles
 

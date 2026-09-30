@@ -10,11 +10,11 @@ from pathlib import Path
 
 import pytest
 
-from dashboard_tr.adaptateurs.trade_republic import recoupement_csv
-from dashboard_tr.adaptateurs.trade_republic.lecture import Lecteur
-from dashboard_tr.adaptateurs.trade_republic.rapport import Rapport
-from dashboard_tr.config.comptes import Configuration, RoleCompte
-from dashboard_tr.pivot.operation import Poche
+from pastory.adaptateurs.trade_republic import recoupement_csv
+from pastory.adaptateurs.trade_republic.lecture import Lecteur
+from pastory.adaptateurs.trade_republic.rapport import Rapport
+from pastory.config.comptes import Configuration, RoleCompte
+from pastory.pivot.operation import Poche
 from tests.adaptateurs.trade_republic import evenements_fictifs as fictifs
 
 ENTETE = "Date;Type;Valeur;Note;ISIN;Parts;Frais;Impôts / Taxes;ISIN2;Parts2"

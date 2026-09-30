@@ -168,7 +168,7 @@ nombres, et il vit à la racine pour qu'aucun export n'invente ses propres conve
 ## 4. Carte des fichiers
 
 ```
-dashboard_tr/
+pastory/
 ├── cli.py                     le seul point d'entrée, et le seul assembleur
 ├── tableur.py                 comment on écrit un nombre (CSV et phrases)
 ├── config/
@@ -206,7 +206,7 @@ dashboard_tr/
 │   ├── diversification.py    par classe d'actifs, par pays, par secteur (D-66 à D-69), et ce
 │   │                          qu'il attend d'une source de compositions et d'un référentiel
 │   ├── signalement.py         ce que le moteur n'a pas pu calculer normalement (D-45)
-│   ├── rapport.py             le rapport de « dashboard positions »
+│   ├── rapport.py             le rapport de « pastory positions »
 │   └── export_csv.py          les onze CSV : positions, journal, valorisation, flux,
 │                              sous-périodes du TWRR, évolution, coûts, valeur réelle,
 │                              et trois répartitions
@@ -236,7 +236,7 @@ scripts/
 ├── inventaire_structure.py       relevé structurel d'un export, sans aucune valeur (D-05)
 └── diagnostic_comptes_titres.py  diagnostic pour Q-26, sans aucune valeur
 
-tests/                         même arborescence que dashboard_tr/, données fictives (D-38)
+tests/                         même arborescence que pastory/, données fictives (D-38)
 ```
 
 ---
@@ -249,7 +249,7 @@ tests/                         même arborescence que dashboard_tr/, données fi
 synchronisé par OneDrive ([D-24](decisions.md)) ; tout ce qui est réécrit souvent va donc
 ailleurs ([D-37](decisions.md)), dans un dossier propre au système (`LOCALAPPDATA` sous Windows),
 avec trois sous-dossiers : `exports/`, `cache/`, `configuration/`. La variable
-`DASHBOARD_TR_DOSSIER` permet d'en choisir un autre — c'est ce dont se servent les tests, qui
+`PASTORY_DOSSIER` permet d'en choisir un autre — c'est ce dont se servent les tests, qui
 n'écrivent donc jamais dans le vrai dossier de l'utilisateur.
 
 **`comptes.py` : le seul endroit où l'application pose une question.** Le rôle d'un compte
@@ -540,13 +540,13 @@ Six règles ne sont la propriété d'aucune couche, et se retrouvent dans toutes
 | Identifiants Trade Republic | **nulle part** : `pytr` les redemande à chaque appel ([D-41](decisions.md)) | **non** |
 
 Le dossier personnel est **hors du dossier synchronisé**, pour éviter les conflits OneDrive sur
-des fichiers réécrits à chaque commande. `uv run dashboard emplacements` dit où il est.
+des fichiers réécrits à chaque commande. `uv run pastory emplacements` dit où il est.
 
 ---
 
 ## 9. Les tests suivent les couches
 
-`tests/` reproduit l'arborescence de `dashboard_tr/`, et chaque couche se teste sans la
+`tests/` reproduit l'arborescence de `pastory/`, et chaque couche se teste sans la
 précédente :
 
 | Test | Part de | Ce que ça prouve |

@@ -37,7 +37,7 @@
 
 ## 1. L'inventaire : ce que le moteur produit, et où ça s'affiche
 
-Relevé le 2026-09-29 sur `dashboard_tr/moteur/`. **Colonne « aujourd'hui »** : `rapport` si le
+Relevé le 2026-09-29 sur `pastory/moteur/`. **Colonne « aujourd'hui »** : `rapport` si le
 rapport texte le montre déjà, `CSV` s'il n'existe que dans un export, `—` s'il n'est nulle part.
 
 Les écrans nommés ici sont ceux des notes du propriétaire : **Synthèse**, **Les actifs**,
@@ -272,6 +272,42 @@ Le rapport texte a **une fonction de mise en forme par unité**, et c'est le mod
   un mot, jamais ne le remplacent.
 - **Rien n'est arrondi vers le haut pour faire joli** : deux décimales sur les montants, deux sur
   les pourcentages, et le dénominateur disponible.
+- **Une lecture au survol suit la souris, sur le graphique.** Les montants à une date s'affichent
+  dans une boîte posée **sur** le graphique, qui suit le curseur sur les deux axes. C'est
+  l'arbitrage du propriétaire, rendu **contre la recommandation** après avoir essayé l'autre
+  arrangement, et sa raison est meilleure que celle qu'il écarte : **descendre les yeux hors du
+  graphique pour lire un chiffre casse la lecture**, et on regarde une courbe pour la suivre. La
+  boîte recouvre donc une partie de la courbe — et c'est l'utilisateur qui la déplace, en montant ou
+  en descendant la souris. Quatre points font tenir ce choix :
+  - la boîte est **décalée du curseur** (16 px), jamais sous lui : le viseur, les deux points et le
+    curseur restent visibles ;
+  - elle **bascule du côté opposé près d'un bord**, au lieu d'être coupée ou de sortir du cadre.
+    C'est ce qui manquait à la première version, dont la moitié du texte sortait de la page ;
+  - elle reste **étroite et verticale**. En bandeau horizontal elle cachait une large tranche de
+    dates ; en colonne elle ne masque qu'une bande fine, donc bien moins de la **forme** de la
+    courbe, qui est ce qu'on lit ;
+  - elle ne capte pas la souris (`pointer-events: none`). Sans cela, elle intercepte le déplacement
+    dès qu'elle passe sous le curseur, et la lecture se figeait.
+
+  **Ce qui est écarté, et pourquoi le garder écrit.** La boîte a été, un temps, un **bandeau posé
+  sous la courbe**, de hauteur réservée, qui ne recouvrait rien. C'était la réponse au premier
+  défaut signalé — une infobulle en haut du cadre masquait le haut de la courbe. Le bandeau a été
+  jugé « trop en retrait » puis écarté pour la raison ci-dessus. Restent écartées aussi : la boîte
+  qui **choisit automatiquement la moitié libre du cadre** — elle change de place sans qu'on sache
+  pourquoi, et avec deux courbes plus une aire remplie la moitié « libre » est souvent étroite ; et
+  la boîte **fixe en haut du cadre**, qui est le défaut d'origine. Trois arrangements essayés pour
+  une seule boîte : **ne pas recommencer le tour à l'étape 9.**
+- **Un repère de ligne situe, il ne mesure pas.** Les zones géographiques portent un **planisphère**
+  avec leur part du monde remplie d'encre, là où elles portaient toutes le même globe — cinq fois le
+  même repère, c'est-à-dire aucun. Ce qui vaut pour tout repère de ce genre : il allume des
+  continents entiers alors qu'une zone ne suit pas leurs contours (« marchés émergents » n'est pas un
+  continent), il est donc **explicitement présenté comme un repère et non une délimitation**, et ce
+  sont les montants et les parts de la ligne qui font foi. Deux formes y sont volontairement
+  **dessinées plus grandes que l'échelle** — le Japon et la Nouvelle-Zélande — parce qu'à cette
+  taille un tracé exact fait un pixel et disparaît, y compris quand c'est lui qu'on allume.
+- **Tous les repères d'une même liste occupent un créneau de même largeur.** Drapeau, pictogramme et
+  planisphère n'ont pas la même largeur ; sans créneau fixe, le bord gauche des libellés est dentelé
+  d'un groupe à l'autre de la même liste.
 - **Aucune police, aucun graphique, aucun script appelé sur le réseau** : l'application s'ouvre
   hors ligne ([D-31](decisions.md)).
 

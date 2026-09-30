@@ -12,8 +12,8 @@ from decimal import Decimal
 
 import pytest
 
-from dashboard_tr.moteur.portefeuille import Portefeuille
-from dashboard_tr.moteur.rendements import (
+from pastory.moteur.portefeuille import Portefeuille
+from pastory.moteur.rendements import (
     Periode,
     SousPeriode,
     enchainer,
@@ -21,7 +21,7 @@ from dashboard_tr.moteur.rendements import (
     synthese,
     tri,
 )
-from dashboard_tr.pivot.operation import Poche, TypeOperation
+from pastory.pivot.operation import Poche, TypeOperation
 from tests.moteur.cours_fictifs import SourceFixe, cours_constant
 from tests.moteur.operations_fictives import ACTIF, enchainement_du_glossaire, operation
 
@@ -294,7 +294,7 @@ class TestA7CeQuiNEstPasCalculable:
 
         assert not resultat.calculable
         assert resultat.gain is None and resultat.tri is None
-        assert "dashboard cours" in (resultat.motif or "")
+        assert "pastory cours" in (resultat.motif or "")
         # La valeur, elle, existe : les 13 parts sont bien là.
         assert resultat.valeur_fin == Decimal("520.00")
 

@@ -11,10 +11,10 @@ from decimal import Decimal
 
 import pytest
 
-from dashboard_tr.adaptateurs.trade_republic.lecture import Lecteur
-from dashboard_tr.config.comptes import Configuration, RoleCompte
-from dashboard_tr.pivot.operation import Poche, Provenance, TypeOperation
-from dashboard_tr.pivot.validation import controler
+from pastory.adaptateurs.trade_republic.lecture import Lecteur
+from pastory.config.comptes import Configuration, RoleCompte
+from pastory.pivot.operation import Poche, Provenance, TypeOperation
+from pastory.pivot.validation import controler
 from tests.adaptateurs.trade_republic import evenements_fictifs as fictifs
 
 COMPTES = {

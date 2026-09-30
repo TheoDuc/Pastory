@@ -11,8 +11,8 @@ from datetime import date as Date
 
 import pytest
 
-from dashboard_tr.parametres import ParametresInvalides
-from dashboard_tr.parametres import referentiels as ref
+from pastory.parametres import ParametresInvalides
+from pastory.parametres import referentiels as ref
 
 
 def ecrire(chemin, texte: str):

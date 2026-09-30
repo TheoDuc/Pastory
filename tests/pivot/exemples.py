@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from dashboard_tr.pivot.operation import (
+from pastory.pivot.operation import (
     Operation,
     Poche,
     Provenance,

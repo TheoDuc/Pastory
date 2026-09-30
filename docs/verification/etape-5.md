@@ -195,11 +195,11 @@ flux qui te revient, et c'est ce qui fait tenir la décomposition.
 ## B. Contrôles sur tes vraies données
 
 ```
-uv run dashboard cours                          au besoin : complète le cache
-uv run dashboard positions                      valeur à la dernière clôture, gain, TRI, TWRR
-uv run dashboard positions --au 2026-06-30      arrêté et valorisé à une date
-uv run dashboard positions --depuis 2026-01-01  le gain de l'année seulement
-uv run dashboard exporter-positions             les six CSV, dont flux.csv
+uv run pastory cours                          au besoin : complète le cache
+uv run pastory positions                      valeur à la dernière clôture, gain, TRI, TWRR
+uv run pastory positions --au 2026-06-30      arrêté et valorisé à une date
+uv run pastory positions --depuis 2026-01-01  le gain de l'année seulement
+uv run pastory exporter-positions             les six CSV, dont flux.csv
 ```
 
 Aucune de ces commandes ne demande ton PIN : **rien ne passe par Trade Republic**
@@ -230,9 +230,9 @@ Dans le bloc **« Valeur des actifs au … »**, pour chaque ligne :
 
 > **Si ta poche crypto sort en « non valorisé »**, c'est presque sûrement sa ligne dans
 > `actifs.toml`. Une crypto n'a pas d'ISIN : Trade Republic l'identifie par un code interne
-> `XF…`, qu'aucune source de cours ne connaît. L'assistant `dashboard actifs` ne peut donc rien
+> `XF…`, qu'aucune source de cours ne connaît. L'assistant `pastory actifs` ne peut donc rien
 > proposer, et la ligne reste vide. Écris-la toi-même, sur le modèle
-> `"XF000…" = { ticker = "BTC-EUR", devise = "EUR" }`, puis `dashboard cours --actif XF000…`.
+> `"XF000…" = { ticker = "BTC-EUR", devise = "EUR" }`, puis `pastory cours --actif XF000…`.
 > *Constaté par le propriétaire le 2026-09-27 : une fois la ligne remplie, l'écart avec son
 > application était de moins de deux dixièmes de pour cent sur la valeur totale.*
 
@@ -250,7 +250,7 @@ ses achats et son capital ([D-53](../decisions.md)).
 
 ### B.4 — Le TRI, dans ton tableur
 
-- [ ] `uv run dashboard exporter-positions`, puis ouvre `flux.csv` ;
+- [ ] `uv run pastory exporter-positions`, puis ouvre `flux.csv` ;
 - [ ] filtre la colonne `groupe` sur `total` ;
 - [ ] `=TRI.PAIEMENTS(montants ; dates)` sur les deux colonnes ;
 - [ ] tu dois retomber sur le **TRI (annuel)** du rapport, à la deuxième décimale près.

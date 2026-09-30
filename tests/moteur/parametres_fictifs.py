@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from datetime import date as Date
 from decimal import Decimal
 
-from dashboard_tr.pivot.operation import Poche
+from pastory.pivot.operation import Poche
 
 
 @dataclass(frozen=True)

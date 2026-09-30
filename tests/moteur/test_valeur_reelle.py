@@ -8,10 +8,10 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-from dashboard_tr.moteur.portefeuille import Portefeuille
-from dashboard_tr.moteur.valeur_reelle import valeur_reelle
-from dashboard_tr.moteur.valorisation import valoriser
-from dashboard_tr.pivot.operation import Poche, TypeOperation
+from pastory.moteur.portefeuille import Portefeuille
+from pastory.moteur.valeur_reelle import valeur_reelle
+from pastory.moteur.valorisation import valoriser
+from pastory.pivot.operation import Poche, TypeOperation
 from tests.moteur.cours_fictifs import SourceFixe, cours_constant
 from tests.moteur.operations_fictives import ACTIF, operation
 from tests.moteur.parametres_fictifs import ParametresFictifs, regles

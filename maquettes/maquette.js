@@ -250,8 +250,6 @@
     obligations: "M4.5 5h8.5l3 3v7.5H4.5zM13 5v3.2h3M7.5 11h5M7.5 13.2h3.5",
     matieres: "M10 4l5.5 3.2v6.4L10 16.8 4.5 13.6V7.2zM10 4v12.8",
     numeriques: "M10 3.5l6 3.4v6.8L10 17l-6-3.3V6.9zM7 8.6l3 1.7 3-1.7M10 10.3v4.2",
-    // Une zone n'a pas de drapeau : toutes portent le meme reperage.
-    zone: "M10 3.2a6.8 6.8 0 100 13.6 6.8 6.8 0 000-13.6M3.4 10h13.2M10 3.2c2.7 3 2.7 10.6 0 13.6M10 3.2c-2.7 3-2.7 10.6 0 13.6",
   };
 
   function icone(nom) {
@@ -266,6 +264,107 @@
             cx: 10, cy: 10, r: 5.6, fill: "none", stroke: "currentColor", "stroke-width": 1.4,
           }),
     ]);
+  }
+
+  /* LE PLANISPHÈRE DES ZONES.
+   *
+   * Une zone n'a pas de drapeau, et toutes portaient donc le MÊME globe : cinq lignes,
+   * cinq fois le même repère, c'est-à-dire aucun repère. Chaque zone porte maintenant le
+   * même planisphère, avec SA part du monde remplie d'encre et le reste des terres en
+   * gris pâle. Ce qui distingue les lignes est alors la forme éclairée, non un symbole.
+   *
+   * La projection, pour que les tracés soient vérifiables : boîte de 26 × 17, terres
+   * entre x = 0,5 et x = 25,5 et entre y = 1,5 et y = 15,5.
+   *   x = 13 + longitude × 0,0694   (x = 13 au méridien de Greenwich)
+   *   y = 1,5 + (75 − latitude) × 0,1077
+   * C'est une projection plate, qui étire les hautes latitudes en surface mais garde
+   * chaque terre à sa place — le seul rôle demandé ici.
+   *
+   * DEUX SIMPLIFICATIONS ASSUMÉES, parce qu'un tracé exact ne survit pas à 30 pixels :
+   *  - le Japon et la Nouvelle-Zélande sont dessinés PLUS GRANDS que l'échelle. À
+   *    l'échelle, l'archipel japonais fait un pixel de large et disparaît, y compris
+   *    quand c'est lui qu'on allume ;
+   *  - les frontières des zones ne sont pas tracées. Une zone allume des continents
+   *    entiers, alors que « marchés émergents » n'est pas un continent : la Russie et la
+   *    Corée du Sud s'allument avec l'Asie sans en faire partie. La carte SITUE la zone,
+   *    elle ne la délimite pas — c'est dit dans le « ? » de la rubrique, et ce sont les
+   *    chiffres de la ligne qui font foi.
+   *
+   * Les couleurs sont posées en CSS, par classe, et jamais en attribut : `fill="var(…)"`
+   * n'est pas interprété dans un attribut SVG (voir la palette, plus haut).
+   */
+  const CONTINENTS = {
+    amNord:
+      "M1.6 2.3 L6.1 2 L8.8 3.1 L9.2 4.4 L8.5 4.8 L8.1 5.2 L7.7 5.9 L7.5 6.8 L6.8 6.5" +
+      " L6.9 7.3 L7.6 8.6 L7.2 8.7 L6.4 7.8 L5.7 7.4 L5 6.4 L4.4 5.3 L4.3 4.3 L3.6 3.3" +
+      " L2.2 3.1 Z",
+    amSud:
+      "M7.6 8.6 L8.7 8.4 L9.2 9 L9.5 9.6 L10.6 10.5 L10.3 11.2 L10 12.1 L9.3 13.3" +
+      " L8.7 13.8 L8.3 15.5 L7.8 14.7 L8 13.4 L7.6 11.2 L7.4 9.8 Z",
+    europe:
+      "M12.4 5.75 L12.4 5.15 L13 4.95 L12.75 4.4 L13.3 3.95 L13.75 3.5 L14.45 2" +
+      " L15.15 2.3 L14.95 3.4 L15.15 4.6 L14.7 5.65 L14.35 5.3 L13.7 4.95 L13.25 5.3 Z" +
+      " M12.5 3.5 L12.9 3.8 L12.95 4.4 L12.68 4.45 L12.7 3.95 L12.4 3.75 Z",
+    afrique:
+      "M12.35 6.4 L13.7 6.1 L15.15 6.4 L15.6 7.3 L16.5 8.4 L15.95 9.5 L15.8 10.4" +
+      " L15.5 11.7 L15.15 12.8 L14.4 13.4 L14 12.3 L13.8 10.9 L13.55 9.7 L13.2 9.05" +
+      " L12.3 9 L11.8 7.9 L11.9 6.9 Z",
+    asie:
+      "M15 5.5 L16.1 5.1 L17.2 2 L21.3 1.7 L25.1 2.5 L24.1 3.7 L22.7 4.2 L22 5.7" +
+      " L21.5 6.2 L20.9 7.2 L20.6 8.4 L20.2 9.4 L19.8 8.5 L19.3 7.2 L18.6 7.9" +
+      " L18.4 8.8 L18.05 7.5 L17.7 6.9 L17 6.9 L17.15 7.3 L16.15 8.25 L15.75 7.3" +
+      " L15.45 6 L15.1 5.6 Z",
+    indonesie:
+      "M19.6 8.6 L19.95 8.7 L20.5 9.9 L21.15 10.05 L21.1 10.45 L20.3 10.3 L19.75 9.2 Z",
+    japon: "M23.2 4.1 L23.65 4.45 L23.2 5.25 L22.8 6 L22.5 6.7 L22 6.5 L22.4 5.7 L22.8 4.9 Z",
+    oceanie:
+      "M22.1 10.85 L22.45 11.35 L22.9 10.8 L23.6 12.5 L23.1 13.7 L22.6 13.35" +
+      " L21.05 13.05 L20.9 11.95 Z" +
+      " M24.5 13.85 L24.85 14.25 L24.8 14.85 L24.45 14.4 Z",
+  };
+
+  /* LE LOGO, TEMPORAIRE.
+   *
+   * Il remplace le point sauge qui précédait le mot. Ce qu'il dit : une page, et dessus
+   * l'histoire d'une valeur qui monte — c'est exactement l'écran de synthèse, et c'est le
+   * sens du nom. Il est dessiné en SVG, dans le dépôt, comme tout le reste : aucune image
+   * distante (D-31).
+   *
+   * Deux choix à connaître avant de le remplacer :
+   *  - il est en PAPIER SUR ENCRE, c'est-à-dire clair sur le bandeau sombre. C'est lui qui
+   *    apporte maintenant la présence que le point donnait ;
+   *  - le trait est en encre, et NON en sauge. La sauge veut dire « gain » partout ailleurs
+   *    dans l'application : un logo vert se lirait comme un état du portefeuille. La
+   *    manchette perd donc sa note de couleur, et c'est délibéré.
+   */
+  function logo() {
+    return svgEl("svg", { class: "logo", viewBox: "0 0 20 20", "aria-hidden": "true" }, [
+      svgEl("rect", { class: "logo__papier", x: 1.5, y: 1.5, width: 17, height: 17, rx: 4.8 }),
+      svgEl("path", { class: "logo__trait", d: "M5.4 14 L8.2 10.8 L10.6 12.3 L14.3 7.4" }),
+      svgEl("circle", { class: "logo__point", cx: 14.3, cy: 7.4, r: 2 }),
+    ]);
+  }
+
+  /** Le planisphère avec les terres de `terres` allumées. */
+  function planisphere(terres) {
+    const fond = [];
+    const dessus = [];
+    for (const nom of Object.keys(CONTINENTS)) {
+      const allumee = terres.indexOf(nom) >= 0;
+      (allumee ? dessus : fond).push(
+        svgEl("path", {
+          class: allumee ? "planisphere__zone" : "planisphere__terre",
+          d: CONTINENTS[nom],
+        })
+      );
+    }
+    // Les terres allumées passent en dernier : là où deux tracés se touchent, c'est la
+    // zone de la ligne qui doit rester lisible.
+    return svgEl(
+      "svg",
+      { class: "planisphere", viewBox: "0 0 26 17", "aria-hidden": "true" },
+      fond.concat(dessus)
+    );
   }
 
   // ==========================================================================
@@ -353,7 +452,7 @@
     zones: {
       titre: "Les zones",
       texte:
-        "Le regroupement des pays en zones est une <b>convention</b>, pas une donnée : la liste est un fichier daté et sourcé, que vous pouvez corriger. Il n'existe aucune norme officielle du « développé » et de l'« émergent », et les deux grands fournisseurs sont en désaccord sur plusieurs pays.",
+        "Le regroupement des pays en zones est une <b>convention</b>, pas une donnée : la liste est un fichier daté et sourcé, que vous pouvez corriger. Il n'existe aucune norme officielle du « développé » et de l'« émergent », et les deux grands fournisseurs sont en désaccord sur plusieurs pays.<br><br>La petite carte <b>situe</b> la zone, elle ne la délimite pas : elle allume des continents entiers, là où une zone ne suit pas leurs contours. Ce sont les montants et les parts de la liste qui font foi.",
     },
     pasCent: {
       titre: "Pourquoi le total ne fait pas 100 %",
@@ -403,7 +502,7 @@
     retenueDividendes: {
       titre: "Pourquoi la retenue sur dividendes est ici",
       texte:
-        "Elle n'est pas prélevée à l'achat : elle l'est <b>à chaque versement de dividende</b>, donc pendant que vous détenez l'actif. Elle figure dans ce bloc parce qu'il rassemble tout ce qui a <b>déjà été payé</b>, par opposition aux deux suivants qui estiment ce qui court et ce qui resterait. Si vous préférez la voir au moment où elle tombe, elle a sa place dans le bloc « pendant la détention » : dites-le.",
+        "Elle n'est pas prélevée à l'achat : elle l'est <b>à chaque versement de dividende</b>, donc pendant que vous détenez l'actif. Elle figure quand même dans ce bloc, parce que les trois blocs ne suivent pas le calendrier : ils séparent ce qui a <b>déjà été payé</b>, et qui figure sur vos relevés, de ce qui est seulement <b>estimé</b>.",
     },
     contenuDeclare: {
       titre: "Contenu déclaré",
@@ -836,6 +935,31 @@
 
   // --- Le graphique, avec le survol ----------------------------------------
 
+  /* Poser sur un axe la boîte qui suit la souris : décalée du curseur, et basculée du
+   * côté opposé plutôt que coupée près d'un bord. Les deux axes suivent exactement la
+   * même règle, écrite une seule fois.
+   *   `pointe` la position du curseur, `mesure` la taille de la boîte, `libre` celle du
+   *   cadre, `ecart` la distance gardée entre le curseur et la boîte. */
+  function placerSurUnAxe(pointe, mesure, libre, ecart) {
+    let pose = pointe + ecart;
+    if (pose + mesure > libre) pose = pointe - ecart - mesure;
+    return Math.max(0, Math.min(pose, Math.max(0, libre - mesure)));
+  }
+
+  const ECART_INFOBULLE = 16;
+
+  function placerLInfobulle(infobulle, boite, evenement) {
+    // La boîte vient d'être affichée : ses dimensions sont donc mesurables. Les valeurs
+    // de secours ne servent que si la mesure rend 0, ce qui arrive avant la première
+    // mise en page.
+    const largeur = infobulle.offsetWidth || 210;
+    const hauteur = infobulle.offsetHeight || 86;
+    const cx = evenement.clientX - boite.left;
+    const cy = evenement.clientY - boite.top;
+    infobulle.style.left = placerSurUnAxe(cx, largeur, boite.width, ECART_INFOBULLE) + "px";
+    infobulle.style.top = placerSurUnAxe(cy, hauteur, boite.height, ECART_INFOBULLE) + "px";
+  }
+
   function graphique(points, hauteurVoulue) {
     const cadre = el("div", { class: "cadre-graphique" });
 
@@ -945,6 +1069,27 @@
     groupeSurvol.style.display = "none";
     svg.append(groupeSurvol);
 
+    /* LA LECTURE AU SURVOL SUIT LA SOURIS, SUR LE GRAPHIQUE.
+     *
+     * Arbitrage du propriétaire, contre la recommandation. Elle a d'abord été un bandeau
+     * posé SOUS la courbe, pour ne rien recouvrir. Sa raison de revenir sur le graphique
+     * est meilleure que celle de l'en sortir : **descendre les yeux hors du graphique
+     * pour lire un chiffre casse la lecture**, et on regarde une courbe pour la suivre.
+     * Une boîte qui suit la souris se lit sans quitter la courbe des yeux, et c'est
+     * l'utilisateur qui la déplace — il lui suffit de monter ou de descendre la souris
+     * pour dégager ce qu'elle cache.
+     *
+     * Ce qui reste du premier essai, et qui n'est pas cosmétique :
+     *  - la boîte est DÉCALÉE du curseur (16 px), jamais sous lui : le viseur, les deux
+     *    points et le curseur lui-même restent visibles ;
+     *  - elle BASCULE de côté près d'un bord, plutôt que d'être coupée ou de sortir du
+     *    cadre. C'est ce qui manquait à la toute première version ;
+     *  - elle reste ÉTROITE et verticale. En bandeau horizontal elle cachait une large
+     *    tranche de dates ; en colonne elle ne masque qu'une bande fine, donc bien moins
+     *    de la FORME de la courbe, qui est ce qu'on lit ;
+     *  - `pointer-events: none` en CSS : sans lui, la boîte intercepte le `mousemove`
+     *    dès qu'elle passe sous le curseur, et la lecture se figeait.
+     */
     const infobulle = el("div", { class: "infobulle" });
     infobulle.hidden = true;
     cadre.append(svg, infobulle);
@@ -984,12 +1129,7 @@
         ])
       );
       infobulle.hidden = false;
-      const largeurBulle = infobulle.offsetWidth || 200;
-      const gauche = Math.min(
-        Math.max(0, (x(i) / L) * boite.width - largeurBulle / 2),
-        Math.max(0, boite.width - largeurBulle)
-      );
-      infobulle.style.left = gauche + "px";
+      placerLInfobulle(infobulle, boite, evenement);
     }
 
     function cacher() {
@@ -1578,9 +1718,23 @@
    *  part. Toutes les barres sont rapportées à la MÊME base — jamais renormalisées. */
   function ligneMesuree(poste, maxi, options) {
     const o = options || {};
+    // Le repère est choisi par la DONNÉE, pas par le libellé : une zone porte la liste
+    // de ses terres, un pays son code, tout le reste un pictogramme.
+    const repere = poste.terres
+      ? planisphere(poste.terres)
+      : o.drapeau
+        ? drapeau(poste.code)
+        : icone(poste.icone);
     const libelle = el("span", { class: "rang__libelle" }, [
-      o.drapeau ? drapeau(poste.code) : icone(poste.icone),
-      el("span", { class: "rang__texte", texte: poste.libelle }),
+      // Le repère passe par un créneau de largeur fixe : drapeau, pictogramme et
+      // planisphère n'ont pas la même largeur, et sans lui les libellés d'une même
+      // liste ne commencent pas à la même abscisse.
+      el("span", { class: "rang__repere" }, [repere]),
+      // Le `title` n'est pas un ornement : « Asie-Pacifique développée » dépasse la
+      // colonne sur un écran étroit, et un libellé tronqué n'explique plus rien. La
+      // règle du §3.2 de docs/conception-interface.md demande alors que le texte entier
+      // reste accessible au survol.
+      el("span", { class: "rang__texte", texte: poste.libelle, title: poste.libelle }),
     ]);
     return el("div", { class: "rang" + (o.absent ? " rang--absent" : "") }, [
       libelle,
@@ -2353,10 +2507,7 @@
 
     const entete = el("header", { class: "entete" }, [
       el("div", { class: "bande bande--titre" }, [
-        el("span", { class: "marque" }, [
-          el("span", { class: "marque__point", "aria-hidden": "true" }),
-          el("span", { texte: "Tableau de bord" }),
-        ]),
+        el("span", { class: "marque" }, [logo(), el("span", { texte: "Pastory" })]),
         onglets,
         el("div", { class: "pousse", id: "signalements" }),
       ]),

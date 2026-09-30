@@ -6,7 +6,7 @@ statut ne prouve rien non plus.
 
 from __future__ import annotations
 
-from dashboard_tr.adaptateurs.trade_republic.classement import (
+from pastory.adaptateurs.trade_republic.classement import (
     TYPES_ECARTES,
     TYPES_HORS_PERIMETRE,
     TYPES_TRAITES,

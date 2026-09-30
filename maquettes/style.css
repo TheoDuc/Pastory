@@ -1,6 +1,6 @@
 /* Feuille de style des maquettes de l'étape 8 — troisième version.
  *
- * ELLE EST LE LIVRABLE. À l'étape 9 elle devient `dashboard_tr/vues/assets/dashboard.css`
+ * ELLE EST LE LIVRABLE. À l'étape 9 elle devient `pastory/vues/assets/pastory.css`
  * telle quelle : seule la structure HTML sera retranscrite en composants Dash (D-31).
  *
  * Style voulu par le propriétaire : crème et beige, papier, typographie soignée,
@@ -261,13 +261,32 @@ body {
   color: var(--bandeau-encre);
 }
 
-/* Un point sauge : la seule note de couleur de la manchette. */
-.marque__point {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--gain-clair);
+/* LE LOGO, TEMPORAIRE. Il a pris la place du point sauge qui précédait le mot.
+   Clair sur le bandeau d'encre : c'est lui qui porte maintenant la présence de la
+   manchette. Le trait reste en encre et non en sauge — la sauge veut dire « gain »
+   partout ailleurs, et un logo vert se lirait comme un état du portefeuille.
+   La règle de taille n'est pas cosmétique : un SVG sans dimension remplit la page. */
+.logo {
+  width: 21px;
+  height: 21px;
   flex: none;
+  display: block;
+}
+
+.logo__papier {
+  fill: var(--bandeau-encre);
+}
+
+.logo__trait {
+  fill: none;
+  stroke: var(--bandeau);
+  stroke-width: 2.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.logo__point {
+  fill: var(--bandeau);
 }
 
 .pousse {
@@ -951,27 +970,40 @@ tr.sans-valeur td {
   stroke-dasharray: 3 3;
 }
 
+/* LA BOÎTE DE LECTURE DU GRAPHIQUE. Elle SUIT la souris, sur le graphique.
+   C'est l'arbitrage du propriétaire, contre la recommandation, et sa raison est bonne :
+   descendre les yeux hors du graphique pour lire un chiffre casse la lecture, et on
+   regarde une courbe pour la suivre. Elle a d'abord été un bandeau posé sous la courbe,
+   qui ne recouvrait rien — les deux raisons sont gardées au §3.2 de
+   docs/conception-interface.md, pour que l'étape 9 ne refasse pas le tour.
+
+   `pointer-events: none` n'est pas un détail de confort : sans lui, la boîte intercepte
+   le `mousemove` dès qu'elle passe sous le curseur, et la lecture se fige.
+   Le décalage et la bascule près des bords sont dans `maquette.js`. */
 .infobulle {
   position: absolute;
   z-index: 20;
-  top: 4px;
+  left: 0;
+  top: 0;
   pointer-events: none;
   background: var(--papier);
   border: 1px solid var(--trait-fort);
   border-radius: var(--rayon);
-  box-shadow: 0 4px 14px rgba(70, 58, 40, 0.16);
-  padding: 8px 10px;
-  font-size: 12px;
-  min-width: 196px;
+  box-shadow: 0 4px 14px rgba(70, 58, 40, 0.22);
+  padding: 8px 11px;
+  font-size: 12.5px;
+  min-width: 208px;
 }
 
 .infobulle__date {
   font-family: var(--serif);
+  font-size: 13.5px;
   font-weight: 600;
+  color: var(--encre);
   display: block;
   margin-bottom: 5px;
   padding-bottom: 4px;
-  border-bottom: 1px solid var(--trait);
+  border-bottom: 1px solid var(--trait-fort);
 }
 
 .infobulle__ligne {
@@ -989,6 +1021,7 @@ tr.sans-valeur td {
 
 .infobulle__ligne b {
   margin-left: auto;
+  font-size: 13px;
   color: var(--encre);
   font-variant-numeric: tabular-nums lining-nums;
   font-weight: 600;
@@ -1139,7 +1172,7 @@ tr.sans-valeur td {
 
 .rang {
   display: grid;
-  grid-template-columns: minmax(150px, 1.5fr) minmax(90px, 3fr) auto auto;
+  grid-template-columns: minmax(186px, 1.5fr) minmax(90px, 3fr) auto auto;
   align-items: center;
   gap: 10px;
   padding: 5px 0;
@@ -1157,6 +1190,17 @@ tr.sans-valeur td {
   gap: 7px;
   min-width: 0;
   color: var(--encre-douce);
+}
+
+/* Le créneau du repère. Sa largeur est celle du plus large des trois — le planisphère —
+   pour que le bord gauche des libellés soit droit d'un bout à l'autre d'une liste, y
+   compris entre les postes et le bloc « ce qui n'entre pas dans cette répartition ». */
+.rang__repere {
+  width: 32px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .rang__texte {
@@ -1189,6 +1233,28 @@ tr.sans-valeur td {
   flex: none;
   color: var(--encre-tres-douce);
   display: block;
+}
+
+/* Le planisphère des zones, à la place du globe que TOUTES portaient. Il est un peu
+   plus large qu'un drapeau : à 20 px, l'Europe et le Japon ne se distinguent plus.
+   La règle de taille ci-dessus vaut pour lui aussi.
+   Il ne s'appelle PAS « carte » : ce nom est déjà celui des cartes d'actifs de la
+   synthèse, et une deuxième règle `.carte` en écraserait la largeur et la hauteur. */
+.planisphere {
+  width: 32px;
+  height: 20.9px;
+  flex: none;
+  display: block;
+}
+
+/* Les terres qui ne sont pas dans la zone de la ligne : présentes, pour que la forme
+   allumée se situe, et assez pâles pour ne pas se lire comme une part. */
+.planisphere__terre {
+  fill: var(--trait-fort);
+}
+
+.planisphere__zone {
+  fill: var(--encre);
 }
 
 .rang__piste {

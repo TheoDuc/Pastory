@@ -7,7 +7,7 @@ commencer.
 > **À mettre à jour par l'instance qui termine une étape**, avant la fusion dans `main`. La
 > dernière section dit comment.
 >
-> Dernière mise à jour : **2026-09-30**, fin de la conception (étape 8).
+> Dernière mise à jour : **2026-09-30**, début de l'étape 8 bis (renommage en Pastory, et la lecture du graphique passée sous la courbe).
 
 ---
 
@@ -26,7 +26,7 @@ On attaque l'étape 8 bis : les compléments de décision.
   vivent dans [maquettes/](../maquettes/) : de vrais fichiers HTML et CSS, ouvrables tels quels, avec
   un portefeuille fictif d'utilisateur type et quatre jeux de données commutables. Cinq onglets :
   Synthèse, Les actifs, Diversification, Frais et taxes, Détail des calculs. **La feuille de style
-  deviendra `dashboard_tr/vues/assets/dashboard.css` telle quelle** ([D-31](decisions.md)) : c'est
+  deviendra `pastory/vues/assets/pastory.css` telle quelle** ([D-31](decisions.md)) : c'est
   le livrable, pas une illustration.
 - **Prochaine : étape 8 bis**, les compléments de décision. Trois choses, et la première est du
   code : **D-72** (la source de secours par actif), **Q-48** et **Q-49** à trancher, et le
@@ -43,8 +43,8 @@ On attaque l'étape 8 bis : les compléments de décision.
 | [format-pivot.md](format-pivot.md) | **Le contrat** : les opérations (§1 à §8) et la photo du portefeuille (§9) |
 | [architecture.md](architecture.md) | Les couches, leurs frontières, le trajet d'un chiffre |
 | [glossaire.md](glossaire.md) | Chaque formule, dont le gain, le TRI, le TWRR (§4, §5), les coûts (§6), la diversification (§8) |
-| `dashboard_tr/` | Le moteur complet : pivot, adaptateur, données externes, paramètres, moteur, `cli.py` (12 commandes) |
-| [decisions.md](decisions.md) | D-01 à D-73. L'étape 8 a ajouté **D-73** (les frais en trois niveaux) |
+| `pastory/` | Le moteur complet : pivot, adaptateur, données externes, paramètres, moteur, `cli.py` (12 commandes) |
+| [decisions.md](decisions.md) | D-01 à D-74. L'étape 8 a ajouté **D-73** (les frais en trois niveaux), l'étape 8 bis **D-74** (le nom Pastory) |
 
 **Ce qui n'existe pas encore :** le branchement de l'interface sur le moteur (étape 9), et les trois
 compléments de l'étape 8 bis.
@@ -77,9 +77,35 @@ par ligne**. Il faut donc un champ de plus dans `CompositionDUnActif`
 
 ### Ce que les relectures ont appris, et qui vaut pour l'étape 9
 
-Sept passes de relecture par le propriétaire. Les pièges trouvés sont tous des pièges **d'affichage
+Neuf passes de relecture par le propriétaire. Les pièges trouvés sont tous des pièges **d'affichage
 qui font douter des chiffres** :
 
+- **la boîte de lecture du graphique a été essayée dans TROIS arrangements**, et c'est le plus
+  instructif des allers-retours de l'étape 8. (1) Infobulle en haut du cadre : elle masquait le haut
+  de la courbe, l'endroit même qu'on regarde. (2) Bandeau sous la courbe, hauteur réservée, ne
+  recouvrant rien : jugé « trop en retrait », puis écarté pour une raison meilleure — **descendre
+  les yeux hors du graphique pour lire un chiffre casse la lecture**. (3) Retenu : une boîte **sur**
+  le graphique qui **suit la souris**, décalée du curseur et basculant près des bords, étroite et
+  verticale pour ne masquer qu'une bande fine. C'est l'utilisateur qui la déplace. Les trois sont
+  gardés au §3.2 de [conception-interface.md](conception-interface.md) avec leurs raisons :
+  **ne pas recommencer le tour.** Leçon générale : sur un graphique, *ne rien recouvrir* pèse moins
+  que *ne pas faire bouger les yeux* ;
+- **un repère répété à l'identique n'est pas un repère** : les cinq zones géographiques portaient
+  toutes le même globe. Elles portent maintenant un **planisphère** dont leur part du monde est
+  remplie d'encre. Ce qui en sort : un repère de ce genre **situe, il ne mesure pas** — il allume des
+  continents entiers là où une zone ne suit pas leurs contours — et il doit le dire ; et le Japon
+  comme la Nouvelle-Zélande sont dessinés **plus grands que l'échelle**, sans quoi ils font un pixel
+  et disparaissent au moment même où on les allume ;
+- **un nouveau repère plus large casse deux choses d'un coup** : le planisphère faisait 15 px de plus
+  qu'un pictogramme, ce qui a (1) tronqué « Asie-Pacifique développée » à la largeur minimale de sa
+  colonne — le défaut de l'étape 7, revenu par une autre porte — et (2) dentelé le bord gauche des
+  libellés d'une même liste. D'où la colonne élargie, le créneau de repère à largeur fixe, et le
+  `title` sur chaque libellé ;
+- **`.carte` était déjà pris.** Le planisphère s'est d'abord appelé `.carte`, qui est le nom des
+  cartes d'actifs de la synthèse : sa règle de largeur et de hauteur écrasait la leur. Il s'appelle
+  `.planisphere`. **Un contrôle automatique l'a trouvé** — celui qui compare les classes posées par
+  `maquette.js` aux sélecteurs de `style.css` et signale les sélecteurs définis deux fois. À
+  réécrire au besoin : il n'est pas dans le dépôt ;
 - **`var()` n'est pas interprété dans un attribut SVG** (Chrome, Safari). Toutes les couleurs des
   graphiques étaient invalides, et l'anneau ne montrait pas les couleurs de ses poches. Règle : une
   couleur posée en **attribut SVG** s'écrit en clair, une couleur posée en **CSS** passe par la
@@ -112,6 +138,22 @@ temporaire de la session, pas dans le dépôt : les réécrire au besoin.
 
 ## À savoir pour travailler sur cette machine
 
+- **Le logo est temporaire**, et dessiné en SVG dans `maquette.js` (`logo()`) : une page, et dessus
+  une valeur qui monte. Il est **clair sur le bandeau d'encre**, et son trait est en **encre, pas en
+  sauge** — la sauge veut dire « gain » partout ailleurs, et un logo vert se lirait comme un état du
+  portefeuille. La manchette a donc perdu la note de couleur que portait le point sauge.
+- **L'application s'appelle Pastory** ([D-74](decisions.md)), et plus « DashBoard Trade
+  Republic ». Le paquet est `pastory/`, la commande est `uv run pastory …`, le dossier personnel
+  de l'utilisateur est `Pastory`. **Le nom « Trade Republic » ne subsiste que là où il désigne la
+  banque** : l'adaptateur, l'export, la documentation des données. Deux choses restent à faire
+  **par le propriétaire, hors dépôt** : renommer le dépôt GitHub et le dossier local du projet.
+  *Attention en relisant les vieux documents :* `notes-initiales.md` cite volontairement l'ancien
+  nom deux fois, parce qu'il y désigne un fichier PDF et un souvenir — ne pas les « corriger ».
+- **`uv run` peut échouer deux fois de suite sur OneDrive, puis réussir.** Dès que
+  `pyproject.toml` change, uv réinstalle le projet et bute sur OneDrive : d'abord
+  `failed to hardlink` (os error 396), puis `failed to remove directory … Accès refusé`
+  (os error 5). Remède : `$env:UV_LINK_MODE = "copy"`, puis **relancer la même commande** — la
+  deuxième passe. Ce n'est pas un échec des tests, et le message le dit mal.
 - **`uv` a besoin de `--native-tls`** : l'antivirus Norton inspecte le trafic chiffré, et le jeu de
   certificats par défaut ne le reconnaît pas. `uv sync --native-tls`, `uv run --native-tls …`.
 - **L'antivirus peut couper Claude Code en pleine session.** Le 2026-09-26, **Avast WebShield** a
@@ -164,9 +206,9 @@ temporaire de la session, pas dans le dépôt : les réécrire au besoin.
   `waf_token="playwright"`, qui exige un navigateur — écrire `login(v2=True, waf_token="default")` ;
   et `login()` se termine par un `log.debug` du **JSON complet du compte**, d'où le filtre posé par
   `museler_le_journal_de_pytr()`.
-- Commandes utiles : `uv run pytest`, `uv run ruff check .`, `uv run dashboard emplacements`.
+- Commandes utiles : `uv run pytest`, `uv run ruff check .`, `uv run pastory emplacements`.
 - Pour travailler sur un export sans le copier dans le projet :
-  `uv run dashboard lire --export <dossier>` (idem pour `positions`).
+  `uv run pastory lire --export <dossier>` (idem pour `positions`).
 - Le propriétaire **ne code pas** : il vérifie les chiffres. Tout calcul doit être refaisable à la
   main, et les options techniques lui sont présentées avec leurs avantages et inconvénients. Il
   tranche vite, et **il tranche parfois contre la recommandation avec de bonnes raisons** : c'est

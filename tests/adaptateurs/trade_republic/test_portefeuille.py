@@ -12,7 +12,7 @@ from decimal import Decimal
 
 import pytest
 
-from dashboard_tr.adaptateurs.trade_republic import portefeuille
+from pastory.adaptateurs.trade_republic import portefeuille
 
 ENTETE = "Name;ISIN;quantity;price;avgCost;netValue"
 

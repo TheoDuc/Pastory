@@ -527,19 +527,21 @@ window.MAQUETTE = (function () {
     },
   ]);
 
+  // Une zone n'a pas de drapeau : il n'en existe pas pour l'Amérique du Nord ni pour
+  // l'Asie-Pacifique. Chaque zone porte donc la liste des terres qu'elle occupe sur le
+  // planisphère de `maquette.js`, et c'est cette forme allumée qui distingue les lignes.
+  // La liste est une donnée, pas une lecture du libellé (règle 4) : à l'étape 9 elle
+  // viendra du fichier des zones, daté et corrigeable, comme les zones elles-mêmes.
   const ZONES = [
-    "Amérique du Nord",
-    "Europe",
-    "Japon",
-    "Asie-Pacifique développée",
-    "Marchés émergents",
-  ].map(function (zone) {
-    let montant = AUTRES_PAR_ZONE[zone] || 0;
-    for (const p of PAYS_TETE) if (p.zone === zone) montant += p.montant;
-    // Une zone n'a pas de drapeau : il n'en existe pas pour l'Amérique du Nord ni pour
-    // l'Asie-Pacifique. Elles portent donc TOUTES le même pictogramme — ou aucune
-    // n'en porterait. Un seul drapeau au milieu de libellés nus était le vrai défaut.
-    return { libelle: zone, icone: "zone", montant: sou(montant) };
+    { libelle: "Amérique du Nord", terres: ["amNord"] },
+    { libelle: "Europe", terres: ["europe"] },
+    { libelle: "Japon", terres: ["japon"] },
+    { libelle: "Asie-Pacifique développée", terres: ["oceanie"] },
+    { libelle: "Marchés émergents", terres: ["amSud", "afrique", "asie", "indonesie"] },
+  ].map(function (z) {
+    let montant = AUTRES_PAR_ZONE[z.libelle] || 0;
+    for (const p of PAYS_TETE) if (p.zone === z.libelle) montant += p.montant;
+    return { libelle: z.libelle, terres: z.terres, montant: sou(montant) };
   });
 
   // Les 11 secteurs Morningstar. Le dernier absorbe l'arrondi.

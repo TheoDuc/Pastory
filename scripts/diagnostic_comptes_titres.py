@@ -30,7 +30,7 @@ nécessaire. Le résultat peut être collé tel quel dans une discussion.
 Ce qu'il ne fait pas
 --------------------
 Il ne **lit** que les réglages du compte : aucun ordre, aucun fichier écrit, aucune
-donnée enregistrée. Comme `dashboard rafraichir`, il ne manipule aucun identifiant
+donnée enregistrée. Comme `pastory rafraichir`, il ne manipule aucun identifiant
 (D-41) : c'est pytr qui demande le numéro et le PIN, la saisie du PIN étant masquée.
 
     ATTENTION : en tapant le PIN, rien ne s'affiche. C'est normal.

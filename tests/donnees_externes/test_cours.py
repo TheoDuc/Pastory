@@ -11,8 +11,8 @@ from __future__ import annotations
 from datetime import date as Date
 from decimal import Decimal
 
-from dashboard_tr.config.actifs import Declaration
-from dashboard_tr.donnees_externes.cours import (
+from pastory.config.actifs import Declaration
+from pastory.donnees_externes.cours import (
     DeviseInattendue,
     FournisseurDeCours,
     ReponseIncoherente,
@@ -102,7 +102,7 @@ class TestRefus:
 
         refus = leur_fournisseur.refus
         assert [un_refus.categorie for un_refus in refus] == ["actif non déclaré"]
-        assert "dashboard actifs" in refus[0].motif
+        assert "pastory actifs" in refus[0].motif
 
     def test_un_cours_trop_vieux_est_refuse_plutot_que_reutilise(self):
         # Au-delà du recul maximal, ce n'est plus un jour férié : c'est un actif qui ne cote
@@ -205,7 +205,7 @@ class TestHorsLigne:
 
         assert leur_fournisseur.cours(ACTIF, VENDREDI) is None
         assert source.appels == []
-        assert "dashboard cours" in leur_fournisseur.refus[0].motif
+        assert "pastory cours" in leur_fournisseur.refus[0].motif
 
     def test_sans_source_le_fournisseur_est_hors_ligne(self):
         # Le cas de l'interface qui s'ouvre : aucune source branchée, donc aucun appel

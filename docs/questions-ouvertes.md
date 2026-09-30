@@ -80,37 +80,6 @@ traiter ce qui est courant **chez cette banque**, et non ce que détient le prop
 [D-72](decisions.md)) montre qu'une source l'indique de façon fiable ; sinon (a), en corrigeant les
 trois documents. Trancher après la recherche évite de promettre deux fois la même chose.
 
-### Q-49 · La retenue sur dividendes est-elle un coût d'entrée ?
-*Ouverte le 2026-09-30, par le propriétaire en relisant l'onglet « Frais et taxes ».*
-
-**Le constat.** Les trois niveaux retenus par [Q-21](#q-21--comment-présenter-les-frais-et-les-taxes-)
-se lisent comme une **chronologie** : ce qu'on paie en entrant, ce qui court pendant qu'on
-détient, ce qu'il resterait en sortant. Or la **retenue à la source sur les dividendes** est
-aujourd'hui dans le premier niveau, alors qu'elle est prélevée **pendant la détention**, à chaque
-versement. Le propriétaire a buté dessus, ce qui est le meilleur des signaux.
-
-**D'où ça vient.** La proposition d'origine de Q-21 rangeait « taxes sur dividendes » dans les
-coûts d'entrée. Elle suivait un autre découpage, implicite : le premier niveau rassemblait le
-**réel** — ce qui a été prélevé — et les deux suivants l'**estimé**. Les deux lectures sont
-défendables, et elles ne donnent pas le même écran.
-
-**Options :**
-- (a) **Garder une chronologie**, et déplacer la retenue au niveau 2, où elle se produit. Le
-  niveau 2 mélangerait alors un coût réel et une estimation (le TER), ce que
-  [D-17](decisions.md) interdit de confondre — il faudrait donc les séparer visiblement à
-  l'intérieur du bloc.
-- (b) **Assumer que le premier niveau est « ce qui a déjà été prélevé »**, quel qu'en soit le
-  moment, et le renommer ainsi. C'est ce qui est en place depuis le 2026-09-30, avec un « ? » qui
-  l'explique. La séparation réel / estimé de D-17 est alors portée par le découpage lui-même.
-- (c) **Quatre niveaux** : entrée, détention réelle, détention estimée, sortie. Plus juste, plus
-  lourd.
-
-**Recommandation :** (b). Une chronologie dont la première étape contient un événement postérieur
-trompe le lecteur — c'est exactement ce qui vient de se produire. Et la séparation qui compte le
-plus dans ce projet n'est pas *quand* un coût tombe, mais **s'il a été payé ou s'il est estimé**
-([D-17](decisions.md)) : autant que le découpage la porte. À confirmer, le « ? » actuel décrivant
-déjà (b).
-
 ---
 
 ## Tranchées
@@ -266,3 +235,14 @@ pour répondre à une seule question — combien tout cela coûte.
 
 Cette lecture a immédiatement produit **Q-49** : si les trois niveaux sont une chronologie, la
 retenue sur dividendes n'est pas au bon endroit.
+
+### Lot 9 (2026-09-30) — la place de la retenue sur dividendes
+
+| Question | Réponse | Retenu | Décision |
+|---|---|---|---|
+| Q-49 La retenue sur dividendes est-elle un coût d'entrée ? | b | **Le premier niveau est « ce qui a déjà été prélevé »**, quel qu'en soit le moment, et il est nommé ainsi. La retenue y reste. Le découpage porte donc la séparation réel / estimé de D-17, et non une chronologie | D-75 |
+
+Le propriétaire a suivi la recommandation. Ce qui est écarté : (a), la chronologie stricte, qui
+aurait descendu la retenue au niveau 2 en y mélangeant un coût réel et une estimation ; et (c), un
+quatrième niveau, qui aurait défait le bénéfice de [D-73](decisions.md) — un seul écran qui se lit
+d'un trait.

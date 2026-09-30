@@ -10,8 +10,8 @@ from __future__ import annotations
 from datetime import date as Date
 from decimal import Decimal
 
-from dashboard_tr.config.actifs import Configuration, Declaration, TypeActif
-from dashboard_tr.donnees_externes.composition import (
+from pastory.config.actifs import Configuration, Declaration, TypeActif
+from pastory.donnees_externes.composition import (
     SOURCE_DECLAREE,
     Composition,
     CompositionIndisponible,
@@ -19,7 +19,7 @@ from dashboard_tr.donnees_externes.composition import (
     Part,
     grouper_refus,
 )
-from dashboard_tr.donnees_externes.cours import SourceInjoignable
+from pastory.donnees_externes.cours import SourceInjoignable
 
 AUJOURD_HUI = Date(2026, 9, 27)
 ETF = "XX0000000ETF"
@@ -195,7 +195,7 @@ class TestLesRefusSontLisibles:
         assert fournisseur.composition(ETF) is None
         (refus,) = fournisseur.refus
         assert refus.categorie == "actif non déclaré"
-        assert "dashboard actifs" in refus.motif
+        assert "pastory actifs" in refus.motif
 
     def test_un_type_non_declare_dit_quoi_ecrire(self):
         declaration = Declaration(ticker="AAAA.DE", devise="EUR")

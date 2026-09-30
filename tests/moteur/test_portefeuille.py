@@ -10,8 +10,8 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-from dashboard_tr.moteur.portefeuille import Portefeuille
-from dashboard_tr.pivot.operation import Poche, TypeOperation
+from pastory.moteur.portefeuille import Portefeuille
+from pastory.pivot.operation import Poche, TypeOperation
 from tests.moteur.operations_fictives import operation
 
 AUTRE_ACTIF = "XX0000000002"

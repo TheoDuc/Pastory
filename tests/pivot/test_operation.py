@@ -8,7 +8,7 @@ from decimal import Decimal
 
 import pytest
 
-from dashboard_tr.pivot.operation import Provenance, jour_a_paris
+from pastory.pivot.operation import Provenance, jour_a_paris
 from tests.pivot import exemples
 
 

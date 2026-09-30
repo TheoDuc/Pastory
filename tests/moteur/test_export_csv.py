@@ -11,12 +11,12 @@ import csv
 from datetime import date
 from decimal import Decimal
 
-from dashboard_tr import tableur
-from dashboard_tr.moteur import diversification, export_csv, valorisation
-from dashboard_tr.moteur.portefeuille import Portefeuille
-from dashboard_tr.moteur.rendements import Periode, synthese
-from dashboard_tr.parametres import referentiels
-from dashboard_tr.pivot.operation import Poche, TypeOperation
+from pastory import tableur
+from pastory.moteur import diversification, export_csv, valorisation
+from pastory.moteur.portefeuille import Portefeuille
+from pastory.moteur.rendements import Periode, synthese
+from pastory.parametres import referentiels
+from pastory.pivot.operation import Poche, TypeOperation
 from tests.moteur.compositions_fictives import (
     CompositionFictive,
     SourceDeCompositionFictive,

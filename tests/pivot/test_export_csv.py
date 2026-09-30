@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import csv
 
-from dashboard_tr.pivot import export_csv
+from pastory.pivot import export_csv
 from tests.pivot import exemples
 
 

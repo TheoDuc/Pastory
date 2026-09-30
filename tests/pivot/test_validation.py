@@ -12,9 +12,9 @@ from decimal import Decimal
 
 import pytest
 
-from dashboard_tr.pivot import validation
-from dashboard_tr.pivot.operation import Provenance
-from dashboard_tr.pivot.validation import controler, controler_toutes
+from pastory.pivot import validation
+from pastory.pivot.operation import Provenance
+from pastory.pivot.validation import controler, controler_toutes
 from tests.pivot import exemples
 
 

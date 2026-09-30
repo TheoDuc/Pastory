@@ -13,8 +13,8 @@ from io import BytesIO
 
 import pytest
 
-from dashboard_tr.donnees_externes import xetra
-from dashboard_tr.donnees_externes.cours import ErreurDeSource
+from pastory.donnees_externes import xetra
+from pastory.donnees_externes.cours import ErreurDeSource
 
 ETF = "IE00EXEMPLE001"
 ETF_DIST = "IE00EXEMPLE002"

@@ -9,15 +9,15 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-from dashboard_tr.moteur.position import (
+from pastory.moteur.position import (
     EtatPosition,
     Position,
     appliquer,
     arrondi_au_centime,
     construire_positions,
 )
-from dashboard_tr.pivot.operation import Poche, TypeOperation
-from dashboard_tr.pivot.validation import controler
+from pastory.pivot.operation import Poche, TypeOperation
+from pastory.pivot.validation import controler
 from tests.moteur.operations_fictives import enchainement_du_glossaire, operation
 
 

@@ -388,7 +388,7 @@ signalée, et `exporter-pivot` s'arrête **sans écrire de fichier** en disant q
 **Raison :** un classement par défaut mettrait des chiffres faux dans la bonne colonne, ce qui
 est pire que pas de chiffre du tout : rien ne signalerait l'erreur. Cohérent avec D-08.
 **Écarte :** supposer « CTO » pour un compte non nommé.
-**Contrepartie assumée :** `dashboard comptes` est une étape obligatoire au premier lancement.
+**Contrepartie assumée :** `pastory comptes` est une étape obligatoire au premier lancement.
 Le libellé « Portfolio » de l'écran ne sert qu'à **contrôler** la poche, jamais à la décider :
 c'est un texte (D-09), et un désaccord avec le compte part au rapport.
 **Précisions ajoutées après relecture :** l'assistant réécrit le fichier entier, donc il y
@@ -399,7 +399,7 @@ de compte d'un export qui n'est pas le sien appartiennent à quelqu'un d'autre (
 CLAUDE.md).
 
 ### D-41 · 2026-09-18 · `rafraichir` ne manipule aucun identifiant · Validée
-**Décision :** `dashboard rafraichir` appelle pytr **sans** `-n`, **sans** `-p` et **sans**
+**Décision :** `pastory rafraichir` appelle pytr **sans** `-n`, **sans** `-p` et **sans**
 `--store_credentials`. C'est pytr qui demande lui-même le numéro et le PIN, la saisie du PIN
 étant masquée. Rien n'est enregistré.
 **Raison :** c'est le plus sûr des trois modes de [D-25](#d-25), et il se trouve qu'il est
@@ -504,7 +504,7 @@ titres entrés sans événement. Le moteur seul ne peut pas les retrouver.
   additionnées toutes poches confondues, la banque ne listant que des ISIN ;
 - **le prix de revient de la banque est une information** : affiché à côté du nôtre, étiqueté,
   il ne déclenche jamais d'alerte ;
-- la récupération est une **commande à part**, `dashboard positions-reelles`.
+- la récupération est une **commande à part**, `pastory positions-reelles`.
 
 Deux précautions, ajoutées après la relecture indépendante de l'étape :
 
@@ -743,7 +743,7 @@ dont le comparatif est dans [couts-et-fiscalite.md](couts-et-fiscalite.md).*
 
 ### D-55 · 2026-09-27 · Le type d'un actif est déclaré par l'utilisateur, jamais deviné · Validée
 **Décision :** le type d'un actif — `etf`, `action` ou `crypto` — est **déclaré** dans
-`actifs.toml`, à côté du ticker. L'assistant `dashboard actifs` le **propose** (la recherche de la
+`actifs.toml`, à côté du ticker. L'assistant `pastory actifs` le **propose** (la recherche de la
 source de cours l'annonce), l'utilisateur **valide**. Une crypto l'est d'office par sa poche
 ([D-16](#d-16)). Le type **n'entre pas dans le format pivot** : il ne décrit pas une opération, il
 sert à choisir un taux d'estimation.
@@ -798,7 +798,7 @@ poche.
 
 ### D-58 · 2026-09-27 · Un taux est une valeur, une date et une source · Validée
 **Décision :** les taux fiscaux et les paramètres de coûts vivent dans deux fichiers TOML
-**versionnés** (`dashboard_tr/parametres/fiscalite.toml` et `couts.toml`). Chaque paramètre porte
+**versionnés** (`pastory/parametres/fiscalite.toml` et `couts.toml`). Chaque paramètre porte
 `valeur`, `unite`, `en_vigueur_depuis`, `source` (le texte de loi ou la mesure, avec son adresse)
 et `verifie_le`. **Un paramètre sans date ou sans source est refusé à la lecture.** Le rapport
 cite, sous chaque impôt estimé, le taux employé et d'où il vient.
@@ -929,7 +929,7 @@ on ne connaîtrait que les lignes n'est pas affiché.
 ### D-65 · 2026-09-27 · Une seule nomenclature sectorielle, nommée : les 11 secteurs Morningstar · Validée
 **Décision :** les secteurs sont les **11 secteurs de niveau 1 de Morningstar**, désignés comme
 tels à l'écran — **jamais** le mot « GICS ». La table code → libellé français vit dans
-`dashboard_tr/parametres/secteurs.toml`, avec sa source et sa date ([D-58](#d-58)). **Aucun
+`pastory/parametres/secteurs.toml`, avec sa source et sa date ([D-58](#d-58)). **Aucun
 rapprochement par libellé**, et aucune addition de deux nomenclatures.
 **Raison :** [Q-41](questions-ouvertes.md). **Aucune source gratuite interrogeable par ISIN ne
 donne du GICS**, alors que les indices suivis sont bâtis sur GICS ou sur ICB. Morningstar est la
@@ -964,7 +964,7 @@ américain — même famille d'erreur qu'un ISIN lu dans la colonne du nom, à l
 ### D-67 · 2026-09-27 · Les zones sont une liste datée et sourcée, pas une notion · Validée
 **Décision :** les pays sont regroupés en **zones d'investisseur** — Amérique du Nord, Europe,
 Japon, Asie-Pacifique développée, marchés émergents — et la liste des pays de chaque zone vit dans
-`dashboard_tr/parametres/zones.toml`, avec sa **source et sa date**. Elle est corrigeable sans
+`pastory/parametres/zones.toml`, avec sa **source et sa date**. Elle est corrigeable sans
 toucher au code.
 **Raison :** [Q-43](questions-ouvertes.md). C'est le vocabulaire des outils du marché, donc celui
 dont l'utilisateur a besoin pour juger sa diversification. Le découpage « neutre » des Nations
@@ -1102,3 +1102,48 @@ découpage.
 séparation est portée par le découpage lui-même, le premier niveau étant le réel et les deux
 suivants l'estimé. C'est d'ailleurs ce qui a ouvert [Q-49](questions-ouvertes.md), sur la place de
 la retenue à la source des dividendes.
+
+---
+
+### D-74 · 2026-09-30 · L'application s'appelle Pastory · Validée
+**Décision :** le nom de l'application est **Pastory**. Il remplace « DashBoard Trade Republic »
+partout : le paquet Python (`pastory/`), la commande unique (`uv run pastory …`), le nom de
+distribution, la feuille de style livrée (`pastory/vues/assets/pastory.css`, [D-31](#d-31)), le
+bandeau de l'interface, le dossier personnel de l'utilisateur, et la documentation.
+**Raison :** arbitrage du propriétaire. « DashBoard Trade Republic » décrivait un outil attaché à
+une banque, alors que le moteur ne lit que le format pivot et que Trade Republic n'est **qu'un
+adaptateur** ([D-26](#d-26)) : un nom propre est cohérent avec cette architecture, et il le reste
+le jour où un deuxième adaptateur existe.
+**Écarte :** garder le nom de la banque dans celui de l'application. Le nom « Trade Republic »
+subsiste **là où il désigne la banque** — l'adaptateur `pastory/adaptateurs/trade_republic/`, les
+messages qui parlent de l'export, la documentation des données — et nulle part ailleurs.
+**Conséquence sur les fichiers de l'utilisateur :** le dossier personnel ([D-37](#d-37)) s'appelle
+désormais `Pastory` au lieu de `DashBoardTradeRepublic`, et la variable d'emplacement
+`PASTORY_DOSSIER` au lieu de `DASHBOARD_TR_DOSSIER`. **Rien n'est déplacé automatiquement** : un
+cours en cache est définitif ([D-50](#d-50)), et le déplacer en silence reviendrait à changer des
+chiffres dans le dos de l'utilisateur. L'application **signale** l'ancien dossier — dans
+`pastory emplacements`, et dans l'erreur d'export introuvable quand l'ancien dossier en contient un
+— et laisse l'utilisateur décider. C'est une application de [la règle 6](../CLAUDE.md) : toute
+déduction est explicite et signalée.
+**Reste à faire par le propriétaire, hors dépôt :** renommer le dépôt GitHub
+(`Dashboard-Trade-Republic`) et le dossier local du projet (`DashBoard-Trade_Republic`). Ni l'un ni
+l'autre n'est touché par le code, et les renommer depuis une session de travail casserait le
+chemin courant.
+
+### D-75 · 2026-09-30 · Le premier niveau des frais est « ce qui a déjà été prélevé » · Validée
+**Décision :** le premier des trois niveaux de l'onglet « Frais et taxes » ([D-73](#d-73))
+rassemble **ce qui a déjà été prélevé**, quel qu'en soit le moment — frais d'ordre, taxes de
+transaction, et **retenue à la source sur les dividendes**, qui y reste. Il est nommé ainsi à
+l'écran, et le « ? » qui l'accompagne le dit.
+**Raison :** [Q-49](questions-ouvertes.md), ouverte par le propriétaire en butant sur la retenue.
+Le découpage en trois niveaux n'est donc **pas une chronologie** mais la séparation qui compte le
+plus ici : ce qui a été payé, ce qui est estimé pendant la détention, ce qui est estimé à la sortie
+([D-17](#d-17)). Une chronologie dont la première étape contient un événement postérieur trompe le
+lecteur, et c'est exactement ce qui vient de se produire.
+**Écarte :** (a) la chronologie stricte, qui aurait descendu la retenue au niveau 2 en y mélangeant
+un coût réel et une estimation — ce que D-17 interdit de confondre, et qu'il aurait fallu séparer à
+l'intérieur du bloc ; (c) un quatrième niveau (entrée, détention réelle, détention estimée,
+sortie), plus juste sur les deux axes mais qui défait le bénéfice de [D-73](#d-73) : un seul écran
+qui se lit d'un trait.
+**Conséquence pour l'étape 9 :** le titre du niveau dit le critère, jamais le moment. Écrire
+« Déjà prélevé » ou « Ce qui a déjà été prélevé », et **pas** « À l'achat » ni « En entrant ».

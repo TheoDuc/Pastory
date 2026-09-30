@@ -16,8 +16,8 @@ from decimal import Decimal
 
 import pytest
 
-from dashboard_tr.config import ConfigurationInvalide
-from dashboard_tr.config.actifs import (
+from pastory.config import ConfigurationInvalide
+from pastory.config.actifs import (
     CONTENUS_ACCEPTES,
     Configuration,
     ContenuActif,
@@ -28,7 +28,7 @@ from dashboard_tr.config.actifs import (
     charger,
     modele,
 )
-from dashboard_tr.parametres.referentiels import charger_classes
+from pastory.parametres.referentiels import charger_classes
 
 ACTIF = "XX0000000001"
 AUTRE_ACTIF = "XX0000000002"
@@ -43,7 +43,7 @@ def ecrire(tmp_path, contenu):
 
 class TestLecture:
     def test_un_fichier_absent_donne_une_configuration_vide(self, tmp_path):
-        # Le premier lancement, avant `dashboard actifs` : ce n'est pas une erreur ici.
+        # Le premier lancement, avant `pastory actifs` : ce n'est pas une erreur ici.
         assert charger(tmp_path / "rien.toml").declarations == {}
 
     def test_une_declaration_complete_est_lue(self, tmp_path):

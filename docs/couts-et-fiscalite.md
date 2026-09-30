@@ -19,7 +19,7 @@ tout aujourd'hui ». La dernière section dit ce que le propriétaire a tranché
 > **Sur la fiscalité, le propriétaire n'a pas de relecteur expert** (dit le 2026-09-27) : les
 > taux retenus reposent sur les textes officiels cités, dont le principal a été recoupé sur
 > impots.gouv.fr. Ils vivent dans un fichier de paramètres daté et sourcé
-> (`dashboard_tr/parametres/fiscalite.toml`) : une correction ne touche pas au code.
+> (`pastory/parametres/fiscalite.toml`) : une correction ne touche pas au code.
 
 ---
 
@@ -210,7 +210,7 @@ régime d'exécution ont changé en cours d'histoire ; deviner ferait pire que l
 
 Sources officielles seulement : Légifrance (CGI, CSS, CMF), BOFiP, impots.gouv.fr,
 service-public.fr. Toutes lues le 2026-09-27 ; les adresses sont dans
-`dashboard_tr/parametres/fiscalite.toml`.
+`pastory/parametres/fiscalite.toml`.
 
 ### 5.1 Les taux 2026
 
@@ -342,7 +342,7 @@ priori aucun pour un résident français).
 
 ## 6. Les paramètres retenus
 
-Ils vivent dans `dashboard_tr/parametres/couts.toml` et `dashboard_tr/parametres/fiscalite.toml`,
+Ils vivent dans `pastory/parametres/couts.toml` et `pastory/parametres/fiscalite.toml`,
 chacun avec sa valeur, sa date d'entrée en vigueur, sa source et la date de vérification
 ([D-58](decisions.md)).
 

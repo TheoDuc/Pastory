@@ -47,7 +47,7 @@ L'ébauche de cette section a été reprise, complétée et validée : le format
 
 ## 3. Adaptateur Trade Republic — **écrit à l'étape 2**
 
-Réalisé dans `dashboard_tr/adaptateurs/trade_republic/`, en couches testables séparément.
+Réalisé dans `pastory/adaptateurs/trade_republic/`, en couches testables séparément.
 Ce que l'écriture a confirmé, et ce qu'elle a changé :
 
 - **Classement explicite de chaque `eventType`** en quatre catégories : traité, hors périmètre
@@ -57,7 +57,7 @@ Ce que l'écriture a confirmé, et ce qu'elle a changé :
   événements de titres reçus n'ont **aucun champ `status`**. La règle est donc « un statut
   présent doit valoir `EXECUTED` », pas « le statut doit être présent et valoir `EXECUTED` »
   (inventaire §11.10).
-- **Rapport de lecture** produit à chaque chargement ([`rapport.py`](../dashboard_tr/adaptateurs/trade_republic/rapport.py)) :
+- **Rapport de lecture** produit à chaque chargement ([`rapport.py`](../pastory/adaptateurs/trade_republic/rapport.py)) :
   comptages par catégorie, types inconnus, libellés non reconnus, désaccords. L'interface
   l'affichera (étape 9). Tout texte venu de l'écran y passe par un **garde-fou** : le titre
   d'une section contient parfois un montant réel.
@@ -95,7 +95,7 @@ Condition pour qu'un non-développeur puisse vérifier.
 
 ## 5. Moteur — **écrit à l'étape 3** (la partie qui ne dépend pas des cours)
 
-Réalisé dans `dashboard_tr/moteur/`, en couches testables séparément, comme l'adaptateur. Ce que
+Réalisé dans `pastory/moteur/`, en couches testables séparément, comme l'adaptateur. Ce que
 l'écriture a confirmé, et ce qu'elle a ajouté :
 
 - Calcule par actif puis agrège par poche et au total. Les filtres (période, poches) s'appliquent
@@ -171,7 +171,7 @@ l'écriture a confirmé, et ce qu'elle a ajouté :
   s'ouvrir sans réseau, sur les dernières données connues, et afficher leur date.
 - **Paramètres datés et sourcés**, dans des fichiers lisibles, mis à jour sans toucher au code :
   taux fiscaux par poche, spreads par défaut, frais par ordre. **Réglé à l'étape 6** : deux TOML
-  versionnés dans `dashboard_tr/parametres/`, et un paramètre sans `en_vigueur_depuis` ni `source`
+  versionnés dans `pastory/parametres/`, et un paramètre sans `en_vigueur_depuis` ni `source`
   est **refusé à la lecture** ([D-58](decisions.md)). Le rapport cite, sous chaque impôt estimé,
   le taux employé et son origine.
 - **Les frais courants des ETF (TER)** viennent de la liste publique des ETF négociables de Xetra,

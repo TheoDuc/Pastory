@@ -6,8 +6,8 @@ from datetime import date
 
 import pytest
 
-from dashboard_tr.config import ConfigurationInvalide
-from dashboard_tr.config.fiscalite import MODELE, charger
+from pastory.config import ConfigurationInvalide
+from pastory.config.fiscalite import MODELE, charger
 
 
 def ecrire(tmp_path, contenu):

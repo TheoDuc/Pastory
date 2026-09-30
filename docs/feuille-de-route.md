@@ -92,7 +92,7 @@ montant brut illisible qui passait sans alerte.
 **But :** transformer `all_events.json` en une liste propre d'opérations sur actifs **au format
 pivot**, sans rien perdre en silence. C'est l'adaptateur Trade Republic, le premier wagon.
 
-**Fait :** adaptateur complet (`dashboard_tr/adaptateurs/trade_republic/`), quatre commandes
+**Fait :** adaptateur complet (`pastory/adaptateurs/trade_republic/`), quatre commandes
 (`rafraichir`, `comptes`, `lire`, `exporter-pivot`), recoupement automatique avec le CSV, et le
 [cahier de vérification](verification/etape-2.md). Sur les deux exports disponibles : 80
 opérations produites, **zéro contrôle de cohérence en échec**, un seul événement inconnu — le
@@ -127,7 +127,7 @@ grandes sans déclencher la moindre alerte.
 le PRU, les frais, les taxes, les dividendes et les plus-values réalisées. Tout est défini dans le
 [glossaire](glossaire.md).
 
-**Fait :** moteur complet (`dashboard_tr/moteur/`), trois commandes (`positions`,
+**Fait :** moteur complet (`pastory/moteur/`), trois commandes (`positions`,
 `exporter-positions`, `positions-reelles`) et le [cahier de vérification](verification/etape-3.md).
 
 Le moteur ne produit pas qu'un résultat : il tient un **journal**, une ligne par opération avec
@@ -178,7 +178,7 @@ attendant, ils sont marqués « prix à compléter ».
 **But :** obtenir des cours fiables, actuels et historiques, gratuitement (D-18).
 
 **Fait :** le [comparatif des sources](sources-de-cours.md) — quatorze sources, 134 requêtes web —
-puis la couche `dashboard_tr/donnees_externes/`, trois commandes (`actifs`, `cours`,
+puis la couche `pastory/donnees_externes/`, trois commandes (`actifs`, `cours`,
 `oublier-cours`) et le [cahier de vérification](verification/etape-4.md).
 
 **Quatre décisions** : la source est Yahoo Finance en cours brut ([D-51](decisions.md)), la
@@ -219,7 +219,7 @@ change avec la place, dont un cas où la recherche par ISIN renvoie des dollars 
 frais ni taxes (D-21).
 
 **Fait :** deux modules dans le moteur (`valorisation.py`, `rendements.py`), deux blocs de plus
-dans `dashboard positions` (« Valeur des actifs au … » et « Les trois chiffres clés »), quatre
+dans `pastory positions` (« Valeur des actifs au … » et « Les trois chiffres clés »), quatre
 CSV de plus dans `exporter-positions` (valorisation, flux, sous-périodes du TWRR, évolution jour
 par jour), l'option `--depuis`, et le [cahier de vérification](verification/etape-5.md).
 
@@ -275,8 +275,8 @@ valeur « si on retirait tout » (D-23).
 **Fait :** trois recherches ([couts-et-fiscalite.md](couts-et-fiscalite.md) — TER, spreads et
 tarifs, fiscalité française sur sources officielles), puis trois modules dans le moteur
 (`couts.py`, `fiscalite.py`, `valeur_reelle.py`), un paquet de **paramètres datés et sourcés**
-(`dashboard_tr/parametres/`), une source de TER (`donnees_externes/xetra.py`), trois blocs de plus
-dans `dashboard positions`, deux CSV de plus, et le [cahier de vérification](verification/etape-6.md).
+(`pastory/parametres/`), une source de TER (`donnees_externes/xetra.py`), trois blocs de plus
+dans `pastory positions`, deux CSV de plus, et le [cahier de vérification](verification/etape-6.md).
 
 **Sept décisions** (D-55 à D-61). La plus structurante, [D-58](decisions.md) : **un taux est une
 valeur, une date et une source**, dans un fichier TOML versionné — sans date ni source, il est
@@ -364,7 +364,7 @@ sources examinées, onze interrogées réellement), puis `moteur/diversification
 référentiels datés et sourcés (`parametres/secteurs.toml`, `zones.toml`, `classes_actifs.toml`),
 deux sources de composition (`donnees_externes/extraetf.py` pour les fonds,
 `donnees_externes/actions.py` pour les sociétés), un cache **remplaçable**, un bloc de plus dans
-`dashboard positions`, trois CSV de plus, deux commandes (`composition`, `oublier-composition`) et
+`pastory positions`, trois CSV de plus, deux commandes (`composition`, `oublier-composition`) et
 le [cahier de vérification](verification/etape-7.md).
 
 **Neuf décisions** (D-62 à D-70). La plus large dépasse l'étape : [D-62](decisions.md), **les
@@ -452,7 +452,7 @@ présentation.
 d'utilisateur type plus large que celui du propriétaire (actions en direct, ETF obligataire, or,
 fonds non couvert, position sans cours) et quatre jeux commutables pour éprouver les écrans sur ce
 qu'il ne détient pas. Cinq onglets : Synthèse, Les actifs, Diversification, Frais et taxes, Détail
-des calculs. La feuille de style deviendra `dashboard_tr/vues/assets/dashboard.css` telle quelle
+des calculs. La feuille de style deviendra `pastory/vues/assets/pastory.css` telle quelle
 ([D-31](decisions.md)).
 
 **Q-21 est tranchée** ([D-73](decisions.md)) : les trois niveaux à la file, sur un seul écran.

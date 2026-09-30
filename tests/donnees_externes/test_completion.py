@@ -15,11 +15,11 @@ from __future__ import annotations
 from datetime import date as Date
 from decimal import Decimal
 
-from dashboard_tr.donnees_externes.completion import completer_les_prix
-from dashboard_tr.donnees_externes.cours import FournisseurDeCours
-from dashboard_tr.moteur.portefeuille import Portefeuille
-from dashboard_tr.pivot import validation
-from dashboard_tr.pivot.operation import Provenance, TypeOperation
+from pastory.donnees_externes.completion import completer_les_prix
+from pastory.donnees_externes.cours import FournisseurDeCours
+from pastory.moteur.portefeuille import Portefeuille
+from pastory.pivot import validation
+from pastory.pivot.operation import Provenance, TypeOperation
 from tests.donnees_externes.cours_fictifs import (
     ACTIF,
     AUJOURD_HUI,
@@ -147,7 +147,7 @@ class TestRefus:
         completion = completer_les_prix([titres_recus()], fournisseur({}, declarations={}))
 
         assert [refus.categorie for refus in completion.refus] == ["actif non déclaré"]
-        assert "dashboard actifs" in completion.refus[0].motif
+        assert "pastory actifs" in completion.refus[0].motif
 
     def test_rien_n_est_estime_a_zero(self):
         # L'erreur qu'il ne faut jamais commettre : un montant absent remplacé par zéro

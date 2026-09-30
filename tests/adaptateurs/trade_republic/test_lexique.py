@@ -9,14 +9,14 @@ from __future__ import annotations
 
 import pytest
 
-from dashboard_tr.adaptateurs.trade_republic import lexique
-from dashboard_tr.adaptateurs.trade_republic.lexique import (
+from pastory.adaptateurs.trade_republic import lexique
+from pastory.adaptateurs.trade_republic.lexique import (
     LIBELLES,
     Entree,
     Notion,
     Section,
 )
-from dashboard_tr.adaptateurs.trade_republic.nombres import Convention
+from pastory.adaptateurs.trade_republic.nombres import Convention
 
 
 class TestUnLibelleSeulNeSuffitPas:

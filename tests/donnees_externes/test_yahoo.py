@@ -23,14 +23,14 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from dashboard_tr.config.actifs import Declaration
-from dashboard_tr.donnees_externes.cours import (
+from pastory.config.actifs import Declaration
+from pastory.donnees_externes.cours import (
     DeviseInattendue,
     ReponseIncoherente,
     SourceInjoignable,
     TickerInconnu,
 )
-from dashboard_tr.donnees_externes.yahoo import Yahoo
+from pastory.donnees_externes.yahoo import Yahoo
 
 ACTIF = "XX0000000001"
 TICKER = "AAAA.DE"

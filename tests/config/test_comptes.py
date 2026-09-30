@@ -9,15 +9,15 @@ from __future__ import annotations
 
 import pytest
 
-from dashboard_tr.config import comptes
-from dashboard_tr.config.comptes import (
+from pastory.config import comptes
+from pastory.config.comptes import (
     Configuration,
     ConfigurationInvalide,
     RoleCompte,
     charger,
     modele,
 )
-from dashboard_tr.pivot.operation import Poche
+from pastory.pivot.operation import Poche
 
 
 def ecrire(tmp_path, contenu):
@@ -89,7 +89,7 @@ class TestModele:
 
     def test_le_modele_conserve_les_poches_declarees_a_la_main(self, tmp_path):
         # L'assistant réécrit le fichier entier. S'il ne recopiait que les rôles, relancer
-        # « dashboard comptes » effacerait les poches déclarées à la main — et des opérations
+        # « pastory comptes » effacerait les poches déclarées à la main — et des opérations
         # disparaîtraient du jour au lendemain, sans message.
         depart = Configuration(poches_corrigees={"XX0000000001": Poche.CTO})
         fichier = ecrire(tmp_path, modele({"0000000001": []}, depart))
@@ -119,6 +119,6 @@ class TestModele:
 
 class TestEmplacement:
     def test_le_fichier_vit_hors_du_dossier_du_projet(self, tmp_path, monkeypatch):
-        monkeypatch.setenv("DASHBOARD_TR_DOSSIER", str(tmp_path / "personnel"))
+        monkeypatch.setenv("PASTORY_DOSSIER", str(tmp_path / "personnel"))
         assert comptes.chemin().name == comptes.NOM_FICHIER
         assert tmp_path in comptes.chemin().parents

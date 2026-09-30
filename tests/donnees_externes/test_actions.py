@@ -15,9 +15,9 @@ from decimal import Decimal
 
 import pytest
 
-from dashboard_tr.donnees_externes import actions
-from dashboard_tr.donnees_externes.composition import CompositionIndisponible
-from dashboard_tr.parametres import referentiels as ref
+from pastory.donnees_externes import actions
+from pastory.donnees_externes.composition import CompositionIndisponible
+from pastory.parametres import referentiels as ref
 
 AUJOURD_HUI = Date(2026, 9, 27)
 ISIN = "XX0000000001"
