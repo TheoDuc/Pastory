@@ -44,6 +44,15 @@ from pastory.donnees_externes.cours import SourceInjoignable
 
 NOM = "extraETF (composition agrégée par ISIN)"
 
+REGLE_DE_PAYS = "pays d'activité de la société, au sens de cette source"
+"""La règle de pays de cette source, affichée avec ses chiffres (D-66).
+
+Ce n'est pas le **siège social**, que donne la source des actions en direct : Accenture est
+irlandaise pour l'une et américaine pour l'autre. L'écart mesuré entre les deux règles, sur un
+même fonds à une même date, est de 2 points sur les États-Unis et d'un facteur huit sur l'Irlande.
+La règle est donc portée par la composition, et affichée ligne par ligne (D-72).
+"""
+
 ADRESSE = "https://extraetf.com/api-v2/detail/"
 
 NAVIGATEUR = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
@@ -155,6 +164,7 @@ def lire(contenu: bytes, actif: str, aujourd_hui: Date | None = None) -> Composi
         intitule_de_la_date=INTITULE_DE_LA_DATE,
         source=NOM,
         recupere_le=aujourd_hui if aujourd_hui is not None else Date.today(),
+        regle_de_pays=REGLE_DE_PAYS,
         replication=_replication(fonds),
         document=_document(fonds),
     )

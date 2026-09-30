@@ -1,0 +1,113 @@
+# Les libellés de pays de la source de secours, et leur code ISO 3166-1 alpha-2 (D-77, D-58).
+#
+# ------------------------------------------------------------------------------------------
+# CE FICHIER EST UNE FRAGILITÉ ASSUMÉE, ET C'EST POUR ÇA QU'IL EST SEUL DANS SON FICHIER.
+#
+# La règle 4 de CLAUDE.md interdit de calculer sur un texte affiché. Elle ajoute : « si c'est
+# inévitable, isoler et marquer comme fragilité ». C'est exactement le cas ici. Le service
+# produit d'Amundi (D-77) satisfait trois des quatre critères de la recherche — gratuit,
+# interrogeable par ISIN, daté — mais il rend des **libellés anglais** et non des codes :
+#
+#     {"aggregationName": "United States", "weight": 0.72933585716323}
+#
+# Il n'y a pas de code caché ailleurs dans la réponse : `additionalProperties` vaut `null`.
+# Pour respecter D-66 — un pays est identifié par son code ISO, jamais par un libellé — la
+# traduction doit donc se faire ici, dans une table **déclarée, datée et sourcée**, et nulle
+# part ailleurs dans le code.
+#
+# CE QUE COÛTE CETTE FRAGILITÉ, EXACTEMENT. Amundi renomme un pays, et sa ligne devient
+# inconnue. C'est borné et c'est visible :
+#   - **borné** : 47 libellés relevés sur dix fonds, tous normalisables, et le jeu des noms de
+#     pays anglais est stable dans le temps ;
+#   - **visible** : un libellé non reconnu n'est PAS rangé par défaut et n'est PAS ignoré. Il
+#     est signalé et affiché (règle 5 de CLAUDE.md), avec le montant qu'il porte. Un nom qu'on
+#     ne reconnaît pas ne peut donc pas être rangé au mauvais endroit — le seul risque est un
+#     trou signalé, jamais un chiffre faux et crédible.
+#
+# CE FICHIER NE TRADUIT QUE DES PAYS. Les **secteurs** de cette source ne sont pas traduits, et
+# ne doivent jamais l'être : ce sont des secteurs GICS (« Information Technology », « Health
+# Care »), là où D-65 impose les 11 secteurs Morningstar et **une seule** nomenclature. Les
+# mélanger donnerait « un total juste et une répartition fausse » : 5 points d'écart mesurés sur
+# la technologie (piège n° 16 de docs/composition-des-etf.md). Les secteurs d'un actif servi par
+# le secours restent **non couverts**.
+# ------------------------------------------------------------------------------------------
+#
+# Comment vérifier une ligne à la main : ouvrir la fiche mensuelle du fonds sur amundietf.fr,
+# et comparer le nom affiché dans « répartition géographique » au nom de gauche ci-dessous.
+
+[meta]
+nomenclature = "Libellés de pays du service produit d'Amundi, vers ISO 3166-1 alpha-2"
+source = "Relevé sur https://www.amundietf.fr/mapi/ProductAPI/getProductsData (champ INDEX_COUNTRIES), 10 fonds Amundi FR/LU/IE, le 2026-09-30 ; codes ISO 3166-1 alpha-2 de la norme ISO. Voir docs/composition-des-etf.md §16"
+verifie_le = 2026-09-30
+note = "Les 47 libellés observés. Six demandaient de l'attention, et leur cas est noté ligne par ligne. Un libellé absent de cette table est signalé et affiché, jamais deviné."
+
+# --- Les libellés relevés, dans l'ordre alphabétique du libellé ---------------------------
+#
+# La clé est le **libellé rendu par la source**, en minuscules et espaces réduits — c'est la
+# forme sous laquelle le code le cherche, pour qu'une majuscule ou une espace en trop ne fasse
+# pas rater une ligne. Le `code` est le code ISO.
+
+[pays]
+"australia" = { code = "AU" }
+"austria" = { code = "AT" }
+"belgium" = { code = "BE" }
+"brazil" = { code = "BR" }
+"canada" = { code = "CA" }
+"chile" = { code = "CL" }
+"china" = { code = "CN" }
+"colombia" = { code = "CO" }
+"czech republic" = { code = "CZ", note = "La norme ISO nomme ce pays « Czechia » ; la source écrit « Czech Republic ». Même pays, même code." }
+"denmark" = { code = "DK" }
+"egypt" = { code = "EG" }
+"finland" = { code = "FI" }
+"france" = { code = "FR" }
+"germany" = { code = "DE" }
+"greece" = { code = "GR" }
+"hong kong" = { code = "HK", note = "Région administrative spéciale, et une entrée ISO 3166-1 à part entière : ce n'est pas la Chine (CN). Les deux apparaissent côte à côte dans les fonds émergents." }
+"hungary" = { code = "HU" }
+"india" = { code = "IN" }
+"indonesia" = { code = "ID" }
+"ireland" = { code = "IE" }
+"israel" = { code = "IL" }
+"italy" = { code = "IT" }
+"japan" = { code = "JP" }
+"kuwait" = { code = "KW" }
+"malaysia" = { code = "MY" }
+"mexico" = { code = "MX" }
+"netherlands" = { code = "NL" }
+"new zealand" = { code = "NZ" }
+"norway" = { code = "NO" }
+"peru" = { code = "PE" }
+"philippines" = { code = "PH" }
+"poland" = { code = "PL" }
+"portugal" = { code = "PT" }
+"qatar" = { code = "QA" }
+"saudi arabia" = { code = "SA" }
+"singapore" = { code = "SG" }
+"south africa" = { code = "ZA" }
+"south korea" = { code = "KR", note = "La norme ISO nomme « Korea, Republic of ». KR est bien la Corée du Sud ; KP serait la Corée du Nord, qu'aucun indice ne contient." }
+"spain" = { code = "ES" }
+"sweden" = { code = "SE" }
+"switzerland" = { code = "CH" }
+"taiwan" = { code = "TW", note = "Entrée ISO 3166-1 « Taiwan, Province of China », de code TW. Distinct de CN, et les deux apparaissent ensemble dans les fonds émergents." }
+"thailand" = { code = "TH" }
+"turkey" = { code = "TR", note = "La norme ISO nomme « Türkiye » depuis 2022 ; la source écrit « Turkey ». Même pays, même code." }
+"uae" = { code = "AE", note = "Abréviation rendue telle quelle par la source, pour les Émirats arabes unis." }
+"united kingdom" = { code = "GB", note = "Le code ISO est GB, et non UK : UK n'est pas un code ISO 3166-1." }
+"united states" = { code = "US" }
+
+# --- Des formes que la source pourrait employer, ajoutées par prudence --------------------
+#
+# Ces libellés n'ont PAS été observés : ils sont des variantes très proches de libellés qui
+# l'ont été, et les accepter coûte une ligne là où les rater coûterait un trou. Aucun ne peut
+# être confondu avec un autre pays.
+
+"united states of america" = { code = "US", observe = false }
+"usa" = { code = "US", observe = false }
+"great britain" = { code = "GB", observe = false }
+"united arab emirates" = { code = "AE", observe = false }
+"czechia" = { code = "CZ", observe = false }
+"korea" = { code = "KR", observe = false, note = "Sans qualificatif, « Korea » désigne la Corée du Sud dans tous les indices d'actions : la Corée du Nord n'est cotée nulle part." }
+"republic of korea" = { code = "KR", observe = false }
+"turkiye" = { code = "TR", observe = false }
+"russia" = { code = "RU", observe = false, note = "Retirée des indices en 2022. Le libellé est accepté au cas où un indice ancien la porterait encore." }

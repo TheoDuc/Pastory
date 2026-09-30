@@ -41,6 +41,7 @@ OBLIG = "XX0000000OBL"
 CRYPTO = "BTC"
 ACTION = "XX0000000ACT"
 INCONNU = "XX0000000INC"
+ETF_2 = "XX0000000ET2"
 
 
 @pytest.fixture
@@ -599,3 +600,65 @@ class _SourceMixte:
     def composition(self, actif):
         trouvee = self.declaree.composition(actif)
         return trouvee if trouvee is not None else self.table.get(actif)
+
+
+class TestLOrigineDeChaqueActifEstConnue:
+    """Le champ ajouté par l'étape 8 bis : source **et** règle de pays, par actif (D-66, D-72).
+
+    C'est la condition posée par D-72 pour qu'une source de secours soit permise. Avant, la
+    règle de pays était connue du code mais **portée par aucune donnée** : le rapport n'en disait
+    qu'une phrase générique, sans jamais dire quel actif relevait de quelle règle. Or l'écart
+    mesuré entre deux règles, sur un même fonds à une même date, est de 2 points sur les
+    États-Unis et d'un facteur huit sur l'Irlande.
+    """
+
+    def test_chaque_actif_porte_sa_source_et_sa_regle(self, referentiels):
+        deux = SourceDeCompositionFictive(
+            table={
+                ETF: replace(
+                    etf_monde(), source="source principale", regle_de_pays="pays d'activité"
+                ),
+                ETF_2: replace(
+                    etf_monde(), source="source de secours", regle_de_pays="pays de l'indice"
+                ),
+            }
+        )
+        valorisation = _valorisation(
+            _achat(ETF, "10", "100.00"),
+            _achat(ETF_2, "10", "100.00"),
+            cours={ETF: "100.00", ETF_2: "100.00"},
+        )
+
+        resultat = dv.diversifier(valorisation, deux, referentiels)
+
+        par_actif = {origine.actif: origine for origine in resultat.origines}
+        assert par_actif[ETF].source == "source principale"
+        assert par_actif[ETF].regle_de_pays == "pays d'activité"
+        assert par_actif[ETF_2].source == "source de secours"
+        assert par_actif[ETF_2].regle_de_pays == "pays de l'indice"
+
+    def test_les_origines_sont_triees_par_actif(self, referentiels):
+        """Deux exécutions doivent donner le même ordre, sinon l'écran bouge sans raison."""
+        deux = SourceDeCompositionFictive(table={ETF: etf_monde(), ETF_2: etf_monde()})
+        valorisation = _valorisation(
+            _achat(ETF_2, "10", "100.00"),
+            _achat(ETF, "10", "100.00"),
+            cours={ETF: "100.00", ETF_2: "100.00"},
+        )
+
+        resultat = dv.diversifier(valorisation, deux, referentiels)
+
+        assert [o.actif for o in resultat.origines] == sorted(o.actif for o in resultat.origines)
+
+    def test_une_crypto_n_a_pas_d_origine_a_afficher(self, referentiels):
+        """Elle n'a ni pays ni secteur : ce n'est pas une donnée manquante (D-68)."""
+        source = SourceDeCompositionFictive(table={ETF: etf_monde()})
+        valorisation = _valorisation(
+            _achat(ETF, "10", "100.00"),
+            _achat(CRYPTO, "1", "100.00", poche=Poche.CRYPTO),
+            cours={ETF: "100.00", CRYPTO: "100.00"},
+        )
+
+        resultat = dv.diversifier(valorisation, source, referentiels)
+
+        assert [o.actif for o in resultat.origines] == [ETF]

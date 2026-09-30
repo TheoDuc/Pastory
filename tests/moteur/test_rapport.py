@@ -7,6 +7,7 @@ une console Windows.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 
@@ -718,3 +719,109 @@ class TestLesSignalementsDeLaRepartitionSontAffiches:
         texte.encode("cp1252")
         for ligne in texte.splitlines():
             assert len(ligne) <= 100, ligne
+
+
+def _origine(actif: str, source: str, regle: str):
+    return diversification_moteur.OrigineDUnActif(
+        actif=actif, source=source, regle_de_pays=regle
+    )
+
+
+def _rapport_avec_origines(*origines):
+    """Le rapport complet, dont on remplace les origines par celles qu'on veut éprouver.
+
+    On part de la vraie répartition calculée par le moteur, pour que le reste du bloc soit
+    exactement celui qu'un utilisateur verrait.
+    """
+    portefeuille, la_synthese, detail, valeur = detail_et_valeur()
+    la_diversification = diversification_moteur.diversifier(
+        la_synthese.valorisation,
+        SourceDeCompositionFictive({ACTIF: etf_monde()}),
+        parametres_referentiels.charger_tout(),
+    )
+    return rapport_moteur.resume(
+        portefeuille,
+        synthese=la_synthese,
+        detail_des_couts=detail,
+        valeur_reelle_estimee=valeur,
+        diversification_estimee=replace(la_diversification, origines=tuple(origines)),
+    )
+
+
+class TestLOrigineDeChaqueActifEstEcrite:
+    """La condition posée par D-72 pour qu'une source de secours soit permise.
+
+    « À condition que la source de chaque chiffre soit visible à l'écran », et **ligne par
+    ligne**. Sans ce bloc, le secours serait interdit par sa propre décision.
+    """
+
+    def test_avec_deux_origines_chacune_est_nommee_avec_sa_regle(self):
+        texte = _rapport_avec_origines(
+            _origine(
+                "XX0000000001",
+                "extraETF (composition agrégée par ISIN)",
+                "pays d'activité de la société",
+            ),
+            _origine(
+                "XX0000000002",
+                "Amundi (répartition de l'indice suivi, par ISIN)",
+                "pays de classification de l'indice suivi",
+            ),
+        )
+
+        aplati = " ".join(texte.split())
+        assert "D'où vient la composition de chaque actif" in aplati
+        assert "XX0000000001 : extraETF" in aplati
+        assert "XX0000000002 : Amundi" in aplati
+        assert "pays d'activité de la société" in aplati
+        assert "pays de classification de l'indice suivi" in aplati
+
+    def test_avec_une_seule_origine_le_bloc_n_apparait_pas(self):
+        """Vingt lignes identiques feraient douter des chiffres au lieu de les éclairer."""
+        texte = _rapport_avec_origines(
+            _origine("XX0000000001", "une seule source", "une seule règle"),
+            _origine("XX0000000002", "une seule source", "une seule règle"),
+        )
+
+        assert "D'où vient la composition de chaque actif" not in texte
+
+    def test_une_regle_absente_est_dite_et_non_laissee_vide(self):
+        """Une composition déclarée à la main n'a pas de règle : le dire, pas le taire."""
+        texte = _rapport_avec_origines(
+            _origine("XX0000000001", "extraETF", "pays d'activité"),
+            _origine("XX0000000002", "déclaré par vous dans actifs.toml", ""),
+        )
+
+        assert "règle non précisée par la source" in " ".join(texte.split())
+
+    def test_le_bloc_reste_affichable_sur_une_console_windows(self):
+        """La console Windows écrit en cp1252 : un caractère hors de ce jeu ferait échouer
+        l'affichage alors que le calcul, lui, s'est bien passé."""
+        texte = _rapport_avec_origines(
+            _origine(
+                "XX0000000001",
+                "extraETF (composition agrégée par ISIN)",
+                "pays d'activité de la société, au sens de cette source",
+            ),
+            _origine(
+                "XX0000000002",
+                "Amundi (répartition de l'indice suivi, par ISIN)",
+                "pays de classification de l'indice suivi (méthodologie du fournisseur d'indice)",
+            ),
+        )
+
+        texte.encode("cp1252")
+
+    def test_aucune_ligne_du_bloc_ne_depasse_la_largeur_du_rapport(self):
+        """Un libellé tronqué n'explique plus rien : c'est arrivé à l'étape 7."""
+        texte = _rapport_avec_origines(
+            _origine(
+                "XX0000000001",
+                "Amundi (répartition de l'indice suivi, par ISIN)",
+                "pays de classification de l'indice suivi (méthodologie du fournisseur d'indice)",
+            ),
+            _origine("XX0000000002", "extraETF", "pays d'activité"),
+        )
+
+        depassent = [ligne for ligne in texte.splitlines() if len(ligne) > 100]
+        assert depassent == []

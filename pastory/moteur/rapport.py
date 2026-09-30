@@ -891,6 +891,31 @@ def _arretes_en_clair(diversification: Diversification) -> str:
     )
 
 
+def _origines_par_actif(diversification: Diversification) -> list[str]:
+    """La source et la règle de pays, **actif par actif** (D-66, D-72).
+
+    C'est la condition posée par D-72 pour qu'une source de secours soit permise : « à condition
+    que la source de chaque chiffre soit visible à l'écran », et **ligne par ligne**. Deux
+    sources n'ont ni la même nomenclature ni la même règle de pays ; un total juste dont on
+    ignore la règle n'est pas vérifiable.
+
+    Le bloc n'apparaît que s'il y a **plus d'une** origine : quand tout vient du même endroit, la
+    phrase générique au-dessus dit déjà tout, et une liste de vingt lignes identiques serait du
+    bruit qui ferait douter des chiffres plutôt que les éclairer.
+    """
+    origines = diversification.origines
+    distinctes = {(origine.source, origine.regle_de_pays) for origine in origines}
+    if len(distinctes) < 2:
+        return []
+
+    lignes = [""]
+    lignes.append("    D'où vient la composition de chaque actif, et sous quelle règle de pays :")
+    for origine in origines:
+        regle = origine.regle_de_pays or "règle non précisée par la source"
+        lignes += _enveloppe(f"{origine.actif} : {origine.source} — {regle}", "      ", "        ")
+    return lignes
+
+
 def _lecture_de_la_repartition(lignes: list[str], diversification: Diversification) -> None:
     """Ce qu'il faut savoir pour ne pas se tromper en lisant les chiffres ci-dessus.
 
@@ -913,6 +938,7 @@ def _lecture_de_la_repartition(lignes: list[str], diversification: Diversificati
         "    - ",
         "      ",
     )
+    lignes += _origines_par_actif(diversification)
     lignes += _enveloppe(
         "Une zone est une convention, pas une donnée : la Corée du Sud, la Pologne et la Grèce "
         "changent de zone selon le fournisseur d'indices.",

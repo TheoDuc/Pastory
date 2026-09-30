@@ -37,6 +37,7 @@ from pastory.parametres import DOSSIER, ParametresInvalides
 FICHIER_SECTEURS = DOSSIER / "secteurs.toml"
 FICHIER_ZONES = DOSSIER / "zones.toml"
 FICHIER_CLASSES = DOSSIER / "classes_actifs.toml"
+FICHIER_PAYS_AMUNDI = DOSSIER / "pays_amundi.toml"
 
 ZONE_INCONNUE = "inconnue"
 """La zone des pays que `zones.toml` ne connaît pas. Elle n'est **pas** dans le fichier : elle est
@@ -345,6 +346,73 @@ def charger_zones(fichier: Path | None = None) -> Geographie:
             note=_texte_ou_none(table.get("note")) or "",
         )
     return Geographie(origine=origine, zones=zones, pays=pays)
+
+
+# --- Les libellés de pays de la source de secours ---------------------------------------
+#
+# Une table à part, et une fragilité assumée : voir l'en-tête de `pays_amundi.toml`. La source
+# de secours (D-77) rend des libellés anglais là où D-66 exige un code ISO. La traduction se
+# fait **ici et nulle part ailleurs**, comme la règle 4 de CLAUDE.md le permet — « si c'est
+# inévitable, isoler et marquer comme fragilité ».
+
+
+@dataclass(frozen=True)
+class LibellesDePays:
+    """Les libellés de pays d'une source, et leur code ISO 3166-1 alpha-2."""
+
+    origine: Origine
+    codes: Mapping[str, str]
+    """Libellé normalisé → code ISO. La normalisation est celle de `_libelle_de_pays`."""
+
+    def code(self, libelle: str) -> str | None:
+        """Le code ISO de ce libellé, ou `None` s'il n'est pas déclaré.
+
+        `None` n'est **pas** rattrapé ailleurs : la ligne est signalée et affichée telle quelle
+        (règle 5). Un libellé inconnu ne peut donc pas atterrir dans le mauvais pays.
+        """
+        return self.codes.get(_libelle_de_pays(libelle))
+
+
+def _libelle_de_pays(libelle: str) -> str:
+    """La forme sous laquelle un libellé de pays est comparé : minuscules, espaces réduits.
+
+    On ramène « United  States » et « united states » à la même clé. C'est la même permission
+    que pour `normaliser` : rapprocher deux **écritures** d'un même nom est sans risque, là où
+    rapprocher deux nomenclatures ne l'est pas (D-65).
+    """
+    return " ".join(libelle.strip().lower().split())
+
+
+def charger_libelles_de_pays(fichier: Path | None = None) -> LibellesDePays:
+    """La table libellé → code ISO, ou une erreur explicite."""
+    chemin = FICHIER_PAYS_AMUNDI if fichier is None else fichier
+    contenu = _lire(chemin)
+    origine = _origine(contenu, chemin)
+
+    codes: dict[str, str] = {}
+    for libelle, brut in _table(contenu, "pays", chemin).items():
+        ou = f"pays.{libelle}"
+        table = _sous_table(brut, ou, chemin)
+        code = _exiger_texte(table, "code", ou, chemin).strip().upper()
+        if len(code) != 2 or not code.isalpha():
+            raise ParametresInvalides(
+                f"{chemin} : [{ou}] donne « {code} », qui n'est pas un code ISO 3166-1 alpha-2 "
+                "(deux lettres)."
+            )
+        propre = _libelle_de_pays(libelle)
+        if not propre:
+            raise ParametresInvalides(f"{chemin} : un libellé de pays est vide.")
+        if propre in codes and codes[propre] != code:
+            # Deux codes pour un même libellé : l'un des deux serait choisi au hasard de
+            # l'ordre de lecture, et la répartition rangerait un pays ailleurs sans le dire.
+            raise ParametresInvalides(
+                f"{chemin} : le libellé « {propre} » est déclaré deux fois, avec deux codes "
+                f"différents ({codes[propre]} et {code})."
+            )
+        codes[propre] = code
+    if not codes:
+        raise ParametresInvalides(f"{chemin} : aucun libellé de pays déclaré.")
+    return LibellesDePays(origine=origine, codes=codes)
 
 
 # --- Les classes d'actifs --------------------------------------------------------------

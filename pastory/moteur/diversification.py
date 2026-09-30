@@ -85,6 +85,7 @@ class CompositionDUnActif(Protocol):
     intitule_de_la_date: str
     date_est_un_arrete: bool
     source: str
+    regle_de_pays: str
     replication: str | None
 
 
@@ -131,6 +132,27 @@ class Referentiels(Protocol):
 
 
 # --- Ce que le moteur produit ----------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class OrigineDUnActif:
+    """D'où vient la composition d'un actif, et sous quelle règle de pays (D-66, D-72).
+
+    C'est ce que D-72 appelle « visible ligne par ligne », et ce n'est pas du confort. Une
+    répartition géographique **n'est pas une grandeur définie de façon unique** : l'écart mesuré
+    entre deux règles, sur un même fonds à une même date, est de 2 points sur les États-Unis et
+    d'un facteur huit sur l'Irlande (D-66). Depuis l'étape 8 bis, trois règles cohabitent dans la
+    même répartition — pays d'activité pour un ETF, siège social pour une action en direct, pays
+    de classification de l'indice pour un fonds servi par la source de secours. Un total juste
+    dont on ignore la règle n'est pas vérifiable, et l'étape 6 a montré qu'un chiffre non
+    vérifiable n'est pas cru.
+    """
+
+    actif: str
+    source: str
+    regle_de_pays: str
+    """Vide quand la source ne la précise pas : c'est le cas d'une répartition déclarée à la
+    main, dont la règle est celle que l'utilisateur a voulue."""
 
 
 @dataclass(frozen=True)
@@ -269,6 +291,9 @@ class Diversification:
     """
 
     sources: tuple[str, ...] = ()
+    origines: tuple[OrigineDUnActif, ...] = ()
+    """La source et la règle de pays de **chaque** actif, pour que l'écran les mette en face de
+    ses lignes (D-72). La liste `sources` ci-dessus ne dit que l'ensemble employé."""
     intitules_de_date: tuple[str, ...] = ()
     declarees_a_la_main: tuple[str, ...] = ()
     """Les actifs dont la composition vient du fichier de l'utilisateur, et non d'une source.
@@ -671,6 +696,26 @@ def diversifier(
         if composition.intitule_de_la_date not in intitules:
             intitules.append(composition.intitule_de_la_date)
 
+    # L'origine de chaque actif, triée par ISIN pour que deux exécutions donnent le même ordre.
+    # L'ISIN vient de la **position**, et non de la composition : le protocole
+    # `CompositionDUnActif` ne déclare pas de quel actif il parle, et le moteur ne lit rien
+    # au-delà de ce qu'un protocole promet.
+    origines = tuple(
+        sorted(
+            {
+                OrigineDUnActif(
+                    actif=position.actif,
+                    source=composition.source,
+                    regle_de_pays=composition.regle_de_pays,
+                )
+                for position in valorisation.valorisees
+                if position.poche is not Poche.CRYPTO
+                and (composition := source.composition(position.actif)) is not None
+            },
+            key=lambda origine: origine.actif,
+        )
+    )
+
     return Diversification(
         date=valorisation.date,
         classes=repartitions[Rubrique.CLASSE],
@@ -679,6 +724,7 @@ def diversifier(
         arrete_du=arretes[0] if arretes else None,
         arrete_au=arretes[-1] if arretes else None,
         sources=tuple(sources),
+        origines=origines,
         intitules_de_date=tuple(intitules),
         declarees_a_la_main=tuple(declarees),
         signalements=tuple(signalements),

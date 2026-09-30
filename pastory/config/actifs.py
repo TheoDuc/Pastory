@@ -96,6 +96,14 @@ class ContenuActif(StrEnum):
 
 CONTENUS_ACCEPTES = tuple(contenu.value for contenu in ContenuActif)
 
+SECOURS_ACCEPTES = ("amundi",)
+"""Les sources de secours qu'on sait interroger (D-77).
+
+Une valeur inconnue est **refusée à la lecture du fichier**, et non ignorée : un utilisateur qui
+écrit « amundy » doit l'apprendre tout de suite, et non découvrir six écrans plus loin que son
+fonds est resté non couvert.
+"""
+
 
 @dataclass(frozen=True)
 class Declaration:
@@ -136,6 +144,20 @@ class Declaration:
     secteurs: Mapping[str, Decimal] | None = None
     """Répartition par secteur déclarée à la main. Mêmes règles ; les clés sont les codes de la
     nomenclature retenue (`parametres/secteurs.toml`)."""
+
+    secours: str | None = None
+    """La **source de secours** à interroger pour cet actif, quand la principale ne sait pas
+    l'ouvrir (D-72, D-77).
+
+    Déclarée **par actif**, et jamais devinée. La raison est que deux sources n'ont ni la même
+    nomenclature sectorielle ni la même règle de pays : les mélanger en silence donnerait un
+    total juste et une répartition fausse — 5 points d'écart mesurés sur la technologie. Le
+    secours n'est donc employé que là où l'utilisateur l'a demandé, et la source de chaque
+    chiffre reste affichée ligne par ligne.
+
+    Une seule valeur existe aujourd'hui : `"amundi"`, qui ne sert que la **géographie** — les
+    secteurs de cette source sont du GICS, et restent non couverts.
+    """
 
 
 @dataclass(frozen=True)
@@ -276,6 +298,7 @@ def _lire_declarations(brut: object, fichier: Path) -> dict[str, Declaration]:
             contenu=_lire_contenu(valeur.get("contenu"), actif, fichier),
             pays=_lire_repartition(valeur.get("pays"), "pays", actif, fichier),
             secteurs=_lire_repartition(valeur.get("secteurs"), "secteurs", actif, fichier),
+            secours=_lire_secours(valeur.get("secours"), actif, fichier),
         )
     return declarations
 
@@ -292,6 +315,18 @@ def _lire_contenu(valeur: object, actif: str, fichier: Path) -> ContenuActif | N
             f"crypto)."
         )
     return ContenuActif(valeur.strip().lower())
+
+
+def _lire_secours(valeur: object, actif: str, fichier: Path) -> str | None:
+    """La source de secours, facultative. Une valeur inconnue est refusée, pas ignorée."""
+    if valeur is None or (isinstance(valeur, str) and valeur.strip() == ""):
+        return None
+    if not isinstance(valeur, str) or valeur.strip().lower() not in SECOURS_ACCEPTES:
+        raise ConfigurationInvalide(
+            f"{fichier} : l'actif {actif} demande une source de secours que je ne connais pas : "
+            f"{valeur!r}. Sources acceptées : {', '.join(SECOURS_ACCEPTES)}."
+        )
+    return valeur.strip().lower()
 
 
 def _lire_repartition(
@@ -457,6 +492,12 @@ def modele(
         "#            d'obligations ou de matières premières n'a ni pays ni secteur : le",
         "#            déclarer ici le range à sa place, au lieu de l'annoncer « composition",
         "#            inconnue ». Sans contenu, c'est la source qui décide.",
+        f"#   secours : facultatif — {', '.join(SECOURS_ACCEPTES)}. La source de secours à",
+        "#            interroger si la source principale ne sait pas ouvrir ce fonds. Utile",
+        "#            surtout pour un ETF « PEA » à swap, que la source principale ne",
+        "#            transparise pas toujours. « amundi » ne sert que la répartition par",
+        "#            PAYS : ses secteurs suivent une autre nomenclature, et resteraient",
+        "#            faux mélangés aux autres. À ne mettre que sur un fonds Amundi.",
         "#   pays, secteurs : facultatifs, pour corriger une composition que la source donne",
         f"#            fausse ou ne donne pas :  {FORME_REPARTITION}",
         "#            Ce que vous écrivez l'emporte sur la source. Les totaux n'ont pas besoin",

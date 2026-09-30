@@ -59,10 +59,10 @@ from pastory.config import actifs as config_actifs
 from pastory.config import comptes as config_comptes
 from pastory.config import fiscalite as config_fiscalite
 from pastory.donnees_externes import actions as source_actions
+from pastory.donnees_externes import amundi, extraetf, xetra
 from pastory.donnees_externes import completion as completion_cours
 from pastory.donnees_externes import composition as composition_externe
 from pastory.donnees_externes import cours as cours_module
-from pastory.donnees_externes import extraetf, xetra
 from pastory.donnees_externes.cache import Cache, CacheIllisible
 from pastory.donnees_externes.cache_compositions import CacheDeCompositions
 from pastory.donnees_externes.completion import Completion
@@ -404,6 +404,10 @@ def _fournisseur_de_compositions(
 
     Le type déclaré de chaque actif décide de la source interrogée : un ETF et une action ne se
     regardent pas au même endroit, et une crypto ne se regarde nulle part (D-68).
+
+    **Les sources de secours sont branchées ici, et employées nulle part par défaut** (D-72,
+    D-77) : elles n'interviennent que pour un actif qui les demande par son « secours » dans
+    `actifs.toml`. Les construire n'appelle rien — c'est la première demande qui le fait.
     """
     return composition_externe.FournisseurDeCompositions(
         cache=CacheDeCompositions(),
@@ -411,7 +415,17 @@ def _fournisseur_de_compositions(
         source_action=None if hors_ligne else source_actions.SourceDActions(),
         actifs=config_actifs.charger(),
         hors_ligne=hors_ligne,
+        secours={} if hors_ligne else _sources_de_secours(),
     )
+
+
+def _sources_de_secours() -> dict[str, composition_externe.SourceDeCompositionDEtf]:
+    """Les sources de secours, par le nom sous lequel un actif les demande (D-77).
+
+    Une seule pour l'instant. Sa table de libellés de pays est chargée ici, parce que c'est ici
+    qu'on sait qu'elle existe : le moteur n'a jamais à connaître ni Amundi, ni un fichier TOML.
+    """
+    return {"amundi": amundi.SourceAmundi(parametres_referentiels.charger_libelles_de_pays())}
 
 
 def _referentiels() -> parametres_referentiels.Referentiels:

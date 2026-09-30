@@ -438,8 +438,10 @@ présentation.
     direct, un ETF obligataire, un actif non couvert par les sources, un portefeuille à une seule
     ligne, un portefeuille sans PEA ;
   - les **messages d'absence** sont du contenu d'interface à part entière, pas des notes
-    techniques : « non couvert », « non attribué », « non transparisé », « synthétique », « minoré »
-    doivent s'expliquer là où ils s'affichent, pour un lecteur qui découvre l'application ;
+    techniques : « non couvert », « non attribué », « synthétique », « minoré » doivent
+    s'expliquer là où ils s'affichent, pour un lecteur qui découvre l'application. *« Non
+    transparisé » n'en fait pas partie : il reste au glossaire et ne s'affiche jamais, faute d'une
+    source qui sache reconnaître un fonds de fonds ([D-76](decisions.md)) ;*
   - **deux règles de pays cohabitent** dans la répartition géographique ([D-66](decisions.md)) : la
     conception doit trouver comment le dire sans alourdir l'écran.
 
@@ -472,22 +474,30 @@ des calculs. La feuille de style deviendra `pastory/vues/assets/pastory.css` tel
 **But :** finir ce que l'étape 8 laisse ouvert, avant de brancher quoi que ce soit.
 
 **Claude :**
-- **Réalise la source de secours par actif** ([D-72](decisions.md)) : recherche de ce qu'Amundi
-  publie réellement par ISIN, puis branchement par le protocole existant de
-  `moteur/diversification.py`, source **et règle de pays visibles ligne par ligne**, tests et cahier
-  de vérification. C'est ce qui fera disparaître les fonds « non couverts ».
-- **Fait trancher [Q-48](questions-ouvertes.md)** — « non transparisé » est promis par le
-  glossaire, la feuille de route et le comparatif, et **aucun champ du code ne le produit**. À
-  décider après la recherche ci-dessus, qui dira si une source l'indique de façon fiable.
-- **Fait trancher [Q-49](questions-ouvertes.md)** — la retenue à la source sur les dividendes est
-  dans le premier niveau des frais, alors qu'elle tombe pendant la détention.
-- **Écrit le document de conception** [conception-interface.md](conception-interface.md) : ses §1
-  (l'inventaire) et §2 (le vocabulaire d'écran) existent ; restent les écrans retenus, leurs états
-  (vide, partiel, estimé, en erreur) et les règles d'affichage. C'est le contrat que l'étape 9
-  exécute.
+- ✅ **La source de secours par actif est faite** ([D-77](decisions.md)). La recherche a trouvé le
+  service produit d'Amundi, qui publie la répartition de l'**indice suivi** par ISIN, gratuitement
+  et avec sa date d'arrêté : sur un PEA Monde à swap — la famille même qui manquait — il rend
+  **États-Unis 72,93 %**, contre 15,6 % pour le panier détenu. Couverture : 10 ISIN Amundi sur 10.
+  Elle ne sert **que la géographie**, ses secteurs étant du GICS là où [D-65](decisions.md)
+  n'admet qu'une nomenclature. Elle se déclare **par actif** (`secours = "amundi"`), et la source
+  **et** la règle de pays sont désormais visibles **ligne par ligne**. Cahier :
+  [verification/etape-8-bis.md](verification/etape-8-bis.md).
+- ✅ **[Q-48](questions-ouvertes.md) est tranchée** ([D-76](decisions.md)) : aucune source
+  accessible ne reconnaît un fonds de fonds. La notion reste au **glossaire** et ne s'affiche
+  jamais ; un tel fonds est « non couvert », et la bulle de « non couvert » explique que certains
+  fonds en contiennent d'autres. Les trois documents qui promettaient le mot sont corrigés.
+- ✅ **[Q-49](questions-ouvertes.md) est tranchée** ([D-75](decisions.md)) : le premier niveau des
+  frais est **« ce qui a déjà été prélevé »**, quel qu'en soit le moment, et la retenue sur
+  dividendes y reste. Le découpage porte la séparation réel / estimé, et non une chronologie.
+- 🔜 **Écrit le document de conception** [conception-interface.md](conception-interface.md) : ses §1
+  (l'inventaire), §2 (le vocabulaire d'écran) et §3 (les règles d'affichage) existent ; restent les
+  **écrans retenus** et leurs **états** (vide, partiel, estimé, en erreur). C'est le contrat que
+  l'étape 9 exécute.
 
-**Toi :** trancher Q-48 et Q-49, et vérifier la répartition des fonds aujourd'hui non couverts une
-fois la source de secours en place.
+**Toi :**
+- ✅ Q-48 et Q-49 tranchées.
+- 🔜 vérifier la répartition de tes fonds aujourd'hui non couverts, maintenant que la source de
+  secours est en place — le cahier [etape-8-bis.md](verification/etape-8-bis.md) dit comment.
 
 **Session :** session dédiée.
 

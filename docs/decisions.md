@@ -1147,3 +1147,82 @@ sortie), plus juste sur les deux axes mais qui défait le bénéfice de [D-73](#
 qui se lit d'un trait.
 **Conséquence pour l'étape 9 :** le titre du niveau dit le critère, jamais le moment. Écrire
 « Déjà prélevé » ou « Ce qui a déjà été prélevé », et **pas** « À l'achat » ni « En entrant ».
+
+---
+
+*Compléments de l'étape 8 bis, après la recherche de la source de secours.*
+
+### D-76 · 2026-09-30 · « Non transparisé » reste au glossaire, et n'est jamais affiché · Validée
+**Décision :** la notion de **fonds non transparisé** — un fonds dont les lignes sont elles-mêmes
+des fonds — est **définie au [glossaire](glossaire.md)**, et **aucun écran ne l'emploie**. Un fonds
+de fonds que la source ne sait pas ouvrir est affiché **« non couvert »** ([D-69](#d-69)), et la
+bulle d'aide de « non couvert » **explique que certains fonds détiennent d'autres fonds** — sans
+prétendre que c'est le cas de celui-là.
+**Raison :** [Q-48](questions-ouvertes.md), tranchée après la recherche de l'étape 8 bis. Le
+constat est net : **aucune source accessible n'indique qu'un fonds est un fonds de fonds.**
+extraETF n'a que six classes d'actifs (`stock`, `bond`, `preferred`, `convertible`, `cash`,
+`other`) et un fonds de fonds y tombe dans `other` — que le garde-fou de [D-70](#d-70) refuse déjà,
+l'actif devenant non couvert. Le service d'Amundi ([D-77](#d-77)) n'a pas de marqueur non plus : son
+vocabulaire est celui des **instruments** (`EQUITY_ORDINARY`, `GOVERNMENT`), pas des véhicules.
+**Pourquoi le garder au glossaire plutôt que le supprimer :** la notion explique **pourquoi** un
+fonds peut être non couvert, et c'est une information vraie et utile. Un « non couvert » sans
+explication laisse l'utilisateur devant un trou ; un « non couvert » qui dit qu'un fonds peut en
+contenir d'autres lui apprend quelque chose de son portefeuille.
+**Écarte :** le produire en le devinant à partir de `other : ~100 %`. Cela confondrait « c'est un
+fonds de fonds » avec « la source ne voit rien dedans » — exactement l'erreur de [D-71](#d-71), où
+un code non documenté s'est révélé faux sur deux actifs sur trois. Écarte aussi le retrait pur et
+simple de la notion des trois documents qui la portaient.
+**Conséquence de rédaction :** le [comparatif §8.2](composition-des-etf.md) et la
+[feuille de route](feuille-de-route.md) sont corrigés : ils annonçaient un affichage.
+**La mesure qui reste au dossier**, faite à l'étape 7 : sur un fonds *LifeStrategy*, la composition
+de premier niveau est « 100 % fonds d'investissement », et une source qui applique une nomenclature
+sectorielle à ces lignes répond **« 100 % finance, Irlande »**. Crédible, absurde. C'est ce chiffre
+que le refus évite.
+
+### D-77 · 2026-09-30 · La source de secours est le service produit d'Amundi, et elle ne sert que la géographie · Validée
+**Décision :** la source de secours de [D-72](#d-72) est le **service produit d'Amundi**
+(`POST /mapi/ProductAPI/getProductsData`, champ `breakDown.aggregationFields`), déclarée **par
+actif** dans `actifs.toml` comme le contenu de [D-71](#d-71). Elle fournit **la répartition par pays
+de l'indice suivi**, et **rien d'autre** : ses secteurs ne sont **pas** employés.
+**Raison :** la recherche de l'étape 8 bis, le 2026-09-30. Elle répond à la question que D-72
+posait, et elle y répond bien là où ça compte : sur `FR001400U5Q4` — un **ETF PEA à swap**, la
+famille même que D-72 a identifiée comme le trou d'extraETF — elle rend **États-Unis 72,93 %**, là
+où D-64 avait mesuré **15,6 % pour le panier** et **72,9 % pour l'indice**. C'est donc bien
+l'**indice** qu'elle publie, à 0,03 point de la mesure de l'étape 7, pour exactement les fonds qui
+manquaient. Couverture relevée : **10 ISIN Amundi sur 10**, en FR, LU et IE, y compris tous les PEA
+à swap. Ses répartitions somment à **99,9998 %** — bien plus près de 100 qu'extraETF (99,43 % à
+99,96 %) sans l'atteindre : le reliquat devient du « non attribué » comme pour toute autre source,
+et rien n'est renormalisé ([D-69](#d-69)). Elle est gratuite, sans clé, interrogeable par ISIN, et elle porte une **date d'arrêté
+propre à l'indice** (`INDEX_BREAKDOWNS_AS_OF_DATE`), distincte de celle du fonds.
+**Pourquoi la géographie seulement :** ses secteurs sont du **GICS** — `Information Technology`,
+`Health Care`, `Consumer Discretionary` — là où [D-65](#d-65) impose **les 11 secteurs
+Morningstar, et une seule nomenclature**. Les mélanger donnerait « un total juste et une
+répartition fausse » : 5 points d'écart mesurés sur la technologie, c'est le **piège n° 16** du
+[comparatif](composition-des-etf.md). **Les secteurs d'un actif servi par le secours restent donc
+non couverts**, et l'écran le dit.
+**La fragilité, assumée et isolée :** le service rend des **libellés anglais**
+(`"United States"`), pas des codes — le seul des quatre critères qu'il rate. La traduction en code
+ISO 3166-1 passe par une **table déclarée, datée et sourcée** dans `parametres/`, de la même forme
+que `secteurs.toml` et `zones.toml` ([D-58](#d-58)). C'est l'échappatoire que la **règle 4** de
+`CLAUDE.md` autorise explicitement — « si c'est inévitable, isoler et marquer comme fragilité » — et
+la **règle 5** s'applique : un libellé non reconnu est **affiché**, jamais rangé par défaut. La
+fragilité est bornée (47 libellés de pays relevés sur 10 fonds, tous normalisables) et **sans danger
+silencieux** : un nom qu'on ne reconnaît pas ne peut pas être rangé au mauvais endroit.
+**Écarte :** les **fiches mensuelles PDF** d'Amundi, dont l'URL est pourtant libre et prévisible par
+ISIN. Leur texte n'est **pas extractible** — polices sous-ensemble sans table de correspondance,
+**77 chaînes lisibles sur 311** — et résoudre les polices casserait en silence au premier
+changement de sous-ensemble. Le service JSON rend la même donnée sans ce risque.
+**Le piège à ne jamais approcher :** le même service expose `composition.compositionFields`, qui est
+la **liste des lignes détenues**. [D-63](#d-63) et [D-64](#d-64) l'interdisent : pour un fonds à
+swap, elle décrit le panier de collatéral et non l'exposition. Ne jamais l'appeler.
+**Le piège de l'interface :** le champ de requête est `breakDown` **au singulier**, et ses valeurs
+sont `INDEX_COUNTRIES` / `INDEX_SECTORS` / `INDEX_ASSETCLASSES`. Mal nommé, **le service répond 200
+avec une liste vide** au lieu de se plaindre. Un test doit donc vérifier qu'une réponse **non vide**
+arrive, et pas seulement qu'il n'y a pas d'erreur.
+**Limite de couverture, et pourquoi elle est acceptable :** la source ne connaît **que les fonds
+Amundi** — un ISIN iShares rend « aucun produit ». Le trou d'extraETF est celui des fonds **à
+swap**, et dans l'univers du PEA ils sont très majoritairement des fonds Amundi (dont l'ancien
+Lyxor). Xtrackers a été re-testé le 2026-09-30 : **aucune route JSON devinable**, tout son site est
+rendu côté client — ce qui confirme le constat de l'étape 7. Un fonds à swap d'un autre émetteur
+reste donc non couvert, avec son montant affiché, et la déclaration à la main ([D-71](#d-71))
+demeure son recours.

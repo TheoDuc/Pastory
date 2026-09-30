@@ -519,7 +519,20 @@ sous un libellé unique, qui ferait passer de l'or pour de la dette.
 
 ### Non transparisé
 Un **fonds de fonds** : un ETF dont les lignes sont elles-mêmes des fonds. L'application ne
-transparise qu'**un** niveau ; au-delà, l'actif est affiché « non transparisé » plutôt que deviné.
+transparise qu'**un** niveau : au-delà, elle ne devine pas.
+
+**Ce mot n'apparaît jamais à l'écran** ([D-76](decisions.md)), et il est ici pour expliquer un
+« non couvert ». La raison est qu'**aucune source accessible ne dit qu'un fonds est un fonds de
+fonds** : extraETF n'a que six classes d'actifs et un tel fonds y tombe dans « autres », que le
+garde-fou de [D-70](decisions.md) refuse déjà ; le service d'Amundi ([D-77](decisions.md)) a un
+vocabulaire d'instruments, pas de véhicules. Un fonds de fonds est donc affiché
+**« non couvert »**, comme tout fonds qu'on ne sait pas ouvrir, et la bulle d'aide de
+« non couvert » mentionne que certains fonds en contiennent d'autres — sans prétendre que c'est le
+cas de celui-là.
+
+*La mesure qui justifie le refus, faite à l'étape 7 : sur un fonds de fonds, la composition de
+premier niveau est « 100 % fonds d'investissement », et une source qui applique une nomenclature
+sectorielle à ces lignes répond « 100 % finance, Irlande ». Crédible, absurde.*
 
 ### Zone
 Un regroupement de pays — Amérique du Nord, Europe, Japon, Asie-Pacifique développée, marchés

@@ -349,8 +349,13 @@ géographique, seulement la liste de ses 14 ETF cibles. Au premier niveau, sa co
 « 100 % fonds d'investissement » — et une source qui applique ICB à ces lignes répond
 **« 100 % finance, Irlande »**. Crédible, absurde.
 
-**Ce que je propose :** on ne transparise qu'**un** niveau. Au-delà, l'actif est affiché comme
-**non transparisé**, jamais deviné.
+**Ce qui a été retenu**, après la recherche de l'étape 8 bis ([D-76](decisions.md)) : on ne
+transparise qu'**un** niveau, et au-delà on ne devine pas — mais l'actif est affiché
+**« non couvert »**, et **non** « non transparisé ». La raison est simple : **aucune source
+accessible ne dit qu'un fonds est un fonds de fonds.** Un tel fonds tombe dans la classe « autres »,
+que le garde-fou de [D-70](decisions.md) refuse déjà ; le distinguer d'un fonds simplement opaque
+serait une devinette. La notion reste définie au [glossaire](glossaire.md), et la bulle de
+« non couvert » mentionne que certains fonds en contiennent d'autres.
 
 ### 8.3 Deux pièges plus discrets
 
@@ -520,3 +525,161 @@ Trois points n'ont pas été tranchés, faute de réponse certaine, et aucun n'e
 | La **couverture des émetteurs absents** (BNP Paribas Easy, Xtrackers) | Non testée sur la source retenue. Un ETF absent sortira des totaux avec son montant : c'est la limite de [D-63](decisions.md), pas un défaut |
 | L'**éligibilité PEA des ETF synthétiques** | 🔶 Deux informations de presse se contredisent (note du 24/07/2026 annonçant la fin, renoncement rapporté le 26/08/2026), aucune sur un texte officiel. **Rien n'est codé là-dessus** |
 
+---
+
+## 16. La source de secours, cherchée à l'étape 8 bis (2026-09-30)
+
+[D-72](decisions.md) avait constaté un trou : la source retenue n'a pas la transparence de certains
+fonds **à swap**, fonds par fonds. Elle chargeait l'étape 8 bis de chercher un recours. Voici ce
+qui a été trouvé, et ce qui a été écarté. La décision est [D-77](decisions.md).
+
+### 16.1 Ce qu'on cherchait
+
+Les quatre critères, et ils ne sont pas négociables :
+
+| # | Critère | Pourquoi |
+|---|---|---|
+| 1 | **gratuit**, sans clé | [D-18](decisions.md) refuse la dépendance à un palier gratuit |
+| 2 | **interrogeable par ISIN** | c'est la seule clé que l'application possède |
+| 3 | **rend des codes** (ISO 3166-1, code de nomenclature) | règle 4 de `CLAUDE.md`, [D-65](decisions.md), [D-66](decisions.md) |
+| 4 | **porte une date d'arrêté** | [D-70](decisions.md) : une composition sans date est refusée |
+
+### 16.2 Retenu · le service produit d'Amundi
+
+Une requête `POST` sur `https://www.amundietf.fr/mapi/ProductAPI/getProductsData`, de corps :
+
+```json
+{
+  "productIds": ["<ISIN>"],
+  "context": {"countryCode": "FRA", "languageCode": "fra", "userProfileName": "RETAIL"},
+  "metrics": [], "historics": [],
+  "breakDown": {"aggregationFields": ["INDEX_COUNTRIES", "INDEX_ASSETCLASSES"]},
+  "characteristics": ["ISIN", "INDEX_BREAKDOWNS_AS_OF_DATE", "IS_NO_INDEX_BREAKDOWN"]
+}
+```
+
+Sans clé, sans compte, sans cookie, sans en-tête `Referer`.
+
+**✅ Le test qui décide.** `FR001400U5Q4` est un **ETF PEA à swap** — la famille même que
+[D-72](decisions.md) a identifiée comme le trou, et celle que tout ETF « PEA » sur un indice non
+européen occupe **par construction** ([D-64](decisions.md)). Le service rend, au 2026-09-28 :
+
+| Pays | Poids |
+|---|---|
+| United States | 72,93 % |
+| Japan | 5,86 % |
+| United Kingdom | 3,42 % |
+| Canada | 3,31 % |
+
+À comparer à la mesure de l'étape 7 sur un World à swap : **panier 15,6 %**, **indice 72,9 %**.
+C'est donc bien l'**indice** qui est publié, à 0,03 point près, pour exactement les fonds qui
+manquaient.
+
+**Couverture relevée** (10 ISIN Amundi, en FR, LU et IE) : **10 sur 10**.
+
+| ISIN | Fonds | Pays rendus | Arrêté |
+|---|---|---|---|
+| `FR001400U5Q4` | PEA Monde (MSCI World), **à swap** | 23 | 2026-09-28 |
+| `FR0014017NX3` | PEA Global (MSCI ACWI) | 47 | 2026-09-28 |
+| `FR0011869320` | PEA Inde (MSCI India) | 1 | 2026-09-28 |
+| `FR0013412012` | PEA Asie Émergente | 8 | 2026-09-28 |
+| `FR0011869312` | PEA Asie Pacifique ex Japon | 12 | 2026-09-28 |
+| `FR0011882364` | PEA Eau (MSCI Water) | 15 | 2026-09-28 |
+| `LU1681043599` | MSCI World Swap EUR | 23 | 2026-09-28 |
+| `LU1681045370` | MSCI Emerging Markets Swap EUR | 24 | 2026-09-28 |
+| `IE0009DRDY20` | Prime Global (physique) | 24 | 2026-09-28 |
+| `IE000E7EI9P0` | S&P World Info Tech Screened | 13 | 2026-09-28 |
+
+**Un point à ne pas rater** : la somme des poids par pays est de **99,9998 %** — mesurée au
+quatre-centième de point par le module lui-même, là où le premier relevé, arrondi à deux décimales,
+affichait « 100,00 % ». C'est beaucoup plus près de 100 qu'extraETF, dont les répartitions vont de
+99,43 % à 99,96 % ([D-69](decisions.md)), mais ce **n'est pas** 100 : le reliquat de 0,0002 point
+devient du « non attribué », comme pour toute autre source, et rien n'est renormalisé. Le contrôle
+de vraisemblance doit donc accepter les deux ordres de grandeur, et un contrôle « ça ne fait jamais
+tout à fait 100 » comme un contrôle « ça doit faire 100 » échoueraient tous les deux.
+
+**Les critères, un par un :** 1 ✅ · 2 ✅ · 3 ❌ **libellés anglais**, pas de codes · 4 ✅
+(`INDEX_BREAKDOWNS_AS_OF_DATE`, propre à l'**indice** et distinct de la date du fonds).
+
+### 16.3 Les deux limites qui commandent la forme
+
+**Les secteurs sont du GICS, et sont donc écartés.** Le service rend `Information Technology`,
+`Financials`, `Health Care`, `Consumer Discretionary`, `Consumer Staples`,
+`Communication Services` — les noms de secteurs **GICS**, là où Morningstar écrit « Technology » et
+« Healthcare ». Or [D-65](decisions.md) impose **une seule** nomenclature, les 11 secteurs
+Morningstar. C'est le **piège n° 16** du §11 : 5 points d'écart mesurés sur la technologie.
+
+→ **Le secours ne sert que la géographie.** Les secteurs d'un actif servi par lui restent **non
+couverts**, et l'écran le dit.
+
+**La règle de pays n'est pas la même.** Les pays de l'indice suivent la méthodologie du fournisseur
+d'indice (pays de classification, proche du siège), là où extraETF donne le **pays d'activité**.
+[D-66](decisions.md) impose d'afficher la règle, [D-72](decisions.md) de l'afficher **ligne par
+ligne** — d'où le champ ajouté au protocole `CompositionDUnActif`.
+
+### 16.4 Le critère 3, et ce que son contournement coûte
+
+Un libellé anglais de pays devient un code ISO 3166-1 par une **table déclarée, datée et sourcée**
+dans `parametres/`, de la forme de `secteurs.toml` et `zones.toml` ([D-58](decisions.md)). La
+**règle 4** de `CLAUDE.md` l'autorise explicitement — « si c'est inévitable, isoler et marquer comme
+fragilité » — et la **règle 5** s'applique : un libellé non reconnu est **affiché**, jamais rangé
+par défaut.
+
+La fragilité est **bornée** : 47 libellés de pays relevés sur les dix fonds, tous normalisables,
+dont six qui demandent de l'attention — `South Korea` → `KR`, `UAE` → `AE`, `Czech Republic` → `CZ`,
+`Hong Kong` → `HK`, `Taiwan` → `TW`, `Turkey` → `TR`. Elle est **sans danger silencieux** : un nom
+qu'on ne reconnaît pas ne peut pas être rangé au mauvais endroit, il est affiché comme non reconnu.
+
+### 16.5 Écarté · les fiches mensuelles PDF d'Amundi
+
+L'URL est libre et **prévisible par ISIN**, avec la date d'arrêté dedans :
+
+```
+https://www.amundietf.fr/pdfDocuments/monthly-factsheet/{ISIN}/FRA/FRA/RETAIL/ETF/{AAAAMMJJ}
+```
+
+Vérifié : `200 application/pdf`, 400 à 525 ko, et le contenu est le bon.
+
+**Écarté** : le texte n'est **pas extractible**. Les fiches emploient des polices sous-ensemble sans
+table de correspondance utilisable — **77 chaînes lisibles sur 311**, le reste étant des codes de
+glyphes. Il faudrait résoudre la police de chaque fiche, et un changement de sous-ensemble casserait
+la lecture **en silence**. Le service JSON rend la même donnée sans ce risque.
+
+### 16.6 Écarté · un deuxième recours
+
+**Xtrackers (DWS)**, re-testé le 2026-09-30 : `etf.dws.com` est **rendu côté client** — une page
+produit fait 2,5 ko — et **aucune route JSON n'est devinable** : six chemins essayés sous
+`etf.dws.com/api/`, tous rendant la page d'erreur HTML. Cela confirme le constat de l'étape 7 (§10).
+
+**Pourquoi c'est acceptable.** Le trou d'extraETF est celui des fonds **à swap**, et dans l'univers
+du PEA ils sont très majoritairement des fonds **Amundi** (dont l'ancien Lyxor), par l'effet de
+[D-64](decisions.md) : un ETF PEA sur un indice non européen est synthétique par construction. Un
+fonds à swap d'un autre émetteur reste **non couvert**, avec son montant affiché, et la déclaration
+à la main ([D-71](decisions.md)) demeure son recours.
+
+### 16.7 Deux pièges à connaître avant de toucher au code
+
+- **`composition.compositionFields` est la liste des lignes détenues.** Le même service l'expose
+  (`isin`, `weight`, `sector`, `country`, `countryOfRisk`). [D-63](decisions.md) et
+  [D-64](decisions.md) l'interdisent : sur un fonds à swap, elle décrit le panier de collatéral, pas
+  l'exposition. **Ne jamais l'appeler.**
+- **Le service répond 200 avec une liste vide quand on le nomme mal.** Le champ de requête est
+  `breakDown` **au singulier**, et ses valeurs sont `INDEX_COUNTRIES` / `INDEX_SECTORS` /
+  `INDEX_ASSETCLASSES` ; avec `breakDowns` au pluriel, ou avec les noms lus dans les libellés
+  d'écran (`INDEX_COUNTRIES_BREAKDOWN`), **il ne se plaint pas, il rend le vide**. Un test doit donc
+  vérifier qu'une réponse **non vide** arrive, et pas seulement l'absence d'erreur.
+
+### 16.8 Ce que la recherche a permis de trancher au passage
+
+`INDEX_ASSETCLASSES` rend `EQUITY_ORDINARY` sur les dix fonds d'actions, et `GOVERNMENT` sur les
+obligataires : c'est un vocabulaire d'**instruments**, jamais de **véhicules**. Il n'y a donc là
+aucun moyen de reconnaître un **fonds de fonds** — ce qui, avec les six classes d'extraETF
+(`stock`, `bond`, `preferred`, `convertible`, `cash`, `other`), a tranché
+[Q-48](questions-ouvertes.md) → [D-76](decisions.md) : la notion reste au glossaire et ne s'affiche
+jamais.
+
+*Réserve notée, non levée :* sur `LU1681046774`, que l'on croyait obligataire **d'entreprises**, le
+champ rend `GOVERNMENT`. Soit l'ISIN n'est pas celui qu'on pensait, soit le champ est imprécis. Le
+code ne s'appuie donc pas dessus pour décider du contenu d'un actif — c'est déjà la leçon de
+[D-71](decisions.md). Il ne sert que de **garde-fou négatif** : si la classe rendue n'est pas une
+classe d'actions, le secours refuse de servir la géographie.

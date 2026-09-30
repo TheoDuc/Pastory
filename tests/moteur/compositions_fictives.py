@@ -31,6 +31,9 @@ class CompositionFictive:
     intitule_de_la_date: str = "date annoncée par la source fictive"
     date_est_un_arrete: bool = True
     source: str = "source fictive"
+    regle_de_pays: str = "règle de pays de la source fictive"
+    """Le champ ajouté à l'étape 8 bis (D-72) : la règle est affichée ligne par ligne, parce que
+    trois règles différentes cohabitent désormais dans la même répartition géographique."""
     replication: str | None = None
 
 

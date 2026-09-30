@@ -107,6 +107,7 @@ class SourceDActions:
             intitule_de_la_date=INTITULE_DE_LA_DATE,
             source=NOM,
             recupere_le=jour,
+            regle_de_pays=REGLE_DE_PAYS,
             replication=None,
         )
 

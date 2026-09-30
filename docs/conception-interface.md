@@ -169,9 +169,13 @@ s'affiche. Les deux : le panneau se parcourt, la marque se remarque.
 
 Deux mots du vocabulaire officiel ne sont adossés à rien :
 
-- **« non transparisé »** (fonds de fonds) est promis par le [glossaire §8](glossaire.md), la
+- **« non transparisé »** (fonds de fonds) était promis par le [glossaire](glossaire.md), la
   [feuille de route](feuille-de-route.md) et le [comparatif](composition-des-etf.md).
-  **Aucun champ du code ne le produit.** → [Q-48](questions-ouvertes.md).
+  **Aucun champ du code ne le produit**, et la recherche de l'étape 8 bis a montré qu'aucune source
+  accessible ne le permettrait. ✅ **Tranché** ([Q-48](questions-ouvertes.md) →
+  [D-76](decisions.md)) : la notion reste au glossaire, **aucun écran ne l'emploie**, et un tel
+  fonds est affiché « non couvert » — dont la bulle d'aide mentionne que certains fonds en
+  contiennent d'autres.
 - **La règle de pays** n'est portée par aucune donnée : elle est seulement implicite dans la
   source retenue (`donnees_externes/actions.py` = siège social, `extraetf.py` = pays d'activité).
   Le rapport en dit un texte générique, sans jamais dire **quel actif** relève de quelle règle.

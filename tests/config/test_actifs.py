@@ -462,3 +462,53 @@ class TestLeContenuDeclare:
 
         for contenu in CONTENUS_ACCEPTES:
             assert classes.classe(contenu) is not None, contenu
+
+
+LIGNE = '"{}" = {{ ticker = "A.DE", devise = "EUR", type = "etf"{} }}'
+
+
+class TestLaSourceDeSecoursSeDeclare:
+    """Le champ « secours » d'un actif (D-72, D-77).
+
+    Déclarée **par actif**, et jamais devinée : deux sources n'ont ni la même nomenclature
+    sectorielle ni la même règle de pays, et basculer en silence donnerait un total juste et une
+    répartition fausse — 5 points d'écart mesurés sur la technologie.
+    """
+
+    def test_un_actif_peut_demander_une_source_de_secours(self, tmp_path):
+        fichier = ecrire(tmp_path, "[actifs]\n" + LIGNE.format(ACTIF, ', secours = "amundi"'))
+
+        declaration = charger(fichier).declaration(ACTIF)
+
+        assert declaration is not None
+        assert declaration.secours == "amundi"
+
+    def test_sans_le_champ_aucun_secours_n_est_employe(self, tmp_path):
+        """Le défaut, et le plus important de ces tests : rien ne bascule tout seul."""
+        fichier = ecrire(tmp_path, "[actifs]\n" + LIGNE.format(ACTIF, ""))
+
+        assert charger(fichier).declaration(ACTIF).secours is None
+
+    def test_une_source_inconnue_est_refusee_a_la_lecture(self, tmp_path):
+        """« amundy » doit s'apprendre tout de suite, pas six écrans plus loin."""
+        fichier = ecrire(tmp_path, "[actifs]\n" + LIGNE.format(ACTIF, ', secours = "amundy"'))
+
+        with pytest.raises(ConfigurationInvalide) as erreur:
+            charger(fichier)
+
+        assert "amundy" in str(erreur.value)
+        assert "amundi" in str(erreur.value)
+
+    def test_la_casse_et_les_espaces_sont_tolerees(self, tmp_path):
+        fichier = ecrire(tmp_path, "[actifs]\n" + LIGNE.format(ACTIF, ', secours = " Amundi "'))
+
+        assert charger(fichier).declaration(ACTIF).secours == "amundi"
+
+    def test_le_modele_du_fichier_explique_le_champ_et_sa_limite(self):
+        """Il est lu par quelqu'un qui n'a pas suivi le projet (D-62)."""
+        texte = modele({ACTIF: "Un fonds quelconque"}, {}, Configuration())
+
+        assert "secours" in texte
+        assert "amundi" in texte
+        # La limite qui compte : la géographie seulement, jamais les secteurs.
+        assert "PAYS" in texte

@@ -432,7 +432,9 @@ Deux points restent à ta charge, et ils ne sont pas vérifiables par le program
 ## Ce que cette étape ne vérifie pas
 
 - **elle ne transparise qu'un niveau.** Un ETF qui détient d'autres ETF (gamme « LifeStrategy »,
-  « Portfolio », « Multi-Asset ») ne se lit pas : il apparaît non transparisé plutôt que deviné ;
+  « Portfolio », « Multi-Asset ») ne se lit pas : il apparaît **non couvert** plutôt que deviné.
+  *Depuis l'étape 8 bis, on sait pourquoi il n'est pas nommé autrement : aucune source ne reconnaît
+  un fonds de fonds ([D-76](../decisions.md)) ;*
 - **elle ne dit rien de la qualité de ta diversification.** Elle montre où est ton argent ; elle ne
   juge pas, et ne conseille pas ([D-26](../decisions.md)) ;
 - **elle ne suit pas la répartition dans le temps.** Une répartition est une photo du jour, pas une

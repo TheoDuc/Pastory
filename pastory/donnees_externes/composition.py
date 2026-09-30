@@ -108,6 +108,24 @@ class Composition:
     aujourd'hui, et laisserait croire que la source a publié des chiffres du jour.
     """
 
+    regle_de_pays: str = ""
+    """**Quelle règle de pays** ces pays suivent, dite en clair (D-66, D-72).
+
+    Le champ qui manquait jusqu'à l'étape 8 bis. La règle était connue du code — `actions.py`
+    donne le siège social, `extraetf.py` le pays d'activité, `amundi.py` le pays de
+    classification de l'indice — mais **aucune donnée ne la portait**, et le rapport n'en disait
+    qu'une phrase générique, sans jamais dire quel actif relevait de quelle règle.
+
+    Pourquoi ça compte : une répartition géographique **n'est pas une grandeur définie de façon
+    unique**. L'écart mesuré entre deux règles, sur un même fonds à une même date, est de 2 points
+    sur les États-Unis et d'un facteur huit sur l'Irlande (D-66). Trois règles cohabitent
+    désormais dans la même répartition, et D-72 demande que la source **et** la règle soient
+    visibles **ligne par ligne**.
+
+    Vide veut dire « non précisé » : c'est le cas d'une répartition déclarée à la main, dont la
+    règle est celle que l'utilisateur a voulue, et que lui seul connaît.
+    """
+
     replication: str | None = None
     """« physique » ou « synthétique », quand la source le dit. Pour un fonds synthétique,
     l'écran doit le signaler : la composition affichée est celle de l'indice, pas des titres que
@@ -270,10 +288,12 @@ class FournisseurDeCompositions:
         actifs: Configuration | None = None,
         aujourd_hui: Date | None = None,
         hors_ligne: bool = False,
+        secours: Mapping[str, SourceDeCompositionDEtf] | None = None,
     ) -> None:
         self.cache = cache
         self.source_etf = source_etf
         self.source_action = source_action
+        self.secours = dict(secours or {})
         self.actifs = actifs if actifs is not None else Configuration()
         self.aujourd_hui = aujourd_hui
         self.hors_ligne = hors_ligne
@@ -293,6 +313,9 @@ class FournisseurDeCompositions:
             noms.append(self.source_etf.nom)
         if self.source_action is not None:
             noms.append(self.source_action.nom)
+        for source in self.secours.values():
+            if source.nom not in noms:
+                noms.append(source.nom)
         return noms
 
     def composition(self, actif: str) -> Composition | None:
@@ -326,15 +349,58 @@ class FournisseurDeCompositions:
             return None
 
         source = self._source(actif)
+        if source is not None:
+            try:
+                composition = controler(source())
+            except ErreurDeSource as erreur:
+                # La principale a échoué. Avant de renoncer, le secours — s'il est déclaré pour
+                # cet actif, et seulement s'il l'est (D-72).
+                de_secours = self._de_secours(actif, apres=erreur)
+                if de_secours is not None:
+                    self.cache.ecrire(de_secours)
+                    return de_secours
+                self._refuser(actif, erreur.categorie, str(erreur))
+                return None
+            self.cache.ecrire(composition)
+            return composition
+
+        # Pas de source principale du tout (type non déclaré, aucune source branchée) : le motif
+        # est déjà retenu par `_source`, et le secours ne remplace pas une déclaration de type.
+        return None
+
+    def _de_secours(self, actif: str, apres: ErreurDeSource) -> Composition | None:
+        """La composition de la source de secours de cet actif, si elle est déclarée (D-72).
+
+        **Déclarée par actif, et jamais devinée.** Deux sources n'ont ni la même nomenclature
+        sectorielle ni la même règle de pays : basculer sur un secours en silence donnerait un
+        total juste et une répartition fausse — 5 points d'écart mesurés sur la technologie.
+
+        Si le secours échoue à son tour, c'est **le motif du secours** qui est retenu, et non
+        celui de la source principale : c'est lui qui est actionnable. Le motif de la principale
+        est rappelé dans le message, pour qu'on sache que les deux ont été essayées.
+        """
+        declaration = self.actifs.declaration(actif)
+        nom = declaration.secours if declaration is not None else None
+        if not nom:
+            return None
+        source = self.secours.get(nom)
         if source is None:
+            self._refuser(
+                actif,
+                "source de secours absente",
+                f"cet actif demande la source de secours « {nom} », qui n'est pas disponible "
+                "dans cette exécution.",
+            )
             return None
         try:
-            composition = controler(source())
+            return controler(source.composition(actif))
         except ErreurDeSource as erreur:
-            self._refuser(actif, erreur.categorie, str(erreur))
+            self._refuser(
+                actif,
+                erreur.categorie,
+                f"{erreur} (la source principale avait déjà refusé : {apres})",
+            )
             return None
-        self.cache.ecrire(composition)
-        return composition
 
     def _source(self, actif: str):
         """Quelle source interroger, selon ce que l'utilisateur a déclaré du type de l'actif."""
