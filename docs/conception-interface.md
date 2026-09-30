@@ -3,7 +3,9 @@
 > **Ce document est le contrat de l'étape 9.** Il dit *ce qui s'affiche, où, et sous quels mots*.
 > Il ne dit pas comment l'écrire en Dash : c'est le travail de l'étape 9.
 >
-> Écrit à l'**étape 8**. Dernière mise à jour : **2026-09-29**.
+> Écrit à l'**étape 8**, complété à l'**étape 8 bis**. Dernière mise à jour :
+> **2026-09-30** — les §4 (les écrans retenus) et §5 (leurs quatre états) ferment le
+> document. **Il est complet : l'étape 9 peut s'appuyer dessus.**
 >
 > Comme tout le dépôt, il n'utilise **aucune valeur réelle** ([D-03](decisions.md)). Les chiffres
 > qui l'illustrent sont inventés.
@@ -15,7 +17,8 @@
 | [1](#1-linventaire--ce-que-le-moteur-produit-et-où-ça-saffiche) | **L'inventaire** : chaque chose que le moteur produit, et l'écran qui la porte |
 | [2](#2-le-vocabulaire-décran) | **Le vocabulaire d'écran** : les mots que l'utilisateur va lire sans les avoir choisis |
 | [3](#3-les-règles-daffichage) | **Les règles d'affichage** : unités, alignement, troncature, couleurs |
-| 4 | Les écrans retenus *(à écrire après les arbitrages sur les maquettes)* |
+| [4](#4-les-écrans-retenus) | **Les écrans retenus** : les cinq onglets, leur ordre, et ce que chacun porte |
+| [5](#5-les-quatre-états-de-chaque-écran) | **Les quatre états** de chaque écran : vide, partiel, estimé, en erreur — et ce qu'aucun n'autorise |
 
 ---
 
@@ -317,4 +320,184 @@ Le rapport texte a **une fonction de mise en forme par unité**, et c'est le mod
 
 ---
 
-*Les §4 et suivants — les écrans retenus — sont écrits après les arbitrages sur les maquettes.*
+## 4. Les écrans retenus
+
+Cinq onglets, arbitrés sur les maquettes de l'étape 8 et **fixés**. Les
+[maquettes](../maquettes/) en sont la version exécutable : là où ce document et elles se
+contredisent, **les maquettes ont raison**, et ce document est à corriger.
+
+L'ordre des onglets est celui des questions qu'on se pose, de la plus large à la plus fine :
+combien j'ai gagné → sur quoi → où est mon argent → ce que ça coûte → comment c'est calculé.
+
+| # | Onglet | La question à laquelle il répond | Filtres actifs |
+|---|---|---|---|
+| 1 | **Synthèse** | Combien ai-je gagné, et comment ça a évolué ? | période, poches |
+| 2 | **Les actifs** | Sur quoi, actif par actif ? | type, poches |
+| 3 | **Diversification** | Où est mon argent ? | **aucun** |
+| 4 | **Frais et taxes** | Combien tout cela coûte ? | **aucun** |
+| 5 | **Détail des calculs** | Comment ces chiffres sont-ils obtenus ? | période, poches |
+
+**Pourquoi la diversification et les frais n'ont aucun filtre**, et c'est une règle et non un
+oubli : une répartition est la **photo d'un tout**, et la valeur réelle est celle du portefeuille
+entier. Il n'y a rien à y filtrer, et **un filtre qui n'agit sur rien est pire qu'absent** — il
+fait douter du chiffre affiché.
+
+### 4.1 Le bandeau permanent
+
+Trois rangées, toujours visibles, de la plus sombre à la plus claire :
+
+1. **la manchette** : le logo et le nom, les cinq onglets, et à droite le compteur de ce qui est
+   **à surveiller** — qui mène au bloc du même nom, dans « Détail des calculs » ;
+2. **les filtres** : période, type d'actif, poches. Chaque onglet n'affiche que ceux qui
+   **agissent sur lui** (voir le tableau ci-dessus) ;
+3. **l'état des données** : la date de l'export, celle des cours, et les arrêtés de composition.
+   C'est la ligne qui permet de dire « ces chiffres sont d'hier », et elle ne disparaît jamais.
+
+### 4.2 Synthèse
+
+Dans cet ordre, de haut en bas :
+
+- **trois tuiles**, le gain d'abord ([D-22](decisions.md)) : **gain**, **TRI**, **TWRR**. Puis deux
+  tuiles secondaires : **valeur des actifs** et **capital net investi**, celle-ci portant la
+  plus-value latente ;
+- **la courbe** — capital brut et capital net investi, du début de la période à sa fin. Le capital
+  investi monte **en escalier** : il ne bouge qu'aux opérations, et la forme le dit mieux qu'une
+  note. Les montants à une date se lisent dans la boîte qui suit la souris (§3.2) ;
+- **les poches**, à côté de la courbe : les mêmes trois chiffres par poche ;
+- **les cartes d'actifs**, triées par variation. Elles ne répètent pas le tableau de l'onglet
+  suivant : elles montrent ce qui a le plus bougé.
+
+### 4.3 Les actifs
+
+**Un seul tableau, pleine largeur**, une ligne par actif, filtrable par type et par poche.
+Il porte les colonnes de `rapport.py` : quantité, capital investi, prix de revient, valeur, gain,
+variation, TRI, TWRR, et la **remarque** qui dit quand un chiffre manque et pourquoi.
+
+C'est le seul écran où une ligne peut être **partielle sans que l'écran entier le soit** : un actif
+sans cours n'empêche pas les autres d'être justes. La remarque porte alors le motif, sur la ligne.
+
+### 4.4 Diversification
+
+**Quatre sous-onglets**, dans l'ordre où l'on se pose les questions : **Actifs** (les classes),
+**Zone géographique**, **Pays**, **Secteur**. Les quatre sur un même écran écrasaient chacun d'eux.
+
+Chaque sous-onglet montre la même chose, deux fois :
+
+- **le classement**, à gauche : une ligne par poste, avec son repère, sa barre, son montant et sa
+  part. Les barres sont toutes rapportées à la **même base**, jamais renormalisées
+  ([D-69](decisions.md)). En dessous d'une coupure, **« ce qui n'entre pas dans cette
+  répartition »** : non attribué, non couvert, hors actions ;
+- **l'anneau**, à droite : la même chose vue d'un coup d'œil. Il ne fait pas foi — **un anneau ne
+  porte pas de chiffre** — et une note le dit : « les montants et les parts sont dans le
+  classement, à gauche ».
+
+Puis, pleine largeur, **« ce qu'il faut savoir de ces chiffres »** : les réserves qui rendent la
+lecture honnête, et non des notes techniques.
+
+### 4.5 Frais et taxes
+
+**Trois niveaux à la file, sur un seul écran** ([D-73](decisions.md)). Le découpage porte la
+séparation **réel / estimé** ([D-17](decisions.md)), et **non une chronologie**
+([D-75](decisions.md)) — d'où les titres, qui disent le critère et jamais le moment :
+
+1. **« Ce qui a déjà été prélevé »** — frais d'ordre, taxes de transaction, et la **retenue à la
+   source sur les dividendes**, qui y reste bien qu'elle tombe pendant la détention. Ces montants
+   figurent sur les relevés ;
+2. **« Pendant la détention — les frais courants »** — TER et spread, **estimés**, chacun avec sa
+   valeur, sa date et sa source ([D-58](decisions.md)) ;
+3. **« À la sortie — par poche »** — la valeur réelle ([D-23](decisions.md)), impôt estimé compris,
+   poche par poche parce que la fiscalité l'est.
+
+### 4.6 Détail des calculs
+
+L'onglet qui rend les chiffres **refaisables à la main**, et c'est sa seule raison d'être : le
+propriétaire ne code pas, il vérifie. Il contient, dans cet ordre :
+
+- **comment le gain est obtenu**, et **pourquoi il ne tombe pas sur la somme de la colonne** — le
+  piège le plus coûteux de l'étape 8 : le gain se calcule sur les montants **bruts**
+  ([D-21](decisions.md)) là où le capital net investi est net de frais et réduit au prorata des
+  ventes ([D-12](decisions.md)) ;
+- **les flux datés, qui donnent le TRI** ;
+- **les sous-périodes, qui donnent le TWRR** ;
+- **une estimation, de bout en bout** — un exemple chiffré d'un coût estimé ;
+- **ce que le calcul d'impôt suppose** ;
+- **« à surveiller »** — le panneau des types d'événements inconnus, des déductions et des
+  estimations. C'est ici qu'aboutit le compteur de la manchette.
+
+---
+
+## 5. Les quatre états de chaque écran
+
+Aucun écran n'a un seul état. Les quatre suivants sont **le contrat** : pour chaque bloc, l'étape 9
+doit savoir lequel elle affiche, et un bloc qui n'en prévoit qu'un est incomplet.
+
+### 5.1 Vide — il n'y a rien à montrer
+
+**Ce n'est pas une erreur, et le message ne doit pas en avoir l'air.** Il dit ce qui manque et
+**quoi faire**, pour quelqu'un qui n'a pas suivi la construction du projet
+([D-62](decisions.md)).
+
+| Cas | Ce que l'écran dit |
+|---|---|
+| Aucune opération lue | Où récupérer un export, et avec quelle commande |
+| Une seule ligne au portefeuille | Les chiffres, sans camembert : un anneau à une part ne dit rien |
+| Aucun cours connu sur la période | **Rien n'est tracé**, plutôt qu'une ligne à zéro — et la phrase le dit |
+| Aucun actif dans le filtre choisi | Que le filtre est en cause, et non les données |
+| Pas de PEA, pas de crypto | La poche **n'apparaît pas**. Une poche vide n'est pas une information |
+
+**La règle qui gouverne cet état :** un zéro affiché et une donnée absente ne se ressemblent pas.
+« 0,00 € » veut dire *mesuré à zéro* ; une absence se dit avec des mots.
+
+### 5.2 Partiel — une partie manque, le reste est juste
+
+L'état le plus fréquent, et le plus dangereux si on le tait : **un total partiel qui ne se dit pas
+est un total faux**.
+
+- le total porte la mention **partiel**, et **la liste de ce qui manque** est à un clic ;
+- les lignes présentes restent affichées avec leurs chiffres : on ne masque pas un écran entier
+  pour un actif sans cours ;
+- dans une répartition, ce qui n'est pas attribué **reste visible** — non attribué, non couvert,
+  hors actions — et **rien n'est renormalisé à 100 %** ([D-69](decisions.md)). Le camembert ne fait
+  pas le tour, et **cela se voit** ;
+- un actif servi par la **source de secours** ([D-77](decisions.md)) est un cas de cet état
+  particulier : il a des **pays** et reste **non couvert en secteur**. Les deux écrans ne sont pas
+  d'accord, et c'est juste.
+
+### 5.3 Estimé — le chiffre n'a pas été payé
+
+Un montant estimé ne se mélange **jamais** à un montant prélevé ([D-17](decisions.md)).
+
+- il porte la marque **estimé**, et sa bulle donne **sa valeur, sa date et sa source**
+  ([D-58](decisions.md)) ;
+- l'écran ne les additionne pas dans un même total sans le dire. Dans « Frais et taxes », la
+  séparation est portée par le **découpage lui-même** ([D-75](decisions.md)) ;
+- une estimation **minorée** le dit, et dit dans quel sens elle se trompe : « le montant réellement
+  dû serait plus élevé, donc la valeur réelle un peu plus basse ». Un utilisateur doit savoir de
+  quel côté il est prudent.
+
+### 5.4 En erreur — quelque chose n'a pas fonctionné
+
+Distinguer trois choses que l'utilisateur confondra si on ne l'aide pas :
+
+| Nature | Ce que l'écran dit | Ce qu'il ne fait jamais |
+|---|---|---|
+| **Source injoignable** (réseau, service en panne) | Que c'est temporaire, et que les chiffres affichés sont ceux du cache, avec leur date | Effacer les chiffres déjà connus |
+| **Donnée refusée** (composition invraisemblable, cours dans la mauvaise devise) | **Pourquoi** elle est refusée, et comment la corriger à la main | Afficher la donnée douteuse « en attendant » |
+| **Type d'événement inconnu** | L'affiche, dans « à surveiller », avec son libellé brut | Le ranger dans une catégorie par défaut (règle 5) |
+
+**La règle qui les réunit :** un trou signalé vaut mieux qu'un chiffre crédible et faux. C'est la
+phrase qui revient le plus souvent dans les décisions de ce projet, et c'est elle qui arbitre quand
+aucune autre ne tranche.
+
+### 5.5 Ce qu'aucun état n'autorise
+
+Quatre choses, jamais, sur aucun écran :
+
+1. **remplir un trou par une estimation silencieuse** — une déduction est explicite, isolée et
+   signalée (règle 6 de `CLAUDE.md`) ;
+2. **renormaliser une répartition à 100 %** ([D-69](decisions.md)) ;
+3. **mélanger deux nomenclatures** ou deux règles de pays dans un même graphique sans le dire
+   ([D-65](decisions.md), [D-66](decisions.md), [D-72](decisions.md)) ;
+4. **faire dépendre un calcul d'un texte affiché** (règle 4). Si c'est inévitable, c'est isolé dans
+   un fichier déclaré, daté et sourcé, et **marqué comme fragilité** — le seul cas existant est
+   `parametres/pays_amundi.toml`.

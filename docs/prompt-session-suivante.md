@@ -7,7 +7,8 @@ commencer.
 > **À mettre à jour par l'instance qui termine une étape**, avant la fusion dans `main`. La
 > dernière section dit comment.
 >
-> Dernière mise à jour : **2026-09-30**, début de l'étape 8 bis (renommage en Pastory, et la lecture du graphique passée sous la courbe).
+> Dernière mise à jour : **2026-09-30**, fin de l'étape 8 bis (la source de secours, Q-48 et Q-49
+> tranchées, et le document de conception fermé).
 
 ---
 
@@ -15,92 +16,94 @@ commencer.
 
 ```
 Lis CLAUDE.md puis docs/feuille-de-route.md, et docs/prompt-session-suivante.md.
-On attaque l'étape 8 bis : les compléments de décision.
+On attaque l'étape 9 : la réalisation de l'interface.
 ```
 
 ---
 
 ## Où en est le projet
 
-- **Étapes 0 à 8 terminées.** Le moteur est complet, et **l'interface est conçue**. Les maquettes
-  vivent dans [maquettes/](../maquettes/) : de vrais fichiers HTML et CSS, ouvrables tels quels, avec
-  un portefeuille fictif d'utilisateur type et quatre jeux de données commutables. Cinq onglets :
-  Synthèse, Les actifs, Diversification, Frais et taxes, Détail des calculs. **La feuille de style
-  deviendra `pastory/vues/assets/pastory.css` telle quelle** ([D-31](decisions.md)) : c'est
-  le livrable, pas une illustration.
-- **Prochaine : étape 8 bis**, les compléments de décision. Trois choses, et la première est du
-  code : **D-72** (la source de secours par actif), **Q-48** et **Q-49** à trancher, et le
-  **document de conception** à finir.
-- **Questions ouvertes** : **Q-26** (rapprocher le PEA), non bloquante ; **Q-48** (« non
-  transparisé ») et **Q-49** (la place de la retenue sur dividendes), toutes deux pour l'étape 8 bis.
+- **Étapes 0 à 8 bis terminées.** Le moteur est complet, l'interface est **conçue**, et le
+  document de conception est **fermé** : ses §4 (les écrans retenus) et §5 (leurs quatre états)
+  ont été écrits à l'étape 8 bis. L'étape 9 peut s'appuyer dessus sans rien rouvrir.
+- Les maquettes vivent dans [maquettes/](../maquettes/) : de vrais fichiers HTML et CSS, ouvrables
+  tels quels, avec un portefeuille fictif d'utilisateur type et quatre jeux de données
+  commutables. Cinq onglets : Synthèse, Les actifs, Diversification, Frais et taxes, Détail des
+  calculs. **La feuille de style deviendra `pastory/vues/assets/pastory.css` telle quelle**
+  ([D-31](decisions.md)) : c'est le livrable, pas une illustration.
+- **Prochaine : étape 9**, brancher l'interface retenue sur le moteur, écran par écran, en
+  commençant par la synthèse.
+- **Questions ouvertes** : **Q-26** seule (aller chercher le second compte-titres pour rapprocher
+  le PEA), et elle n'est pas bloquante. Q-48 et Q-49 ont été tranchées à l'étape 8 bis.
 
 **Ce qui existe déjà :**
 
 | Où | Quoi |
 |---|---|
 | [maquettes/](../maquettes/) | **Les écrans**, en HTML et CSS. `index.html` s'ouvre directement ; `style.css` est le livrable ; `maquette.js` construit les écrans ; `donnees/` porte le portefeuille fictif |
-| [conception-interface.md](conception-interface.md) | **Le contrat de l'étape 9.** §1 l'inventaire de ce que le moteur produit, §2 le vocabulaire d'écran, §3 les règles d'affichage. **Les écrans retenus restent à écrire** |
+| [conception-interface.md](conception-interface.md) | **Le contrat de l'étape 9, complet.** §1 l'inventaire de ce que le moteur produit, §2 le vocabulaire d'écran, §3 les règles d'affichage, §4 les cinq écrans retenus, §5 leurs quatre états (vide, partiel, estimé, en erreur) |
 | [format-pivot.md](format-pivot.md) | **Le contrat** : les opérations (§1 à §8) et la photo du portefeuille (§9) |
 | [architecture.md](architecture.md) | Les couches, leurs frontières, le trajet d'un chiffre |
 | [glossaire.md](glossaire.md) | Chaque formule, dont le gain, le TRI, le TWRR (§4, §5), les coûts (§6), la diversification (§8) |
 | `pastory/` | Le moteur complet : pivot, adaptateur, données externes, paramètres, moteur, `cli.py` (12 commandes) |
-| [decisions.md](decisions.md) | D-01 à D-74. L'étape 8 a ajouté **D-73** (les frais en trois niveaux), l'étape 8 bis **D-74** (le nom Pastory) |
+| [decisions.md](decisions.md) | D-01 à D-77. L'étape 8 bis a ajouté **D-74** (le nom Pastory), **D-75** (le premier niveau des frais), **D-76** (« non transparisé » au glossaire seul) et **D-77** (la source de secours Amundi) |
 
-**Ce qui n'existe pas encore :** le branchement de l'interface sur le moteur (étape 9), et les trois
-compléments de l'étape 8 bis.
+**Ce qui n'existe pas encore :** le branchement de l'interface sur le moteur. C'est toute
+l'étape 9.
 
 ---
 
-## Ce que l'étape 8 bis doit savoir
+## Ce que l'étape 9 doit savoir
 
-### Le travail qui reste, dans l'ordre
+### Le contrat, et où il est
 
-1. **D-72, la source de secours par actif.** La seule partie qui est du code. Commencer par une
-   **recherche** : ce qu'Amundi publie réellement par ISIN français — la répartition de l'**indice
-   suivi**, ce que demande [D-64](decisions.md) — et un ou deux recours de plus. Critères : gratuit,
-   interrogeable par ISIN, rend des **codes**, porte une date d'arrêté. Puis un module de plus dans
-   `donnees_externes/`, branché par le **protocole existant** de `moteur/diversification.py`, la
-   source se **déclarant par actif** dans `actifs.toml` comme le contenu déclaré ([D-71](decisions.md)).
-   **Si la recherche ne trouve rien d'exploitable, c'est un résultat** : on l'écrit, l'actif reste
-   « non couvert », et la déclaration à la main reste le recours.
-2. **Q-48 et Q-49**, à poser au propriétaire — Q-48 après la recherche, qui dira si une source
-   indique les fonds de fonds de façon fiable.
-3. **Le document de conception**, §4 et suivants : les écrans retenus, leurs états, les règles.
+**Tout est dans [conception-interface.md](conception-interface.md).** Ne pas rouvrir les
+arbitrages : les cinq onglets, leur ordre et leurs filtres sont fixés, et le §5 dit les quatre
+états que chaque bloc doit prévoir. Là où le document et les maquettes se contredisent, **les
+maquettes ont raison** et le document est à corriger.
 
-### Un ajout au protocole, que l'étape 8 a identifié
+Le point le plus facile à rater : **la diversification et les frais n'ont aucun filtre**, et c'est
+une règle. Une répartition est la photo d'un tout ; un filtre qui n'agit sur rien fait douter du
+chiffre affiché.
 
-La **règle de pays n'est portée par aucune donnée** : elle est seulement implicite dans la source
-(`donnees_externes/actions.py` = siège social, `extraetf.py` = pays d'activité). Or
-[D-66](decisions.md) demande qu'elle soit affichée et [D-72](decisions.md) qu'elle le soit **ligne
-par ligne**. Il faut donc un champ de plus dans `CompositionDUnActif`
-(`moteur/diversification.py:78`), à côté de la source.
+### Ce que l'étape 8 bis a ajouté au moteur, et qui change l'écran
 
-### Ce que les relectures ont appris, et qui vaut pour l'étape 9
+- **`Diversification.origines`** : la source **et** la règle de pays de **chaque** actif
+  (`moteur/diversification.py`, `OrigineDUnActif`). C'est la condition que
+  [D-72](decisions.md) posait pour s'autoriser une source de secours, et l'écran doit les mettre
+  **en face des lignes**. Le rapport texte le fait déjà, et n'affiche le bloc que s'il y a **plus
+  d'une** origine — vingt lignes identiques feraient douter des chiffres ;
+- **`Composition.regle_de_pays`** : le champ qui manquait. Trois règles cohabitent désormais —
+  pays d'activité (extraETF), siège social (GLEIF), pays de classification de l'indice (Amundi) ;
+- **la source de secours** ([D-77](decisions.md)) : un actif servi par elle a des **pays** et
+  reste **non couvert en secteur**. Les deux écrans de diversification ne sont pas d'accord, et
+  c'est juste — le §5.2 du contrat le dit.
 
-Neuf passes de relecture par le propriétaire. Les pièges trouvés sont tous des pièges **d'affichage
-qui font douter des chiffres** :
+### Les pièges d'affichage trouvés à l'étape 8, qui valent tous pour l'étape 9
+
+Neuf passes de relecture par le propriétaire. Les pièges sont tous des pièges **d'affichage qui
+font douter des chiffres** — jamais des pièges de calcul :
 
 - **la boîte de lecture du graphique a été essayée dans TROIS arrangements**, et c'est le plus
-  instructif des allers-retours de l'étape 8. (1) Infobulle en haut du cadre : elle masquait le haut
-  de la courbe, l'endroit même qu'on regarde. (2) Bandeau sous la courbe, hauteur réservée, ne
+  instructif des allers-retours. (1) Infobulle en haut du cadre : elle masquait le haut de la
+  courbe, l'endroit même qu'on regarde. (2) Bandeau sous la courbe, hauteur réservée, ne
   recouvrant rien : jugé « trop en retrait », puis écarté pour une raison meilleure — **descendre
-  les yeux hors du graphique pour lire un chiffre casse la lecture**. (3) Retenu : une boîte **sur**
-  le graphique qui **suit la souris**, décalée du curseur et basculant près des bords, étroite et
-  verticale pour ne masquer qu'une bande fine. C'est l'utilisateur qui la déplace. Les trois sont
-  gardés au §3.2 de [conception-interface.md](conception-interface.md) avec leurs raisons :
-  **ne pas recommencer le tour.** Leçon générale : sur un graphique, *ne rien recouvrir* pèse moins
-  que *ne pas faire bouger les yeux* ;
+  les yeux hors du graphique pour lire un chiffre casse la lecture**. (3) Retenu : une boîte
+  **sur** le graphique qui **suit la souris**, décalée du curseur et basculant près des bords,
+  étroite et verticale pour ne masquer qu'une bande fine. Les trois sont gardés au §3.2 du
+  contrat avec leurs raisons : **ne pas recommencer le tour.** Leçon générale : sur un graphique,
+  *ne rien recouvrir* pèse moins que *ne pas faire bouger les yeux* ;
 - **un repère répété à l'identique n'est pas un repère** : les cinq zones géographiques portaient
   toutes le même globe. Elles portent maintenant un **planisphère** dont leur part du monde est
-  remplie d'encre. Ce qui en sort : un repère de ce genre **situe, il ne mesure pas** — il allume des
-  continents entiers là où une zone ne suit pas leurs contours — et il doit le dire ; et le Japon
-  comme la Nouvelle-Zélande sont dessinés **plus grands que l'échelle**, sans quoi ils font un pixel
-  et disparaissent au moment même où on les allume ;
-- **un nouveau repère plus large casse deux choses d'un coup** : le planisphère faisait 15 px de plus
-  qu'un pictogramme, ce qui a (1) tronqué « Asie-Pacifique développée » à la largeur minimale de sa
-  colonne — le défaut de l'étape 7, revenu par une autre porte — et (2) dentelé le bord gauche des
-  libellés d'une même liste. D'où la colonne élargie, le créneau de repère à largeur fixe, et le
-  `title` sur chaque libellé ;
+  remplie d'encre. Ce qui en sort : un repère de ce genre **situe, il ne mesure pas** — il allume
+  des continents entiers là où une zone ne suit pas leurs contours — et il doit le dire ; et le
+  Japon comme la Nouvelle-Zélande sont dessinés **plus grands que l'échelle**, sans quoi ils font
+  un pixel et disparaissent au moment même où on les allume ;
+- **un nouveau repère plus large casse deux choses d'un coup** : le planisphère faisait 15 px de
+  plus qu'un pictogramme, ce qui a (1) tronqué « Asie-Pacifique développée » à la largeur minimale
+  de sa colonne — le défaut de l'étape 7, revenu par une autre porte — et (2) dentelé le bord
+  gauche des libellés d'une même liste. D'où la colonne élargie, le créneau de repère à largeur
+  fixe, et le `title` sur chaque libellé ;
 - **`.carte` était déjà pris.** Le planisphère s'est d'abord appelé `.carte`, qui est le nom des
   cartes d'actifs de la synthèse : sa règle de largeur et de hauteur écrasait la leur. Il s'appelle
   `.planisphere`. **Un contrôle automatique l'a trouvé** — celui qui compare les classes posées par
@@ -112,27 +115,27 @@ qui font douter des chiffres** :
   variable. `maquettes/maquette.js` porte les deux palettes, et un script vérifie qu'elles
   concordent ;
 - **sans `color-scheme: only light`**, le mode sombre automatique du navigateur inverse les
-  clartés : le bleu le plus foncé s'affiche le plus clair. Le propriétaire l'a constaté sur une
-  capture, et c'était bien un défaut — mais pas celui qu'on croyait. Conséquence plus grave que les
-  anneaux : un gain en sauge inversé vire au rouge ;
+  clartés : le bleu le plus foncé s'affiche le plus clair. Conséquence plus grave que les anneaux :
+  un gain en sauge inversé vire au rouge ;
 - **un SVG sans règle de taille** prend sa taille intrinsèque et remplit la page. Arrivé en
   supprimant une classe voisine inutilisée, qui a emporté neuf règles avec elle ;
 - **un anneau ne porte pas de chiffre** : l'étiquette doit choisir sa couleur selon la part, et
   devient illisible sur les teintes intermédiaires. Le classement chiffré à côté fait foi ;
-- **une couleur suit son poste, jamais son rang** : sinon décocher une poche repeint les survivants ;
-- **le sens de lecture d'un anneau n'est pas évident** : trier par taille décroissante, sans quoi la
-  petite part collée avant midi se confond avec la première ligne de la légende ;
+- **une couleur suit son poste, jamais son rang** : sinon décocher une poche repeint les
+  survivants ;
+- **le sens de lecture d'un anneau n'est pas évident** : trier par taille décroissante, sans quoi
+  la petite part collée avant midi se confond avec la première ligne de la légende ;
 - **le gain n'est pas la somme d'une colonne**, et l'écran doit le dire. Il se calcule sur les
   montants bruts ([D-21](decisions.md)) là où le capital net investi est net de frais et réduit au
   prorata des ventes ([D-12](decisions.md)).
 
 ### Comment le propriétaire relit
 
-Il regarde l'écran, pas le code, et il trouve des défauts réels — y compris ceux qui viennent de son
-navigateur. **Quand il signale une incohérence de chiffres, la vérifier par le calcul avant de
+Il regarde l'écran, pas le code, et il trouve des défauts réels — y compris ceux qui viennent de
+son navigateur. **Quand il signale une incohérence de chiffres, la vérifier par le calcul avant de
 conclure** : deux fois sur trois le code avait raison et l'affichage avait tort, une fois sur trois
-c'était un vrai bug de calcul. Les scripts de contrôle écrits à l'étape 8 sont dans le dossier
-temporaire de la session, pas dans le dépôt : les réécrire au besoin.
+c'était un vrai bug de calcul. Les scripts de contrôle écrits aux étapes 8 et 8 bis sont dans le
+dossier temporaire de la session, pas dans le dépôt : les réécrire au besoin.
 
 ---
 
