@@ -502,12 +502,22 @@ des calculs. La feuille de style deviendra `pastory/vues/assets/pastory.css` tel
 **Session :** session dédiée.
 
 ## Étape 9 · Réalisation de l'interface ⏳
-**But :** brancher l'interface retenue sur le moteur.
+**But :** brancher l'interface retenue sur le moteur, **et faire disparaître l'édition de
+fichiers**.
 
-**Claude :** implémente écran par écran, en commençant par la synthèse. Affiche les types inconnus,
-les déductions et les estimations.
+**Claude :**
+- Implémente écran par écran, en commençant par la synthèse. Affiche les types inconnus, les
+  déductions et les estimations.
+- **Réalise les écrans de réglages** ([D-78](decisions.md), [§6 du contrat](conception-interface.md)).
+  Ce n'est pas un complément : le rôle des comptes, le ticker et la devise d'un actif, son type,
+  son TER, son `contenu` et sa source de secours doivent tous se régler **dans l'application**. Le
+  fichier TOML reste le format de stockage, il n'est plus le moyen de configurer. **L'étape n'est
+  pas terminée tant qu'un réglage n'existe qu'en fichier.**
+- Traite la contrainte annoncée : un écran qui écrit dans le fichier doit le **relire et le
+  réécrire sans perdre ses commentaires**, sans quoi l'édition à la main perd son sens.
 
 **Toi :** utiliser l'application sur tes données et noter tout ce qui est faux, lent ou peu clair.
+Et **vérifier que tu n'ouvres plus aucun fichier** pour t'en servir.
 
 ## Étape 10 · Installation pour d'autres utilisateurs ⏳
 **But :** qu'un investisseur non développeur l'installe en quelques étapes.

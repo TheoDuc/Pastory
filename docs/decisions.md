@@ -1226,3 +1226,60 @@ Lyxor). Xtrackers a été re-testé le 2026-09-30 : **aucune route JSON devinabl
 rendu côté client — ce qui confirme le constat de l'étape 7. Un fonds à swap d'un autre émetteur
 reste donc non couvert, avec son montant affiché, et la déclaration à la main ([D-71](#d-71))
 demeure son recours.
+
+---
+
+*Arbitrage du propriétaire du 2026-10-01, sur la mise en route de l'application.*
+
+### D-78 · 2026-10-01 · Un fichier de configuration est un format de stockage, jamais une interface · Validée
+**Décision :** **toute** configuration dont l'application a besoin se fait **dans l'application**,
+par un écran. Le fichier TOML reste le **format de stockage** — lisible, vérifiable à la main, hors
+du dépôt — mais il **cesse d'être le moyen de configurer**. Quatre conséquences, qui sont les
+termes exacts de l'engagement :
+
+1. **chaque réglage a un écran** : le rôle des comptes espèces, le ticker et la devise d'un actif,
+   son type, son TER, son `contenu` ([D-71](#d-71)), sa source de secours ([D-77](#d-77)), et tout
+   réglage ajouté plus tard. Aucun n'est accessible **seulement** par le fichier ;
+2. **l'édition à la main reste possible**, pour qui la préfère et pour réparer sans l'interface.
+   L'application **ne doit jamais écraser** ce qui a été écrit à la main — c'est déjà la règle pour
+   les poches déclarées, et un test la garde ;
+3. **l'application propose, l'utilisateur décide.** Quand elle peut deviner un réglage, elle le
+   **propose** avec sa raison, et ne l'applique pas sans accord. C'est ce qui réconcilie cette
+   décision avec celles qui exigent qu'un choix soit explicite ([D-70](#d-70),
+   [D-71](#d-71), [D-77](#d-77)) : ce qu'elles interdisent, c'est de **basculer en silence**, pas
+   de demander en un clic ;
+4. **aucune étape n'est terminée** avec un réglage qui n'existe qu'en fichier.
+
+**Raison :** le propriétaire, le 2026-10-01, après avoir vu arriver un quatrième réglage à écrire
+à la main : « je trouve les étapes de configuration particulièrement chiantes et peu pratiques […]
+pour ton truc de `secours = "amundi"`, je ne vais jamais de la vie demander à l'utilisateur de
+faire ça ». Il a raison, et le constat qui l'accompagne est plus grave que l'inconfort : **une
+bidouille qui fait peur n'est pas seulement désagréable, elle fait douter de l'application
+entière.** Or ce projet a une exigence de confiance dans les chiffres ; elle ne survit pas à une
+mise en route qui ressemble à du dépannage.
+
+**Ce qu'elle corrige, et qui était une erreur d'analyse :** [D-38](#d-38) a choisi le TOML parce
+qu'il « se lit et se corrige sans être développeur ». C'est vrai, et **ce n'était pas la bonne
+question**. Qu'un format soit lisible ne rend pas l'acte d'éditer un fichier acceptable pour
+quelqu'un qui n'édite jamais de fichiers. D-38 reste valide sur le **format** ; elle est corrigée
+sur ce qu'on en déduisait.
+
+**Le cas d'école, et pourquoi il était évitable :** la source de secours ([D-77](#d-77)) a été
+livrée comme un champ TOML, alors que **l'application a déjà tout pour la proposer elle-même** —
+elle sait quels fonds sont non couverts, et elle sait reconnaître un fonds Amundi puisque la source
+répond « aucun produit » pour les autres émetteurs. L'écran peut donc dire : « ce fonds n'est pas
+couvert ; Amundi publie la répartition de l'indice qu'il suit — l'utiliser ? », et rien à taper. La
+décision reste explicite, le geste devient un clic.
+
+**Écarte :** l'assistant en ligne de commande comme réponse suffisante — il écrit un fichier bien
+commenté, ce qui est mieux que rien, mais renvoie quand même vers un éditeur de texte ; et le
+report de ces écrans à l'étape 10, où la feuille de route les plaçait vaguement. Le propriétaire a
+arbitré pour l'**étape 9, dès le début** : concevoir l'interface sans la configuration reviendrait
+à la concevoir pour quelqu'un qui a déjà tout configuré, c'est-à-dire pour personne — et c'est
+justement pendant l'étape 9 qu'il utilise l'application sur ses données.
+
+**La contrainte technique à traiter à l'étape 9, dite d'avance :** un écran qui écrit dans le
+fichier doit le **relire et le réécrire sans perdre les commentaires** que les assistants y
+mettent — ce sont eux qui rendent le fichier compréhensible à la main, et les perdre viderait le
+point 2 de son sens. C'est faisable et ce n'est pas gratuit : à traiter comme un sujet, pas comme
+un détail.

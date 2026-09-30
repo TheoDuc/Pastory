@@ -46,7 +46,7 @@ On attaque l'étape 9 : la réalisation de l'interface.
 | [architecture.md](architecture.md) | Les couches, leurs frontières, le trajet d'un chiffre |
 | [glossaire.md](glossaire.md) | Chaque formule, dont le gain, le TRI, le TWRR (§4, §5), les coûts (§6), la diversification (§8) |
 | `pastory/` | Le moteur complet : pivot, adaptateur, données externes, paramètres, moteur, `cli.py` (12 commandes) |
-| [decisions.md](decisions.md) | D-01 à D-77. L'étape 8 bis a ajouté **D-74** (le nom Pastory), **D-75** (le premier niveau des frais), **D-76** (« non transparisé » au glossaire seul) et **D-77** (la source de secours Amundi) |
+| [decisions.md](decisions.md) | D-01 à D-78. L'étape 8 bis a ajouté **D-74** (le nom Pastory), **D-75** (le premier niveau des frais), **D-76** (« non transparisé » au glossaire seul) **D-77** (la source de secours Amundi) et **D-78** (plus aucune configuration en éditant un fichier) |
 
 **Ce qui n'existe pas encore :** le branchement de l'interface sur le moteur. C'est toute
 l'étape 9.
@@ -54,6 +54,29 @@ l'étape 9.
 ---
 
 ## Ce que l'étape 9 doit savoir
+
+### La chose à ne pas rater de cette étape
+
+**L'édition de fichiers doit disparaître** ([D-78](decisions.md), et le
+[§6 du contrat](conception-interface.md)). C'est un arbitrage du propriétaire du 2026-10-01, rendu
+en voyant arriver un quatrième réglage à écrire à la main, et sa raison porte loin : **une bidouille
+qui fait peur fait douter de l'application entière**, or ce projet ne tient que sur la confiance
+dans ses chiffres.
+
+Concrètement : le rôle des comptes, le ticker et la devise d'un actif, son type, son TER, son
+`contenu` et sa source de secours ont **tous** un écran. Le fichier TOML reste le format de
+stockage. **L'étape n'est pas terminée tant qu'un réglage n'existe qu'en fichier.**
+
+Deux points de méthode qui vont avec :
+
+- **l'application propose, l'utilisateur décide.** Ce que D-70, D-71 et D-77 interdisent, c'est de
+  basculer en silence — pas de demander en un clic. Le cas d'école est la source de secours :
+  l'application sait déjà quels fonds sont non couverts, et sait reconnaître un fonds Amundi
+  puisque la source répond « aucun produit » pour les autres émetteurs. Elle peut donc proposer, et
+  il n'y a rien à taper ;
+- **un écran qui écrit dans le fichier doit le relire et le réécrire sans perdre ses
+  commentaires.** Ce sont eux qui rendent le fichier compréhensible à la main. C'est faisable et ce
+  n'est pas gratuit : un sujet, pas un détail.
 
 ### Le contrat, et où il est
 

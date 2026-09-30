@@ -4,8 +4,9 @@
 > Il ne dit pas comment l'écrire en Dash : c'est le travail de l'étape 9.
 >
 > Écrit à l'**étape 8**, complété à l'**étape 8 bis**. Dernière mise à jour :
-> **2026-09-30** — les §4 (les écrans retenus) et §5 (leurs quatre états) ferment le
-> document. **Il est complet : l'étape 9 peut s'appuyer dessus.**
+> **2026-10-01** — le §6 ajoute les **écrans de réglages** : l'étape 9 doit faire disparaître
+> l'édition de fichiers ([D-78](decisions.md)). Avec les §4 (les écrans retenus) et §5 (leurs
+> quatre états), **le document est complet : l'étape 9 peut s'appuyer dessus.**
 >
 > Comme tout le dépôt, il n'utilise **aucune valeur réelle** ([D-03](decisions.md)). Les chiffres
 > qui l'illustrent sont inventés.
@@ -19,6 +20,7 @@
 | [3](#3-les-règles-daffichage) | **Les règles d'affichage** : unités, alignement, troncature, couleurs |
 | [4](#4-les-écrans-retenus) | **Les écrans retenus** : les cinq onglets, leur ordre, et ce que chacun porte |
 | [5](#5-les-quatre-états-de-chaque-écran) | **Les quatre états** de chaque écran : vide, partiel, estimé, en erreur — et ce qu'aucun n'autorise |
+| [6](#6-les-écrans-de-réglages) | **Les écrans de réglages** : plus aucune configuration en éditant un fichier ([D-78](decisions.md)) |
 
 ---
 
@@ -501,3 +503,71 @@ Quatre choses, jamais, sur aucun écran :
 4. **faire dépendre un calcul d'un texte affiché** (règle 4). Si c'est inévitable, c'est isolé dans
    un fichier déclaré, daté et sourcé, et **marqué comme fragilité** — le seul cas existant est
    `parametres/pays_amundi.toml`.
+
+---
+
+## 6. Les écrans de réglages
+
+**Ajouté le 2026-10-01, et ce n'est pas un complément :** [D-78](decisions.md) fait de ces écrans
+une partie de l'étape 9, au même titre que la synthèse. La raison est un arbitrage du propriétaire,
+et elle vaut d'être lue avant d'écrire une ligne :
+
+> Une bidouille qui fait peur n'est pas seulement désagréable : **elle fait douter de l'application
+> entière.** Ce projet demande à l'utilisateur de croire ses chiffres. Cette confiance ne survit pas
+> à une mise en route qui ressemble à du dépannage.
+
+Le fichier TOML reste le **format de stockage**. Il n'est plus le moyen de configurer.
+
+### 6.1 Ce qui doit avoir un écran
+
+Quatre réglages existent aujourd'hui, et **aucun** ne doit rester accessible seulement par le
+fichier :
+
+| Réglage | Ce que l'utilisateur fait aujourd'hui | Ce que l'écran doit permettre |
+|---|---|---|
+| **Le rôle des comptes espèces** | ouvre `comptes.toml`, écrit un rôle par compte | une liste des comptes vus, et un rôle à choisir dans une liste fermée |
+| **Le ticker et la devise d'un actif** | ouvre `actifs.toml`, valide ou corrige la proposition | l'actif, la proposition de la source, sa devise, et **valider / corriger / laisser vide** |
+| **Le type, le TER, le spread** | même fichier, mêmes lignes | des champs, avec le TER proposé et sa source |
+| **Le `contenu`** ([D-71](decisions.md)) | écrit `contenu = "obligations"` | un choix, proposé **là où l'actif est annoncé non couvert** |
+| **La source de secours** ([D-77](decisions.md)) | écrit `secours = "amundi"` | un bouton, proposé au même endroit — voir §6.3 |
+
+### 6.2 Les trois règles de ces écrans
+
+1. **L'application propose, l'utilisateur décide.** Quand elle peut deviner un réglage, elle le
+   **propose avec sa raison** et ne l'applique jamais sans accord. Ce que
+   [D-70](decisions.md), [D-71](decisions.md) et [D-77](decisions.md) interdisent, c'est de
+   **basculer en silence** — pas de demander en un clic. Un réglage appliqué sans accord reste
+   interdit ; un réglage proposé, expliqué et accepté d'un clic est exactement ce qu'elles veulent.
+2. **L'édition à la main reste possible, et n'est jamais écrasée.** L'écran et le fichier sont deux
+   portes sur la même chose. Un utilisateur qui a écrit une ligne à la main doit la retrouver
+   intacte, et **les commentaires du fichier doivent survivre à une écriture par l'écran** — ce
+   sont eux qui le rendent compréhensible, et les perdre viderait cette règle de son sens. À
+   traiter comme un sujet, pas comme un détail.
+3. **Un réglage manquant se dit là où il manque.** Pas dans un écran de réglages qu'il faudrait
+   penser à aller voir : sur la ligne, sur le chiffre, à l'endroit où son absence se voit. Un actif
+   sans ticker le dit dans le tableau des actifs, et le lien vers son réglage est là.
+
+### 6.3 Le cas de la source de secours, en exemple
+
+C'est le cas qui a produit [D-78](decisions.md), et il montre ce que « proposer » veut dire.
+
+L'application **sait déjà tout** ce qu'il faut : elle connaît les fonds **non couverts**, et elle
+sait reconnaître un fonds Amundi puisque la source de secours répond « aucun produit » pour les
+autres émetteurs. Donc, là où l'actif est annoncé non couvert :
+
+> **Ce fonds n'est pas couvert.** Amundi publie la répartition de l'indice qu'il suit. L'utiliser
+> pour sa répartition **par pays** ? Ses secteurs resteront non couverts, et la source comme la
+> règle de pays seront affichées sur chaque ligne.
+> **[Utiliser Amundi]  [Non]**
+
+Rien à taper, et la décision reste celle de l'utilisateur. Le refus est aussi une réponse, et il
+doit se retenir : ne pas reposer la question à chaque lancement.
+
+### 6.4 Ce que ces écrans n'ont pas le droit de faire
+
+- **deviner et appliquer** sans le dire ni demander ;
+- **masquer** un réglage manquant pour faire propre : c'est ce qui produit un chiffre faux plus
+  loin ;
+- **écrire dans le fichier autre chose que ce que l'utilisateur a validé** ;
+- **exiger un réglage pour afficher le reste.** Un portefeuille dont trois actifs ne sont pas
+  déclarés s'affiche quand même, avec ses trois trous nommés — c'est l'état « partiel » du §5.2.

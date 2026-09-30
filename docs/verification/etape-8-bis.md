@@ -172,7 +172,9 @@ Fais-le dans cet ordre.
 1. **Repère tes fonds non couverts.** `pastory positions` les nomme, avec leur montant et le motif.
 2. **Pour chacun, regarde son ISIN.** Est-ce un fonds **Amundi** ? Les ISIN commencent souvent par
    `FR` ou `LU`, et le nom contient « Amundi » ou « Lyxor ». Si non, le secours ne servira à rien.
-3. **Ajoute `secours = "amundi"`** sur sa ligne dans `actifs.toml`
+3. **Ajoute `secours = "amundi"`** sur sa ligne dans `actifs.toml`. *C'est temporaire : à
+   l'étape 9, l'application te le **proposera** là où le fonds est annoncé non couvert, et tu
+   n'auras rien à écrire ([D-78](../decisions.md)).*
    (`pastory emplacements` dit où se trouve le fichier) :
 
    ```toml

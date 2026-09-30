@@ -7,13 +7,23 @@
 >
 > Les passages entre crochets `[…]` sont des remarques de retranscription, pas le texte original.
 
-Dernière mise à jour : 2026-09-30 (le nom de l'application : Pastory).
+Dernière mise à jour : 2026-10-01 (la configuration se fait dans l'application).
 
 ---
 
 ## Évolutions de cap
 
 Ces précisions **priment** sur le texte d'origine ci-dessous.
+
+### 2026-10-01 · On ne configure pas en éditant un fichier ([D-78](decisions.md))
+> Je trouve les étapes de configuration particulièrement chiantes et peu pratiques. Je comprends
+> qu'elles sont essentielles pour limiter au maximum les erreurs. Étant donné que c'est de la
+> modification de fichiers, ce n'est pas très *user friendly*. […] Pour ton truc de
+> `secours = "amundi"`, je ne vais jamais de la vie demander à l'utilisateur de faire ça.
+
+Le fichier TOML reste le format de **stockage** ; il n'est plus le moyen de configurer. Chaque
+réglage a un écran, dès l'étape 9. Ce qui est en jeu n'est pas le confort : **une bidouille qui
+fait peur fait douter des chiffres**, et ce projet ne tient que sur la confiance dans ses chiffres.
 
 ### 2026-09-30 · L'application s'appelle Pastory ([D-74](decisions.md))
 > Le nom « DashBoard Trade Republic » n'est pas gardé. L'application s'appelle **Pastory**.
