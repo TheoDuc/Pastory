@@ -198,6 +198,32 @@ class TestCeQuElleRefuse:
         assert "GOVERNMENT" in str(erreur.value)
         assert "actifs.toml" in str(erreur.value)
 
+    def test_une_petite_ligne_de_liquidites_ne_fait_pas_refuser_un_fonds_d_actions(
+        self, libelles
+    ):
+        """Le garde-fou est un seuil, pas une liste blanche stricte.
+
+        Exiger que *toutes* les classes rendues soient des actions refuserait un indice
+        d'actions portant 0,2 % de liquidités — un faux refus, et le genre de refus qui fait
+        perdre confiance sans rien protéger.
+        """
+        avec_liquidites = reponse(
+            classes=[("EQUITY_ORDINARY", "0.998"), ("CASH", "0.002")]
+        )
+
+        composition = lire(avec_liquidites, ACTIF, libelles)
+
+        assert [part.code for part in composition.pays] == ["US", "JP"]
+
+    def test_un_fonds_majoritairement_obligataire_est_refuse_avec_sa_part(self, libelles):
+        """Le seuil est à 50 %, comme celui d'extraETF, et pour la même raison."""
+        mixte = reponse(classes=[("EQUITY_ORDINARY", "0.30"), ("GOVERNMENT", "0.70")])
+
+        with pytest.raises(CompositionIndisponible) as erreur:
+            lire(mixte, ACTIF, libelles)
+
+        assert "30.0000 %" in str(erreur.value)
+
     def test_une_composition_sans_date_est_refusee(self, libelles):
         with pytest.raises(CompositionIncoherente, match="date d'arrêté"):
             lire(reponse(arrete=None), ACTIF, libelles)

@@ -160,6 +160,16 @@ règle**. Maintenant, dès que plusieurs origines se côtoient, le rapport ajout
 Le bloc **n'apparaît pas** quand tout vient du même endroit : vingt lignes identiques feraient
 douter des chiffres au lieu de les éclairer.
 
+**Et dans le tableur.** `pastory exporter-positions` écrit désormais
+`origines_des_compositions.csv` — une ligne par actif, avec sa source et sa règle. C'est là que ça
+compte : la colonne `source` des `repartition_*.csv` porte *toutes* les sources sur chaque ligne,
+ce qui est juste (une ligne de pays agrège plusieurs actifs) mais ne te dit pas **quel actif a
+suivi quelle règle**.
+
+- [ ] ouvre `origines_des_compositions.csv` et vérifie qu'un fonds servi par le secours porte bien
+      « Amundi » et la règle de l'indice, là où les autres portent « extraETF » et le pays
+      d'activité.
+
 - [ ] déclare `secours = "amundi"` sur un fonds, relance `pastory positions`, et vérifie que ce
       bloc apparaît et nomme bien deux sources.
 

@@ -8,6 +8,7 @@ l'opération ajoute ou retire, et l'état d'après — et que les deux se recoll
 from __future__ import annotations
 
 import csv
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 
@@ -479,6 +480,71 @@ class TestLaRepartition:
         resultat = _diversification_de_test()
         fichier = export_csv.ecrire_repartition(
             resultat, diversification.Rubrique.CLASSE, tmp_path / "classes.csv"
+        )
+
+        for ligne in relire(fichier):
+            for colonne, valeur in ligne.items():
+                assert valeur != "", colonne
+
+
+class TestLesOriginesDesCompositions:
+    """Le fichier qui dit d'où vient chaque composition, et sous quelle règle de pays.
+
+    Il manquait : le rapport l'affichait à l'écran, mais rien ne le mettait dans le tableur — là
+    où le propriétaire vérifie ses chiffres. La colonne `source` des `repartition_*.csv` porte
+    *toutes* les sources sur chaque ligne, ce qui est correct (une ligne de pays agrège plusieurs
+    actifs) mais ne permet pas de contrôler **quel actif a suivi quelle règle**. Or l'écart entre
+    deux règles est de 2 points sur les États-Unis et d'un facteur huit sur l'Irlande (D-66).
+    """
+
+    def _diversification_a_deux_origines(self):
+        une = diversification.OrigineDUnActif(
+            actif="XX0000000001",
+            source="extraETF (composition agrégée par ISIN)",
+            regle_de_pays="pays d'activité de la société",
+        )
+        deux = diversification.OrigineDUnActif(
+            actif="XX0000000002",
+            source="Amundi (répartition de l'indice suivi, par ISIN)",
+            regle_de_pays="pays de classification de l'indice suivi",
+        )
+        return replace(_diversification_de_test(), origines=(une, deux))
+
+    def test_une_ligne_par_actif_avec_sa_source_et_sa_regle(self, tmp_path):
+        fichier = export_csv.ecrire_origines(
+            self._diversification_a_deux_origines(), tmp_path / "origines.csv"
+        )
+
+        lignes = relire(fichier)
+        assert [ligne["actif"] for ligne in lignes] == ["XX0000000001", "XX0000000002"]
+        assert lignes[0]["source"].startswith("extraETF")
+        assert lignes[0]["regle_de_pays"] == "pays d'activité de la société"
+        assert lignes[1]["source"].startswith("Amundi")
+        assert lignes[1]["regle_de_pays"] == "pays de classification de l'indice suivi"
+
+    def test_les_colonnes_sont_celles_annoncees(self, tmp_path):
+        fichier = export_csv.ecrire_origines(
+            self._diversification_a_deux_origines(), tmp_path / "origines.csv"
+        )
+
+        assert tuple(relire(fichier)[0]) == export_csv.COLONNES_ORIGINES
+
+    def test_une_regle_absente_est_dite_et_non_laissee_vide(self, tmp_path):
+        """Une case vide se lit comme un oubli ; « sans objet » se lit comme une réponse."""
+        declaree = diversification.OrigineDUnActif(
+            actif="XX0000000003",
+            source="déclaré par vous dans actifs.toml",
+            regle_de_pays="",
+        )
+        sans_regle = replace(_diversification_de_test(), origines=(declaree,))
+
+        fichier = export_csv.ecrire_origines(sans_regle, tmp_path / "origines.csv")
+
+        assert relire(fichier)[0]["regle_de_pays"] == tableur.VALEUR_SANS_OBJET
+
+    def test_aucune_case_n_est_laissee_vide(self, tmp_path):
+        fichier = export_csv.ecrire_origines(
+            self._diversification_a_deux_origines(), tmp_path / "origines.csv"
         )
 
         for ligne in relire(fichier):

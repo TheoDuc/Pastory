@@ -172,7 +172,9 @@ s'affiche. Les deux : le panneau se parcourt, la marque se remarque.
 
 ### 1.8 Ce que l'inventaire a trouvé de cassé
 
-Deux mots du vocabulaire officiel ne sont adossés à rien :
+Deux choses n'étaient adossées à rien. **Les deux ont été traitées à l'étape 8 bis**, et elles
+restent écrites ici : un défaut trouvé par un inventaire mérite de rester lisible, ne serait-ce que
+pour se souvenir qu'un inventaire en trouve.
 
 - **« non transparisé »** (fonds de fonds) était promis par le [glossaire](glossaire.md), la
   [feuille de route](feuille-de-route.md) et le [comparatif](composition-des-etf.md).
@@ -181,12 +183,16 @@ Deux mots du vocabulaire officiel ne sont adossés à rien :
   [D-76](decisions.md)) : la notion reste au glossaire, **aucun écran ne l'emploie**, et un tel
   fonds est affiché « non couvert » — dont la bulle d'aide mentionne que certains fonds en
   contiennent d'autres.
-- **La règle de pays** n'est portée par aucune donnée : elle est seulement implicite dans la
-  source retenue (`donnees_externes/actions.py` = siège social, `extraetf.py` = pays d'activité).
-  Le rapport en dit un texte générique, sans jamais dire **quel actif** relève de quelle règle.
+- **La règle de pays** n'était portée par aucune donnée : elle était seulement implicite dans la
+  source (`donnees_externes/actions.py` = siège social, `extraetf.py` = pays d'activité), et le
+  rapport en disait un texte générique sans jamais dire **quel actif** relevait de quelle règle.
   Or [D-66](decisions.md) demande qu'elle soit affichée, et [D-72](decisions.md) qu'elle le soit
-  **ligne par ligne**. → traité en phase 5, par un champ de plus dans le protocole
-  `CompositionDUnActif`.
+  **ligne par ligne**. ✅ **Corrigé à l'étape 8 bis**, en trois endroits :
+  `Composition.regle_de_pays` la porte, `Diversification.origines` la donne **par actif** avec sa
+  source, et le rapport comme le CSV `origines_des_compositions.csv` l'affichent — ce dernier
+  parce que c'est dans un tableur que le propriétaire vérifie ses chiffres. **Trois règles
+  cohabitent** désormais : pays d'activité, siège social, et pays de classification de l'indice
+  ([D-77](decisions.md)).
 
 ---
 

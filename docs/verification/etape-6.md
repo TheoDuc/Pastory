@@ -321,7 +321,7 @@ précédentes.
 ```
 uv run pastory actifs              propose le type et le TER de chaque actif
 uv run pastory positions           les trois nouveaux blocs, après les anciens
-uv run pastory exporter-positions  huit CSV, dont couts.csv et valeur_reelle.csv
+uv run pastory exporter-positions  douze CSV, dont couts.csv et valeur_reelle.csv
 ```
 
 Aucune de ces commandes ne demande ton PIN : **rien ne passe par Trade Republic**

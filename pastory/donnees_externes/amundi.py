@@ -103,11 +103,22 @@ d'indice — et c'est bien l'indice qu'on affiche pour un fonds synthétique (D-
 CLASSES_ACTIONS = ("equity_ordinary", "equity", "equity_preferred")
 """Les classes d'actifs de cette source qui sont des **actions**, en forme normalisée.
 
-Sert de **garde-fou négatif** et de rien d'autre : si la classe rendue n'est pas là-dedans, le
-secours refuse de servir la géographie. La raison est D-68 — sur un fonds obligataire, « pays »
-peut vouloir dire devise d'émission — et la prudence de D-71 : ce champ n'est pas documenté, il a
-rendu `GOVERNMENT` sur un fonds qu'on croyait obligataire d'entreprises, et on ne s'appuie donc
-jamais dessus pour **décider** d'un contenu. On s'en sert seulement pour **s'abstenir**.
+Sert de **garde-fou négatif** et de rien d'autre : si le fonds n'est pas essentiellement en
+actions, le secours refuse de servir la géographie. La raison est D-68 — sur un fonds obligataire,
+« pays » peut vouloir dire devise d'émission — et la prudence de D-71 : ce champ n'est pas
+documenté, il a rendu `GOVERNMENT` sur un fonds qu'on croyait obligataire d'entreprises, et on ne
+s'appuie donc jamais dessus pour **décider** d'un contenu. On s'en sert seulement pour
+**s'abstenir**.
+"""
+
+PART_ACTIONS_MINIMALE = Decimal("50")
+"""En pour cent. En dessous, le fonds n'est pas un fonds d'actions et sa géographie est refusée.
+
+**Pourquoi un seuil et non une liste blanche stricte.** Exiger que *toutes* les classes rendues
+soient des actions refuserait un indice d'actions qui porte une petite ligne de liquidités — un
+faux refus, pour 0,2 % du fonds. Le seuil est le même que celui d'extraETF
+(`extraetf.PART_RENSEIGNEE_MINIMALE`), et pour la même raison : il attrape le fonds que la source
+décrit comme autre chose, sans punir celui qu'elle décrit bien.
 """
 
 CENT = Decimal("100")
@@ -271,16 +282,25 @@ def _exiger_des_actions(classes: Sequence[Mapping[str, object]], actif: str) -> 
     if not classes:
         return
     noms = [str(c.get("aggregationName") or "") for c in classes]
-    normalises = {n.strip().lower().replace("-", "_").replace(" ", "_") for n in noms if n}
-    if not normalises:
+    if not any(noms):
         return
-    if not normalises <= set(CLASSES_ACTIONS):
+
+    part_actions = Decimal("0")
+    for classe, nom in zip(classes, noms, strict=True):
+        if not nom:
+            continue
+        normalise = nom.strip().lower().replace("-", "_").replace(" ", "_")
+        if normalise in CLASSES_ACTIONS:
+            part_actions += _pour_cent(classe.get("weight"), nom, actif)
+
+    if part_actions < PART_ACTIONS_MINIMALE:
         lisible = ", ".join(sorted(n for n in noms if n))
         raise CompositionIndisponible(
-            f"Amundi décrit {actif} comme contenant : {lisible}. La source de secours ne sert "
-            "que la géographie des fonds d'**actions** : sur un fonds obligataire, « pays » peut "
-            "vouloir dire la devise d'émission et non le pays de l'émetteur. Déclarez le contenu "
-            "de cet actif dans actifs.toml plutôt que de lui chercher une géographie."
+            f"Amundi décrit {actif} comme contenant : {lisible} — soit {part_actions} % "
+            "d'actions. La source de secours ne sert que la géographie des fonds d'**actions** : "
+            "sur un fonds obligataire, « pays » peut vouloir dire la devise d'émission et non le "
+            "pays de l'émetteur. Déclarez le contenu de cet actif dans actifs.toml plutôt que de "
+            "lui chercher une géographie."
         )
 
 

@@ -799,3 +799,37 @@ def ecrire_repartition(
     return tableur.ecrire(
         COLONNES_REPARTITION, _lignes_de_repartition(repartition, diversification), fichier
     )
+
+
+NOM_ORIGINES = "origines_des_compositions.csv"
+
+COLONNES_ORIGINES = ("actif", "source", "regle_de_pays")
+"""D'où vient la composition de chaque actif, et sous quelle règle de pays (D-66, D-72).
+
+**Pourquoi un fichier à part, et pourquoi il manquait.** La colonne `source` des
+`repartition_*.csv` porte *toutes* les sources employées, sur chaque ligne — et c'est correct,
+puisqu'une ligne de pays agrège plusieurs actifs, donc parfois plusieurs sources. Mais ça ne
+permet pas de contrôler **quel actif a suivi quelle règle**, et c'est précisément ce que
+[D-66](../../docs/decisions.md) exige pour qu'un pourcentage soit vérifiable : l'écart mesuré
+entre deux règles est de 2 points sur les États-Unis et d'un facteur huit sur l'Irlande.
+
+Le rapport l'affiche à l'écran depuis l'étape 8 bis. Ce fichier le met dans le tableur, là où le
+propriétaire vérifie ses chiffres — sans quoi la condition posée par
+[D-72](../../docs/decisions.md) n'était tenue qu'à moitié.
+"""
+
+
+def _lignes_des_origines(diversification: Diversification) -> Iterator[dict[str, object]]:
+    for origine in diversification.origines:
+        yield {
+            "actif": origine.actif,
+            "source": origine.source,
+            # Vide veut dire « non précisé », et c'est le cas d'une répartition déclarée à la
+            # main : le tableur doit le dire, pas laisser une case vide qu'on lit comme un oubli.
+            "regle_de_pays": origine.regle_de_pays or tableur.VALEUR_SANS_OBJET,
+        }
+
+
+def ecrire_origines(diversification: Diversification, fichier: Path) -> Path:
+    """Écrit l'origine de chaque composition : sa source, et sa règle de pays."""
+    return tableur.ecrire(COLONNES_ORIGINES, _lignes_des_origines(diversification), fichier)

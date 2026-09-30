@@ -4,13 +4,17 @@ Tableau de bord **local** et **gratuit** pour suivre les actifs d'un portefeuill
 (PEA, CTO, crypto), destiné aux investisseurs long terme. Les données ne quittent jamais la
 machine.
 
-> **Projet en construction.** Étape 6 sur 12 : l'application lit un export Trade Republic, va
-> chercher les cours de marché, et en tire par actif la quantité détenue, le capital investi, le
-> prix de revient, la valeur, le gain, le TRI et le TWRR — puis ce que tout cela **coûte** (frais
-> et taxes payés, spread et frais courants estimés) et ce qu'on récupérerait en **vendant tout**,
-> impôt estimé compris. Il lui manque la **diversification** et une **interface**. L'avancement
-> est suivi dans [docs/feuille-de-route.md](docs/feuille-de-route.md). Le guide d'installation
-> complet viendra à l'étape 10.
+> **Projet en construction.** Étape 8 bis sur 12 : l'application lit un export Trade Republic,
+> va chercher les cours de marché, et en tire par actif la quantité détenue, le capital investi,
+> le prix de revient, la valeur, le gain, le TRI et le TWRR — puis ce que tout cela **coûte**
+> (frais et taxes payés, spread et frais courants estimés), ce qu'on récupérerait en **vendant
+> tout** impôt estimé compris, et **où est l'argent** (classes d'actifs, pays, secteurs).
+>
+> Tout cela s'utilise aujourd'hui **en ligne de commande**, et les réglages se font en éditant un
+> fichier. Il lui manque donc l'essentiel pour qui ne code pas : une **interface**, et des
+> **écrans de réglages** ([D-78](docs/decisions.md)) — c'est l'étape 9. L'avancement est suivi
+> dans [docs/feuille-de-route.md](docs/feuille-de-route.md), et le guide d'installation complet
+> viendra à l'étape 10.
 
 ## Installation, pour l'instant
 
@@ -92,7 +96,7 @@ D'où viennent ces cours et pourquoi cette source : [sources-de-cours.md](docs/s
 uv run pastory positions           # quantités, capital investi, prix de revient,
                                      # valeur des actifs, gain, TRI et TWRR,
                                      # coûts payés et estimés, valeur réelle
-uv run pastory exporter-positions  # huit CSV pour le tableur, dont le journal et les flux
+uv run pastory exporter-positions  # douze CSV pour le tableur, dont le journal et les flux
 uv run pastory positions-reelles   # demande à la banque ce qu'elle dit détenir
 ```
 

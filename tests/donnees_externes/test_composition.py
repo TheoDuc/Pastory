@@ -379,15 +379,6 @@ class TestLaSourceDeSecours:
         assert fournisseur.composition(ETF) is None
         assert "amundi" in fournisseur.refus[0].motif
 
-    def test_le_secours_est_nomme_dans_les_sources_du_rapport(self):
-        fournisseur = FournisseurDeCompositions(
-            cache=CacheFictif(),
-            source_etf=SourceEtfFictive(),
-            secours={"amundi": SourceEtfFictive()},
-        )
-
-        assert "source d'ETF de test" in fournisseur.sources
-
     def test_la_declaration_a_la_main_passe_toujours_devant_le_secours(self):
         """D-70 reste la porte de sortie : elle l'emporte sur toute source, secours compris."""
         secours = SourceEtfFictive(table={ETF: composition(ETF, source="secours de test")})

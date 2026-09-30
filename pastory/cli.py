@@ -780,6 +780,7 @@ def commande_exporter_positions(
     )
 
     fichiers_repartition: list[Path] = []
+    fichier_origines: Path | None = None
     if construit.diversification is not None:
         for rubrique, nom in (
             (diversification_moteur.Rubrique.CLASSE, export_moteur.NOM_REPARTITION_CLASSES),
@@ -790,6 +791,12 @@ def commande_exporter_positions(
                 export_moteur.ecrire_repartition(
                     construit.diversification, rubrique, personnel / nom
                 )
+            )
+        # L'origine de chaque composition, dans le tableur et pas seulement à l'écran : sans
+        # elle, on ne peut pas contrôler quel actif a suivi quelle règle de pays (D-66, D-72).
+        if construit.diversification.origines:
+            fichier_origines = export_moteur.ecrire_origines(
+                construit.diversification, personnel / export_moteur.NOM_ORIGINES
             )
 
     # Après l'évolution, et non avant : elle demande un cours par jour, et ses refus doivent
@@ -815,6 +822,11 @@ def commande_exporter_positions(
     print(f"La valeur réelle et l'impôt estimé, poche par poche :\n  {fichier_valeur_reelle}")
     for fichier in fichiers_repartition:
         print(f"Répartition, avec ce qui n'y entre pas :\n  {fichier}")
+    if fichier_origines is not None:
+        print(
+            "Source et règle de pays de chaque composition, pour les vérifier une par une :"
+            f"\n  {fichier_origines}"
+        )
 
     for ligne in _rapport_des_compositions(construit.compositions):
         print(ligne)

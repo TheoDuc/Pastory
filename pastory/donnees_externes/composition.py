@@ -313,9 +313,9 @@ class FournisseurDeCompositions:
             noms.append(self.source_etf.nom)
         if self.source_action is not None:
             noms.append(self.source_action.nom)
-        for source in self.secours.values():
-            if source.nom not in noms:
-                noms.append(source.nom)
+        # Les sources de **secours** ne sont pas listées ici : une source branchée mais qu'aucun
+        # actif ne demande n'est pas une source de cette répartition. Ce qui est employé pour de
+        # vrai se lit dans `Diversification.sources`, construit sur les compositions obtenues.
         return noms
 
     def composition(self, actif: str) -> Composition | None:

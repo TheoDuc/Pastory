@@ -438,7 +438,7 @@ l'adaptateur sur le moteur. Aucune couche n'appelle l'autre d'elle-même.
 | `lire` | adaptateur | **non** — un rapport à l'écran |
 | `exporter-pivot` | adaptateur → `pivot` | les opérations en CSV |
 | `positions` | adaptateur → `pivot` → `donnees_externes` → `parametres` → moteur | **non** — un rapport à l'écran |
-| `exporter-positions` | idem | les huit CSV du moteur |
+| `exporter-positions` | idem | les douze CSV du moteur |
 | `positions-reelles` | `pytr` → adaptateur → moteur | **non** — le rapprochement à l'écran |
 | `ouvrir` | *(étape 9)* | — |
 

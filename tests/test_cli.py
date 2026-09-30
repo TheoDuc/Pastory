@@ -1595,4 +1595,14 @@ class TestPositionsAvecRepartition:
 
         for nom in ("repartition_classes.csv", "repartition_pays.csv", "repartition_secteurs.csv"):
             assert (dossier_personnel / nom).exists(), nom
-        assert "Répartition, avec ce qui n'y entre pas" in capsys.readouterr().out
+
+        # L'origine de chaque composition, dans le tableur et pas seulement à l'écran : sans
+        # elle, on ne peut pas contrôler quel actif a suivi quelle règle de pays (D-66, D-72).
+        origines = dossier_personnel / "origines_des_compositions.csv"
+        assert origines.exists()
+        contenu = origines.read_text(encoding="utf-8-sig")
+        assert fictifs.ACTIF_ETF in contenu
+
+        affichage = capsys.readouterr().out
+        assert "Répartition, avec ce qui n'y entre pas" in affichage
+        assert "Source et règle de pays de chaque composition" in affichage
