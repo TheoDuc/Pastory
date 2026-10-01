@@ -51,7 +51,9 @@ Toute étape qui calcule des chiffres produit un fichier `docs/verification/etap
 
 ### Tes réflexes permanents
 - **Ne jamais** coller de vraies valeurs dans un fichier du dépôt ni dans une issue GitHub.
-- Relancer `pytr` pour rafraîchir `data/` avant de vérifier des chiffres.
+- Télécharger un nouvel **export des transactions** dans l'application Trade Republic (Profil →
+  Relevés → Export des transactions, « toutes les transactions ») avant de vérifier des chiffres.
+  *Jusqu'à l'étape 8 ter : relancer `pytr`.*
 - Quand un chiffre te semble faux : le dire à Claude avec l'actif, la date et la valeur attendue.
   Le problème part alors dans les questions ouvertes ou devient un test.
 
@@ -470,7 +472,7 @@ des calculs. La feuille de style deviendra `pastory/vues/assets/pastory.css` tel
 - **le gain n'est pas la somme d'une colonne** : il se calcule sur les montants bruts (D-21) là où
   le capital net investi est net de frais et réduit au prorata des ventes (D-12).
 
-## Étape 8 bis · Compléments de décision 🔜
+## Étape 8 bis · Compléments de décision ✅
 **But :** finir ce que l'étape 8 laisse ouvert, avant de brancher quoi que ce soit.
 
 **Claude :**
@@ -489,10 +491,9 @@ des calculs. La feuille de style deviendra `pastory/vues/assets/pastory.css` tel
 - ✅ **[Q-49](questions-ouvertes.md) est tranchée** ([D-75](decisions.md)) : le premier niveau des
   frais est **« ce qui a déjà été prélevé »**, quel qu'en soit le moment, et la retenue sur
   dividendes y reste. Le découpage porte la séparation réel / estimé, et non une chronologie.
-- 🔜 **Écrit le document de conception** [conception-interface.md](conception-interface.md) : ses §1
-  (l'inventaire), §2 (le vocabulaire d'écran) et §3 (les règles d'affichage) existent ; restent les
-  **écrans retenus** et leurs **états** (vide, partiel, estimé, en erreur). C'est le contrat que
-  l'étape 9 exécute.
+- ✅ **Écrit le document de conception** [conception-interface.md](conception-interface.md) : ses §1
+  (l'inventaire), §2 (le vocabulaire d'écran), §3 (les règles d'affichage), §4 (les écrans retenus)
+  et §5 (leurs quatre états). C'est le contrat que l'étape 9 exécute.
 
 **Toi :**
 - ✅ Q-48 et Q-49 tranchées.
@@ -501,18 +502,114 @@ des calculs. La feuille de style deviendra `pastory/vues/assets/pastory.css` tel
 
 **Session :** session dédiée.
 
+---
+
+> **Changement de cap du 2026-10-01 ([D-79](decisions.md)).** Trade Republic fournit depuis avril
+> 2026 un **export officiel des transactions**, en CSV, dans son application. Il devient la porte
+> d'entrée des opérations à la place de pytr : plus de connexion ni d'identifiant, plus de comptes
+> à nommer, des données en colonnes au lieu de textes allemands, et plus de clause des conditions
+> générales. Deux étapes s'intercalent avant l'interface, et les étapes 9 à 11 s'en trouvent
+> allégées. Relevé du fichier : [export-officiel.md](export-officiel.md).
+
+## Étape 8 ter · La nouvelle porte d'entrée : l'export officiel 🔜
+**But :** lire l'export officiel au format pivot, sans rien perdre en silence, et prouver qu'il
+donne **les mêmes opérations** que pytr. Le moteur ne change pas d'une ligne ([D-26](decisions.md)).
+
+**Claude :**
+- **Recherche d'abord** (agent de recherche) : aucune liste des types n'est publiée. Rassembler
+  les valeurs de `type` et d'`asset_class` connues des importeurs libres qui lisent déjà ce fichier
+  (Portfolio Performance, DivvyDiary, convertisseurs pour Ghostfolio, projets français), en priorité
+  le **dividende** (brut et retenue séparés ?), la **vente**, les **titres reçus** (actions
+  gratuites, action gagnée, transfert entrant), le **Saveback** et la crypto reçue. Compléter le
+  [§4 et le §7 d'export-officiel.md](export-officiel.md). Chaque type non vu sur un vrai fichier
+  reste marqué 🔶 et n'est **pas** traité : il est affiché comme inconnu.
+- **Écrit l'adaptateur** (à côté de celui de pytr, qui reste le temps de la comparaison) :
+  - classement par liste explicite de `(category, type)` : traité, espèces hors périmètre,
+    **inconnu affiché** ([D-08](decisions.md), règle 5) ;
+  - la poche vient de `account_type` et `asset_class` — **aucun fichier `comptes.toml`** ;
+  - les valeurs sont `donnee` ; seul `nature_source`, lu dans `description`, est marqué `texte` ;
+  - **plusieurs fichiers** se cumulent, dédoublonnés par `transaction_id`, et la **période couverte**
+    est affichée (un export partiel donne une histoire incomplète, [D-45](decisions.md)) ;
+  - les lignes d'espèces ne sont lues que par leur `type`, et comptées, jamais recopiées
+    ([export-officiel.md §8](export-officiel.md)) ;
+  - le contrôle du montant réglé est revu selon [Q-52](questions-ouvertes.md).
+- **Le dossier de dépôt** ([D-80](decisions.md)) : un dossier de Pastory, dans le dossier
+  personnel hors OneDrive ([D-37](decisions.md)), où l'utilisateur dépose ses exports ;
+  l'application lit tout ce qui s'y trouve. Il remplace `rafraichir`.
+- **La preuve par comparaison** : les deux adaptateurs sur la **même période** doivent produire les
+  mêmes opérations, aux écarts près qui sont listés et expliqués (l'achat de crypto, §5 du relevé).
+  C'est le cœur du [cahier de vérification](verification/) de l'étape.
+- Selon [Q-50](questions-ouvertes.md) : retire pytr et son adaptateur, ou le réduit à la photo du
+  portefeuille. Met à jour [architecture.md](architecture.md), [format-pivot.md](format-pivot.md)
+  §4 (provenances) et `CLAUDE.md`.
+
+**Toi :**
+- Trancher [Q-50](questions-ouvertes.md), [Q-51](questions-ouvertes.md) et
+  [Q-52](questions-ouvertes.md) — pour Q-52, regarder d'abord dans l'application ce qui a été
+  réellement débité sur ton achat de crypto.
+- Demander à ton ami un **export officiel** : l'application n'en lit que la structure (règle 2), et
+  il contient sûrement des types que tu n'as pas — c'est le plus sûr moyen de couvrir les
+  dividendes et les ventes.
+- Le mois prochain, un nouvel export : il dira où vont les parts du **Saveback**.
+- Vérifier, actif par actif, que les quantités et le capital investi n'ont pas bougé en changeant
+  de source.
+
+**Session :** nouvelle session : recherche d'abord, code ensuite. `/code-review` à la fin.
+
+## Étape 8 quater · Des réglages qui se proposent seuls ⏳
+**But :** que l'application **trouve et applique seule** chaque réglage restant, avec sa source,
+sa date et un contrôle ([D-80](decisions.md)). L'utilisateur ne fait que déposer l'export ; il
+peut corriger, il n'a jamais à le faire.
+
+**L'inventaire de départ**, à confirmer en début d'étape :
+
+| Réglage | Aujourd'hui | Piste |
+|---|---|---|
+| Le fichier d'export | une commande | **un dossier de Pastory** où l'on dépose les exports ; l'application lit tout ce qui s'y trouve ([D-80](decisions.md)) |
+| Rôle des comptes espèces ([D-10](decisions.md)) | déclaré à la main | **supprimé** par l'étape 8 ter |
+| Type d'un actif ([D-55](decisions.md)) | proposé par la source de cours, validé | `asset_class` de l'export, selon [Q-51](questions-ouvertes.md) |
+| Ticker d'une crypto | **saisi à la main** | `symbol` de l'export (`ETH` → `ETH-EUR`), à vérifier par la devise ([D-48](decisions.md)) |
+| Ticker et devise d'un ETF ou d'une action | proposés, validés | inchangé : déjà une proposition |
+| TER ([D-61](decisions.md)) | proposé depuis Xetra ; **les ETF « PEA » français en sont absents** | chercher une source pour eux — le service d'Amundi ([D-77](decisions.md)) publie-t-il les frais courants ? |
+| `contenu` : obligations, matières premières ([D-71](decisions.md)) | **déclaré à la main** | chercher une source de classe d'actifs fiable : colonne de la liste Xetra, service d'Amundi, `asset_class` de l'export ; celle d'extraETF a été jugée fausse deux fois sur trois |
+| Source de secours ([D-77](decisions.md)) | champ `secours = "amundi"` | **proposée** quand le fonds est non couvert et qu'Amundi le connaît ([§6.3 du contrat](conception-interface.md)) |
+| Date d'ouverture du PEA ([D-59](decisions.md)) | **déclarée à la main** dans `fiscalite.toml` | proposée depuis le premier versement `PEA` de l'export ; un PEA transféré d'ailleurs garde une date invisible, d'où la validation |
+
+**Une piste de plus, à soumettre et non à décider :** l'export contient les versements et retraits
+du PEA. [D-59](decisions.md) approche le gain du plan depuis les titres, sous trois hypothèses
+dont « aucun retrait passé ». Ces lignes permettraient au moins de **vérifier** l'hypothèse, et
+peut-être de calculer le gain du plan comme le fisc (valeur moins versements). Ce serait lire des
+montants d'espèces, ce que [D-11](decisions.md) écarte pour l'affichage : à trancher.
+
+**Claude :** agent de recherche sur les pistes du tableau (critères : gratuit, sans clé, par ISIN,
+daté, conditions d'utilisation qui l'autorisent, **et fiabilité mesurée** sur un échantillon,
+comme le TER de Xetra l'a été à [D-61](decisions.md)), puis l'application automatique côté moteur et
+données externes. Chaque valeur trouvée porte sa source et sa date, et passe un contrôle ; une
+valeur qui échoue n'est pas appliquée, et le trou s'affiche. Retire du code les messages qui
+renvoient vers un fichier à éditer.
+
+**Toi :** trancher chaque piste, et la piste du PEA. Le critère : **combien de valeurs l'application
+ne sait-elle pas trouver** sur un portefeuille type ? La réponse visée est zéro, et chaque trou qui
+reste doit s'expliquer à l'écran.
+
+**Session :** nouvelle session : recherche d'abord, code ensuite.
+
 ## Étape 9 · Réalisation de l'interface ⏳
 **But :** brancher l'interface retenue sur le moteur, **et faire disparaître l'édition de
 fichiers**.
 
 **Claude :**
+- **Commence par l'écran d'accueil** : où déposer l'export, avec le chemin dans l'application
+  Trade Republic (Profil → Relevés → Export des transactions), la période couverte une fois le
+  fichier lu, et les types inconnus. C'est le premier écran d'un nouvel utilisateur.
 - Implémente écran par écran, en commençant par la synthèse. Affiche les types inconnus, les
   déductions et les estimations.
 - **Réalise les écrans de réglages** ([D-78](decisions.md), [§6 du contrat](conception-interface.md)).
-  Ce n'est pas un complément : le rôle des comptes, le ticker et la devise d'un actif, son type,
-  son TER, son `contenu` et sa source de secours doivent tous se régler **dans l'application**. Le
-  fichier TOML reste le format de stockage, il n'est plus le moyen de configurer. **L'étape n'est
-  pas terminée tant qu'un réglage n'existe qu'en fichier.**
+  Depuis [D-80](decisions.md), ce sont des écrans de **correction, facultatifs** : chaque valeur
+  trouvée (ticker, devise, type, TER, `contenu`, source de secours, date du PEA) y est montrée avec
+  sa source, et peut être corrigée. Aucun n'est un passage obligé. Le fichier TOML reste le format
+  de stockage. **L'étape n'est pas terminée tant qu'une correction n'existe qu'en fichier.** Le
+  [§6 du contrat](conception-interface.md) est à réécrire en conséquence, en premier.
 - Traite la contrainte annoncée : un écran qui écrit dans le fichier doit le **relire et le
   réécrire sans perdre ses commentaires**, sans quoi l'édition à la main perd son sens.
 
@@ -523,23 +620,20 @@ Et **vérifier que tu n'ouvres plus aucun fichier** pour t'en servir.
 **But :** qu'un investisseur non développeur l'installe en quelques étapes.
 
 **Claude :**
-- Écrit le guide d'installation (README).
-- **Identifiants (D-25)** :
-  - vérifie d'abord ce que pytr stocke exactement : session, PIN éventuel, durée de validité,
-    emplacement du fichier, et si cet emplacement est synchronisé par OneDrive ;
-  - supprime le PIN passé en argument de commande ;
-  - propose à l'installation les trois modes (rien d'enregistré / gestionnaire d'identifiants du
-    système / session pytr seule), avec les risques de chacun ;
-  - ne met jamais de PIN en clair dans le projet, un `.env` ou OneDrive.
-- Écrit l'assistant « nommer ses comptes », le rafraîchissement des données et les messages
-  d'erreur compréhensibles.
+- Écrit le guide d'installation (README), dont **comment obtenir l'export** dans l'application
+  Trade Republic, avec la période à choisir.
+- **Identifiants ([D-25](decisions.md)) :** sans pytr, il n'y en a plus aucun, et cette partie
+  disparaît. *Seulement si [Q-50](questions-ouvertes.md) garde pytr pour la photo du
+  portefeuille :* vérifier ce que pytr stocke (session, durée, emplacement, OneDrive), proposer
+  les modes de D-25 avec leurs risques, et ne jamais écrire de PIN en clair.
+- Écrit les messages d'erreur compréhensibles : fichier qui n'est pas un export, colonnes
+  inattendues, export partiel.
 - Documente comment écrire un **adaptateur pour une autre banque** à partir du format pivot (D-26).
+  L'export officiel en est désormais l'exemple le plus simple.
 
 **Toi :**
 - Faire installer l'application par quelqu'un d'autre (ton ami ?) en suivant **seulement** le
   README, et noter chaque blocage.
-- Relire l'explication des trois modes de stockage : est-elle compréhensible sans être
-  développeur ?
 
 ## Étape 11 · Publication ⏳
 **But :** rendre le dépôt public sans risque.
@@ -548,7 +642,9 @@ Et **vérifier que tu n'ouvres plus aucun fichier** pour t'en servir.
 - Lance `/security-review`.
 - Cherche noms, IBAN, numéros de compte et jetons **dans tout l'historique git**, pas seulement
   dans les fichiers actuels.
-- Écrit la licence et la page d'accueil du dépôt.
+- Écrit la licence et la page d'accueil du dépôt, avec la mention : **projet indépendant, sans
+  lien avec Trade Republic**, qui lit le fichier que la banque fournit à ses clients. Pas de logo
+  ni d'identité visuelle de la banque.
 
 **Toi :** relire le README, choisir la licence (elle doit autoriser les forks pour d'autres
 banques, D-26), passer le dépôt en public sur GitHub (Settings → Danger Zone → Change visibility).

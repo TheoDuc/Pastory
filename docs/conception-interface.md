@@ -514,6 +514,14 @@ Quatre choses, jamais, sur aucun écran :
 
 ## 6. Les écrans de réglages
 
+> **À réécrire au début de l'étape 9 ([D-80](decisions.md), 2026-10-01).** L'application ne
+> **propose** plus : elle **trouve, applique et montre** chaque valeur, avec sa source et sa date, et
+> l'utilisateur **peut** la corriger. Ces écrans deviennent des écrans de **correction**,
+> facultatifs. Ce qui suit reste juste sur trois points — l'édition à la main n'est jamais écrasée,
+> un manque se dit là où il se voit, rien n'exige un réglage pour afficher le reste — mais la règle
+> « l'application propose, l'utilisateur décide » est remplacée, et le rôle des comptes n'existe
+> plus ([D-79](decisions.md)).
+
 **Ajouté le 2026-10-01, et ce n'est pas un complément :** [D-78](decisions.md) fait de ces écrans
 une partie de l'étape 9, au même titre que la synthèse. La raison est un arbitrage du propriétaire,
 et elle vaut d'être lue avant d'écrire une ligne :

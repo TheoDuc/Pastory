@@ -7,13 +7,39 @@
 >
 > Les passages entre crochets `[…]` sont des remarques de retranscription, pas le texte original.
 
-Dernière mise à jour : 2026-10-01 (la configuration se fait dans l'application).
+Dernière mise à jour : 2026-10-01 (l'export officiel remplace pytr ; la configuration se fait dans l'application).
 
 ---
 
 ## Évolutions de cap
 
 Ces précisions **priment** sur le texte d'origine ci-dessous.
+
+### 2026-10-01 · Déposer l'export, et rien d'autre ([D-80](decisions.md))
+> Je trouvais que l'application était constituée de trop de bidouilles de fichiers .toml, ce qui
+> n'est absolument pas souhaitable si on veut viser des utilisateurs non connaisseurs. J'aimerais
+> si possible automatiser tout sauf le chargement des données Trade Republic et le dépôt dans un
+> dossier de l'application pour qu'elle fonctionne. Tout le reste devrait idéalement être trouvé
+> quelque part (de manière fiable) plutôt que de laisser l'utilisateur se débrouiller. Je comprends
+> que cela peut créer des incertitudes et c'est ce que l'appli veut absolument éviter, mais de ma
+> vision, pour que l'appli soit vraiment intéressante, il faut qu'elle mêle fiabilité et facilité
+> d'utilisation.
+
+La fiabilité ne passe plus par la validation de l'utilisateur, mais par des **contrôles** et par la
+**source affichée** de chaque valeur trouvée. Ce qui ne se trouve pas de façon fiable est montré
+comme un trou, jamais demandé.
+
+### 2026-10-01 · Les données viennent de l'export officiel de Trade Republic ([D-79](decisions.md))
+> Le changement de cap est assuré : j'ai confiance en les données de Trade Republic. […] Cela va
+> automatiser l'identification des comptes et plein d'autres choses pas automatiques avant. Il faut
+> un nouveau plan pour mettre en place cette nouvelle méthode, et essayer d'automatiser les
+> dernières collectes de données pas encore automatiques (diversification de portefeuille).
+
+L'application lit le fichier « Export des transactions » que la banque fournit depuis avril 2026,
+et non plus l'export de pytr. Plus de connexion ni d'identifiant, plus de comptes à nommer, et la
+clause des conditions générales qui interdit les interfaces non officielles ne concerne plus le
+projet. Deuxième intention, qui en découle : **ce qui reste à régler à la main doit devenir une
+proposition** que l'application calcule elle-même.
 
 ### 2026-10-01 · On ne configure pas en éditant un fichier ([D-78](decisions.md))
 > Je trouve les étapes de configuration particulièrement chiantes et peu pratiques. Je comprends

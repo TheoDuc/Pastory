@@ -33,9 +33,9 @@ l'argent, ni les dépenses. L'interface est à concevoir : la maquette des notes
 | Tourne **en local** | Aucune donnée ne quitte la machine de l'utilisateur |
 | **Gratuit** | Pas de service payant, pas de source de cours payante |
 | Publié sur **GitHub** | Aucune donnée réelle dans le dépôt ; la doc utilise des valeurs fictives |
-| **Configuration minimale** | L'utilisateur nomme ses comptes à l'installation (on ne devine pas) |
+| **Configuration minimale** | Aucun réglage à taper : l'application **propose**, l'utilisateur valide d'un clic ([D-78](decisions.md)). La poche est donnée par l'export ([D-79](decisions.md)) |
 | **Chiffres vérifiables** | Chaque indicateur a une formule écrite dans le [glossaire](glossaire.md) et doit pouvoir être refait à la main |
-| Données via **pytr** (API privée, non officielle) | Le format peut changer sans préavis : les types inconnus doivent être affichés, pas ignorés |
+| Données via l'**export officiel** de Trade Republic ([D-79](decisions.md)) | Aucune spécification publiée, et le format peut évoluer : les types inconnus doivent être affichés, pas ignorés. *Jusqu'au 2026-10-01 : pytr, une interface non officielle que les conditions générales de la banque interdisent* |
 
 ## Hors périmètre
 

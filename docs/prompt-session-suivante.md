@@ -7,8 +7,8 @@ commencer.
 > **À mettre à jour par l'instance qui termine une étape**, avant la fusion dans `main`. La
 > dernière section dit comment.
 >
-> Dernière mise à jour : **2026-09-30**, fin de l'étape 8 bis (la source de secours, Q-48 et Q-49
-> tranchées, et le document de conception fermé).
+> Dernière mise à jour : **2026-10-01**, session hors étape : l'export officiel de Trade Republic
+> remplace pytr ([D-79](decisions.md)), et deux étapes s'intercalent avant l'interface.
 
 ---
 
@@ -16,7 +16,7 @@ commencer.
 
 ```
 Lis CLAUDE.md puis docs/feuille-de-route.md, et docs/prompt-session-suivante.md.
-On attaque l'étape 9 : la réalisation de l'interface.
+On attaque l'étape 8 ter : la nouvelle porte d'entrée, l'export officiel de Trade Republic.
 ```
 
 ---
@@ -24,36 +24,76 @@ On attaque l'étape 9 : la réalisation de l'interface.
 ## Où en est le projet
 
 - **Étapes 0 à 8 bis terminées.** Le moteur est complet, l'interface est **conçue**, et le
-  document de conception est **fermé** : ses §4 (les écrans retenus) et §5 (leurs quatre états)
-  ont été écrits à l'étape 8 bis. L'étape 9 peut s'appuyer dessus sans rien rouvrir.
-- Les maquettes vivent dans [maquettes/](../maquettes/) : de vrais fichiers HTML et CSS, ouvrables
-  tels quels, avec un portefeuille fictif d'utilisateur type et quatre jeux de données
-  commutables. Cinq onglets : Synthèse, Les actifs, Diversification, Frais et taxes, Détail des
-  calculs. **La feuille de style deviendra `pastory/vues/assets/pastory.css` telle quelle**
-  ([D-31](decisions.md)) : c'est le livrable, pas une illustration.
-- **Prochaine : étape 9**, brancher l'interface retenue sur le moteur, écran par écran, en
-  commençant par la synthèse.
-- **Questions ouvertes** : **Q-26** seule (aller chercher le second compte-titres pour rapprocher
-  le PEA), et elle n'est pas bloquante. Q-48 et Q-49 ont été tranchées à l'étape 8 bis.
+  document de conception est **fermé**.
+- **Changement de cap du 2026-10-01 ([D-79](decisions.md)).** Trade Republic fournit depuis avril
+  2026 un **export officiel des transactions** en CSV, dans son application. Il remplace pytr comme
+  porte d'entrée : plus de connexion, plus de comptes à nommer, des colonnes au lieu de textes
+  allemands, et plus de clause des conditions générales. Le relevé complet du fichier est dans
+  [export-officiel.md](export-officiel.md) — **à lire avant tout**.
+- **La vision du propriétaire, à garder en tête à chaque étape ([D-80](decisions.md))** :
+  l'utilisateur **dépose l'export dans un dossier, et c'est tout**. Le reste est trouvé
+  automatiquement, contrôlé, et affiché avec sa source ; ce qui ne se trouve pas de façon fiable
+  est un trou expliqué, jamais une question. Fiabilité **et** facilité : aucune des deux ne se
+  sacrifie.
+- **Prochaine : étape 8 ter**, l'adaptateur de l'export officiel. Puis **8 quater**, des réglages
+  qui se proposent seuls. Puis l'étape 9, l'interface, inchangée sur le fond.
+- **Questions ouvertes** : **Q-50** (sans pytr, que devient la photo du portefeuille ?), **Q-51**
+  (le type d'un actif vient-il de l'export ?), **Q-52** (le contrôle du montant réglé). Q-26 est
+  englobée par Q-50.
 
 **Ce qui existe déjà :**
 
 | Où | Quoi |
 |---|---|
-| [maquettes/](../maquettes/) | **Les écrans**, en HTML et CSS. `index.html` s'ouvre directement ; `style.css` est le livrable ; `maquette.js` construit les écrans ; `donnees/` porte le portefeuille fictif |
-| [conception-interface.md](conception-interface.md) | **Le contrat de l'étape 9, complet.** §1 l'inventaire de ce que le moteur produit, §2 le vocabulaire d'écran, §3 les règles d'affichage, §4 les cinq écrans retenus, §5 leurs quatre états (vide, partiel, estimé, en erreur) |
+| [export-officiel.md](export-officiel.md) | **Le relevé de l'export officiel** : ses 23 colonnes, les types vus, ce qui est vérifié, ce qui reste à confirmer, et ses données personnelles |
+| `data/Exportation de transactions.csv` | Un vrai export du propriétaire (hors git), **et** son export pytr dans `data/`, qui se recouvrent sur plusieurs semaines : la comparaison des deux adaptateurs est possible tout de suite |
+| [maquettes/](../maquettes/) | **Les écrans**, en HTML et CSS. `style.css` est le livrable de l'étape 9 |
+| [conception-interface.md](conception-interface.md) | **Le contrat de l'étape 9, complet** |
 | [format-pivot.md](format-pivot.md) | **Le contrat** : les opérations (§1 à §8) et la photo du portefeuille (§9) |
 | [architecture.md](architecture.md) | Les couches, leurs frontières, le trajet d'un chiffre |
-| [glossaire.md](glossaire.md) | Chaque formule, dont le gain, le TRI, le TWRR (§4, §5), les coûts (§6), la diversification (§8) |
-| `pastory/` | Le moteur complet : pivot, adaptateur, données externes, paramètres, moteur, `cli.py` (12 commandes) |
-| [decisions.md](decisions.md) | D-01 à D-78. L'étape 8 bis a ajouté **D-74** (le nom Pastory), **D-75** (le premier niveau des frais), **D-76** (« non transparisé » au glossaire seul) **D-77** (la source de secours Amundi) et **D-78** (plus aucune configuration en éditant un fichier) |
-
-**Ce qui n'existe pas encore :** le branchement de l'interface sur le moteur. C'est toute
-l'étape 9.
+| `pastory/` | Le moteur complet : pivot, adaptateur pytr, données externes, paramètres, moteur, `cli.py` (12 commandes) |
+| [decisions.md](decisions.md) | D-01 à D-80 |
 
 ---
 
-## Ce que l'étape 9 doit savoir
+## Ce que l'étape 8 ter doit savoir
+
+### La chose à ne pas rater de cette étape
+
+**Aucune liste des types n'est publiée par Trade Republic.** Le premier export ne contient que
+des achats, un Saveback et des lignes d'espèces : ni dividende, ni vente, ni titres reçus. Un type
+qu'on n'a pas vu sur un vrai fichier **n'est pas traité**, même si une source publique en parle :
+il est affiché comme inconnu (règle 5). La tentation sera de traiter `DIVIDEND` « de toute
+évidence » — c'est exactement ainsi qu'on range un brut à la place d'un net.
+
+### Ce qui est déjà vérifié sur le fichier
+
+- `amount` = `shares × price` sur chaque achat : c'est le **montant brut**, et les frais sont **à
+  côté**, négatifs ;
+- `datetime` est en temps universel, `date` est déjà le jour à Paris ([D-36](decisions.md)) ;
+- point décimal partout : le piège n° 1 de pytr n'existe pas ici ;
+- les 6 achats correspondent un à un à ceux de pytr, sauf **quelques centimes sur l'achat de
+  crypto** — [export-officiel.md §5](export-officiel.md), et [Q-52](questions-ouvertes.md).
+
+### Les pièges déjà repérés
+
+- le fichier **n'est pas trié** ;
+- le Saveback n'a **ni quantité ni prix** : ne pas en faire un achat ;
+- la crypto est identifiée par son code (`ETH`, par exemple), pas par le code `XF…` de pytr : le ticker et le cache des
+  cours s'appuient sur l'identifiant de l'actif, à vérifier ;
+- le fichier contient **IBAN, noms et commerçants** : les lignes d'espèces ne sont lues que par
+  leur `type` ([export-officiel.md §8](export-officiel.md)) ;
+- `description` est en **anglais** même quand l'application est en français.
+
+### La méthode qui marche
+
+Garder l'adaptateur pytr **le temps de la comparaison**, et ne le retirer qu'une fois que les deux
+pivots concordent sur la même période — et selon ce que le propriétaire aura répondu à Q-50.
+
+---
+
+## Pour plus tard : ce que l'étape 9 devra savoir
+
 
 ### La chose à ne pas rater de cette étape
 

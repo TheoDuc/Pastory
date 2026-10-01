@@ -1,7 +1,9 @@
 # Pastory
 
 Tableau de bord local et gratuit pour suivre **les actifs** d'un portefeuille Trade Republic
-(PEA, CTO, crypto ; les espèces ne sont pas suivies), destiné à des investisseurs long terme. Les données viennent de `pytr` (export JSON d'événements + CSV).
+(PEA, CTO, crypto ; les espèces ne sont pas suivies), destiné à des investisseurs long terme. Les données viennent de
+l'**export officiel des transactions** que Trade Republic fournit dans son application (CSV, D-79).
+L'ancien adaptateur `pytr` (export JSON d'événements + CSV) reste le temps de la transition (étape 8 ter).
 Le propriétaire du projet ne code pas : il vérifie les chiffres. Tout calcul doit donc être
 lisible et vérifiable à la main.
 
@@ -22,6 +24,7 @@ lisible et vérifiable à la main.
 | [docs/sources-de-cours.md](docs/sources-de-cours.md) | **Comparatif des sources de cours** (étape 4) : ce qui est vérifié, ce qui est écarté, et les pièges |
 | [docs/couts-et-fiscalite.md](docs/couts-et-fiscalite.md) | **Comparatif des coûts estimés et des règles fiscales** (étape 6) : TER, spreads, impôt par poche, avec les sources officielles |
 | [docs/composition-des-etf.md](docs/composition-des-etf.md) | **Comparatif des sources de composition d'ETF** (étape 7) : ce qui est retenu, ce qui est écarté, et les 19 pièges vérifiés |
+| [docs/export-officiel.md](docs/export-officiel.md) | **L'export officiel de Trade Republic** (D-79) : ses colonnes, les types vus, ce qui est vérifié et ce qui reste à confirmer |
 | [docs/inventaire-donnees.md](docs/inventaire-donnees.md) | Structure des données pytr, type par type, et pièges. **Le §11 recense ceux trouvés en écrivant l'adaptateur** |
 | [docs/verification/](docs/verification/) | Cahiers de vérification : cas fictifs refaisables à la main, et contrôles sur les vraies données |
 | [docs/decisions.md](docs/decisions.md) | Journal des décisions (raison + ce qui est écarté) |
@@ -41,6 +44,13 @@ lisible et vérifiable à la main.
    - les espèces ne sont jamais suivies (D-11) ;
    - la performance est calculée en montants bruts, les frais et taxes à part (D-21) ;
    - le moteur ne lit que le format pivot, Trade Republic n'étant qu'un adaptateur (D-26) ;
+   - les opérations viennent de l'**export officiel** de la banque, jamais d'une interface non
+     officielle (D-79). **Aucune liste des types n'est publiée** : un type jamais vu sur un vrai
+     fichier n'est pas traité, il est affiché ;
+   - **l'utilisateur dépose l'export, et c'est tout** (D-80) : toute autre valeur est trouvée
+     automatiquement, contrôlée et affichée avec sa source. Une correction à la main est possible,
+     jamais nécessaire ; ce qui ne se trouve pas de façon fiable est un trou affiché, jamais une
+     question ni une valeur par défaut ;
    - les cours sont **bruts** (jamais retraités des dividendes) et leur **devise est vérifiée**,
      jamais convertie (D-48, D-51). Aucun cours ne passe par Trade Republic (D-49) ;
    - **un taux estimé (spread, TER, impôt) porte sa valeur, sa date et sa source**, dans un

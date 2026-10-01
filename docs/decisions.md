@@ -1283,3 +1283,93 @@ fichier doit le **relire et le réécrire sans perdre les commentaires** que les
 mettent — ce sont eux qui rendent le fichier compréhensible à la main, et les perdre viderait le
 point 2 de son sens. C'est faisable et ce n'est pas gratuit : à traiter comme un sujet, pas comme
 un détail.
+
+---
+
+*Hors étape (2026-10-01). Un changement de cap rendu par le propriétaire après la découverte de
+l'export officiel de Trade Republic.*
+
+### D-79 · 2026-10-01 · L'export officiel de Trade Republic devient la porte d'entrée des opérations · Validée
+**Décision :** les opérations sont lues dans le fichier **« Export des transactions »** que Trade
+Republic fournit dans son application depuis avril 2026, et non plus dans l'export de pytr. Un
+**nouvel adaptateur** le transforme en format pivot ; le moteur ne change pas ([D-26](#d-26)).
+L'utilisateur télécharge le fichier dans l'application et le donne à Pastory : **aucune connexion,
+aucun identifiant**. Le relevé du fichier est dans [export-officiel.md](export-officiel.md).
+
+**Raison :** trois gains d'un coup, chacun suffisant.
+1. **La clause des conditions générales ne s'applique plus.** [D-49](#d-49) acceptait d'utiliser
+   pytr malgré l'interdiction des « interfaces non fournies par Trade Republic ». Le fichier est
+   fourni par la banque elle-même : le projet peut être publié sans cette réserve.
+2. **Des données plus sûres.** La poche, la quantité, le prix, les frais et les taxes sont des
+   **colonnes**, là où pytr obligeait à les lire dans des textes allemands ([D-09](#d-09)), à
+   déduire la poche d'un compte ([D-40](#d-40)) et à surveiller deux écritures des nombres dans un
+   même fichier. Il ne reste qu'un champ informatif lu dans un texte.
+3. **Une mise en route sans dépannage.** Plus de commande en ligne, plus de PIN, plus de
+   comptes à nommer : c'est l'esprit de [D-78](#d-78), et c'est ce qui rend l'application
+   utilisable par l'utilisateur type ([D-62](#d-62)).
+
+Le propriétaire : « le changement de cap est assuré, j'ai confiance en les données de Trade
+Republic ».
+
+**Ce qu'elle remplace :** la première moitié de [D-49](#d-49) (« pytr reste l'unique porte
+d'entrée »). **La seconde moitié reste valide** : aucun cours ne passe par Trade Republic.
+
+**Ce qui devient propre à l'ancien adaptateur**, et ne s'applique pas au nouveau : le JSON
+source et le CSV de recoupement ([D-06](#d-06), [D-42](#d-42)), les comptes nommés
+([D-10](#d-10)), la poche déduite du compte ([D-40](#d-40)) et du code `XF` ([D-16](#d-16)), et
+les deux tiers de [D-41](#d-41) et [D-25](#d-25) qui portent sur la connexion. Le principe de
+[D-40](#d-40) — **la poche n'est jamais devinée** — reste entier : elle est désormais donnée.
+
+**Ce qui ne change pas :** un type inconnu est affiché, jamais rangé par défaut (règle 5 de
+`CLAUDE.md`) — et c'est plus important qu'avant, puisque **aucune liste des types n'est
+publiée**. Les lignes d'espèces, qui sont dans le même fichier avec leurs IBAN et leurs
+commerçants, sont classées par leur seul `type` et jamais lues plus loin ([D-11](#d-11)).
+
+**Reste ouvert :** le sort de pytr pour la **photo du portefeuille** ([D-46](#d-46)), que l'export
+ne fournit pas — [Q-50](questions-ouvertes.md) ; et ce que le fichier dit des opérations encore
+jamais vues (dividende, vente, titres reçus, Saveback) — [export-officiel.md §7](export-officiel.md).
+**Écarte :** garder pytr comme porte d'entrée principale ; lire les deux sources à égalité, ce qui
+doublerait le code à maintenir pour un gain nul une fois l'adaptateur vérifié.
+
+### D-80 · 2026-10-01 · Tout est trouvé automatiquement ; la fiabilité passe par la transparence, pas par la validation · Validée
+**Décision :** l'utilisateur ne fait **qu'une chose** : télécharger l'export dans l'application
+Trade Republic et le **déposer dans un dossier de Pastory**. Tout le reste — ticker, devise, type,
+frais courants, contenu d'un fonds, source de composition, date d'ouverture du PEA — est **cherché
+et appliqué par l'application**, à partir d'une source fiable. Trois règles en font une décision
+sûre, et non un pari :
+
+1. **Chaque valeur trouvée porte sa source et sa date**, visibles là où elle sert. Une valeur
+   appliquée sans être montrée reste interdite ([D-70](#d-70), [D-72](#d-72)).
+2. **Chaque valeur trouvée passe un contrôle** avant d'être appliquée : devise d'un cours
+   ([D-48](#d-48)), fourchette d'un TER ([D-61](#d-61)), vraisemblance d'une composition
+   ([D-70](#d-70)). Une valeur qui échoue n'est **pas** appliquée.
+3. **Sans source fiable, rien n'est inventé ni demandé** : le trou est affiché, expliqué, là où il
+   se voit (« non couvert », « TER inconnu »), et le reste du portefeuille s'affiche quand même. Une
+   correction à la main reste **possible**, jamais **nécessaire**.
+
+**Raison :** la vision du propriétaire, le 2026-10-01 : « j'aimerais automatiser tout sauf le
+chargement des données Trade Republic et le dépôt dans un dossier de l'application. Tout le reste
+devrait idéalement être trouvé quelque part, de manière fiable, plutôt que de laisser l'utilisateur
+se débrouiller. Je comprends que cela peut créer des incertitudes […] mais pour que l'appli soit
+vraiment intéressante, il faut qu'elle mêle fiabilité et facilité d'utilisation. » Un utilisateur
+non connaisseur ne sait de toute façon pas juger un ticker ou un TER qu'on lui demande de valider :
+lui faire cliquer « valider » ne le rend pas plus fiable, cela déplace seulement la responsabilité.
+Ce qui protège réellement contre une valeur fausse, ce sont les **contrôles** et la **visibilité**.
+
+**Ce qu'elle change dans les décisions précédentes :**
+- [D-78](#d-78), règle 3 (« l'application propose, l'utilisateur décide ») devient : **l'application
+  trouve, applique et montre ; l'utilisateur peut corriger**. Les écrans de réglages de l'étape 9
+  deviennent des écrans de **correction**, facultatifs ([conception-interface.md §6](conception-interface.md),
+  à réécrire à l'étape 9) ;
+- la **validation** exigée par [D-48](#d-48) (ticker), [D-55](#d-55) (type), [D-61](#d-61) (TER),
+  [D-59](#d-59) (date du PEA), [D-71](#d-71) (contenu) et [D-77](#d-77) (source de secours) est
+  remplacée par les règles 1 et 2. Les raisons de ces décisions restent vraies — la Xetra a des TER
+  en retard, une recherche par ISIN peut renvoyer des dollars : c'est pourquoi la règle 2 existe ;
+- [D-71](#d-71) écartait l'`asset_class` d'extraETF parce qu'il s'était révélé **faux** : cela reste
+  vrai. Une source jugée non fiable n'est pas promue par cette décision ; elle reste écartée, et le
+  trou s'affiche.
+
+**Écarte :** la validation d'un clic comme passage obligé ; un réglage requis pour afficher le
+reste ; une valeur « par défaut » sans source pour combler un trou.
+**Conséquence pour l'étape 8 quater :** son critère de réussite est le **nombre de valeurs que
+l'application ne sait pas trouver** sur un portefeuille type, et non plus le nombre de clics.
