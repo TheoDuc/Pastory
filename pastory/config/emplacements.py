@@ -73,7 +73,7 @@ def anciens_dossiers_personnels(
 
 
 def dossier_exports(environnement: Mapping[str, str] | None = None) -> Path:
-    """Exports pytr bruts (`all_events.json`, `account_transactions.csv`)."""
+    """Le dossier de dépôt : l'utilisateur y dépose ses exports des transactions (D-80)."""
     return dossier_personnel(environnement) / "exports"
 
 
@@ -83,7 +83,7 @@ def dossier_cache(environnement: Mapping[str, str] | None = None) -> Path:
 
 
 def dossier_configuration(environnement: Mapping[str, str] | None = None) -> Path:
-    """Fichiers TOML de l'utilisateur : noms des comptes, corrections de poche, ISIN (D-38)."""
+    """Fichiers TOML de l'utilisateur : actifs, fiscalité (D-38)."""
     return dossier_personnel(environnement) / "configuration"
 
 

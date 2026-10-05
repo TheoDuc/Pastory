@@ -40,8 +40,8 @@ passe quelque chose ([D-15](decisions.md)).
    en fait.
 2. **Les montants sont exacts au centime.** Ils ne sont jamais approchés par un nombre à virgule
    flottante ([D-33](decisions.md)).
-3. **Aucun numéro de compte n'entre dans le pivot.** Le compte sert à l'adaptateur pour déduire la
-   poche, puis il est oublié.
+3. **Aucun numéro de compte n'entre dans le pivot.** L'export officiel de Trade Republic ne
+   l'expose d'ailleurs pas : il donne directement la poche (`account_type`).
 
 ---
 
@@ -62,7 +62,7 @@ passe quelque chose ([D-15](decisions.md)).
 | `montant_brut` | **La base de toute la performance** ([D-21](decisions.md), [D-29](decisions.md)) : quantité × prix, ou dividende brut | voir §3 |
 | `frais` | Frais réellement facturés sur cette opération. `0` si aucun. **N'entre jamais dans la performance** | oui |
 | `taxes` | Taxes réellement prélevées sur cette opération. `0` si aucune. **N'entre jamais dans la performance** | oui |
-| `montant_regle` | Montant réellement débité ou crédité, tel que la banque le donne. Sert au contrôle du §5 | oui |
+| `montant_regle` | Montant réellement débité ou crédité, tel que la banque le donne. Sert au contrôle du §5. **Vide** quand la banque ne le donne pas — c'est le cas de l'export officiel de Trade Republic — et jamais recalculé à partir du brut, des frais et des taxes ([D-83](decisions.md)). Le moteur ne le lit pas | non |
 | `devise` | `EUR` uniquement pour l'instant ([D-26](decisions.md)) | oui |
 | `reference_source` | Identifiant de l'événement d'origine, pour remonter à la donnée brute | oui |
 | `provenance` | Pour chaque champ rempli : d'où vient sa valeur (§4) | oui |
@@ -117,9 +117,9 @@ porte l'une de ces cinq origines :
 
 | Provenance | Sens | Exemple |
 |---|---|---|
-| `donnee` | Champ structuré de l'export : solide | le montant réglé, la date, l'ISIN |
-| `texte` | **Lu dans un texte affiché**, dans la langue de l'application : fragile | la quantité, le prix, les frais, les taxes ([D-09](decisions.md), [D-19](decisions.md)) |
-| `deduction` | Reconstitué par une règle écrite | la poche d'un plan d'épargne, le prix de titres reçus ([D-15](decisions.md), [D-16](decisions.md)) |
+| `donnee` | Champ structuré de l'export : solide | avec l'export officiel : la quantité, le prix, le montant brut, les frais, les taxes, la poche, la date, l'ISIN |
+| `texte` | **Lu dans un texte affiché** : fragile | avec l'export officiel, seule `nature_source`, lue dans la `description` en anglais, et qui est informative. *(Avec pytr, la quantité, le prix, les frais et les taxes l'étaient, en allemand : [D-09](decisions.md), [D-19](decisions.md).)* |
+| `deduction` | Reconstitué par une règle écrite | le prix de titres reçus ([D-15](decisions.md)) |
 | `estimation` | Valeur approchée, jamais issue des données | *(aucune dans le pivot ; réservé au moteur : spread, TER, impôt)* |
 | `a_completer` | Valeur manquante, en attente d'une donnée externe | le prix de titres reçus, tant que les cours ne sont pas disponibles (étape 4) |
 
@@ -139,9 +139,9 @@ douteuse, plutôt que de laisser un chiffre faux se propager en silence.
 | Jour | `date` = le jour de `instant_utc` en heure de Paris | tous |
 | Montant brut présent | `montant_brut` renseigné, **ou** marqué `a_completer` | tous |
 | Montant brut juste | `montant_brut = quantite × prix_unitaire`, à la tolérance ci-dessous | `achat`, `vente`, et `dividende` / `distribution_capital` **si** quantité et prix sont lisibles |
-| Achat | `montant_regle = montant_brut + frais + taxes`, à 1 centime près | `achat` |
-| Encaissement | `montant_regle = montant_brut − frais − taxes`, à 1 centime près | `vente`, `dividende`, `distribution_capital` |
-| Titres reçus | `montant_regle = 0`, `frais = 0`, `taxes = 0` | `titres_recus` |
+| Achat | `montant_regle = montant_brut + frais + taxes`, à 1 centime près — **si** `montant_regle` est donné | `achat` |
+| Encaissement | `montant_regle = montant_brut − frais − taxes`, à 1 centime près — **si** `montant_regle` est donné | `vente`, `dividende`, `distribution_capital` |
+| Titres reçus | `montant_regle` vide ou nul, `frais = 0`, `taxes = 0` | `titres_recus` |
 | Signes | aucun nombre négatif | tous |
 | Quantité | strictement positive | `achat`, `vente`, `titres_recus` |
 | Provenance | toute valeur renseignée dit d'où elle vient ; une valeur `a_completer` est bien vide | tous |
@@ -183,6 +183,12 @@ les fractions de part avec des décimales, donc « 200 » veut dire deux cents p
 l'anomalie apparaît dans le rapport de lecture, avec l'identifiant de l'événement d'origine.
 
 Un contrôle dont un ingrédient est `a_completer` n'est pas exécuté : il est mis en attente.
+
+**Quand la banque ne donne pas le montant réglé** ([D-83](decisions.md)), les contrôles « Achat »
+et « Encaissement » ne sont pas faits : il n'y a rien à comparer. C'est le cas de l'export officiel
+de Trade Republic, où `amount` est le brut et les frais et taxes sont à côté. Le contrôle
+« Montant brut juste » reste fait, et c'est lui qui compte : il compare deux colonnes
+indépendantes de l'export, `shares × price` et `amount`.
 
 ---
 

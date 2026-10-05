@@ -184,11 +184,17 @@ def controler(operation: Operation) -> list[Anomalie]:
         # Rien n'a été payé : des titres sont simplement apparus (D-15).
         for champ in ("montant_regle", "frais", "taxes"):
             valeur = getattr(operation, champ)
-            if valeur != 0:
+            # Un montant réglé vide veut dire « non donné par la banque » (D-83), pas « payé ».
+            if valeur is not None and valeur != 0:
                 signaler(
                     "titres_recus",
                     f"{champ} vaut {valeur} alors que des titres reçus sans achat ne coûtent rien",
                 )
+    elif operation.montant_regle is None:
+        # La banque ne donne pas ce qui a été réellement réglé (D-83) : il n'y a rien à
+        # comparer, et le recalculer ferait de ce contrôle une tautologie. Le contrôle
+        # « quantité × prix », lui, a déjà été fait plus haut.
+        pass
     elif operation.montant_brut is not None and not operation.est_a_completer("montant_brut"):
         if operation.type is TypeOperation.ACHAT:
             attendu = operation.montant_brut + operation.frais + operation.taxes

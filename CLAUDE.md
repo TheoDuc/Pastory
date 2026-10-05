@@ -2,8 +2,8 @@
 
 Tableau de bord local et gratuit pour suivre **les actifs** d'un portefeuille Trade Republic
 (PEA, CTO, crypto ; les espèces ne sont pas suivies), destiné à des investisseurs long terme. Les données viennent de
-l'**export officiel des transactions** que Trade Republic fournit dans son application (CSV, D-79).
-L'ancien adaptateur `pytr` (export JSON d'événements + CSV) reste le temps de la transition (étape 8 ter).
+l'**export officiel des transactions** que Trade Republic fournit dans son application (CSV, D-79),
+que l'utilisateur dépose dans le dossier `exports` de Pastory. pytr a été retiré à l'étape 8 ter (D-81).
 Le propriétaire du projet ne code pas : il vérifie les chiffres. Tout calcul doit donc être
 lisible et vérifiable à la main.
 
@@ -25,11 +25,11 @@ lisible et vérifiable à la main.
 | [docs/couts-et-fiscalite.md](docs/couts-et-fiscalite.md) | **Comparatif des coûts estimés et des règles fiscales** (étape 6) : TER, spreads, impôt par poche, avec les sources officielles |
 | [docs/composition-des-etf.md](docs/composition-des-etf.md) | **Comparatif des sources de composition d'ETF** (étape 7) : ce qui est retenu, ce qui est écarté, et les 19 pièges vérifiés |
 | [docs/export-officiel.md](docs/export-officiel.md) | **L'export officiel de Trade Republic** (D-79) : ses colonnes, les types vus, ce qui est vérifié et ce qui reste à confirmer |
-| [docs/inventaire-donnees.md](docs/inventaire-donnees.md) | Structure des données pytr, type par type, et pièges. **Le §11 recense ceux trouvés en écrivant l'adaptateur** |
+| [docs/inventaire-donnees.md](docs/inventaire-donnees.md) | *Historique* : la structure des données pytr, retiré à l'étape 8 ter (D-81). Ses pièges expliquent bien des décisions |
 | [docs/verification/](docs/verification/) | Cahiers de vérification : cas fictifs refaisables à la main, et contrôles sur les vraies données |
 | [docs/decisions.md](docs/decisions.md) | Journal des décisions (raison + ce qui est écarté) |
 | [docs/questions-ouvertes.md](docs/questions-ouvertes.md) | Arbitrages en attente du propriétaire |
-| [scripts/inventaire_structure.py](scripts/inventaire_structure.py) | Relevé structurel d'un export, sans afficher aucune valeur |
+| [scripts/inventaire_structure.py](scripts/inventaire_structure.py) | Relevé structurel d'un export officiel, sans afficher aucune valeur : à lancer sur l'export d'un tiers pour y chercher des types jamais vus |
 
 ## Règles de travail
 

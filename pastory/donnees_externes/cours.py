@@ -55,7 +55,7 @@ class Cours:
     """Un cours de clôture, avec tout ce qu'il faut pour le vérifier à la main."""
 
     actif: str
-    """ISIN, ou code interne pour la crypto — l'identifiant du pivot."""
+    """ISIN, ou code de la crypto donné par la banque — l'identifiant du pivot."""
 
     date: Date
     """Jour que ce cours décrit. Peut être **antérieur** au jour demandé (dernier jour coté)."""

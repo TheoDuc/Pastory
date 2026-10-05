@@ -13,7 +13,8 @@ choix dans [decisions.md](decisions.md) ; le détail du contrat entre couches da
 [format-pivot.md](format-pivot.md). Ici, aucune raison n'est réexpliquée : elle est citée
 (`D-xx`).
 
-> État à la dernière mise à jour (fin de l'étape 7) : les couches **adaptateur**, **pivot**,
+> État à la dernière mise à jour (fin de l'étape 8 ter) : les couches **adaptateur** — celui de
+> l'**export officiel** de Trade Republic, pytr ayant été retiré ([D-81](decisions.md)) —, **pivot**,
 > **moteur** (rejeu, valorisation, rendements, coûts, fiscalité, valeur réelle et
 > **diversification**) et **données externes** sont écrites, ainsi que les **paramètres** datés et
 > sourcés, qui portent désormais aussi les **référentiels** (secteurs, pays et zones). La couche
@@ -24,27 +25,25 @@ choix dans [decisions.md](decisions.md) ; le détail du contrat entre couches da
 ## 1. En une image
 
 ```
-  ┌─ hors de l'application ─┐
-  │                         │
-  │   Trade Republic        │
-  │        │  pytr          │
-  │        ▼                │
-  │   all_events.json       │
-  │   account_transactions  │
-  │   portfolio.csv         │
-  └────────┬────────────────┘
-           │                     ce que l'utilisateur seul sait
-           │                     (rôle des comptes)  ──────┐
-           ▼                                              ▼
+  ┌─ hors de l'application ───────────────────────┐
+  │                                               │
+  │   application Trade Republic                  │
+  │   Profil > Relevés > Export des transactions  │
+  │        │  l'utilisateur dépose le fichier     │
+  │        ▼                                      │
+  │   Pastory/exports/*.csv                       │
+  └────────┬──────────────────────────────────────┘
+           ▼
    ┌───────────────────────────────────────────────────────────┐
    │  ADAPTATEUR  trade_republic/                              │
-   │  classer · lire les textes · résoudre la poche · recouper │
+   │  lire le dossier · dédoublonner · classer · lire les      │
+   │  colonnes · refuser les formes jamais vues                │
    └───────────────────────┬───────────────────────────────────┘
-                           │  opérations + photo du portefeuille
+                           │  opérations + ce qui n'a pas été compris
                            ▼
    ┌───────────────────────────────────────────────────────────┐
    │  PIVOT  pivot/            ◄── le contrat, figé (D-35)     │
-   │  Operation · PositionReelle · contrôles de cohérence      │
+   │  Operation · contrôles de cohérence                       │
    └───────────────────────┬───────────────────────────────────┘
                            │                  ▲
                            │                  └── DONNÉES EXTERNES  donnees_externes/
@@ -56,7 +55,7 @@ choix dans [decisions.md](decisions.md) ; le détail du contrat entre couches da
                            ▼  et rien d'autre
    ┌───────────────────────────────────────────────────────────┐
    │  MOTEUR  moteur/                                          │
-   │  rejeu par actif · journal · agrégation · rapprochement   │
+   │  rejeu par actif · journal · agrégation                   │
    │  valorisation · gain, TRI, TWRR (D-22)                    │
    │  coûts payés et estimés · impôt estimé · valeur réelle    │
    └───────────────────────┬───────────────────────────────────┘
@@ -84,17 +83,17 @@ L'interdiction compte autant que le rôle : c'est elle qui garantit qu'un défau
 
 | Couche | Son travail | Ce qu'elle ne sait pas, volontairement |
 |---|---|---|
-| `config/` | Où sont les fichiers personnels ; ce que seul l'utilisateur peut dire (le rôle de chaque compte) | Ce qu'on fera de ces réponses |
+| `config/` | Où sont les fichiers personnels ; ce que l'utilisateur a déclaré ou corrigé (ticker, type, TER, date du PEA) | Ce qu'on fera de ces réponses |
 | `adaptateurs/` | Comprendre les fichiers d'**une** banque et les traduire en pivot | Ce qu'est un prix de revient, un gain, un rendement |
-| `pivot/` | Décrire une opération et une position réelle, et vérifier qu'une ligne se tient | Qui l'a produite, qui va la lire |
+| `pivot/` | Décrire une opération, et vérifier qu'une ligne se tient | Qui l'a produite, qui va la lire |
 | `donnees_externes/` | Aller chercher un cours, **la composition d'un actif**, les garder, et **compléter un prix manquant** | Ce qu'est une position, un prix de revient, une plus-value. Et ce qu'est un secteur « Technologie » : elle ne transporte que des **codes** |
-| `moteur/` | Rejouer les opérations, tenir le journal, agréger, rapprocher, **valoriser**, calculer gain, TRI et TWRR, puis les **coûts**, l'**impôt estimé**, la **valeur réelle** et la **répartition** | Le nom d'un champ Trade Republic, l'emplacement d'un fichier, **d'où viennent les cours, les taux et les compositions** — il dit seulement la forme qu'il en attend. Il ne sait pas ce qu'est un ETF : il demande un taux, ou une composition, pour un actif |
+| `moteur/` | Rejouer les opérations, tenir le journal, agréger, **valoriser**, calculer gain, TRI et TWRR, puis les **coûts**, l'**impôt estimé**, la **valeur réelle** et la **répartition** | Le nom d'un champ Trade Republic, l'emplacement d'un fichier, **d'où viennent les cours, les taux et les compositions** — il dit seulement la forme qu'il en attend. Il ne sait pas ce qu'est un ETF : il demande un taux, ou une composition, pour un actif |
 | `parametres/` | Porter les taux fiscaux, les frais par ordre, les spreads par défaut, et les **référentiels** (secteurs, pays, zones, classes d'actifs), chacun avec sa date et sa source | Ce qu'on en fera. Ils sont **livrés avec l'application** et versionnés : rien de personnel |
 | `vues/` (étape 9) | Montrer, expliquer, laisser filtrer | Tout calcul — elle n'appelle que le moteur |
 
 Deux conséquences pratiques :
 
-- **un chiffre faux se cherche dans une seule couche.** Mal lu dans un libellé allemand →
+- **un chiffre faux se cherche dans une seule couche.** Mal lu dans l'export →
   adaptateur. Mal cumulé d'un achat à l'autre → moteur. Les deux ne se mélangent jamais ;
 - **le moteur est testable sans aucune banque.** Ses tests partent d'opérations pivot fictives
   écrites à la main ([tests/moteur/operations_fictives.py](../tests/moteur/operations_fictives.py)),
@@ -157,8 +156,8 @@ Deux flèches surprennent à la lecture, et sont voulues :
 
 | Flèche | Pourquoi |
 |---|---|
-| `config/comptes.py` → `pivot.operation.Poche` | L'utilisateur déclare des poches (`PEA`, `CTO`, `crypto`). Ce vocabulaire appartient au pivot ; le redéfinir ailleurs créerait deux listes à tenir à jour |
-| `adaptateurs/…/lecture.py` → `pivot.validation.controler` | Les contrôles de cohérence du pivot ([format-pivot §5](format-pivot.md)) tournent **pendant la lecture**, pas dans le moteur. Une ligne douteuse est repérée là où on peut encore dire de quel événement elle vient |
+| `config/actifs.py` → `pivot.operation.DEVISE_UNIQUE` | La devise déclarée d'un actif est confrontée à celle du pivot ([D-48](decisions.md)). La redéfinir ailleurs créerait deux valeurs à tenir à jour |
+| `adaptateurs/…/lecture.py` → `pivot.validation.controler` | Les contrôles de cohérence du pivot ([format-pivot §5](format-pivot.md)) tournent **pendant la lecture**, pas dans le moteur. Une ligne douteuse est repérée là où on peut encore dire de quelle ligne de quel fichier elle vient |
 
 `tableur.py` est le seul module partagé hors contrat : il n'écrit que de la mise en forme de
 nombres, et il vit à la racine pour qu'aucun export n'invente ses propres conventions.
@@ -173,30 +172,23 @@ pastory/
 ├── tableur.py                 comment on écrit un nombre (CSV et phrases)
 ├── config/
 │   ├── emplacements.py        où vivent les fichiers personnels (D-37)
-│   ├── comptes.py             le rôle de chaque compte espèces, déclaré par l'utilisateur (D-10)
 │   ├── actifs.py              de l'ISIN au ticker, la devise, le type et le TER (D-48, D-55)
 │   └── fiscalite.py           la date du premier versement du PEA, déclarée (D-59)
 ├── adaptateurs/
-│   └── trade_republic/
-│       ├── source.py          où sont les fichiers, et comment les rafraîchir via pytr
-│       ├── evenements.py      où est rangée chaque information dans un événement
-│       ├── classement.py      quatre catégories, aucune par défaut (D-08)
-│       ├── lexique.py         tous les libellés affichés, et rien qu'ici (D-09, D-19)
-│       ├── nombres.py         les deux écritures de nombres, jamais devinées
-│       ├── poche.py           PEA, CTO ou crypto : trois règles dans l'ordre (D-40)
-│       ├── lecture.py         le cœur : un événement devient une opération pivot
-│       ├── recoupement_csv.py second avis sur quantité, frais et taxes (D-42)
-│       ├── portefeuille.py    la photo du portefeuille, en PositionReelle (D-46)
-│       └── rapport.py         tout ce qui n'a pas été compris
+│   └── trade_republic/        l'export officiel des transactions (D-79)
+│       ├── fichier.py         lire un fichier, ses deux variantes, sans rien garder d'une
+│       │                      ligne d'espèces que son type
+│       ├── depot.py           tous les fichiers du dossier, dédoublonnés, et leur période
+│       ├── classement.py      trois catégories, sur (category, type), aucune par défaut (D-08)
+│       ├── lecture.py         le cœur : une ligne devient une opération pivot, ou un refus
+│       └── rapport.py         tout ce qui n'a pas été compris, et ce que le fichier ne dit pas
 ├── pivot/
 │   ├── operation.py           le contrat n° 1 : une opération sur un actif
-│   ├── position_reelle.py     le contrat n° 2 : ce que la banque dit détenir
 │   ├── validation.py          les contrôles de cohérence d'une ligne
 │   └── export_csv.py          les opérations, pour le tableur
 ├── moteur/
 │   ├── position.py            le rejeu, opération par opération, et le journal (D-44)
 │   ├── portefeuille.py        toutes les positions : par poche, et au total
-│   ├── rapprochement.py       nos quantités contre celles de la banque (D-46, D-47)
 │   ├── valorisation.py        ce que valent les actifs à une date, et ce qu'il attend d'une
 │   │                          source de cours (D-52, D-53)
 │   ├── rendements.py          gain, TRI, TWRR par actif, poche et total (D-22, D-54)
@@ -233,8 +225,7 @@ pastory/
 └── vues/                      vide — l'interface Dash (étapes 8 et 9)
 
 scripts/
-├── inventaire_structure.py       relevé structurel d'un export, sans aucune valeur (D-05)
-└── diagnostic_comptes_titres.py  diagnostic pour Q-26, sans aucune valeur
+└── inventaire_structure.py    relevé structurel d'un export officiel, sans aucune valeur (D-05)
 
 tests/                         même arborescence que pastory/, données fictives (D-38)
 ```
@@ -248,57 +239,52 @@ tests/                         même arborescence que pastory/, données fictive
 **`emplacements.py` : rien de personnel n'est écrit dans le projet.** Le dossier du projet est
 synchronisé par OneDrive ([D-24](decisions.md)) ; tout ce qui est réécrit souvent va donc
 ailleurs ([D-37](decisions.md)), dans un dossier propre au système (`LOCALAPPDATA` sous Windows),
-avec trois sous-dossiers : `exports/`, `cache/`, `configuration/`. La variable
+avec trois sous-dossiers : `exports/` — **le dossier de dépôt**, où l'utilisateur dépose ses
+exports ([D-80](decisions.md)) —, `cache/`, `configuration/`. La variable
 `PASTORY_DOSSIER` permet d'en choisir un autre — c'est ce dont se servent les tests, qui
 n'écrivent donc jamais dans le vrai dossier de l'utilisateur.
 
-**`comptes.py` : le seul endroit où l'application pose une question.** Le rôle d'un compte
-espèces n'est écrit **nulle part** dans l'export, et c'est pourtant lui qui détermine la poche
-d'un achat ([D-10](decisions.md)). L'application ne le devine pas : elle écrit un TOML commenté
-([D-38](decisions.md)), montre les opérations vues sur chaque compte, et attend. Les numéros de
-compte ne sortent jamais de cette couche et de l'adaptateur : ils n'entrent pas dans le pivot.
+**Plus aucune question préalable.** Jusqu'à l'étape 8 ter, `comptes.py` demandait le rôle de
+chaque compte espèces, parce que pytr ne disait pas à quelle poche appartenait un achat. L'export
+officiel l'écrit sur chaque ligne : la question a disparu avec lui ([D-81](decisions.md)). Ce qui
+reste dans `config/` — ticker, type, TER, date du PEA — est en passe d'être trouvé seul
+(étape 8 quater, [D-80](decisions.md)).
 
 ### 5.2 `adaptateurs/trade_republic/` — de l'export aux opérations
 
-C'est la couche la plus fragile du projet, parce que c'est la seule qui lise du texte affiché.
-Elle est donc découpée en modules qui font chacun une seule chose, testables séparément.
+L'export officiel est un fichier de **colonnes** ([export-officiel.md](export-officiel.md)) : la
+poche, la quantité, le prix, le montant brut, les frais et les taxes y sont des données, et rien
+n'est lu dans un texte, sauf la nature de l'opération, qui n'est qu'affichée. Le risque n'est donc
+plus de mal lire, mais de **mal comprendre** : aucune liste des types n'est publiée. La couche est
+découpée en conséquence.
 
 | Module | Ce qu'il fait | Pourquoi il est séparé |
 |---|---|---|
-| `source.py` | Trouve `all_events.json` et `account_transactions.csv`, les rafraîchit via `pytr` | C'est le seul module qui parle au réseau et à un sous-processus |
-| `evenements.py` | Sait **où** est rangée chaque information dans un événement | Il ne décide de rien : il isole la forme de l'export de son sens |
-| `classement.py` | Range chaque `eventType` en `TRAITE`, `HORS_PERIMETRE`, `ECARTE` ou `INCONNU` | Liste explicite, aucun classement par défaut ([D-08](decisions.md), règle 5 de CLAUDE.md) |
-| `lexique.py` | Tous les libellés allemands et français, indexés par **(section, libellé)** | Le reste du code parle de notions (`Notion.QUANTITE`), jamais de mots. Un libellé inconnu part au rapport ([D-19](decisions.md)) |
-| `nombres.py` | Lit un nombre selon la convention **déclarée** pour son libellé | Un même export mélange virgule et point décimaux ; deviner ferait lire `1.234567` comme 1 234 567 (inventaire §11.1) |
-| `poche.py` | PEA, CTO ou crypto, par trois règles dans l'ordre | La poche décide de la fiscalité : elle n'est jamais inventée ([D-40](decisions.md)) |
-| `lecture.py` | Assemble tout ça en `Operation` | C'est le seul module qui décide du **sens** d'un événement |
-| `recoupement_csv.py` | Compare quantité, frais et taxes avec le CSV | Second avis indépendant sur les trois valeurs qui n'existent qu'en texte ([D-42](decisions.md)) |
-| `portefeuille.py` | Traduit `portfolio.csv` en `PositionReelle` | La photo de la banque est un second contrat, pas une source de calcul ([D-46](decisions.md)) |
+| `fichier.py` | Lit un fichier, virgule ou point-virgule, colonnes repérées **par leur nom** ; une ligne d'espèces y perd tout sauf son type, ses dates et son identifiant | Les données personnelles ne passent pas cette porte ([export-officiel.md §8](export-officiel.md)) |
+| `depot.py` | Lit tous les fichiers du dossier, dédoublonne par `transaction_id`, dit la période couverte et les trous | L'utilisateur dépose ses exports, et c'est tout ([D-80](decisions.md)) ; un export partiel ne se voit que par sa période ([D-45](decisions.md)) |
+| `classement.py` | Range chaque couple `(category, type)` en `TRAITE`, `HORS_PERIMETRE` ou `INCONNU` | Liste explicite, aucun classement par défaut ([D-08](decisions.md), règle 5 de CLAUDE.md) |
+| `lecture.py` | Fait d'une ligne traitée une `Operation`, ou la refuse | C'est le seul module qui décide du **sens** d'une ligne, et le seul qui refuse une **forme** jamais vue |
 | `rapport.py` | Accumule tout ce qui n'a pas été compris | Un défaut de lecture doit ressortir à l'écran, pas disparaître |
 
 **La chaîne d'une lecture**, dans l'ordre :
 
-1. `source.charger_evenements()` ouvre le JSON — **c'est la source** ([D-06](decisions.md)) ;
-2. `classement.classer()` range l'événement. `INCONNU` → il est compté et affiché, jamais deviné ;
-3. `evenements.lignes()` indexe les couples (section, libellé) ; `lexique` les traduit en notions,
-   `nombres` en `Decimal` ;
-4. `lecture.Lecteur` décide du type d'opération. **Les champs structurés priment** : le sens d'un
-   ordre vient du signe du montant, pas du mot « Kauf » — qui ne sert qu'à recouper
-   ([D-09](decisions.md)) ;
-5. `poche.resoudre()` répond PEA, CTO ou crypto ; si aucune règle ne répond, **l'opération n'est
-   pas produite** et l'export s'arrête en disant quoi déclarer ;
-6. `pivot.validation.controler()` vérifie la ligne (quantité × prix = brut, brut ± frais et taxes
-   = réglé…). Rien n'est corrigé : l'écart part au rapport ;
-7. `recoupement_csv.recouper()` confronte le résultat au CSV de la banque.
+1. `depot.lire_dossier()` lit chaque `.csv` du dossier ; un fichier qui n'est pas un export est
+   cité et écarté, une opération présente dans deux fichiers n'est gardée qu'une fois ;
+2. `classement.classer()` range la ligne. `INCONNU` → elle est comptée et affichée, avec ce que
+   l'on sait du type ; une ligne d'espèces n'est que comptée ;
+3. `lecture.Lecteur` vérifie que la ligne a **la forme vue sur de vrais fichiers** : une quantité
+   positive et un montant négatif pour un achat, un montant positif et pas de prix pour un
+   dividende, une classe d'actif connue, l'euro. Sinon, **l'opération n'est pas produite**, et le
+   rapport dit pourquoi ;
+4. la poche vient d'`account_type` et d'`asset_class` : une donnée, jamais une déduction ;
+5. `pivot.validation.controler()` vérifie la ligne (le jour, les signes, quantité × prix = brut),
+   et, sur un dividende en devise, `original_amount × fx_rate = amount`. Rien n'est corrigé :
+   l'écart part au rapport.
 
 **L'adaptateur a une seule sortie : un `Rapport`.** Il porte les opérations *et* tout ce qui a
-résisté — types inconnus, libellés non reconnus, anomalies, comptes à nommer, opérations non
-produites. Les deux voyagent ensemble pour qu'on ne puisse pas lire les chiffres sans voir leurs
-réserves.
-
-Un garde-fou traverse toute la couche : **aucun texte venu de l'écran n'est recopié tel quel**
-dans un message. Il passe par `rapport.sur()`, parce qu'un titre de section contient parfois un
-montant réel.
+résisté — types non traités, formes refusées, anomalies, période couverte, et la limite connue
+du brut des dividendes ([D-84](decisions.md)). Les deux voyagent ensemble pour qu'on ne puisse pas
+lire les chiffres sans voir leurs réserves.
 
 ### 5.3 `pivot/` — le contrat
 
@@ -309,6 +295,9 @@ Figé à l'étape 1 ([D-35](decisions.md)), décrit champ par champ dans
 2. **les montants sont des `Decimal`**, jamais des flottants ([D-33](decisions.md)) ;
 3. **aucun numéro de compte n'entre dans le pivot.**
 
+`montant_regle` est le seul champ facultatif d'un montant : l'export officiel ne donne pas ce qui
+a été réellement débité, et le champ reste vide plutôt que recalculé ([D-83](decisions.md)).
+
 Cinq types seulement, et la liste est **fermée** : `achat`, `vente`, `dividende`,
 `distribution_capital`, `titres_recus`. Un cas qui n'y entre pas est signalé comme inconnu,
 jamais rangé de force dans un type voisin.
@@ -316,10 +305,6 @@ jamais rangé de force dans un type voisin.
 Chaque valeur porte sa **provenance** : `donnee` (champ structuré), `texte` (lu dans un libellé,
 fragile), `deduction` (règle écrite), `estimation`, `a_completer` (attend un cours). C'est ce qui
 permet à l'interface de montrer d'un coup d'œil ce qui est solide et ce qui ne l'est pas.
-
-`position_reelle.py` est le **second contrat** : la photo du portefeuille telle que la banque
-l'affiche. Il existe pour que le moteur puisse se faire contredire sans ouvrir un fichier de
-banque.
 
 ### 5.4 `moteur/` — le rejeu et l'agrégation
 
@@ -397,11 +382,10 @@ Deux propriétés le rendent vérifiable : **tout pourcentage se rapporte à la 
 actifs valorisés**, jamais à la somme des postes ; et **la somme des postes et des restes vaut
 exactement cette valeur**, ce que les trois CSV permettent de contrôler dans un tableur.
 
-`rapprochement.py` est **le contrôle le plus fort du projet** : il ne dépend d'aucune lecture de
-texte ni d'aucune déduction. La quantité est un contrôle, le prix de revient de la banque une
-simple information ([D-46](decisions.md)). Une poche que la photo ne couvre pas du tout est
-signalée **une fois**, et ses actifs sortent en « hors périmètre » plutôt que de crier au loup
-ligne par ligne ([D-47](decisions.md)).
+**Le contrôle des quantités n'est plus dans le moteur.** Le rapprochement avec la photo du
+portefeuille de la banque est parti avec pytr ([D-81](decisions.md)). Le rapport de `positions`
+se termine désormais par une invitation à comparer chaque quantité à l'écran de l'application :
+c'est le seul moyen de repérer des titres entrés sans aucune ligne dans l'export.
 
 `signalement.py` est le pendant, côté moteur, du rapport de lecture. Il existe séparément parce
 que le moteur ne connaît pas l'adaptateur.
@@ -433,17 +417,15 @@ l'adaptateur sur le moteur. Aucune couche n'appelle l'autre d'elle-même.
 | Commande | Ce qu'elle traverse | Écrit quelque chose ? |
 |---|---|---|
 | `emplacements` | `config` | crée les dossiers |
-| `rafraichir` | `config` → `pytr` | l'export, dans le dossier personnel |
-| `comptes` | adaptateur → `config` | le TOML des rôles de comptes |
-| `lire` | adaptateur | **non** — un rapport à l'écran |
+| `lire` | adaptateur | **non** — un rapport à l'écran (crée le dossier de dépôt s'il manque) |
 | `exporter-pivot` | adaptateur → `pivot` | les opérations en CSV |
 | `positions` | adaptateur → `pivot` → `donnees_externes` → `parametres` → moteur | **non** — un rapport à l'écran |
 | `exporter-positions` | idem | les douze CSV du moteur |
-| `positions-reelles` | `pytr` → adaptateur → moteur | **non** — le rapprochement à l'écran |
 | `ouvrir` | *(étape 9)* | — |
 
-Trois options traversent plusieurs commandes : `--export <dossier>` pour examiner un export
-rangé ailleurs sans le copier dans le projet ; `--au AAAA-MM-JJ` pour arrêter les chiffres à une
+Trois options traversent plusieurs commandes : `--export <dossier>` pour lire les exports d'un
+autre dossier que le dossier de dépôt — celui de quelqu'un d'autre, sans le copier dans le
+projet ; `--au AAAA-MM-JJ` pour arrêter les chiffres à une
 date, qui est aussi la date de valorisation et la fin de la période des rendements (sans elle :
 aujourd'hui, à la dernière clôture connue, [D-52](decisions.md)) ; `--depuis AAAA-MM-JJ` pour
 faire commencer cette période ailleurs qu'à la première opération.
@@ -496,12 +478,11 @@ celles de [format-pivot §6](format-pivot.md))* :
 
 | Où | Ce qui se passe | Ce qu'on peut vérifier |
 |---|---|---|
-| Export | Un événement, dont la quantité et le prix ne sont lisibles que dans des libellés | — |
-| `classement` | `TRAITE`, famille « ordre ponctuel » | Le type apparaît dans le rapport de lecture |
-| `lexique` + `nombres` | « 20,00 € » → `Decimal("20.00")`, convention **déclarée**, pas devinée | Le rapport compte les valeurs lues en `texte` |
-| `poche` | Compte du PEA → poche `PEA`, marquée `deduction` | Le libellé « Portfolio » doit être d'accord, sinon signalement |
-| `pivot` | `quantite` 10, `prix_unitaire` 20,00, `montant_brut` 200,00, `frais` 1,00, `taxes` 0,60, `montant_regle` 201,60 | 10 × 20,00 = 200,00 · 200,00 + 1,60 = 201,60 |
-| `recoupement_csv` | La colonne `Parts` du CSV doit dire 10 | Un écart part au rapport |
+| Export | Une ligne `TRADING / BUY`, `account_type = PEA`, `shares = 10`, `price = 20.00`, `amount = -200.00`, `fee = -1.00`, `tax = -0.60` | La même ligne, dans un tableur |
+| `depot` | Une seule fois, même si deux exports la contiennent (`transaction_id`) | Le rapport compte les doublons |
+| `classement` | `TRAITE` → achat | Le type apparaît dans le rapport de lecture |
+| `lecture` | Forme vue sur de vrais fichiers : quantité positive, montant négatif, classe `STOCK`. Poche `PEA`, **donnée** | Une forme jamais vue part au rapport, sans opération |
+| `pivot` | `quantite` 10, `prix_unitaire` 20,00, `montant_brut` 200,00, `frais` 1,00, `taxes` 0,60, `montant_regle` vide | 10 × 20,00 = 200,00 |
 | `moteur/position` | Capital net investi **+ 200,00 €**, pas 201,60 ([D-12](decisions.md)). Les 1,60 € vont dans les coûts ([D-21](decisions.md)) | Une ligne de `journal.csv` : capital avant + 200,00 = capital après |
 | `moteur/portefeuille` | La ligne entre dans le total du PEA | La somme de la colonne du tableau des positions |
 | Sortie | `positions.csv`, `journal.csv`, le rapport à l'écran | Le tout, en face de l'application Trade Republic |
@@ -532,12 +513,12 @@ Six règles ne sont la propriété d'aucune couche, et se retrouvent dans toutes
 | Quoi | Où | Dans git ? |
 |---|---|---|
 | Le code, la documentation, les tests | Dossier du projet (OneDrive) | oui |
-| Exports `pytr` (`all_events.json`, CSV) | Dossier personnel → `exports/` | **non** |
+| Exports officiels (`Exportation de transactions.csv`) | Dossier personnel → `exports/`, le dossier de dépôt | **non** |
 | Cours, TER, compositions en cache *(étape 4)* | Dossier personnel → `cache/` | **non** |
-| Rôles des comptes, corrections de poche, ISIN | Dossier personnel → `configuration/` | **non** |
+| Tickers, types, TER, date du PEA | Dossier personnel → `configuration/` | **non** |
 | Les CSV de vérification (opérations, positions, journal) | Dossier personnel | **non** |
 | Résultats de vérification sur vraies données | `docs/verification/etape-N.local.md` | **non** (exclu) |
-| Identifiants Trade Republic | **nulle part** : `pytr` les redemande à chaque appel ([D-41](decisions.md)) | **non** |
+| Identifiants Trade Republic | **nulle part** : aucune connexion depuis l'étape 8 ter ([D-81](decisions.md)) | **non** |
 
 Le dossier personnel est **hors du dossier synchronisé**, pour éviter les conflits OneDrive sur
 des fichiers réécrits à chaque commande. `uv run pastory emplacements` dit où il est.
@@ -551,11 +532,11 @@ précédente :
 
 | Test | Part de | Ce que ça prouve |
 |---|---|---|
-| `tests/adaptateurs/` | Événements fictifs (`evenements_fictifs.py`) | La lecture comprend l'export, et signale ce qu'elle ne comprend pas |
+| `tests/adaptateurs/` | Lignes d'export fictives (`export_fictif.py`), une fabrique par forme vue | La lecture comprend l'export, refuse ce qu'elle n'a jamais vu, et ne laisse passer aucune donnée personnelle |
 | `tests/pivot/` | Opérations écrites à la main (`exemples.py`) | Les contrôles de cohérence attrapent ce qu'ils doivent |
 | `tests/moteur/` | Opérations pivot fictives (`operations_fictives.py`) | Les calculs sont justes — **sans aucune banque** |
 | `tests/donnees_externes/` | Réponses écrites à la main, source factice (`cours_fictifs.py`) | Les pièges de la source sont attrapés — **sans aucun réseau** |
-| `tests/test_cli.py` | Un dossier d'export temporaire | Les commandes s'enchaînent, et les rapports s'affichent en cp1252 |
+| `tests/test_cli.py` | Un export officiel fictif (`export_ligne_de_commande.py`), plus deux titres reçus ajoutés à la lecture, en le disant ([architecture-notes §3 bis](architecture-notes.md)) | Les commandes s'enchaînent, et les rapports s'affichent en cp1252 |
 
 **Aucune donnée réelle dans les tests** ([D-38](decisions.md)). La vérification sur vraies
 données est un exercice séparé, fait par le propriétaire, guidé par un
@@ -593,7 +574,7 @@ transparisé », « synthétique », « minoré » — sont du contenu d'interfa
 
 **Ajouter une banque** — c'est le cas prévu par [D-26](decisions.md) :
 
-1. un dossier `adaptateurs/<banque>/`, qui produit des `Operation` et des `PositionReelle` ;
+1. un dossier `adaptateurs/<banque>/`, qui produit des `Operation` ;
 2. ses propres tests, sur des exports fictifs ;
 3. une branche dans `cli.py` pour le choisir.
 
@@ -621,24 +602,18 @@ en trois endroits : `TypeOperation`, les contrôles de `validation.py`, et le ta
 Aucune n'est un défaut à corriger dans l'urgence, mais toutes doivent être connues avant de se
 fier à un chiffre.
 
-- **Le rapprochement ne couvre pas le PEA** ([D-47](decisions.md)). `pytr` ne demande les
-  positions que d'un seul compte-titres, et Trade Republic loge le PEA dans un second.
-  Conséquence : sur le PEA, **aucune seconde source ne confirme les quantités**. Les chiffres
-  restent justes, ils sont seulement calculés sans second avis.
-  [Q-26](questions-ouvertes.md) reste ouverte, et le
-  [diagnostic](../scripts/diagnostic_comptes_titres.py) écrit pour la trancher n'a pas encore
-  été lancé.
-- **Un titre entré sans aucun événement est invisible** à l'adaptateur — un PEA transféré depuis
-  un autre établissement, par exemple. Seul le rapprochement peut le révéler, d'où le point
-  précédent.
-- **La lecture de textes reste le point faible**, par construction : quantité, frais et taxes
-  n'existent que dans des libellés en allemand ou en français. Trois choses la protègent — le
-  lexique isolé, les conventions de nombres déclarées, le recoupement CSV — mais un changement
-  d'affichage chez Trade Republic se verra ici d'abord. Il se verra : un libellé inconnu n'est
-  jamais ignoré.
-- **`pytr` utilisé comme bibliothèque réserve des pièges** (jeton WAF, journal de débogage qui
-  imprime le compte complet). Les contourner est documenté dans
-  [prompt-session-suivante.md](prompt-session-suivante.md).
+- **Un titre entré sans aucune ligne est invisible** — un transfert de titres depuis un autre
+  établissement, par exemple. Aucune seconde source ne confirme plus les quantités : la
+  comparaison se fait à l'écran de l'application Trade Republic ([D-81](decisions.md)).
+- **Aucune liste des types n'est publiée.** Un type jamais vu est affiché, jamais traité : dans
+  les premiers mois, des lignes non traitées sont le cas normal, et leurs titres manquent aux
+  chiffres tant qu'elles le restent. Les titres reçus sans achat (actions gratuites, action
+  offerte) en font partie ([Q-54](questions-ouvertes.md)).
+- **Le brut de certains dividendes est sous-estimé** ([D-84](decisions.md)) : pour les actions
+  néerlandaises au moins, la banque donne un montant déjà diminué de la retenue étrangère, sans
+  la montrer. Le net est juste ; le gain et les taxes payées sont un peu bas.
+- **Un export partiel donne une histoire partielle.** Rien dans le fichier ne le dit : seule la
+  période couverte, affichée, permet de le voir.
 - **Les règles les plus délicates du moteur ne sont validées que par des cas fictifs.** Le
   portefeuille du propriétaire est jeune : peu de ventes, peu de dividendes, aucune distribution
   de capital. La vente partielle au prorata et les plus-values réalisées sont donc prouvées par

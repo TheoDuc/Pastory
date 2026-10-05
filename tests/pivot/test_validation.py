@@ -149,6 +149,38 @@ class TestMontantRegle:
         assert "montant_regle" in regles(controler(operation))
 
 
+def sans_montant_regle(operation):
+    """L'opération telle que la lit l'export officiel : la banque ne donne pas le réglé (D-83)."""
+    provenance = {k: v for k, v in operation.provenance.items() if k != "montant_regle"}
+    return dataclasses.replace(operation, montant_regle=None, provenance=provenance)
+
+
+class TestMontantRegleAbsent:
+    """Quand la banque ne donne pas le montant réglé, il n'y a rien à comparer (D-83)."""
+
+    @pytest.mark.parametrize("construire", exemples.TOUS_LES_EXEMPLES)
+    def test_un_exemple_sans_montant_regle_reste_coherent(self, construire):
+        assert controler(sans_montant_regle(construire())) == []
+
+    def test_des_frais_quelconques_ne_sont_pas_signales(self):
+        # Sans montant réglé, aucune somme ne permet de dire que les frais sont faux.
+        operation = dataclasses.replace(
+            sans_montant_regle(exemples.achat_ordre_ponctuel_pea()), frais=Decimal("2.00")
+        )
+        assert controler(operation) == []
+
+    def test_quantite_fois_prix_reste_controle(self):
+        # Le seul contrôle qui compare deux colonnes indépendantes de l'export ne disparaît pas.
+        operation = dataclasses.replace(
+            sans_montant_regle(exemples.achat_plan_epargne()), montant_brut=Decimal("50.05")
+        )
+        assert regles(controler(operation)) == {"montant_brut"}
+
+    def test_des_titres_recus_sans_montant_regle_sont_acceptes(self):
+        # Vide veut dire « non donné », pas « payé » : ce n'est pas un montant non nul.
+        assert controler(sans_montant_regle(exemples.titres_recus_prix_a_completer())) == []
+
+
 class TestTitresRecus:
     """Des titres reçus sans achat ne coûtent rien (D-15)."""
 

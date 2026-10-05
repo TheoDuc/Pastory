@@ -1,5 +1,11 @@
 # Inventaire des données pytr
 
+> **Document historique.** pytr a été retiré à l'étape 8 ter ([D-81](decisions.md)) : les
+> opérations viennent désormais de l'export officiel, décrit dans
+> [export-officiel.md](export-officiel.md). Ce relevé reste parce que ses pièges expliquent
+> bien des décisions, et parce que le script cité ci-dessous est, dans sa version d'origine,
+> dans l'historique git ; `scripts/inventaire_structure.py` relève aujourd'hui l'export officiel.
+
 Relevé réalisé le 2026-09-17 sur deux exports :
 
 | Jeu | Événements JSON | Lignes CSV | Remarque |

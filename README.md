@@ -4,7 +4,8 @@ Tableau de bord **local** et **gratuit** pour suivre les actifs d'un portefeuill
 (PEA, CTO, crypto), destiné aux investisseurs long terme. Les données ne quittent jamais la
 machine.
 
-> **Projet en construction.** Étape 8 bis sur 12 : l'application lit un export Trade Republic,
+> **Projet en construction.** Étape 8 ter sur 12 : l'application lit l'export officiel des
+> transactions de Trade Republic,
 > va chercher les cours de marché, et en tire par actif la quantité détenue, le capital investi,
 > le prix de revient, la valeur, le gain, le TRI et le TWRR — puis ce que tout cela **coûte**
 > (frais et taxes payés, spread et frais courants estimés), ce qu'on récupérerait en **vendant
@@ -26,39 +27,50 @@ uv run pytest            # vérifie que tout fonctionne
 uv run pastory --help    # liste les commandes disponibles
 ```
 
-`uv run pastory emplacements` indique où l'application rangera les fichiers personnels
+`uv run pastory emplacements` indique où l'application range les fichiers personnels
 (exports, cache, configuration), en dehors du dossier du projet.
 
 ## Lire ses données
 
+**Vous ne faites qu'une chose** : télécharger l'export de vos transactions et le déposer dans le
+dossier `exports` de Pastory ([D-80](docs/decisions.md)).
+
+1. Dans l'application Trade Republic : **Profil → Relevés → Export des transactions**. Choisissez
+   **toutes les transactions**, puis *Créer*. Vous obtenez un fichier
+   `Exportation de transactions.csv`.
+2. Déposez-le dans le dossier `exports` que donne `uv run pastory emplacements` (il est créé à la
+   première commande). Vous pouvez y laisser plusieurs exports : ils sont lus ensemble, et une
+   opération présente dans deux fichiers n'est comptée qu'une fois.
+
 ```bash
-uv run pastory rafraichir       # récupère l'export auprès de Trade Republic
-uv run pastory comptes          # une seule fois : à quoi sert chaque compte espèces
 uv run pastory lire             # le rapport de lecture, sans rien écrire
 uv run pastory exporter-pivot   # les opérations en CSV, à ouvrir dans un tableur
 ```
 
-`rafraichir` ne manipule aucun identifiant : c'est Trade Republic qui demande le numéro et le
-PIN, et **rien n'est enregistré** ([D-41](docs/decisions.md)).
+Aucune connexion, aucun identifiant : c'est un fichier fourni par la banque elle-même
+([D-79](docs/decisions.md)). La poche de chaque opération (PEA, CTO, crypto) y est écrite : rien à
+déclarer.
 
-> **En tapant le PIN, rien ne s'affiche** — ni les chiffres, ni des étoiles, ni le curseur qui
-> avance. C'est normal, la saisie est masquée : tapez le PIN et appuyez sur Entrée.
-> Sous Windows, cette saisie a besoin d'une **vraie console** : lancez la commande depuis
-> PowerShell, `cmd` ou le terminal de VS Code. Depuis Git Bash, elle resterait bloquée.
+Le **rapport de lecture** affiche tout ce qui n'a pas été compris, et ce que le fichier ne dit
+pas :
 
-`comptes` est nécessaire parce que rien, dans l'export, ne dit à quoi sert un compte espèces —
-alors que c'est lui qui détermine la poche d'un achat. L'application ne le devine pas
-([D-40](docs/decisions.md)) : elle montre les opérations vues sur chaque compte et vous laisse
-les nommer.
+- **les types d'opération non traités.** Trade Republic ne publie aucune liste de ses types : un
+  type jamais vu sur un vrai fichier n'est jamais rangé par défaut, il est affiché
+  ([D-08](docs/decisions.md)). Ce que l'on en sait est dans
+  [export-officiel.md](docs/export-officiel.md) ;
+- **la période couverte.** Un export qui ne remonte pas à l'ouverture du compte donne une histoire
+  incomplète, et rien dans le fichier ne le dit : vérifiez que le premier jour affiché est bien
+  celui de votre première opération ;
+- **une limite des dividendes.** Pour certains pays (vérifié : Pays-Bas), Trade Republic donne le
+  dividende déjà diminué de la retenue à la source étrangère, sans la montrer : le montant net
+  est juste, le brut et les taxes sont un peu sous-estimés ([D-84](docs/decisions.md)).
 
-Le **rapport de lecture** affiche tout ce qui n'a pas été compris : types d'événements inconnus,
-libellés non reconnus, écarts avec le CSV de Trade Republic. Un type inconnu n'est jamais ignoré
-([D-08](docs/decisions.md)).
+Les lignes d'espèces (paiements, virements) ne sont que **comptées par type** : leurs montants,
+commerçants et IBAN ne sont jamais lus ni recopiés.
 
 Pour examiner un export rangé ailleurs — celui de quelqu'un d'autre, par exemple — sans le
-copier dans le projet : `uv run pastory lire --export <dossier>`. Avec `--export`, la commande
-`comptes` se contente d'**afficher** les comptes trouvés : elle n'enregistre rien, parce que les
-comptes d'un autre export ne sont pas les vôtres.
+copier dans le projet : `uv run pastory lire --export <dossier>`. Avec `--export`, `actifs`
+n'enregistre rien et ne lance aucune recherche.
 
 ## Les cours de marché
 
@@ -97,7 +109,6 @@ uv run pastory positions           # quantités, capital investi, prix de revien
                                      # valeur des actifs, gain, TRI et TWRR,
                                      # coûts payés et estimés, valeur réelle
 uv run pastory exporter-positions  # douze CSV pour le tableur, dont le journal et les flux
-uv run pastory positions-reelles   # demande à la banque ce qu'elle dit détenir
 ```
 
 `positions` et `exporter-positions` acceptent `--hors-ligne` : les mêmes chiffres, avec les seuls
@@ -130,17 +141,10 @@ la multiplication. Mais tant qu'aucun cours n'est disponible — actif non décl
 les parts sont comptées et le prix de revient de l'actif reste « à compléter » : le calculer quand
 même donnerait un chiffre crédible et faux, que rien ne signalerait.
 
-`positions-reelles` compare ensuite ce que l'application a calculé avec ce que la banque affiche.
-C'est le seul contrôle qui ne dépend d'aucune lecture de texte, et le seul capable de révéler des
-titres entrés **sans aucun événement** dans l'export ([D-46](docs/decisions.md)). Comme rien
-n'est enregistré sur la machine, cette commande redemande le numéro et le PIN — d'où une commande
-à part, à lancer quand on veut vérifier.
-
-**Le rapprochement ne couvre pas le PEA**, et l'application le dit en une ligne plutôt que de
-lever une alerte par actif : l'outil qui interroge Trade Republic ne demande les positions que
-d'un seul compte-titres, et le PEA est dans un autre ([D-47](docs/decisions.md)). Les chiffres
-du PEA restent justes — ils sont seulement calculés à partir des seules opérations, sans second
-avis.
+**Comparez les quantités à l'écran de l'application Trade Republic.** L'export ne donne que
+l'histoire des opérations : des titres entrés **sans aucune ligne** — un transfert de titres
+depuis une autre banque, par exemple — n'y apparaissent pas, et aucun calcul ne peut les deviner.
+C'est le contrôle le plus sûr, et le rapport le rappelle ([D-81](docs/decisions.md)).
 
 Les deux premières commandes acceptent `--au AAAA-MM-JJ` pour arrêter les chiffres à une date,
 qui devient aussi la date de valorisation.
@@ -200,7 +204,7 @@ demande que d'écrire un nouvel adaptateur ([D-26](docs/decisions.md)).
 | [docs/sources-de-cours.md](docs/sources-de-cours.md) | D'où viennent les cours, et pourquoi cette source |
 | [docs/couts-et-fiscalite.md](docs/couts-et-fiscalite.md) | D'où viennent les spreads, le TER et les règles fiscales |
 | [docs/decisions.md](docs/decisions.md) | Les décisions prises, avec leurs raisons |
-| [docs/inventaire-donnees.md](docs/inventaire-donnees.md) | Ce que contiennent les exports pytr, et leurs pièges |
+| [docs/export-officiel.md](docs/export-officiel.md) | Ce que contient l'export officiel de Trade Republic, et ses pièges |
 | [docs/verification/](docs/verification/) | Comment vérifier les chiffres soi-même, étape par étape |
 
 ## Vie privée

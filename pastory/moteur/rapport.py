@@ -28,7 +28,6 @@ from pastory.moteur.couts import DetailDesCouts
 from pastory.moteur.diversification import Diversification, Repartition
 from pastory.moteur.portefeuille import Portefeuille, Totaux
 from pastory.moteur.position import Position
-from pastory.moteur.rapprochement import Accord, Rapprochement
 from pastory.moteur.rendements import Rendements, Synthese
 from pastory.moteur.signalement import Signalement
 from pastory.moteur.valeur_reelle import ValeurReelle
@@ -90,7 +89,6 @@ def _nom(position: Position) -> str:
 
 def resume(
     portefeuille: Portefeuille,
-    rapprochement: Rapprochement | None = None,
     arrete_au: Date | None = None,
     synthese: Synthese | None = None,
     detail_des_couts: DetailDesCouts | None = None,
@@ -99,9 +97,8 @@ def resume(
 ) -> str:
     """Le rapport complet, prêt à être affiché.
 
-    `arrete_au` dit que les chiffres s'arrêtent à une date passée. Le rapprochement est alors
-    hors sujet — la banque ne sait montrer qu'aujourd'hui — et le rapport l'explique au lieu
-    de réclamer un fichier qui ne servirait à rien.
+    `arrete_au` dit que les chiffres s'arrêtent à une date passée. Comparer les quantités à
+    l'application est alors hors sujet — elle ne montre qu'aujourd'hui — et le rapport le dit.
 
     `synthese` apporte ce que les cours permettent : la valeur des actifs, et les trois
     chiffres clés (D-22). Sans elle, le rapport dit qu'ils manquent.
@@ -134,7 +131,7 @@ def resume(
     if diversification_estimee is not None:
         _diversification(lignes, titre, diversification_estimee)
     _a_surveiller(lignes, titre, portefeuille)
-    _rapprochement(lignes, titre, rapprochement, arrete_au)
+    _controle_des_quantites(lignes, titre, arrete_au)
 
     return "\n".join(lignes)
 
@@ -1017,120 +1014,26 @@ def _a_surveiller(lignes: list[str], titre: Titre, portefeuille: Portefeuille) -
         lignes.append("Aucun signalement : toutes les opérations se sont appliquées normalement.")
 
 
-# --- Le rapprochement avec ce que la banque dit détenir -------------------------------
+# --- Le contrôle des quantités ---------------------------------------------------------
 
 
-def _rapprochement(
-    lignes: list[str],
-    titre: Titre,
-    rapprochement: Rapprochement | None,
-    arrete_au: Date | None = None,
-) -> None:
-    if rapprochement is None:
-        titre("Rapprochement avec le portefeuille réel")
-        if arrete_au is not None:
-            # La banque ne sait montrer qu'aujourd'hui : comparer une photo d'aujourd'hui à
-            # des chiffres arrêtés dans le passé signalerait à tort tout ce qui a bougé
-            # depuis. Mieux vaut ne pas rapprocher du tout que rapprocher de travers.
-            lignes.append(
-                f"  Sans objet : les chiffres sont arrêtés au {arrete_au.isoformat()}, alors "
-                "que la banque"
-            )
-            lignes.append("  ne sait montrer que son portefeuille d'aujourd'hui.")
-            lignes.append("")
-            lignes.append("  Relancez « pastory positions » sans --au pour le rapprochement.")
-            return
-        lignes.append("  Pas encore fait. C'est le contrôle le plus sûr du projet : il ne")
-        lignes.append("  dépend d'aucune lecture de texte, et lui seul peut révéler des titres")
-        lignes.append("  entrés sans qu'aucune opération ne l'indique.")
-        lignes.append("")
-        lignes.append("  Lancez « pastory positions-reelles », puis cette commande à nouveau.")
+def _controle_des_quantites(lignes: list[str], titre: Titre, arrete_au: Date | None) -> None:
+    """Le contrôle le plus sûr, que seul l'utilisateur peut faire (D-81).
+
+    L'export ne dit que l'histoire des opérations. Des titres entrés **sans aucune ligne**
+    (un transfert de titres, par exemple) n'y apparaissent pas, et aucun calcul ne peut les
+    deviner : seule la comparaison avec l'écran de la banque les révèle.
+    """
+    titre("Contrôle des quantités")
+    if arrete_au is not None:
+        lignes.append(
+            f"  Sans objet : les chiffres sont arrêtés au {arrete_au.isoformat()}, alors que"
+        )
+        lignes.append("  l'application Trade Republic ne montre que le portefeuille d'aujourd'hui.")
         return
-
-    titre("Rapprochement avec le portefeuille réel")
-    if rapprochement.poches_non_couvertes:
-        # Le cas connu : pytr ne demande les positions que d'un seul compte-titres, et la
-        # banque range le PEA dans un second (D-47). Le dire une fois vaut mieux que de
-        # lever une alerte par actif à chaque lancement.
-        poches = ", ".join(poche.value for poche in rapprochement.poches_non_couvertes)
-        concernes = [
-            ligne for ligne in rapprochement.lignes if ligne.accord is Accord.HORS_PERIMETRE
-        ]
-        lignes.append(
-            f"  La photo de la banque ne couvre pas : {poches}. "
-            f"{len(concernes)} actif(s) ne sont donc"
-        )
-        lignes.append("  ni comparés, ni confirmés - ils sortent en « hors périmètre »")
-        lignes.append("  ci-dessous, sans alerte. Ce n'est pas un désaccord.")
-        lignes.append("")
-        lignes.append("  Cause connue : l'outil qui interroge Trade Republic ne demande les")
-        lignes.append("  positions que d'un seul compte-titres, et le PEA est dans un autre.")
-        lignes.append("")
-
-    if rapprochement.lignes_illisibles:
-        # Un actif absent d'une ligne illisible ressortirait « absent de la banque », ce qui
-        # est un faux diagnostic : c'est le fichier qui est abîmé, pas le portefeuille.
-        lignes.append(
-            f"  ATTENTION - {rapprochement.lignes_illisibles} ligne(s) du fichier de la "
-            "banque n'ont pas pu être lues."
-        )
-        lignes.append("  Le rapprochement est donc incomplet : un « absent de la banque »")
-        lignes.append("  ci-dessous peut très bien s'y trouver. Relancez")
-        lignes.append("  « pastory positions-reelles » avant de conclure.")
-        lignes.append("")
-    elif rapprochement.tout_concorde:
-        # « comparées » n'est pas une précaution de style : quand une poche n'est pas
-        # couverte, dire « toutes » laisserait croire à un contrôle complet.
-        if rapprochement.complet:
-            lignes.append("  Toutes les quantités concordent avec celles de Trade Republic.")
-        else:
-            lignes.append("  Toutes les quantités comparées concordent avec Trade Republic.")
-    else:
-        lignes.append("  Des quantités ne concordent pas. Chacune est expliquée ci-dessous.")
-
-    lignes.append("")
-    lignes.append(
-        f"  {'actif':<14} {'nom':<{LARGEUR_NOM}} {'moteur':>12} {'banque':>12} {'état':>20}"
-    )
-    for ligne in rapprochement.lignes:
-        nom = (ligne.nom_actif or "")[:LARGEUR_NOM]
-        lignes.append(
-            f"  {ligne.actif:<14} {nom:<{LARGEUR_NOM}} "
-            f"{_lisible(ligne.quantite_moteur):>12} "
-            f"{_lisible(ligne.quantite_banque):>12} "
-            f"{ligne.accord.value:>20}"
-        )
-
-    _prix_de_revient_compares(lignes, rapprochement)
-
-    if rapprochement.signalements:
-        lignes.append("")
-        for signalement in rapprochement.signalements:
-            lignes += _enveloppe(
-                f"[{signalement.categorie}] {signalement}", "  ", "    "
-            )
-
-
-def _prix_de_revient_compares(lignes: list[str], rapprochement: Rapprochement) -> None:
-    """Les deux prix de revient côte à côte, **pour information seulement** (D-46)."""
-    comparables = [
-        ligne
-        for ligne in rapprochement.lignes
-        if ligne.prix_de_revient_moteur is not None and ligne.prix_de_revient_banque is not None
-    ]
-    if not comparables:
-        return
-
-    lignes.append("")
-    lignes.append("  Prix de revient, pour information - aucun écart n'est une anomalie :")
-    lignes.append("  Trade Republic ne dit pas ce qu'il met dans le sien, alors que celui de")
-    lignes.append("  cette application exclut explicitement les frais et les taxes (D-13).")
-    lignes.append(f"  {'actif':<14} {'ici':>16} {'Trade Republic':>18}")
-    for ligne in comparables:
-        lignes.append(
-            f"  {ligne.actif:<14} {_lisible(ligne.prix_de_revient_moteur):>16} "
-            f"{_lisible(ligne.prix_de_revient_banque):>18}"
-        )
+    lignes.append("  Comparez la quantité de chaque actif ci-dessus à celle de l'application Trade")
+    lignes.append("  Republic. C'est le seul moyen de repérer des titres entrés sans aucune ligne")
+    lignes.append("  dans l'export, comme un transfert de titres depuis une autre banque.")
 
 
 def _grouper(signalements: Iterable[Signalement]) -> list[tuple[str, list[Signalement]]]:

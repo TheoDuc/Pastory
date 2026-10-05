@@ -16,12 +16,10 @@ from pastory.moteur import diversification as diversification_moteur
 from pastory.moteur import rapport as rapport_moteur
 from pastory.moteur import valeur_reelle as valeur_reelle_moteur
 from pastory.moteur.portefeuille import Portefeuille
-from pastory.moteur.rapprochement import rapprocher
 from pastory.moteur.rendements import Periode, Synthese, synthese
 from pastory.parametres import referentiels as parametres_referentiels
 from pastory.parametres.referentiels import charger_tout as referentiels_du_projet
 from pastory.pivot.operation import Poche, TypeOperation
-from pastory.pivot.position_reelle import PositionReelle
 from tests.moteur.compositions_fictives import (
     CompositionFictive,
     SourceDeCompositionFictive,
@@ -155,58 +153,22 @@ class TestCouts:
         assert sum(detail) == total == Decimal("1.50")
 
 
-class TestRapprochement:
-    def test_sans_portefeuille_reel_le_rapport_dit_comment_l_obtenir(self):
+class TestControleDesQuantites:
+    """Sans photo du portefeuille, le rapport renvoie à l'écran de la banque (D-81)."""
+
+    def test_le_rapport_invite_a_comparer_avec_l_application(self):
         texte = rapport_moteur.resume(portefeuille_complet())
 
-        assert "positions-reelles" in texte
+        assert "Contrôle des quantités" in texte
+        assert "application Trade" in texte
+        assert "positions-reelles" not in texte
 
-    def test_a_une_date_passee_le_rapprochement_est_sans_objet(self):
-        """La banque ne sait montrer qu'aujourd'hui : comparer serait un faux diagnostic."""
-        texte = rapport_moteur.resume(portefeuille_complet(), None, arrete_au=date(2026, 1, 31))
+    def test_a_une_date_passee_la_comparaison_est_sans_objet(self):
+        """L'application ne montre qu'aujourd'hui : comparer serait un faux diagnostic."""
+        texte = rapport_moteur.resume(portefeuille_complet(), arrete_au=date(2026, 1, 31))
 
         assert "Sans objet" in texte
         assert "2026-01-31" in texte
-        assert "positions-reelles" not in texte
-
-    def test_un_fichier_abime_empeche_de_conclure(self):
-        portefeuille = portefeuille_complet()
-        rapprochement = rapprocher(
-            portefeuille,
-            [PositionReelle(actif=ACTIF, quantite=Decimal("15"))],
-            lignes_illisibles=1,
-        )
-        texte = rapport_moteur.resume(portefeuille, rapprochement)
-
-        assert "n'ont pas pu être lues" in texte
-        assert "rapprochement est donc incomplet" in texte
-        assert "concordent" not in texte
-
-    def test_un_accord_complet_se_lit_en_une_phrase(self):
-        portefeuille = portefeuille_complet()
-        rapprochement = rapprocher(
-            portefeuille, [PositionReelle(actif=ACTIF, quantite=Decimal("15"))]
-        )
-
-        assert "concordent" in rapport_moteur.resume(portefeuille, rapprochement)
-
-    def test_les_deux_prix_de_revient_sont_montres_sans_alerte(self):
-        """D-46 : l'écart est affiché, il n'est jamais présenté comme une anomalie."""
-        portefeuille = portefeuille_complet()
-        rapprochement = rapprocher(
-            portefeuille,
-            [
-                PositionReelle(
-                    actif=ACTIF,
-                    quantite=Decimal("15"),
-                    prix_de_revient_banque=Decimal("25.07"),
-                )
-            ],
-        )
-        texte = rapport_moteur.resume(portefeuille, rapprochement)
-
-        assert "25,07" in texte
-        assert "aucun écart n'est une anomalie" in texte
 
 
 class TestValeurEtChiffresCles:
@@ -337,12 +299,7 @@ class TestAffichageSurUneConsoleWindows:
         # La console Windows par défaut écrit en cp1252. Un rapport qui contiendrait un
         # trait de tableau ferait planter la commande au moment de l'afficher, alors que
         # le calcul, lui, s'est bien passé.
-        portefeuille = portefeuille_incomplet()
-        rapprochement = rapprocher(
-            portefeuille, [PositionReelle(actif=ACTIF, quantite=Decimal("20"))]
-        )
-
-        rapport_moteur.resume(portefeuille, rapprochement).encode("cp1252")
+        rapport_moteur.resume(portefeuille_incomplet()).encode("cp1252")
 
     def test_un_portefeuille_vide_ne_plante_pas(self):
         texte = rapport_moteur.resume(Portefeuille.construire([]))
@@ -367,17 +324,9 @@ class TestAffichageSurUneConsoleWindows:
 
     def test_aucune_ligne_ne_deborde_d_un_terminal(self):
         """Les signalements sont des phrases en français : ils doivent être enveloppés."""
-        portefeuille = portefeuille_incomplet()
-        rapprochement = rapprocher(
-            portefeuille,
-            [
-                PositionReelle(actif=ACTIF, quantite=Decimal("20")),
-                PositionReelle(actif="XX0000000009", quantite=Decimal("7")),
-            ],
-        )
-        texte = rapport_moteur.resume(portefeuille, rapprochement)
+        texte = rapport_moteur.resume(portefeuille_incomplet())
 
-        assert "titres sans opération" in texte
+        assert "prix à compléter" in texte
         for ligne in texte.splitlines():
             assert len(ligne) <= 100, ligne
 

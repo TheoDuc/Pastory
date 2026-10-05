@@ -7,8 +7,8 @@ commencer.
 > **À mettre à jour par l'instance qui termine une étape**, avant la fusion dans `main`. La
 > dernière section dit comment.
 >
-> Dernière mise à jour : **2026-10-01**, session hors étape : l'export officiel de Trade Republic
-> remplace pytr ([D-79](decisions.md)), et deux étapes s'intercalent avant l'interface.
+> Dernière mise à jour : **2026-10-05**, fin de l'étape 8 ter : l'export officiel est la porte
+> d'entrée, et pytr est retiré.
 
 ---
 
@@ -16,81 +16,76 @@ commencer.
 
 ```
 Lis CLAUDE.md puis docs/feuille-de-route.md, et docs/prompt-session-suivante.md.
-On attaque l'étape 8 ter : la nouvelle porte d'entrée, l'export officiel de Trade Republic.
+On attaque l'étape 8 quater : des réglages qui se proposent seuls.
 ```
 
 ---
 
 ## Où en est le projet
 
-- **Étapes 0 à 8 bis terminées.** Le moteur est complet, l'interface est **conçue**, et le
-  document de conception est **fermé**.
-- **Changement de cap du 2026-10-01 ([D-79](decisions.md)).** Trade Republic fournit depuis avril
-  2026 un **export officiel des transactions** en CSV, dans son application. Il remplace pytr comme
-  porte d'entrée : plus de connexion, plus de comptes à nommer, des colonnes au lieu de textes
-  allemands, et plus de clause des conditions générales. Le relevé complet du fichier est dans
-  [export-officiel.md](export-officiel.md) — **à lire avant tout**.
-- **La vision du propriétaire, à garder en tête à chaque étape ([D-80](decisions.md))** :
-  l'utilisateur **dépose l'export dans un dossier, et c'est tout**. Le reste est trouvé
-  automatiquement, contrôlé, et affiché avec sa source ; ce qui ne se trouve pas de façon fiable
-  est un trou expliqué, jamais une question. Fiabilité **et** facilité : aucune des deux ne se
-  sacrifie.
-- **Prochaine : étape 8 ter**, l'adaptateur de l'export officiel. Puis **8 quater**, des réglages
-  qui se proposent seuls. Puis l'étape 9, l'interface, inchangée sur le fond.
-- **Questions ouvertes** : **Q-50** (sans pytr, que devient la photo du portefeuille ?), **Q-51**
-  (le type d'un actif vient-il de l'export ?), **Q-52** (le contrôle du montant réglé). Q-26 est
-  englobée par Q-50.
+- **Étapes 0 à 8 ter terminées.** Le moteur est complet, l'interface est **conçue**, et les
+  opérations viennent de l'**export officiel** de Trade Republic, déposé par l'utilisateur dans
+  `Pastory/exports` ([D-79](decisions.md), [D-80](decisions.md)). **pytr est retiré**
+  ([D-81](decisions.md)) : plus de connexion, plus de `comptes.toml`, plus de rapprochement.
+- **La vision du propriétaire, à garder en tête ([D-80](decisions.md))** : l'utilisateur **dépose
+  l'export, et c'est tout**. Le reste est trouvé automatiquement, contrôlé, et affiché avec sa
+  source ; ce qui ne se trouve pas de façon fiable est un trou expliqué, jamais une question.
+- **Prochaine : étape 8 quater**, des réglages qui se proposent seuls. Puis l'étape 9, l'interface.
+- **Questions ouvertes** : **Q-54** seulement (actions gratuites puis « migration », chez l'ami
+  du propriétaire — on attend ce que montre son application).
 
 **Ce qui existe déjà :**
 
 | Où | Quoi |
 |---|---|
-| [export-officiel.md](export-officiel.md) | **Le relevé de l'export officiel** : ses 23 colonnes, les types vus, ce qui est vérifié, ce qui reste à confirmer, et ses données personnelles |
-| `data/Exportation de transactions.csv` | Un vrai export du propriétaire (hors git), **et** son export pytr dans `data/`, qui se recouvrent sur plusieurs semaines : la comparaison des deux adaptateurs est possible tout de suite |
-| [maquettes/](../maquettes/) | **Les écrans**, en HTML et CSS. `style.css` est le livrable de l'étape 9 |
-| [conception-interface.md](conception-interface.md) | **Le contrat de l'étape 9, complet** |
-| [format-pivot.md](format-pivot.md) | **Le contrat** : les opérations (§1 à §8) et la photo du portefeuille (§9) |
-| [architecture.md](architecture.md) | Les couches, leurs frontières, le trajet d'un chiffre |
-| `pastory/` | Le moteur complet : pivot, adaptateur pytr, données externes, paramètres, moteur, `cli.py` (12 commandes) |
-| [decisions.md](decisions.md) | D-01 à D-80 |
+| [export-officiel.md](export-officiel.md) | **Le relevé de l'export officiel** : colonnes, types vus (§4.1) et connus ailleurs (§4.2), montants (§5), et la comparaison avec pytr |
+| `pastory/adaptateurs/trade_republic/` | L'adaptateur : `fichier` → `depot` → `classement` → `lecture` → `rapport` ([architecture.md §5.2](architecture.md)) |
+| `data/` et un dossier `data_*/` | Les exports officiels du propriétaire (46 lignes, six semaines) et de son ami (149 lignes, un an). Le second est **à un tiers** : structure seulement (règle 2) |
+| `scripts/inventaire_structure.py` | Le relevé structurel d'un export, sans aucune valeur : à relancer sur tout nouveau fichier |
+| [verification/etape-8-ter.md](verification/etape-8-ter.md) | Le cahier de l'étape, et la preuve par comparaison |
+| [decisions.md](decisions.md) | D-01 à D-84 |
 
 ---
 
-## Ce que l'étape 8 ter doit savoir
+## Ce que l'étape 8 quater doit savoir
+
+### Ce que l'étape 8 ter lui laisse en main
+
+- **Le type de chaque actif est lu** : `Rapport.classes_par_actif` donne, par actif, les valeurs
+  d'`asset_class` vues (`FUND`, `STOCK`, `CRYPTO`). [D-82](decisions.md) dit que c'est une donnée
+  de la banque ; **reste à l'appliquer** aux estimations (spread, TER attendu ou non), là où
+  `parametres/couts.py` lit aujourd'hui `Declaration.type`.
+- **La crypto a un vrai code** : `symbol` vaut `BTC`, `ETH`… (fictifs). Le ticker `BTC-EUR` se
+  propose tout seul, à contrôler par la devise ([D-48](decisions.md)). `pastory actifs` en
+  affiche déjà la forme, sans l'appliquer.
+- **Une déclaration orpheline** : la crypto du propriétaire est déclarée dans `actifs.toml` sous
+  l'ancien code pytr (`XF…`). Elle ne correspond plus à aucun actif, et rien ne le dit. L'étape
+  doit le dire — et, idéalement, rendre la redéclaration inutile.
+- **La date d'ouverture du PEA** se lit dans l'export : le premier `TRANSFER_IN` sur `PEA`. Une
+  ligne d'espèces : seul son **type et sa date** sont gardés à la lecture (`fichier.py` efface le
+  reste), ce qui suffit ici.
 
 ### La chose à ne pas rater de cette étape
 
-**Aucune liste des types n'est publiée par Trade Republic.** Le premier export ne contient que
-des achats, un Saveback et des lignes d'espèces : ni dividende, ni vente, ni titres reçus. Un type
-qu'on n'a pas vu sur un vrai fichier **n'est pas traité**, même si une source publique en parle :
-il est affiché comme inconnu (règle 5). La tentation sera de traiter `DIVIDEND` « de toute
-évidence » — c'est exactement ainsi qu'on range un brut à la place d'un net.
+**Une valeur trouvée n'est appliquée qu'après un contrôle, et toujours montrée avec sa source.**
+C'est la règle 2 de [D-80](decisions.md), et la seule garantie que l'automatisme ne fabrique pas
+de faux chiffres. Les raisons des anciennes validations restent vraies : la liste de Xetra a des
+TER en retard, une recherche par ISIN peut renvoyer des dollars.
 
-### Ce qui est déjà vérifié sur le fichier
+### Les pièges de l'étape 8 ter, à connaître
 
-- `amount` = `shares × price` sur chaque achat : c'est le **montant brut**, et les frais sont **à
-  côté**, négatifs ;
-- `datetime` est en temps universel, `date` est déjà le jour à Paris ([D-36](decisions.md)) ;
-- point décimal partout : le piège n° 1 de pytr n'existe pas ici ;
-- les 6 achats correspondent un à un à ceux de pytr, sauf **quelques centimes sur l'achat de
-  crypto** — [export-officiel.md §5](export-officiel.md), et [Q-52](questions-ouvertes.md).
-
-### Les pièges déjà repérés
-
-- le fichier **n'est pas trié** ;
-- le Saveback n'a **ni quantité ni prix** : ne pas en faire un achat ;
-- la crypto est identifiée par son code (`ETH`, par exemple), pas par le code `XF…` de pytr : le ticker et le cache des
-  cours s'appuient sur l'identifiant de l'actif, à vérifier ;
-- le fichier contient **IBAN, noms et commerçants** : les lignes d'espèces ne sont lues que par
-  leur `type` ([export-officiel.md §8](export-officiel.md)) ;
-- `description` est en **anglais** même quand l'application est en français.
-
-### La méthode qui marche
-
-Garder l'adaptateur pytr **le temps de la comparaison**, et ne le retirer qu'une fois que les deux
-pivots concordent sur la même période — et selon ce que le propriétaire aura répondu à Q-50.
-
----
+- **Le brut des dividendes néerlandais est faux dans l'export**, sans marque ([D-84](decisions.md)).
+  C'est une limite **affichée**, pas un réglage : ne pas tenter de la « corriger » par une table de
+  taux sans une décision nouvelle.
+- **Les tests de la ligne de commande ajoutent deux titres reçus à la lecture**
+  (`export_ligne_de_commande.titres_recus()`), parce que l'export n'en produit pas encore
+  ([architecture-notes §3 bis](architecture-notes.md)). Un test qui compte les opérations voit 8
+  là où l'adaptateur en produit 6 ; la fixture `lecture_pure` retire l'ajout.
+- **Le Saveback** est affiché comme non traité. Le prochain export du propriétaire dira si les
+  parts arrivent par un `BUY` séparé (ce qu'affirment d'autres logiciels).
+- **La configuration du propriétaire est restée dans l'ancien dossier** `DashBoardTradeRepublic`
+  (le renommage D-74 ne l'a pas déplacée). La photo « avant / après » de l'étape a été prise avec
+  `PASTORY_DOSSIER` pointé dessus. Le cahier lui demande de la déplacer.
 
 ## Pour plus tard : ce que l'étape 9 devra savoir
 
@@ -260,21 +255,19 @@ dossier temporaire de la session, pas dans le dépôt : les réécrire au besoin
   première piste.
 - **OneDrive synchronise le projet** (D-24). Si une commande échoue avec un « accès refusé »
   inexpliqué, c'est la première piste. Le `.venv` a déjà dû être recréé pour cette raison.
-- **La saisie du PIN n'affiche rien du tout.** Sous Windows, `getpass` lit les caractères
-  directement depuis la console : ni chiffres, ni étoiles, ni curseur. **Corollaire :** `msvcrt`
-  exige une **vraie console Windows** — dans Git Bash (MinTTY) la saisie ne fonctionne pas et la
-  commande reste bloquée. Lancer `rafraichir` et `positions-reelles` depuis PowerShell, `cmd` ou le
-  terminal intégré de VS Code.
-- **Chaque appel à pytr est une connexion complète** : rien n'est enregistré (D-41), donc numéro,
-  PIN et confirmation sont redemandés à chaque fois. D'où `positions-reelles` en commande à part
-  (D-46).
-- **Utiliser pytr comme bibliothèque réserve deux pièges** : `login()` a pour défaut
-  `waf_token="playwright"`, qui exige un navigateur — écrire `login(v2=True, waf_token="default")` ;
-  et `login()` se termine par un `log.debug` du **JSON complet du compte**, d'où le filtre posé par
-  `museler_le_journal_de_pytr()`.
+- **`uv run` peut échouer sur le certificat même avec `--native-tls`** (« invalid peer
+  certificate: UnknownIssuer » en voulant télécharger `hatchling`). Le 2026-10-05, la parade a été
+  d'appeler directement `.venv/Scripts/python.exe -m pytest` (et `-m ruff`, `-m pastory.cli`), et
+  de mettre `uv.lock` à jour avec `uv lock --offline` — ce qui suffit pour **retirer** une
+  dépendance.
+- **Pour retrouver le comportement d'un code retiré**, une copie de travail du commit d'avant
+  (`git worktree add <dossier> <commit>`) permet de l'exécuter sans toucher à la branche. C'est
+  ainsi que les 8 opérations de l'ancien export fictif ont été reproduites à l'identique.
 - Commandes utiles : `uv run pytest`, `uv run ruff check .`, `uv run pastory emplacements`.
 - Pour travailler sur un export sans le copier dans le projet :
-  `uv run pastory lire --export <dossier>` (idem pour `positions`).
+  `uv run pastory lire --export <dossier>` (idem pour `positions`). Sur l'export d'un tiers,
+  pointer `PASTORY_DOSSIER` vers un dossier vide, pour ne pas mélanger sa lecture avec la
+  configuration du propriétaire.
 - Le propriétaire **ne code pas** : il vérifie les chiffres. Tout calcul doit être refaisable à la
   main, et les options techniques lui sont présentées avec leurs avantages et inconvénients. Il
   tranche vite, et **il tranche parfois contre la recommandation avec de bonnes raisons** : c'est

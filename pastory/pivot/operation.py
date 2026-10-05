@@ -52,7 +52,7 @@ class Provenance(StrEnum):
     TEXTE = "texte"
     """Lu dans un texte affiché, dans la langue de l'application : fragile (D-09, D-19)."""
     DEDUCTION = "deduction"
-    """Reconstitué par une règle écrite (D-15, D-16)."""
+    """Reconstitué par une règle écrite (D-15)."""
     ESTIMATION = "estimation"
     """Valeur approchée (spread, TER, impôt). Aucune dans le pivot : réservée au moteur."""
     A_COMPLETER = "a_completer"
@@ -109,7 +109,7 @@ class Operation:
     ne calcule jamais dessus."""
 
     actif: str
-    """ISIN, ou code interne pour la crypto."""
+    """ISIN, ou code de la crypto donné par la banque (fictif : `BTC`)."""
 
     poche: Poche
 
@@ -119,8 +119,13 @@ class Operation:
     taxes: Decimal
     """Taxes réellement prélevées. N'entrent jamais dans la performance (D-21)."""
 
-    montant_regle: Decimal
-    """Montant réellement débité ou crédité, tel que la banque le donne."""
+    montant_regle: Decimal | None
+    """Montant réellement débité ou crédité, tel que la banque le donne.
+
+    Vide quand la banque ne le donne pas, ce qui est le cas de l'export officiel de Trade
+    Republic (D-83). Il n'est jamais recalculé à partir du brut, des frais et des taxes : ce
+    serait une valeur qui ressemble à une donnée de la banque sans en être une. Le moteur ne
+    le lit pas ; il ne sert qu'au contrôle de cohérence."""
 
     reference_source: str
     """Identifiant de l'événement d'origine, pour remonter à la donnée brute."""

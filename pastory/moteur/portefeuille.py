@@ -12,7 +12,7 @@ qui se déduit des opérations seules.
 
 from __future__ import annotations
 
-from collections.abc import Container, Iterable
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date as Date
 from decimal import Decimal
@@ -129,36 +129,6 @@ class Portefeuille:
     @property
     def total(self) -> Totaux:
         return Totaux.de(self.positions)
-
-    def quantites_par_actif(self, poches: Container[Poche] | None = None) -> dict[str, Decimal]:
-        """Quantité détenue par actif, **toutes poches confondues**.
-
-        C'est la forme attendue par le rapprochement : le portefeuille réel donné par la
-        banque liste des ISIN, sans dire dans quelle enveloppe ils sont détenus. Un actif
-        présent à la fois en PEA et en CTO doit donc y être additionné.
-
-        `poches` restreint l'addition à certaines enveloppes. Le rapprochement s'en sert
-        quand la photo de la banque n'en couvre qu'une partie : additionner des parts que
-        la banque ne montre pas créerait un écart de toutes pièces.
-        """
-        quantites: dict[str, Decimal] = {}
-        for position in self.positions:
-            if not position.etat.detenue:
-                continue
-            if poches is not None and position.poche not in poches:
-                continue
-            quantites[position.actif] = (
-                quantites.get(position.actif, Decimal("0")) + position.etat.quantite
-            )
-        return quantites
-
-    def actifs_par_poche(self) -> dict[Poche, set[str]]:
-        """Les actifs encore détenus, rangés par enveloppe."""
-        groupes: dict[Poche, set[str]] = {}
-        for position in self.positions:
-            if position.etat.detenue:
-                groupes.setdefault(position.poche, set()).add(position.actif)
-        return groupes
 
     @property
     def positions_incompletes(self) -> list[Position]:
