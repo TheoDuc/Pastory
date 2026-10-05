@@ -11,11 +11,14 @@ lit que la structure). Il ne fait que LIRE et n'écrit aucun fichier.
 
 Il n'affiche AUCUNE valeur personnelle : ni montant, ni quantité, ni nom, ni ISIN, ni date.
 Seulement :
-  - des comptages par (category, type, asset_class, account_type) ;
+  - des comptages par (category, type, asset_class, account_type) — des **codes**, et tout
+    texte qui n'a pas la forme d'un code de la banque est masqué ;
   - les colonnes remplies, et le signe de chaque colonne numérique ;
   - la forme d'un `symbol` (ISIN, code), jamais sa valeur ;
   - des relations entre colonnes, en vrai / faux (`shares × price = amount`…) ;
-  - les deux premiers mots de la description des lignes d'actif, mots à chiffre masqués ;
+  - les deux premiers mots de la description des lignes d'actif, à une condition : un mot n'est
+    écrit que s'il est fait de lettres **et** revient sur au moins deux lignes du groupe. Un
+    nom propre isolé, un nom de titre, un chiffre sont masqués (« # ») ;
   - l'étendue de l'export en jours.
 Les lignes d'espèces ne sont décrites que par leurs comptages et le signe de leur montant.
 
@@ -25,6 +28,7 @@ L'ancien relevé, celui des exports pytr de l'étape 0, est dans l'historique gi
 from __future__ import annotations
 
 import csv
+import io
 import re
 import sys
 from collections import Counter, defaultdict
@@ -32,8 +36,11 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
+from pastory.adaptateurs.trade_republic.classement import code_affichable
+from pastory.adaptateurs.trade_republic.fichier import separateur
+
 ISIN = re.compile(r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$")
-CHIFFRE = re.compile(r"\d")
+REPETITIONS_MINIMALES = 2
 TOLERANCE = Decimal("0.01")
 COLONNES_SANS_INTERET = ("datetime", "date", "transaction_id")
 
@@ -73,23 +80,39 @@ def relation(ligne: dict[str, str]) -> str:
     return "|shares x price| = |amount|" if ecart <= TOLERANCE else "écart > 1 centime"
 
 
-def separateur(entete: str) -> str:
-    return ";" if entete.count(";") > entete.count(",") else ","
+def debuts_de_description(groupe: list[dict[str, str]]) -> Counter[str]:
+    """Les deux premiers mots de chaque description, sans rien laisser passer de personnel.
+
+    Un mot n'est écrit que s'il est fait de lettres ASCII et revient sur plusieurs lignes : les
+    formules de la banque (« Savings plan », « Cash Dividend ») passent, un nom isolé non.
+    """
+    debuts = [ligne["description"].split()[:2] for ligne in groupe]
+    frequence = Counter(mot for mots in debuts for mot in set(mots))
+
+    def montrable(mot: str) -> bool:
+        return mot.isascii() and mot.isalpha() and frequence[mot] >= REPETITIONS_MINIMALES
+
+    return Counter(" ".join(mot if montrable(mot) else "#" for mot in mots) for mots in debuts)
 
 
 def main(chemin: Path) -> None:
-    texte = chemin.read_text(encoding="utf-8-sig").splitlines()
-    lecteur = csv.DictReader(texte, delimiter=separateur(texte[0]))
+    # La même lecture que l'application : même séparateur, aucun découpage préalable.
+    texte = chemin.read_text(encoding="utf-8-sig")
+    entete = texte.partition("\n")[0]
+    lecteur = csv.DictReader(io.StringIO(texte, newline=""), delimiter=separateur(entete))
     colonnes = lecteur.fieldnames or []
     lignes = list(lecteur)
 
-    print(f"séparateur « {separateur(texte[0])} », {len(colonnes)} colonnes :")
+    print(f"séparateur « {separateur(entete)} », {len(colonnes)} colonnes :")
     print("  " + ", ".join(colonnes))
     print(f"lignes : {len(lignes)}")
 
     groupes: dict[tuple[str, ...], list[dict[str, str]]] = defaultdict(list)
     for ligne in lignes:
-        cle = (ligne["category"], ligne["type"], ligne["asset_class"] or "-", ligne["account_type"])
+        cle = tuple(
+            code_affichable(ligne[colonne])
+            for colonne in ("category", "type", "asset_class", "account_type")
+        )
         groupes[cle].append(ligne)
 
     for cle in sorted(groupes):
@@ -109,17 +132,12 @@ def main(chemin: Path) -> None:
             print(f"  signe de {colonne} : {dict(signes)}")
         formes = Counter(forme_du_symbole(ligne["symbol"]) for ligne in groupe)
         print(f"  forme de symbol : {dict(formes)}")
-        print(f"  currency : {dict(Counter(ligne['currency'] or 'vide' for ligne in groupe))}")
-        devises = Counter(ligne["original_currency"] or "vide" for ligne in groupe)
+        monnaies = Counter(code_affichable(ligne["currency"]) for ligne in groupe)
+        print(f"  currency : {dict(monnaies)}")
+        devises = Counter(code_affichable(ligne["original_currency"]) for ligne in groupe)
         print(f"  original_currency : {dict(devises)}")
         print(f"  shares x price : {dict(Counter(relation(ligne) for ligne in groupe))}")
-        debuts = Counter(
-            " ".join(
-                "#" if CHIFFRE.search(mot) else mot for mot in ligne["description"].split()[:2]
-            )
-            for ligne in groupe
-        )
-        print(f"  description (deux premiers mots) : {dict(debuts)}")
+        print(f"  description (deux premiers mots) : {dict(debuts_de_description(groupe))}")
 
     identifiants = Counter(ligne["transaction_id"] for ligne in lignes)
     print(f"\ntransaction_id en double : {sum(1 for n in identifiants.values() if n > 1)}")

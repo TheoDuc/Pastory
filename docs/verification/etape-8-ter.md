@@ -115,10 +115,13 @@ multiplication sur chaque dividende en devise, et signale un écart de plus d'un
 ### 2.7 Une ligne qui ne ressemble à rien de connu
 
 Un dividende **négatif** (`amount = -10.00`) existe chez d'autres utilisateurs : c'est l'annulation
-d'un dividende, avant sa correction. On n'en a jamais vu sur vos fichiers. Pastory ne l'interprète
-pas : **il ne produit aucune opération**, et le rapport dit « forme jamais vue », avec le fichier
-et la ligne. Même chose pour une obligation, un compte enfant (`JUNIOR`), une devise autre que
-l'euro.
+d'un dividende, avant sa correction — l'original, son annulation, puis le nouveau. On n'en a jamais
+vu sur vos fichiers. Pastory ne l'interprète pas, et le rapport dit **« annulation non
+interprétée »** : l'original reste compté, donc les dividendes de cet actif sont sans doute
+**surestimés**. Compare-les à l'application.
+
+Une obligation, un compte enfant (`JUNIOR`), une devise autre que l'euro donnent de même
+« forme jamais vue », avec le fichier et la ligne : **aucune opération** n'est produite.
 
 C'est un trou affiché plutôt qu'un chiffre deviné. Si tu en vois un, c'est le signal qu'il faut
 regarder ensemble cette ligne-là.

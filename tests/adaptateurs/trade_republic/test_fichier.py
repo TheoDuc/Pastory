@@ -39,6 +39,19 @@ def test_une_marque_d_encodage_ajoutee_par_un_tableur_est_toleree(tmp_path):
     assert ligne.datetime.startswith("2026-")
 
 
+def test_un_caractere_de_saut_dans_un_champ_ne_coupe_pas_la_ligne(tmp_path):
+    # Un séparateur de ligne Unicode, un saut de page, un retour à la ligne entre guillemets :
+    # aucun ne doit couper l'enregistrement en deux moitiés décalées.
+    ligne_piege = fictif.achat_plan_epargne(
+        name="ETF Monde\x0cFictif", description="Savings plan\nexecution"
+    )
+    chemin = fictif.deposer(tmp_path, [ligne_piege, fictif.vente()])
+
+    premiere, seconde = fichier.lire(chemin)
+    assert (premiere.amount, premiere.name) == ("-50.00", "ETF Monde\x0cFictif")
+    assert seconde.type == "SELL"
+
+
 def test_le_numero_de_ligne_est_celui_d_un_tableur(tmp_path):
     chemin = fictif.deposer(tmp_path, [fictif.achat_plan_epargne(), fictif.vente()])
     assert [ligne.numero for ligne in fichier.lire(chemin)] == [2, 3]

@@ -38,6 +38,8 @@ TYPES_TRAITES: dict[tuple[str, str], TypeOperation] = {
     ("CASH", "DIVIDEND"): TypeOperation.DIVIDENDE,
     # « Capital Distribution » : versée le même jour qu'un dividende du même titre, et
     # identique, sur le seul cas vu, à la distribution de capital que lisait pytr (D-14).
+    # Le code, lui, dit « équivalent de dividende » : la lecture exige donc en plus que la
+    # description l'annonce comme une distribution de capital (Q-07, et lecture.py).
     ("CASH", "DIVIDEND_EQUIVALENT_PAYMENT"): TypeOperation.DISTRIBUTION_CAPITAL,
 }
 
@@ -107,7 +109,7 @@ class Classement:
 LONGUEUR_MAXIMALE_D_UN_CODE = 40
 
 
-def _code(texte: str) -> str:
+def code_affichable(texte: str) -> str:
     """Un code de la banque commence par une majuscule, et n'est fait que de majuscules, de
     chiffres et de soulignés. Tout autre texte est masqué : la colonne pourrait contenir
     autre chose qu'un code — un nom, un montant."""
@@ -124,7 +126,7 @@ def _code(texte: str) -> str:
 
 def classer(ligne: Ligne) -> Classement:
     cle = (ligne.category, ligne.type)
-    affiche = f"{_code(ligne.category)}/{_code(ligne.type)}"
+    affiche = f"{code_affichable(ligne.category)}/{code_affichable(ligne.type)}"
 
     if cle in TYPES_TRAITES:
         return Classement(Categorie.TRAITE, affiche, type_operation=TYPES_TRAITES[cle])

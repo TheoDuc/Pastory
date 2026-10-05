@@ -115,6 +115,25 @@ class Rapport:
         """Opérations dont un champ attend une donnée externe (les cours, étape 4)."""
         return [operation for operation in self.operations if not operation.complete]
 
+    def reserves_du_depot(self) -> list[str]:
+        """Ce qui, dans le dossier de dépôt, peut faire manquer des opérations aux chiffres.
+
+        Ces réserves doivent suivre les chiffres partout où ils s'affichent, pas seulement
+        dans le rapport de lecture : un trou entre deux exports ne produit aucune anomalie,
+        et rien d'autre ne dirait qu'il manque peut-être des achats.
+        """
+        depot = self.depot
+        reserves = []
+        if depot.trous():
+            reserves.append(f"{len(depot.trous())} période(s) qu'aucun export ne couvre")
+        if depot.fichiers_ignores:
+            reserves.append(f"{len(depot.fichiers_ignores)} fichier(s) ignoré(s)")
+        if depot.sans_identifiant:
+            reserves.append(f"{len(depot.sans_identifiant)} ligne(s) sans identifiant")
+        if depot.conflits:
+            reserves.append(f"{len(depot.conflits)} opération(s) en deux versions")
+        return reserves
+
     @property
     def a_des_dividendes(self) -> bool:
         return any(operation.type is TypeOperation.DIVIDENDE for operation in self.operations)

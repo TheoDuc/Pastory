@@ -21,6 +21,7 @@ from pastory.donnees_externes.cache import Cache
 from pastory.donnees_externes.cache_compositions import CacheDeCompositions
 from pastory.donnees_externes.composition import Composition, Part
 from pastory.donnees_externes.cours import Cours, ErreurDeSource
+from tests.adaptateurs.trade_republic import export_fictif
 from tests.adaptateurs.trade_republic import export_ligne_de_commande as fictifs
 
 
@@ -328,6 +329,20 @@ class TestPositions:
         # Cinq parts restent sur l'action du PEA : dix achetées, cinq vendues.
         assert fictifs.ACTIF_ACTION in affichage
         assert "PEA" in affichage and "crypto" in affichage
+
+    def test_un_trou_entre_deux_exports_est_dit_en_tete_des_chiffres(self, export, capsys):
+        # Un trou ne produit aucune anomalie : sans cette réserve, des achats pourraient
+        # manquer aux chiffres sans que rien ne le dise en dehors de « pastory lire ».
+        plus_tard = export_fictif.paiement_carte(
+            datetime="2027-06-01T12:00:00.000Z", date="2027-06-01"
+        )
+        export_fictif.deposer(export, [plus_tard], nom="plus tard.csv")
+
+        cli.main(["positions", "--hors-ligne"])
+        affichage = " ".join(capsys.readouterr().out.split())
+
+        assert "période(s) qu'aucun export ne couvre" in affichage
+        assert "pastory lire" in affichage
 
     def test_le_rapport_previent_qu_un_type_est_inconnu(self, export, capsys):
         # L'export fictif en contient un : aucun chiffre ne peut être tenu pour complet

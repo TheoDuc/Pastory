@@ -15,6 +15,7 @@ Trois choses à savoir sur ce fichier :
 from __future__ import annotations
 
 import csv
+import io
 from dataclasses import dataclass, replace
 from pathlib import Path
 
@@ -114,7 +115,7 @@ def _sans_donnees_personnelles(ligne: Ligne) -> Ligne:
     )
 
 
-def _separateur(entete: str) -> str:
+def separateur(entete: str) -> str:
     """Le séparateur se lit sur l'en-tête, qui ne contient que des noms de colonnes."""
     return max(SEPARATEURS, key=entete.count)
 
@@ -130,11 +131,14 @@ def lire(chemin: Path) -> list[Ligne]:
             "le fichier n'est pas écrit en UTF-8, comme l'export de Trade Republic"
         ) from erreur
 
-    lignes_du_texte = texte.splitlines()
-    if not lignes_du_texte:
+    if not texte.strip():
         raise FichierNonReconnu("le fichier est vide")
 
-    lecteur = csv.DictReader(lignes_du_texte, delimiter=_separateur(lignes_du_texte[0]))
+    # Le texte est confié tel quel au lecteur CSV, sans être découpé en lignes avant : un
+    # découpage préalable couperait aussi sur des caractères qu'un nom peut contenir (saut de
+    # page, séparateur de ligne Unicode), et sur un retour à la ligne entre guillemets.
+    entete = texte.partition("\n")[0]
+    lecteur = csv.DictReader(io.StringIO(texte, newline=""), delimiter=separateur(entete))
     colonnes = {(nom or "").strip() for nom in lecteur.fieldnames or []}
     manquantes = [colonne for colonne in COLONNES_REQUISES if colonne not in colonnes]
     if manquantes:

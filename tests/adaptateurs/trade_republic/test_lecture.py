@@ -6,7 +6,7 @@ Les montants attendus se refont à la main : ils sont écrits à côté de chaqu
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -138,7 +138,10 @@ class TestFormesJamaisVues:
         ("ligne", "categorie"),
         [
             # Une extourne de dividende, vue chez d'autres utilisateurs (§5.3).
-            (fictif.dividende(amount="-10.000000", tax="3.000000"), "forme jamais vue"),
+            (
+                fictif.dividende(amount="-10.000000", tax="3.000000"),
+                "annulation non interprétée",
+            ),
             (fictif.achat_ordre_cto(fee="1.00"), "forme jamais vue"),
             (fictif.achat_ordre_cto(tax="0.20"), "forme jamais vue"),
             (fictif.achat_ordre_cto(shares="-4.0000000000"), "forme jamais vue"),
@@ -172,6 +175,76 @@ class TestFormesJamaisVues:
         (signalement,) = rapport.signalements
         assert signalement.categorie == categorie
         assert signalement.ou == "Exportation de transactions.csv, ligne 2"
+
+
+class TestCeQueLaRelectureATrouve:
+    """Les défauts trouvés par la relecture indépendante de l'étape, un test chacun."""
+
+    def test_une_annulation_de_dividende_dit_que_les_versements_sont_surestimes(self, tmp_path):
+        # Une correction s'écrit « original, annulation, nouvelle ligne » : refuser la seule
+        # annulation laisse l'original compté. Ce n'est pas un trou, c'est un excès.
+        rapport = lire(
+            tmp_path,
+            fictif.dividende(),
+            fictif.dividende(amount="-10.000000", tax="3.000000"),
+        )
+
+        assert len(rapport.operations) == 1
+        (signalement,) = rapport.signalements
+        assert signalement.categorie == "annulation non interprétée"
+        assert "SURESTIMÉS" in signalement.message
+
+    def test_un_equivalent_de_dividende_doit_s_annoncer_comme_distribution(self, tmp_path):
+        # Le code dit « équivalent de dividende » : sans la mention de la banque, ce peut
+        # être un revenu, qui ne se calcule pas comme un remboursement de capital (Q-07).
+        rapport = lire(
+            tmp_path, fictif.distribution_capital(description="Dividend equivalent payment")
+        )
+
+        assert rapport.operations == []
+        (signalement,) = rapport.signalements
+        assert signalement.categorie == "nature non confirmée"
+
+    def test_un_decalage_horaire_est_converti_en_temps_universel(self, tmp_path):
+        operation = une_operation(
+            tmp_path, fictif.achat_plan_epargne(datetime="2026-03-02T10:15:00.123+01:00")
+        )
+
+        assert operation.instant_utc == datetime(2026, 3, 2, 9, 15, 0, 123000, tzinfo=UTC)
+        assert operation.instant_utc.utcoffset() == timedelta(0)
+
+    def test_un_texte_qui_n_est_pas_un_code_n_est_jamais_recopie(self, tmp_path):
+        # Une colonne décalée peut contenir un nom à la place d'un code.
+        rapport = lire(tmp_path, fictif.achat_plan_epargne(account_type="Camille Fictif"))
+
+        (signalement,) = rapport.signalements
+        assert "Camille" not in signalement.message
+        assert "(illisible)" in signalement.message
+
+    def test_le_change_tolere_l_arrondi_du_taux_sur_un_gros_montant(self, tmp_path):
+        # 2 000 $ à un taux affiché 0,9234 : le taux exact (0,92344) a donné 1 846,88 €. Huit
+        # centimes d'écart, que l'arrondi du taux explique : 2 000 × 0,00005 = 0,10 €.
+        une_operation(
+            tmp_path,
+            fictif.dividende_en_dollars(
+                original_amount="2000.00",
+                fx_rate="0.9234",
+                amount="1846.880000",
+                tax="-554.060000",
+            ),
+        )
+
+    def test_un_change_faux_reste_signale_sur_un_gros_montant(self, tmp_path):
+        rapport = lire(
+            tmp_path,
+            fictif.dividende_en_dollars(
+                original_amount="2000.00",
+                fx_rate="0.9234",
+                amount="1856.88",
+                tax="-554.060000",
+            ),
+        )
+        assert [anomalie.regle for anomalie in rapport.anomalies] == ["change"]
 
 
 class TestEnsemble:

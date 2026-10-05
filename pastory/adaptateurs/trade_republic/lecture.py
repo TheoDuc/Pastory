@@ -19,12 +19,12 @@ from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from enum import StrEnum
 
-from pastory.adaptateurs.trade_republic.classement import Categorie, classer
+from pastory.adaptateurs.trade_republic.classement import Categorie, classer, code_affichable
 from pastory.adaptateurs.trade_republic.depot import Depot
 from pastory.adaptateurs.trade_republic.fichier import Ligne
 from pastory.adaptateurs.trade_republic.rapport import Rapport
 from pastory.pivot.operation import DEVISE_UNIQUE, Operation, Poche, Provenance, TypeOperation
-from pastory.pivot.validation import Anomalie, controler
+from pastory.pivot.validation import Anomalie, controler, tolerance_du_produit
 
 ZERO = Decimal("0")
 
@@ -37,9 +37,6 @@ CLASSE_CRYPTO = "CRYPTO"
 POCHE_PAR_COMPTE: dict[str, Poche] = {"DEFAULT": Poche.CTO, "PEA": Poche.PEA}
 """`account_type` → poche. `JUNIOR` (compte enfant) existe chez d'autres : il n'est pas
 traité, faute de savoir à quelle enveloppe fiscale il correspond."""
-
-TOLERANCE_DU_CHANGE = Decimal("0.01")
-"""Écart admis entre `original_amount × fx_rate` et `amount` : l'arrondi au centime."""
 
 
 class NatureSource(StrEnum):
@@ -59,9 +56,12 @@ NATURES_EN_DESCRIPTION: tuple[tuple[str, NatureSource], ...] = (
     ("Cash Dividend", NatureSource.DIVIDENDE_ESPECES),
     ("Capital Distribution", NatureSource.DISTRIBUTION_CAPITAL),
 )
-"""**Fragilité assumée** (règle 4 de CLAUDE.md), sans conséquence sur les chiffres : le début
-de la `description`, toujours en anglais. La nature n'est qu'affichée ; le moteur ne calcule
-jamais dessus (format-pivot §2)."""
+"""**Fragilité assumée** (règle 4 de CLAUDE.md) : le début de la `description`, toujours en
+anglais. La nature n'est qu'affichée ; le moteur ne calcule jamais dessus (format-pivot §2).
+
+**Une exception, et une seule** : `DIVIDEND_EQUIVALENT_PAYMENT` n'est lu comme une distribution
+de capital que si sa description le dit. Si le texte change, la ligne n'est plus traitée et le
+rapport le dit — elle n'est jamais rangée ailleurs."""
 
 
 class OperationNonProduite(Exception):
@@ -110,7 +110,9 @@ def _instant(ligne: Ligne) -> datetime:
         raise OperationNonProduite(
             "horodatage illisible", "la colonne « datetime » n'indique pas le fuseau horaire"
         )
-    return instant
+    # Le format pivot range un instant en temps universel : un décalage écrit autrement
+    # (« +01:00 », par un tableur) est converti, jamais recopié tel quel.
+    return instant.astimezone(UTC)
 
 
 _APRES_TOUT = datetime.max.replace(tzinfo=UTC)
@@ -194,7 +196,6 @@ class Lecteur:
 
             rapport.operations.append(operation)
             rapport.anomalies.extend(controler(operation))
-            rapport.anomalies.extend(self._controler_le_change(ligne, operation))
             rapport.classes_par_actif.setdefault(operation.actif, set()).add(ligne.asset_class)
 
         return rapport
@@ -234,7 +235,7 @@ class Lecteur:
         if classe not in CLASSES_ACCEPTEES:
             raise OperationNonProduite(
                 "classe d'actif non prise en charge",
-                f"classe d'actif « {classe or 'vide'} » : seules FUND, STOCK et CRYPTO ont "
+                f"classe d'actif « {code_affichable(classe)} » : seules FUND, STOCK et CRYPTO ont "
                 "été vues et vérifiées",
             )
         poche = self._poche(ligne)
@@ -242,7 +243,8 @@ class Lecteur:
         if ligne.currency != DEVISE_UNIQUE:
             raise OperationNonProduite(
                 "devise étrangère",
-                f"montant en « {ligne.currency or 'vide'} » ; seul l'euro est pris en charge",
+                f"montant en « {code_affichable(ligne.currency)} » ; seul l'euro est pris en "
+                "charge",
             )
 
         actions = _nombre(ligne, "shares")
@@ -254,6 +256,21 @@ class Lecteur:
         taux = _nombre(ligne, "fx_rate")
 
         nom = type_operation.value
+        versement = type_operation not in (TypeOperation.ACHAT, TypeOperation.VENTE)
+        # Avant tout autre contrôle : une annulation inverse **toutes** ses colonnes, taxe
+        # comprise, et doit être reconnue pour ce qu'elle est.
+        if versement and montant is not None and montant < 0:
+            # Une extourne : chez d'autres utilisateurs, une correction de dividende
+            # s'écrit « original, annulation négative, nouvelle ligne ». La refuser seule
+            # laisse l'original **et** la nouvelle ligne comptés : ce n'est pas un trou,
+            # c'est un excès probable, et le message doit le dire.
+            raise OperationNonProduite(
+                "annulation non interprétée",
+                f"{nom} : un montant négatif, c'est-à-dire l'annulation d'un versement. "
+                "Elle n'a jamais été vue sur un vrai fichier et n'est pas interprétée : le "
+                "versement qu'elle annule reste compté, et les versements de cet actif sont "
+                "donc sans doute SURESTIMÉS. Comparez-les à l'application",
+            )
         _forme(_negatif_ou_vide(frais), nom, "des frais positifs, alors qu'ils sont négatifs")
         _forme(_negatif_ou_vide(taxes), nom, "des taxes positives, alors qu'elles sont négatives")
 
@@ -277,7 +294,7 @@ class Lecteur:
             )
         else:
             # Dividende ou distribution de capital : des parts détenues, un montant reçu.
-            _forme(_positif(montant), nom, "un montant absent ou négatif (une extourne ?)")
+            _forme(_positif(montant), nom, "un montant absent ou nul")
             _forme(_positif(actions), nom, "un nombre de parts absent ou négatif")
             _forme(prix is None, nom, "un prix, qui n'a jamais été vu sur un versement")
             if montant_en_devise is not None or taux is not None:
@@ -291,6 +308,18 @@ class Lecteur:
 
         assert actions is not None and montant is not None
         nature = _nature(ligne)
+        if (
+            type_operation is TypeOperation.DISTRIBUTION_CAPITAL
+            and nature is not NatureSource.DISTRIBUTION_CAPITAL
+        ):
+            # Le code dit « équivalent de dividende » : sans la mention de la banque, ce peut
+            # être un revenu, qui ne se calcule pas comme un remboursement de capital (Q-07).
+            raise OperationNonProduite(
+                "nature non confirmée",
+                "un « équivalent de dividende » dont la description n'annonce pas une "
+                "distribution de capital : ce peut être un revenu, qui ne se calcule pas de "
+                "la même façon. La ligne n'est pas interprétée",
+            )
         if nature is NatureSource.NON_RECONNUE:
             rapport.signaler(
                 "nature non reconnue",
@@ -314,7 +343,7 @@ class Lecteur:
         if ligne.name:
             provenance["nom_actif"] = Provenance.DONNEE
 
-        return Operation(
+        operation = Operation(
             identifiant=f"tr-{ligne.transaction_id}",
             instant_utc=instant,
             date=jour,
@@ -333,6 +362,11 @@ class Lecteur:
             reference_source=ligne.transaction_id,
             provenance=provenance,
         )
+        if montant_en_devise is not None and taux is not None:
+            rapport.anomalies.extend(
+                _controler_le_change(operation, montant_en_devise, taux, ligne.original_currency)
+            )
+        return operation
 
     @staticmethod
     def _poche(ligne: Ligne) -> Poche:
@@ -340,7 +374,7 @@ class Lecteur:
             if ligne.account_type != "DEFAULT":
                 raise OperationNonProduite(
                     "poche indéterminable",
-                    f"une crypto sur un compte « {ligne.account_type or 'vide'} », qui n'a "
+                    f"une crypto sur un compte « {code_affichable(ligne.account_type)} », qui n'a "
                     "jamais été vu",
                 )
             return Poche.CRYPTO
@@ -348,33 +382,37 @@ class Lecteur:
         if poche is None:
             raise OperationNonProduite(
                 "poche indéterminable",
-                f"compte « {ligne.account_type or 'vide'} » : seuls DEFAULT (compte-titres) et "
-                "PEA ont été vus",
+                f"compte « {code_affichable(ligne.account_type)} » : seuls DEFAULT "
+                "(compte-titres) et PEA ont été vus",
             )
         return poche
 
-    @staticmethod
-    def _controler_le_change(ligne: Ligne, operation: Operation) -> list[Anomalie]:
-        """Sur un versement en devise étrangère, `original_amount × fx_rate = amount`.
 
-        Vérifié sur de vrais fichiers (export-officiel.md §5.3) : `fx_rate` est le nombre
-        d'euros pour une unité de devise. Un écart veut dire que le montant en euros ne
-        découle pas du montant versé, et il est montré, jamais corrigé.
-        """
-        if not ligne.original_amount or operation.montant_brut is None:
-            return []
-        attendu = Decimal(ligne.original_amount) * Decimal(ligne.fx_rate)
-        if abs(attendu - operation.montant_brut) <= TOLERANCE_DU_CHANGE:
-            return []
-        return [
-            Anomalie(
-                identifiant_operation=operation.identifiant,
-                reference_source=operation.reference_source,
-                regle="change",
-                message=(
-                    f"montant brut {operation.montant_brut} alors que le montant en "
-                    f"{ligne.original_currency} multiplié par le taux de change donne "
-                    f"{attendu.quantize(Decimal('0.01'))}"
-                ),
-            )
-        ]
+def _controler_le_change(
+    operation: Operation, montant_en_devise: Decimal, taux: Decimal, devise: str
+) -> list[Anomalie]:
+    """Sur un versement en devise étrangère, `original_amount × fx_rate = amount`.
+
+    Vérifié sur de vrais fichiers (export-officiel.md §5.3) : `fx_rate` est le nombre d'euros
+    pour une unité de devise. La tolérance est celle de « quantité × prix » (format-pivot §5) :
+    un taux écrit avec peu de décimales pèse d'autant plus que le montant est grand. Un écart
+    plus large veut dire que le montant en euros ne découle pas du montant versé : il est
+    montré, jamais corrigé.
+    """
+    if operation.montant_brut is None:
+        return []
+    attendu = montant_en_devise * taux
+    if abs(attendu - operation.montant_brut) <= tolerance_du_produit(montant_en_devise, taux):
+        return []
+    return [
+        Anomalie(
+            identifiant_operation=operation.identifiant,
+            reference_source=operation.reference_source,
+            regle="change",
+            message=(
+                f"montant brut {operation.montant_brut} alors que le montant en "
+                f"{code_affichable(devise)} multiplié par le taux de change donne "
+                f"{attendu.quantize(Decimal('0.01'))}"
+            ),
+        )
+    ]

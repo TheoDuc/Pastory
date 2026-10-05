@@ -84,7 +84,7 @@ les transactions »** pour Pastory — puis *Créer*. On reçoit un fichier CSV 
 | `TRADING` | `BUY` | `FUND`, `STOCK`, `CRYPTO` | 68 | achat : plan d'épargne ou ordre ponctuel, PEA ou CTO | **achat** |
 | `TRADING` | `SELL` | `STOCK` | 2 | vente | **vente** |
 | `CASH` | `DIVIDEND` | `STOCK` | 16 | dividende — **dans la catégorie `CASH`** | **dividende** (§5.3) |
-| `CASH` | `DIVIDEND_EQUIVALENT_PAYMENT` | `STOCK` | 1 | « Capital Distribution », versée le même jour qu'un dividende du même titre | **distribution de capital** ([D-14](decisions.md)) |
+| `CASH` | `DIVIDEND_EQUIVALENT_PAYMENT` | `STOCK` | 1 | « Capital Distribution », versée le même jour qu'un dividende du même titre | **distribution de capital** ([D-14](decisions.md)), **à condition** que la description commence par « Capital Distribution » : le code dit « équivalent de dividende », et un revenu ne se calcule pas comme un remboursement (Q-07). Sinon, affiché |
 | `CASH` | `BENEFITS_SAVEBACK` | `FUND` | 1 | Saveback : montant crédité, avec l'ISIN du fonds, **sans quantité ni prix** | **non traité, affiché** (§7) |
 | `CORPORATE_ACTION` | `BONUS_ISSUE` | `STOCK` | 1 | actions gratuites : des parts reçues, sans prix ni montant | **non traité, affiché** ([Q-54](questions-ouvertes.md)) |
 | `DELIVERY` | `MIGRATION` | `STOCK` | 1 | des parts qui **sortent**, avec un prix, sans montant | **non traité, affiché** ([Q-54](questions-ouvertes.md)) |
@@ -171,7 +171,9 @@ et c'est sans effet depuis [D-83](decisions.md).
   ordres, dont le prix est déjà en euros.
 - 📄 **Un dividende corrigé** ne porte pas de type à part : c'est une **extourne** — la même ligne,
   tous signes inversés (`amount` négatif), avec un autre `transaction_id` — puis une nouvelle
-  ligne. Jamais vu chez nous : un dividende à montant négatif est signalé, pas traité.
+  ligne. Jamais vu chez nous : un dividende à montant négatif est signalé, pas traité — et le
+  message dit que l'original **reste compté**, donc que les dividendes de l'actif sont sans doute
+  **surestimés**, pas qu'il manque quelque chose.
 
 ### 5.4 La comparaison avec pytr ✅
 

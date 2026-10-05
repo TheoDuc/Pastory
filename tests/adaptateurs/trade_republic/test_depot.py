@@ -40,6 +40,34 @@ def test_un_fichier_qui_n_est_pas_un_export_n_arrete_pas_la_lecture(tmp_path):
     assert [nom for nom, _ in depot.fichiers_ignores] == ["account_transactions.csv"]
 
 
+def test_un_dossier_nomme_comme_un_csv_est_ignore(tmp_path):
+    fictif.deposer(tmp_path)
+    (tmp_path / "anciens.csv").mkdir()
+
+    depot = lire_dossier(tmp_path)
+    assert [lu.nom for lu in depot.fichiers] == ["Exportation de transactions.csv"]
+
+
+def test_un_fichier_inaccessible_est_cite_et_le_reste_est_lu(tmp_path, monkeypatch):
+    # Verrouillé, protégé, ou laissé « dans le nuage » par un service de synchronisation.
+    fictif.deposer(tmp_path)
+    fictif.deposer(tmp_path, [fictif.vente()], nom="verrouille.csv")
+    vraie_lecture = module_depot.fichier.lire
+
+    def lecture(chemin):
+        if chemin.name == "verrouille.csv":
+            raise PermissionError("accès refusé")
+        return vraie_lecture(chemin)
+
+    monkeypatch.setattr(module_depot.fichier, "lire", lecture)
+    depot = lire_dossier(tmp_path)
+
+    assert len(depot.lignes) == len(fictif.export_type())
+    ((nom, raison),) = depot.fichiers_ignores
+    assert nom == "verrouille.csv"
+    assert "pas pu être ouvert" in raison
+
+
 class TestPlusieursFichiers:
     def test_une_operation_presente_dans_deux_fichiers_n_est_comptee_qu_une_fois(self, tmp_path):
         commune = fictif.achat_plan_epargne()

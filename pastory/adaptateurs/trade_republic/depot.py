@@ -129,7 +129,11 @@ def lire_dossier(dossier: Path) -> Depot:
     if not dossier.is_dir():
         raise ExportIntrouvable(comment_obtenir_l_export(dossier))
     candidats = sorted(
-        (chemin for chemin in dossier.iterdir() if chemin.suffix.lower() == ".csv"),
+        (
+            chemin
+            for chemin in dossier.iterdir()
+            if chemin.suffix.lower() == ".csv" and chemin.is_file()
+        ),
         key=lambda chemin: chemin.name,
     )
 
@@ -140,6 +144,13 @@ def lire_dossier(dossier: Path) -> Depot:
             lignes = fichier.lire(chemin)
         except FichierNonReconnu as raison:
             depot.fichiers_ignores.append((chemin.name, str(raison)))
+            continue
+        except OSError:
+            # Verrouillé, protégé, ou laissé « dans le nuage » par un service de
+            # synchronisation : le fichier est cité, et le reste du dossier est lu.
+            depot.fichiers_ignores.append(
+                (chemin.name, "le fichier n'a pas pu être ouvert (verrouillé ou inaccessible)")
+            )
             continue
         depot.fichiers.append(_decrire(chemin.name, lignes))
         for ligne in lignes:

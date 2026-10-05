@@ -207,17 +207,25 @@ def _etat_de_la_lecture(rapport: Rapport) -> list[str]:
     if rapport.types_inconnus:
         ennuis.append(f"{sum(rapport.types_inconnus.values())} ligne(s) de type non traité")
     if rapport.operations_non_produites:
-        # Une ligne d'un type traité dont aucune opération n'est sortie est un trou franc dans
-        # les totaux : des parts ou des montants manquent, et rien d'autre ne le dirait.
+        # Une ligne d'un type traité dont aucune opération n'est sortie fausse les totaux : des
+        # parts ou des montants y manquent — ou, pour une annulation non interprétée, y sont
+        # en trop. Rien d'autre que cette bannière ne le dirait.
         ennuis.append(
             f"{rapport.operations_non_produites} ligne(s) d'un type traité sans opération produite"
         )
     if rapport.anomalies:
         ennuis.append(f"{len(rapport.anomalies)} contrôle(s) de cohérence en échec")
+    # Le dossier de dépôt lui-même : un trou entre deux exports ou un fichier ignoré ne
+    # produit aucune anomalie, et peut pourtant faire manquer des opérations (D-45).
+    ennuis.extend(rapport.reserves_du_depot())
     if ennuis:
-        lignes.append(
-            "ATTENTION - " + ", ".join(ennuis) + f" : lancez « {NOM} lire » avant de vous "
-            "fier aux chiffres ci-dessous."
+        lignes.extend(
+            textwrap.wrap(
+                "ATTENTION - " + ", ".join(ennuis) + f" : lancez « {NOM} lire » avant de vous "
+                "fier aux chiffres ci-dessous.",
+                width=100,
+                break_on_hyphens=False,
+            )
         )
     return lignes
 
