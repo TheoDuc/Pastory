@@ -52,8 +52,8 @@ Toute étape qui calcule des chiffres produit un fichier `docs/verification/etap
 ### Tes réflexes permanents
 - **Ne jamais** coller de vraies valeurs dans un fichier du dépôt ni dans une issue GitHub.
 - Télécharger un nouvel **export des transactions** dans l'application Trade Republic (Profil →
-  Relevés → Export des transactions, « toutes les transactions ») avant de vérifier des chiffres.
-  *Jusqu'à l'étape 8 ter : relancer `pytr`.*
+  Relevés → Export des transactions, « toutes les transactions ») et le déposer dans le dossier
+  `exports` de Pastory avant de vérifier des chiffres.
 - Quand un chiffre te semble faux : le dire à Claude avec l'actif, la date et la valeur attendue.
   Le problème part alors dans les questions ouvertes ou devient un test.
 
@@ -511,9 +511,27 @@ des calculs. La feuille de style deviendra `pastory/vues/assets/pastory.css` tel
 > générales. Deux étapes s'intercalent avant l'interface, et les étapes 9 à 11 s'en trouvent
 > allégées. Relevé du fichier : [export-officiel.md](export-officiel.md).
 
-## Étape 8 ter · La nouvelle porte d'entrée : l'export officiel 🔜
+## Étape 8 ter · La nouvelle porte d'entrée : l'export officiel ✅
 **But :** lire l'export officiel au format pivot, sans rien perdre en silence, et prouver qu'il
 donne **les mêmes opérations** que pytr. Le moteur ne change pas d'une ligne ([D-26](decisions.md)).
+
+**Fait :** l'adaptateur de l'export officiel (`pastory/adaptateurs/trade_republic/`), le dossier
+de dépôt, le retrait complet de pytr ([D-81](decisions.md)), et le
+[cahier de vérification](verification/etape-8-ter.md). Le moteur n'a pas changé d'une ligne de
+calcul : seul le pivot a rendu facultatif le montant réglé ([D-83](decisions.md)).
+
+Le premier export d'un **second utilisateur** a tout changé à la portée de l'étape : 149 lignes
+sur un an, avec ventes, dividendes, actions gratuites et dividendes en dollars. Comparé ligne à
+ligne à son export pytr, il concorde partout — à une exception près, découverte ici et que
+personne ne documentait : **pour les dividendes néerlandais, l'export donne un brut déjà diminué
+de la retenue des Pays-Bas**, sans la montrer ([D-84](decisions.md)). La recherche a confirmé
+qu'aucun logiciel ne le corrige. Quatre décisions (D-81 à D-84), une question nouvelle
+([Q-54](questions-ouvertes.md) : actions gratuites puis « migration »), et une règle de lecture
+qui s'ajoute au classement explicite : **une forme jamais vue d'un type connu n'est pas
+interprétée** — un dividende négatif, une obligation, un compte enfant restent des trous affichés.
+
+Sur les données du propriétaire, toutes les positions sont identiques avant et après, sauf la
+crypto : quelques centimes de capital investi, et son ticker à redéclarer sous son nouveau code.
 
 **Claude :**
 - **Recherche d'abord** (agent de recherche) : aucune liste des types n'est publiée. Rassembler
@@ -556,7 +574,7 @@ donne **les mêmes opérations** que pytr. Le moteur ne change pas d'une ligne (
 
 **Session :** nouvelle session : recherche d'abord, code ensuite. `/code-review` à la fin.
 
-## Étape 8 quater · Des réglages qui se proposent seuls ⏳
+## Étape 8 quater · Des réglages qui se proposent seuls 🔜
 **But :** que l'application **trouve et applique seule** chaque réglage restant, avec sa source,
 sa date et un contrôle ([D-80](decisions.md)). L'utilisateur ne fait que déposer l'export ; il
 peut corriger, il n'a jamais à le faire.
@@ -565,10 +583,10 @@ peut corriger, il n'a jamais à le faire.
 
 | Réglage | Aujourd'hui | Piste |
 |---|---|---|
-| Le fichier d'export | une commande | **un dossier de Pastory** où l'on dépose les exports ; l'application lit tout ce qui s'y trouve ([D-80](decisions.md)) |
-| Rôle des comptes espèces ([D-10](decisions.md)) | déclaré à la main | **supprimé** par l'étape 8 ter |
-| Type d'un actif ([D-55](decisions.md)) | proposé par la source de cours, validé | `asset_class` de l'export, selon [Q-51](questions-ouvertes.md) |
-| Ticker d'une crypto | **saisi à la main** | `symbol` de l'export (`ETH` → `ETH-EUR`), à vérifier par la devise ([D-48](decisions.md)) |
+| Le fichier d'export | **fait à l'étape 8 ter** : le dossier de dépôt `Pastory/exports`, dont tout le contenu est lu | — |
+| Rôle des comptes espèces ([D-10](decisions.md)) | **supprimé à l'étape 8 ter** ([D-81](decisions.md)) | — |
+| Type d'un actif ([D-55](decisions.md)) | proposé par la source de cours, validé | **donnée de la banque** ([D-82](decisions.md)) : `asset_class` est lu et gardé par l'étape 8 ter (`Rapport.classes_par_actif`), reste à l'appliquer aux estimations |
+| Ticker d'une crypto | **saisi à la main** ; depuis l'étape 8 ter, une déclaration rangée sous l'ancien code pytr (`XF…`) est **orpheline** | `symbol` de l'export (`BTC` → `BTC-EUR`), à vérifier par la devise ([D-48](decisions.md)) ; et dire qu'une déclaration ne correspond plus à aucun actif |
 | Ticker et devise d'un ETF ou d'une action | proposés, validés | inchangé : déjà une proposition |
 | TER ([D-61](decisions.md)) | proposé depuis Xetra ; **les ETF « PEA » français en sont absents** | chercher une source pour eux — le service d'Amundi ([D-77](decisions.md)) publie-t-il les frais courants ? |
 | `contenu` : obligations, matières premières ([D-71](decisions.md)) | **déclaré à la main** | chercher une source de classe d'actifs fiable : colonne de la liste Xetra, service d'Amundi, `asset_class` de l'export ; celle d'extraETF a été jugée fausse deux fois sur trois |
@@ -622,10 +640,8 @@ Et **vérifier que tu n'ouvres plus aucun fichier** pour t'en servir.
 **Claude :**
 - Écrit le guide d'installation (README), dont **comment obtenir l'export** dans l'application
   Trade Republic, avec la période à choisir.
-- **Identifiants ([D-25](decisions.md)) :** sans pytr, il n'y en a plus aucun, et cette partie
-  disparaît. *Seulement si [Q-50](questions-ouvertes.md) garde pytr pour la photo du
-  portefeuille :* vérifier ce que pytr stocke (session, durée, emplacement, OneDrive), proposer
-  les modes de D-25 avec leurs risques, et ne jamais écrire de PIN en clair.
+- **Identifiants :** il n'y en a plus aucun depuis l'étape 8 ter ([D-81](decisions.md)) : cette
+  partie a disparu.
 - Écrit les messages d'erreur compréhensibles : fichier qui n'est pas un export, colonnes
   inattendues, export partiel.
 - Documente comment écrire un **adaptateur pour une autre banque** à partir du format pivot (D-26).

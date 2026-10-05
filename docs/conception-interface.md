@@ -539,7 +539,7 @@ fichier :
 
 | Réglage | Ce que l'utilisateur fait aujourd'hui | Ce que l'écran doit permettre |
 |---|---|---|
-| **Le rôle des comptes espèces** | ouvre `comptes.toml`, écrit un rôle par compte | une liste des comptes vus, et un rôle à choisir dans une liste fermée |
+| ~~Le rôle des comptes espèces~~ | *supprimé à l'étape 8 ter* : la poche est écrite dans l'export officiel ([D-81](decisions.md)) | — |
 | **Le ticker et la devise d'un actif** | ouvre `actifs.toml`, valide ou corrige la proposition | l'actif, la proposition de la source, sa devise, et **valider / corriger / laisser vide** |
 | **Le type, le TER, le spread** | même fichier, mêmes lignes | des champs, avec le TER proposé et sa source |
 | **Le `contenu`** ([D-71](decisions.md)) | écrit `contenu = "obligations"` | un choix, proposé **là où l'actif est annoncé non couvert** |

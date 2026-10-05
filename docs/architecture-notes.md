@@ -45,7 +45,7 @@ L'ébauche de cette section a été reprise, complétée et validée : le format
 - `nature_source`, informative, qui garde la nature d'origine sans que le moteur calcule dessus ;
 - une cinquième provenance, `a_completer`, pour un prix qui attend les cours de l'étape 4.
 
-## 3. Adaptateur Trade Republic — **écrit à l'étape 2**
+## 3. Adaptateur pytr — **écrit à l'étape 2, retiré à l'étape 8 ter** ([D-81](decisions.md))
 
 Réalisé dans `pastory/adaptateurs/trade_republic/`, en couches testables séparément.
 Ce que l'écriture a confirmé, et ce qu'elle a changé :
@@ -83,39 +83,50 @@ Ce que l'écriture a confirmé, et ce qu'elle a changé :
 structuré ; le mot « Kauf » / « Verkaufen » doit s'accorder avec le signe du montant. Chacun
 alimente le rapport sans jamais bloquer une opération par ailleurs cohérente.
 
-## 3 bis. Adaptateur de l'export officiel — **à écrire à l'étape 8 ter** ([D-79](decisions.md))
+## 3 bis. Adaptateur de l'export officiel — **écrit à l'étape 8 ter** ([D-79](decisions.md))
 
-Relevé du fichier : [export-officiel.md](export-officiel.md). Ce que la discussion du 2026-10-01 a
-fait apparaître :
+Relevé du fichier : [export-officiel.md](export-officiel.md). Les points notés le 2026-10-01, et
+ce que l'étape en a fait :
 
-- **Un second adaptateur, pas une modification du premier.** C'est le premier vrai usage de
-  [D-26](decisions.md) : si le moteur doit changer pour l'accueillir, la frontière était mal
-  placée, et c'est à noter comme défaut d'architecture. L'adaptateur pytr reste le temps de
-  comparer les deux pivots sur la même période *(à étudier : où vit la comparaison — un test, une
-  commande, un script du cahier ?)*.
-- **Le classement explicite reste la règle**, sur la paire `(category, type)` : traité, espèces
-  hors périmètre, **inconnu**. Aucune liste n'étant publiée, l'inconnu est le cas normal des
-  premiers mois, pas une anomalie.
-- **Plus de lecteur de textes**, sauf pour `nature_source` (`description`, en anglais), qui est
-  informatif. `nombres.py` et `lexique.py` restent propres à l'adaptateur pytr.
-- **La poche est une donnée** : `account_type` et `asset_class`. `comptes.toml` et l'assistant
-  « nommer ses comptes » deviennent propres à l'ancien adaptateur.
-- **Plusieurs fichiers, une histoire** *(à étudier)* : un utilisateur exportera plusieurs fois,
-  sur des périodes qui se recouvrent. Union dédoublonnée par `transaction_id` ; mais que faire si
-  une même ligne revient **modifiée** (une correction de dividende arrive en seconde ligne
-  d'après le forum de Portfolio Performance) ? Ne pas trancher sans un cas réel.
-- **La période couverte doit s'afficher.** Rien dans le fichier ne dit qu'il commence à
-  l'ouverture du compte ; un export partiel fait un capital investi faux sans aucune alerte. Le
-  contrôle de [D-45](decisions.md) (une vente de parts jamais achetées) en attrape une partie.
-- **Le dossier personnel** ([D-37](decisions.md)) : le fichier est importé, c'est-à-dire copié
-  hors de OneDrive, et l'application ne lit que sa copie.
-- **Données personnelles** : le fichier contient IBAN, contreparties et commerçants. Le rapport de
-  lecture n'en montre que des comptages par type, et aucun cache ne les recopie.
-- **Un contrôle nouveau devient possible** *(à étudier, à soumettre au propriétaire)* : les lignes
-  d'espèces de la poche `PEA` permettraient de reconstituer le solde d'espèces du plan, comme
-  [D-43](decisions.md) l'a fait une fois à la main. Un solde qui ne retombe pas juste signale une
-  opération manquante. C'est lire des montants d'espèces, que [D-11](decisions.md) exclut de
-  l'**affichage** — pas forcément du **contrôle**.
+- **Un second adaptateur, pas une modification du premier** — tenu. Le moteur n'a pas changé
+  d'une ligne de calcul : seul le format pivot a rendu facultatif `montant_regle`, que le moteur
+  ne lisait pas ([D-83](decisions.md)). La comparaison des deux adaptateurs a vécu dans un
+  **script** du cahier, retiré avec pytr ; il est dans l'historique git, et ses résultats dans le
+  [cahier de l'étape](verification/etape-8-ter.md).
+- **Le classement explicite** — `classement.py`, sur la paire `(category, type)`. Une troisième
+  règle s'y est ajoutée : **une forme jamais vue d'un type connu n'est pas traitée** (`lecture.py`).
+  Un dividende à montant négatif (une extourne, chez d'autres utilisateurs), une obligation, un
+  compte `JUNIOR` sont des trous affichés, pas des chiffres devinés.
+- **Plus de lecteur de textes** — `nombres.py` et `lexique.py` sont partis avec pytr. Seule la
+  nature (plan d'épargne, ordre ponctuel) est lue dans la `description`, marquée `texte`.
+- **La poche est une donnée** — `comptes.toml` et l'assistant ont disparu, corrections de poche
+  comprises.
+- **Plusieurs fichiers, une histoire** — `depot.py` lit tous les CSV du dossier, dédoublonne par
+  `transaction_id`, et quand une même ligne revient **modifiée**, garde la première et l'affiche
+  (aucun cas réel encore). La correction de dividende, elle, n'arrive pas modifiée mais en
+  **extourne** suivie d'une nouvelle ligne : c'est le refus des formes jamais vues qui la couvre.
+- **La période couverte s'affiche** — par fichier et au total, avec les **trous** entre deux
+  fichiers.
+- **Le dossier personnel** — l'utilisateur dépose ses exports dans `Pastory/exports`, hors
+  OneDrive ([D-37](decisions.md)) : rien n'est copié. `--export` lit un dossier sur place.
+- **Données personnelles** — une ligne d'espèces perd son nom, sa description et ses montants **dès
+  la lecture du fichier** (`fichier.py`) : aucune couche ne les voit passer. Les colonnes de
+  contrepartie ne sont même pas des attributs.
+- **Le contrôle par le solde d'espèces du PEA** — *toujours à soumettre au propriétaire* : c'est la
+  piste du PEA de l'[étape 8 quater](feuille-de-route.md).
+
+**Deux points nouveaux, pour l'étape 8 quater :**
+
+- **La crypto a changé d'identifiant.** pytr la nommait `XF…`, l'export la nomme par son code de
+  marché (fictif : `BTC`). Une déclaration de ticker et des cours en cache rangés sous l'ancien
+  code sont **orphelins** : l'actif paraît non déclaré. L'étape 8 quater, qui propose le ticker
+  depuis `symbol`, doit aussi dire qu'une déclaration ne correspond plus à aucun actif.
+- **Les tests de la ligne de commande ajoutent deux titres reçus à la lecture**
+  (`tests/adaptateurs/trade_republic/export_ligne_de_commande.py`). L'export officiel n'en produit
+  pas encore ([Q-54](questions-ouvertes.md)), mais la complétion de leur prix
+  ([D-15](decisions.md)) reste un trajet de l'application, qu'il fallait garder vérifié de bout en
+  bout. Le jour où un type de titres reçus est traité, cet ajout doit disparaître au profit d'une
+  vraie ligne de l'export fictif.
 
 ## 4. Traçabilité : chaque chiffre dit d'où il vient
 

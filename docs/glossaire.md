@@ -424,7 +424,9 @@ sortie ([D-60](decisions.md)).
 ## 7. Données
 
 ### Événement
-Une entrée de `all_events.json`. Voir [inventaire-donnees.md](inventaire-donnees.md).
+Une entrée de `all_events.json`, l'export de pytr, retiré à l'étape 8 ter
+([D-81](decisions.md)). Voir [inventaire-donnees.md](inventaire-donnees.md). Son équivalent dans
+l'export officiel est une **ligne** ([export-officiel.md](export-officiel.md)).
 
 ### Type d'événement
 Valeur du champ `eventType`. Il peut être `null`.
