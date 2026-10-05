@@ -119,8 +119,13 @@ class Operation:
     taxes: Decimal
     """Taxes réellement prélevées. N'entrent jamais dans la performance (D-21)."""
 
-    montant_regle: Decimal
-    """Montant réellement débité ou crédité, tel que la banque le donne."""
+    montant_regle: Decimal | None
+    """Montant réellement débité ou crédité, tel que la banque le donne.
+
+    Vide quand la banque ne le donne pas, ce qui est le cas de l'export officiel de Trade
+    Republic (D-83). Il n'est jamais recalculé à partir du brut, des frais et des taxes : ce
+    serait une valeur qui ressemble à une donnée de la banque sans en être une. Le moteur ne
+    le lit pas ; il ne sert qu'au contrôle de cohérence."""
 
     reference_source: str
     """Identifiant de l'événement d'origine, pour remonter à la donnée brute."""
