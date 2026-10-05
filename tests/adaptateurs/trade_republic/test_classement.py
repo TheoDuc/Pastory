@@ -1,111 +1,95 @@
-"""Le classement des événements : quatre catégories, aucune par défaut (D-08).
-
-Les deux pièges que ces tests protègent : un montant ne prouve rien, et une absence de
-statut ne prouve rien non plus.
-"""
+"""Le classement par liste explicite : rien par défaut (règle 5 de CLAUDE.md)."""
 
 from __future__ import annotations
 
-from pastory.adaptateurs.trade_republic.classement import (
-    TYPES_ECARTES,
-    TYPES_HORS_PERIMETRE,
-    TYPES_TRAITES,
-    Categorie,
-    Famille,
-    classer,
+import pytest
+
+from pastory.adaptateurs.trade_republic import classement as module
+from pastory.adaptateurs.trade_republic.classement import Categorie, classer
+from pastory.adaptateurs.trade_republic.fichier import Ligne
+from pastory.pivot.operation import TypeOperation
+from tests.adaptateurs.trade_republic import export_fictif as fictif
+
+
+def en_ligne(valeurs: dict[str, str]) -> Ligne:
+    colonnes = {champ: valeurs.get(champ, "") for champ in Ligne.__dataclass_fields__}
+    colonnes.update(fichier="export.csv", numero=2)
+    return Ligne(**colonnes)
+
+
+@pytest.mark.parametrize(
+    ("fabrique", "attendu"),
+    [
+        (fictif.achat_plan_epargne, TypeOperation.ACHAT),
+        (fictif.vente, TypeOperation.VENTE),
+        (fictif.dividende, TypeOperation.DIVIDENDE),
+        (fictif.distribution_capital, TypeOperation.DISTRIBUTION_CAPITAL),
+    ],
 )
-from tests.adaptateurs.trade_republic import evenements_fictifs as fictifs
+def test_les_types_vus_et_compares_sont_traites(fabrique, attendu):
+    resultat = classer(en_ligne(fabrique()))
+    assert (resultat.categorie, resultat.type_operation) == (Categorie.TRAITE, attendu)
 
 
-class TestQuatreCategories:
-    def test_un_achat_est_traite(self):
-        classement = classer(fictifs.plan_epargne())
-        assert classement.categorie is Categorie.TRAITE
-        assert classement.famille is Famille.PLAN_EPARGNE
-
-    def test_un_virement_est_hors_perimetre_mais_compte(self):
-        classement = classer(fictifs.hors_perimetre())
-        assert classement.categorie is Categorie.HORS_PERIMETRE
-        assert classement.motif
-
-    def test_un_document_est_ecarte(self):
-        assert classer(fictifs.ecarte()).categorie is Categorie.ECARTE
-
-    def test_un_type_absent_de_toutes_les_listes_est_inconnu(self):
-        classement = classer(fictifs.type_inconnu())
-        assert classement.categorie is Categorie.INCONNU
-        assert classement.type_affiche == "UN_TYPE_QUE_PERSONNE_N_A_JAMAIS_VU"
+@pytest.mark.parametrize("cle", sorted(module.TYPES_HORS_PERIMETRE))
+def test_chaque_type_d_especes_sans_actif_est_hors_perimetre(cle):
+    category, type_ = cle
+    resultat = classer(en_ligne(fictif.ligne(category=category, type=type_)))
+    assert resultat.categorie is Categorie.HORS_PERIMETRE
 
 
-class TestLeMontantNeProuveRien:
-    def test_un_plan_echoue_porte_un_montant_et_n_est_pas_traite(self):
-        assert classer(fictifs.plan_epargne_echoue()).categorie is Categorie.ECARTE
-
-    def test_des_titres_recus_n_ont_aucun_montant_et_sont_traites(self):
-        # L'action gagnée et les actions gratuites ne portent ni montant, ni compte, ni
-        # statut. Les écarter sur l'un de ces trois critères les ferait disparaître.
-        for construire in (fictifs.action_gagnee, fictifs.actions_gratuites):
-            assert classer(construire()).categorie is Categorie.TRAITE
+def test_une_ligne_d_especes_qui_designe_un_actif_est_affichee():
+    # Le cas d'une action offerte, rangée par la banque dans les espèces (§4.2).
+    resultat = classer(en_ligne(fictif.paiement_carte(symbol=fictif.ACTION)))
+    assert resultat.categorie is Categorie.INCONNU
+    assert resultat.motif == module.MOTIF_ESPECES_AVEC_ACTIF
 
 
-class TestStatut:
-    def test_un_statut_absent_n_est_pas_un_refus(self):
-        evenement = fictifs.actions_gratuites()
-        assert evenement["status"] is None
-        assert classer(evenement).categorie is Categorie.TRAITE
-
-    def test_un_statut_present_doit_valoir_execute(self):
-        classement = classer(fictifs.ordre_annule_avec_statut_inattendu())
-        assert classement.categorie is Categorie.ECARTE
-        assert "CANCELED" in (classement.motif or "")
-
-
-class TestEvenementsSansType:
-    def _sans_type(self, **champs):
-        evenement = {
-            "id": "evt-null",
-            "timestamp": "2026-01-01T10:00:00.000+0000",
-            "eventType": None,
-            "details": {"sections": []},
-        }
-        evenement.update(champs)
-        return evenement
-
-    def test_un_mouvement_d_especes_du_pea_est_hors_perimetre(self):
-        evenement = self._sans_type(
-            amount={"currency": "EUR", "value": 1.0},
-            cashAccountNumber=fictifs.COMPTE_PEA,
-            details={
-                "sections": [
-                    {
-                        "type": "table",
-                        "title": "Übersicht",
-                        "data": [
-                            {
-                                "title": "Ereignistyp",
-                                "detail": {"text": "PEA-Aktivierung"},
-                            }
-                        ],
-                    }
-                ]
-            },
-        )
-        assert classer(evenement).categorie is Categorie.HORS_PERIMETRE
-
-    def test_un_document_sans_type_est_ecarte(self):
-        evenement = self._sans_type(title="Rechtliche Dokumente")
-        assert classer(evenement).categorie is Categorie.ECARTE
-
-    def test_tout_autre_evenement_sans_type_reste_inconnu(self):
-        # C'est ici que tombe le transfert d'un PEA venu d'un autre établissement : il peut
-        # faire entrer des titres sans qu'aucun achat n'apparaisse (limite de D-15).
-        evenement = self._sans_type(title="Un titre que personne ne connaît")
-        assert classer(evenement).categorie is Categorie.INCONNU
+@pytest.mark.parametrize(
+    "fabrique",
+    [
+        fictif.saveback,
+        fictif.actions_gratuites,
+        lambda: fictif.ligne(category="DELIVERY", type="MIGRATION", symbol=fictif.ACTION),
+    ],
+)
+def test_les_types_vus_mais_pas_compris_sont_affiches_avec_ce_qu_on_en_sait(fabrique):
+    resultat = classer(en_ligne(fabrique()))
+    assert resultat.categorie is Categorie.INCONNU
+    assert resultat.motif in module.TYPES_EN_ATTENTE.values()
 
 
-class TestListes:
-    def test_aucun_type_n_est_range_dans_deux_listes(self):
-        traites = set(TYPES_TRAITES)
-        assert not traites & TYPES_HORS_PERIMETRE
-        assert not traites & TYPES_ECARTES
-        assert not TYPES_HORS_PERIMETRE & TYPES_ECARTES
+@pytest.mark.parametrize(
+    ("category", "type_"),
+    [
+        # Connus d'autres logiciels, jamais vus chez nous (export-officiel.md §4.2).
+        ("TRADING", "BUY_CANCELLED"),
+        ("CORPORATE_ACTION", "SPLIT"),
+        ("DELIVERY", "FREE_RECEIPT"),
+        ("CASH", "STOCKPERK"),
+        # Un code connu dans une autre catégorie n'est pas le même type.
+        ("CASH", "BUY"),
+        ("TRADING", "DIVIDEND"),
+    ],
+)
+def test_un_type_jamais_vu_n_est_jamais_range_par_defaut(category, type_):
+    resultat = classer(en_ligne(fictif.ligne(category=category, type=type_)))
+    assert resultat.categorie is Categorie.INCONNU
+    assert resultat.type_affiche == f"{category}/{type_}"
+    assert resultat.motif == module.MOTIF_INCONNU
+
+
+@pytest.mark.parametrize(
+    ("texte", "affiche"),
+    [
+        ("DIVIDEND", "DIVIDEND"),
+        ("TYPE_2", "TYPE_2"),
+        ("Jean Dupont", "(illisible)"),
+        ("12.50", "(illisible)"),
+        ("", "(vide)"),
+        ("A" * 41, "(illisible)"),
+    ],
+)
+def test_seul_un_code_est_affiche_tel_quel(texte, affiche):
+    resultat = classer(en_ligne(fictif.ligne(category="CASH", type=texte)))
+    assert resultat.type_affiche == f"CASH/{affiche}"

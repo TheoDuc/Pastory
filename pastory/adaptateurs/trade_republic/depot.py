@@ -18,8 +18,8 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 from pathlib import Path
 
-from pastory.adaptateurs.trade_republic_officiel import fichier
-from pastory.adaptateurs.trade_republic_officiel.fichier import FichierNonReconnu, Ligne
+from pastory.adaptateurs.trade_republic import fichier
+from pastory.adaptateurs.trade_republic.fichier import FichierNonReconnu, Ligne
 
 NOM_PAR_DEFAUT = "Exportation de transactions.csv"
 """Le nom que donne l'application en français. Tout fichier `.csv` du dossier est lu."""

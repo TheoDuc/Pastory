@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from pastory.adaptateurs.trade_republic_officiel.depot import lire_dossier
-from pastory.adaptateurs.trade_republic_officiel.lecture import Lecteur
-from pastory.adaptateurs.trade_republic_officiel.rapport import LIMITE_DES_DIVIDENDES
-from tests.adaptateurs.trade_republic_officiel import export_fictif as fictif
+from pastory.adaptateurs.trade_republic.depot import lire_dossier
+from pastory.adaptateurs.trade_republic.lecture import Lecteur
+from pastory.adaptateurs.trade_republic.rapport import LIMITE_DES_DIVIDENDES
+from tests.adaptateurs.trade_republic import export_fictif as fictif
 
 
 def resume(tmp_path, lignes=None, **options):

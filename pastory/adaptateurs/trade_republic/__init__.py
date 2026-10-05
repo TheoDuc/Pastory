@@ -1,1 +1,1 @@
-"""Adaptateur Trade Republic : événements pytr ─► opérations pivot. Écrit à l'étape 2."""
+"""Adaptateur de l'export officiel de Trade Republic (D-79) : « Export des transactions »."""

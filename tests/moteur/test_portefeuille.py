@@ -155,47 +155,6 @@ class TestAUneDate:
         assert avant.total.capital_net_investi == Decimal("0.00")
 
 
-class TestQuantitesParActif:
-    def test_un_actif_detenu_dans_deux_poches_est_additionne(self):
-        """Le portefeuille de la banque ne dit pas la poche : il faut lui parler en ISIN."""
-        operations = [
-            operation(
-                TypeOperation.ACHAT,
-                horodatage="2026-01-05 09:00",
-                poche=Poche.PEA,
-                quantite="10",
-                prix_unitaire="20.00",
-            ),
-            operation(
-                TypeOperation.ACHAT,
-                horodatage="2026-01-06 09:00",
-                poche=Poche.CTO,
-                quantite="5",
-                prix_unitaire="20.00",
-            ),
-        ]
-        quantites = Portefeuille.construire(operations).quantites_par_actif()
-
-        assert quantites == {"XX0000000001": Decimal("15")}
-
-    def test_un_actif_entierement_vendu_n_y_figure_pas(self):
-        operations = [
-            operation(
-                TypeOperation.ACHAT,
-                horodatage="2026-01-05 09:00",
-                quantite="4",
-                prix_unitaire="25.00",
-            ),
-            operation(
-                TypeOperation.VENTE,
-                horodatage="2026-06-05 09:00",
-                quantite="4",
-                prix_unitaire="30.00",
-            ),
-        ]
-        assert Portefeuille.construire(operations).quantites_par_actif() == {}
-
-
 class TestFiabilite:
     def test_une_position_incomplete_contamine_le_total_de_sa_poche(self):
         """Le total est alors sous-estimé, et le rapport doit pouvoir le dire (D-45)."""

@@ -6,9 +6,9 @@ import dataclasses
 
 import pytest
 
-from pastory.adaptateurs.trade_republic_officiel import fichier
-from pastory.adaptateurs.trade_republic_officiel.fichier import FichierNonReconnu
-from tests.adaptateurs.trade_republic_officiel import export_fictif as fictif
+from pastory.adaptateurs.trade_republic import fichier
+from pastory.adaptateurs.trade_republic.fichier import FichierNonReconnu
+from tests.adaptateurs.trade_republic import export_fictif as fictif
 
 
 def test_les_deux_variantes_donnent_les_memes_lignes(tmp_path):

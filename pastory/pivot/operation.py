@@ -52,7 +52,7 @@ class Provenance(StrEnum):
     TEXTE = "texte"
     """Lu dans un texte affiché, dans la langue de l'application : fragile (D-09, D-19)."""
     DEDUCTION = "deduction"
-    """Reconstitué par une règle écrite (D-15, D-16)."""
+    """Reconstitué par une règle écrite (D-15)."""
     ESTIMATION = "estimation"
     """Valeur approchée (spread, TER, impôt). Aucune dans le pivot : réservée au moteur."""
     A_COMPLETER = "a_completer"
@@ -109,7 +109,7 @@ class Operation:
     ne calcule jamais dessus."""
 
     actif: str
-    """ISIN, ou code interne pour la crypto."""
+    """ISIN, ou code de la crypto donné par la banque (fictif : `BTC`)."""
 
     poche: Poche
 

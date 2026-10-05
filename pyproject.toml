@@ -8,7 +8,6 @@ requires-python = ">=3.12"
 # Dépendances du cœur de l'application. Elles sont ajoutées étape par étape,
 # jamais « au cas où » : chacune doit servir à du code existant.
 dependencies = [
-    "pytr>=0.4.10",   # récupération des données Trade Republic (étape 2)
     "dash>=3.0",      # interface locale (D-31, étapes 8 et 9)
     "pandas>=2.2",    # séries de cours et tableaux d'affichage seulement (D-33)
 ]
@@ -51,8 +50,3 @@ select = [
 # `Decimal("2")`. Tous les montants et quantités sont écrits sous forme de texte, sans
 # exception, parce que c'est la seule forme correcte pour un nombre à virgule (D-33).
 
-[tool.ruff.lint.per-file-ignores]
-# Outil de diagnostic de l'étape 0, écrit d'un jet et conservé tel quel : c'est lui qui a
-# produit les comptages de docs/inventaire-donnees.md, et le réécrire pour le style ferait
-# courir le risque de changer ses résultats. Les vraies erreurs (règles F) restent vérifiées.
-"scripts/inventaire_structure.py" = ["E501", "E731", "E741", "SIM", "UP", "B"]

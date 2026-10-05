@@ -3,12 +3,12 @@
 Les commandes sont ajoutées étape par étape. Celles qui ne sont pas encore écrites le disent
 clairement, avec l'étape où elles arrivent, plutôt que d'échouer sans explication.
 
-L'enchaînement normal, au premier usage :
+L'enchaînement normal, au premier usage : télécharger l'export des transactions dans
+l'application Trade Republic (Profil > Relevés > Export des transactions), le déposer dans le
+dossier `exports` de Pastory (`pastory emplacements` dit où), puis :
 
 ```
-pastory rafraichir          récupérer l'export auprès de Trade Republic
-pastory comptes             dire à quoi sert chaque compte espèces (une seule fois)
-pastory lire                vérifier qu'aucun type d'événement n'est inconnu
+pastory lire                vérifier qu'aucun type d'opération n'est inconnu
 pastory exporter-pivot      écrire les opérations en CSV, à vérifier dans un tableur
 pastory actifs              dire où chercher le cours de chaque actif (une seule fois)
 pastory cours               récupérer les cours de marché et les garder en cache
@@ -18,7 +18,6 @@ pastory exporter-positions  écrire les positions, le journal, la valorisation, 
                               les sous-périodes du TWRR, l'évolution, les coûts et la
                               valeur réelle en CSV
 pastory composition         ce qu'il y a à l'intérieur de chaque actif détenu
-pastory positions-reelles   demander à la banque ce qu'elle dit détenir, pour recouper
 pastory oublier-cours       effacer des cours en cache, pour les reprendre à la source
 pastory oublier-composition effacer des compositions, pour les reprendre à la source
 ```
@@ -48,15 +47,11 @@ from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 from pastory import tableur
-from pastory.adaptateurs.trade_republic import evenements as lecture_evenements
-from pastory.adaptateurs.trade_republic import portefeuille as portefeuille_banque
-from pastory.adaptateurs.trade_republic import recoupement_csv, source
-from pastory.adaptateurs.trade_republic.classement import classer
+from pastory.adaptateurs.trade_republic import depot as depot_export
 from pastory.adaptateurs.trade_republic.lecture import Lecteur
 from pastory.adaptateurs.trade_republic.rapport import Rapport
 from pastory.config import ConfigurationInvalide, emplacements
 from pastory.config import actifs as config_actifs
-from pastory.config import comptes as config_comptes
 from pastory.config import fiscalite as config_fiscalite
 from pastory.donnees_externes import actions as source_actions
 from pastory.donnees_externes import amundi, extraetf, xetra
@@ -76,14 +71,12 @@ from pastory.moteur import rendements as rendements_moteur
 from pastory.moteur import valeur_reelle as valeur_reelle_moteur
 from pastory.moteur import valorisation as valorisation_moteur
 from pastory.moteur.portefeuille import Portefeuille
-from pastory.moteur.rapprochement import rapprocher
 from pastory.parametres import ParametresInvalides
 from pastory.parametres import couts as parametres_couts
 from pastory.parametres import fiscalite as parametres_fiscalite
 from pastory.parametres import referentiels as parametres_referentiels
 from pastory.pivot import export_csv
 from pastory.pivot.operation import Poche
-from pastory.pivot.position_reelle import PositionReelle
 
 NOM = "pastory"
 
@@ -98,8 +91,8 @@ l'histoire d'un titre qu'on ne détient pas."""
 CODE_SUCCES = 0
 CODE_ECHEC = 1
 CODE_DECLARATION_ATTENDUE = 2
-"""L'export s'est arrêté parce qu'il manque une information que seul l'utilisateur peut
-donner (D-40). Un code distinct de l'échec : rien n'est cassé, il faut compléter."""
+"""La commande s'est arrêtée parce qu'il manque une déclaration (le ticker d'un actif). Un
+code distinct de l'échec : rien n'est cassé, il faut compléter."""
 
 
 def _version() -> str:
@@ -131,143 +124,34 @@ def commande_emplacements() -> int:
     return CODE_SUCCES
 
 
-def commande_rafraichir() -> int:
-    """Récupère l'export auprès de Trade Republic, via pytr.
+def _dossier(dossier_export: Path | None) -> Path:
+    """Le dossier où lire les exports : celui indiqué par `--export`, ou le dossier de dépôt.
 
-    L'avertissement sur le PIN invisible n'est pas une politesse : sous Windows, la saisie
-    masquée n'affiche **rien**, pas même des astérisques, et la première réaction naturelle
-    est de croire que le clavier ne répond plus.
+    Le dossier de dépôt est créé s'il n'existe pas encore : c'est là que l'utilisateur doit
+    déposer son export (D-80), et le message qui l'y invite doit désigner un dossier réel.
     """
-    dossier = source.dossier_par_defaut()
-    print(f"Récupération de l'export Trade Republic dans :\n  {dossier}\n")
-    print("Trade Republic va vous demander votre numéro de téléphone, puis votre code PIN.")
-    print()
-    print("  ATTENTION : en tapant le PIN, vous ne verrez RIEN s'afficher.")
-    print("  Ni les chiffres, ni des étoiles, ni même le curseur qui avance.")
-    print("  C'est normal : la saisie est masquée. Tapez le PIN, puis appuyez sur Entrée.")
-    print()
-    print("Rien n'est enregistré sur cette machine : le PIN vous sera redemandé la")
-    print("prochaine fois. C'est le mode le plus sûr.")
-    print()
-
-    code = source.rafraichir(dossier)
-    if code != CODE_SUCCES:
-        print(
-            "\nLa récupération a échoué. Les données déjà présentes n'ont pas été touchées.",
-            file=sys.stderr,
-        )
-        return CODE_ECHEC
-
-    print(f"\nExport à jour dans {dossier}.")
-    print("Vérifiez la lecture avec « pastory lire ».")
-    return CODE_SUCCES
-
-
-def commande_comptes(dossier_export: Path | None) -> int:
-    """Assistant « nommer ses comptes » (D-10).
-
-    Montre les types d'opérations vus sur chaque compte : c'est ce qui permet de reconnaître
-    un compte dont on ignorait l'existence.
-
-    **Avec `--export`, rien n'est écrit.** Les numéros de compte d'un export qui n'est pas le
-    sien appartiennent à quelqu'un d'autre : les enregistrer dans sa propre configuration
-    serait les recopier (règle 2 de CLAUDE.md). L'assistant se contente alors d'afficher ce
-    qu'il a trouvé.
-    """
-    dossier = dossier_export or source.dossier_par_defaut()
-    try:
-        bruts = source.charger_evenements(dossier)
-        configuration = config_comptes.charger()
-    except source.ExportIntrouvable as erreur:
-        print(erreur, file=sys.stderr)
-        return CODE_ECHEC
-    except config_comptes.ConfigurationInvalide as erreur:
-        # C'est la commande censée aider à corriger ce fichier : elle doit l'expliquer,
-        # pas s'interrompre sur une erreur technique.
-        print(erreur, file=sys.stderr)
-        return CODE_ECHEC
-
-    vus: dict[str, set[str]] = collections.defaultdict(set)
-    for evenement in bruts:
-        compte = lecture_evenements.compte(evenement)
-        if compte is None:
-            continue
-        vus[compte].add(classer(evenement).type_affiche)
-
-    if not vus:
-        print("Aucun compte espèces n'apparaît dans cet export.")
-        return CODE_SUCCES
-
-    print(f"{len(vus)} compte(s) espèces trouvé(s) dans l'export.")
-    for compte, types in sorted(vus.items()):
-        role = configuration.roles.get(compte)
-        print(f"\n  compte {compte} — rôle : {role.value if role else 'à donner'}")
-        print(f"    opérations vues : {', '.join(sorted(types))}")
-
     if dossier_export is not None:
-        print(
-            "\nRien n'a été écrit : cet export a été lu depuis un dossier que vous avez "
-            "indiqué,\net ses comptes ne sont pas forcément les vôtres. Pour nommer vos "
-            f"propres comptes,\nlancez « {NOM} comptes » sans --export."
-        )
-        return CODE_SUCCES
-
-    fichier = config_comptes.chemin()
-    fichier.parent.mkdir(parents=True, exist_ok=True)
-    fichier.write_text(
-        config_comptes.modele(
-            {compte: sorted(types) for compte, types in vus.items()}, configuration
-        ),
-        encoding="utf-8",
-    )
-
-    manquants = [compte for compte in vus if compte not in configuration.roles]
-    print(f"\nOuvrez ce fichier et donnez un rôle à chaque compte :\n  {fichier}\n")
-    print("Les types d'opérations vus sur chaque compte y sont rappelés pour vous aider.")
-    if manquants:
-        print(f"\n{len(manquants)} compte(s) attendent encore un rôle.")
-    else:
-        print("\nTous les comptes ont déjà un rôle.")
-    return CODE_SUCCES
+        return dossier_export
+    dossier = emplacements.dossier_exports()
+    dossier.mkdir(parents=True, exist_ok=True)
+    return dossier
 
 
-def _lire(dossier: Path, avec_recoupement: bool) -> tuple[Rapport, int]:
-    """Lecture commune à « lire » et « exporter-pivot »."""
-    bruts = source.charger_evenements(dossier)
-    configuration = config_comptes.charger()
-    rapport = Lecteur(configuration).lire(bruts)
-
-    if avec_recoupement:
-        chemin_csv = source.chemin_transactions(dossier)
-        if chemin_csv is None:
-            rapport.signaler(
-                "recoupement CSV",
-                f"pas de fichier « {source.NOM_TRANSACTIONS} » dans cet export : "
-                "les quantités, frais et taxes lus dans les textes n'ont pas pu être recoupés",
-            )
-        else:
-            recoupement_csv.recouper(
-                rapport.operations, recoupement_csv.lire_csv(chemin_csv, rapport), rapport
-            )
-
-    code = CODE_DECLARATION_ATTENDUE if rapport.declarations_attendues else CODE_SUCCES
-    return rapport, code
+def _lire(dossier: Path) -> Rapport:
+    """Lecture commune à toutes les commandes : tous les exports du dossier (D-80)."""
+    return Lecteur().lire(depot_export.lire_dossier(dossier))
 
 
 def commande_lire(dossier_export: Path | None) -> int:
     """Affiche le rapport de lecture, sans rien écrire."""
-    dossier = dossier_export or source.dossier_par_defaut()
     try:
-        rapport, code = _lire(dossier, avec_recoupement=True)
-    except source.ExportIntrouvable as erreur:
-        print(erreur, file=sys.stderr)
-        return CODE_ECHEC
-    except config_comptes.ConfigurationInvalide as erreur:
+        rapport = _lire(_dossier(dossier_export))
+    except depot_export.ExportIntrouvable as erreur:
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
 
     print(rapport.resume())
-    return code
+    return CODE_SUCCES
 
 
 def commande_exporter_pivot(dossier_export: Path | None, hors_ligne: bool = False) -> int:
@@ -277,27 +161,13 @@ def commande_exporter_pivot(dossier_export: Path | None, hors_ligne: bool = Fals
     montrerait « à compléter » là où le rapport des positions montre un montant, et c'est
     justement le fichier que le propriétaire ouvre pour vérifier.
     """
-    dossier = dossier_export or source.dossier_par_defaut()
     try:
-        rapport, code = _lire(dossier, avec_recoupement=True)
-    except source.ExportIntrouvable as erreur:
-        print(erreur, file=sys.stderr)
-        return CODE_ECHEC
-    except config_comptes.ConfigurationInvalide as erreur:
+        rapport = _lire(_dossier(dossier_export))
+    except depot_export.ExportIntrouvable as erreur:
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
 
     print(rapport.resume())
-
-    if rapport.declarations_attendues:
-        # Rien n'est écrit tant qu'il manque une déclaration : un fichier incomplet
-        # ressemblerait à un fichier complet (D-40).
-        print(
-            "\nAucun fichier n'a été écrit : il manque des informations "
-            "que vous seul pouvez donner (voir ci-dessus).",
-            file=sys.stderr,
-        )
-        return code
 
     try:
         completion = completion_cours.completer_les_prix(
@@ -319,7 +189,7 @@ def commande_exporter_pivot(dossier_export: Path | None, hors_ligne: bool = Fals
     print("Ouvrez ce fichier dans un tableur pour comparer avec l'application Trade Republic.")
     for ligne in _rapport_des_cours(completion, completion.refus):
         print(ligne)
-    return code
+    return CODE_SUCCES
 
 
 # --- Le moteur (étape 3) -------------------------------------------------------------
@@ -335,12 +205,12 @@ def _etat_de_la_lecture(rapport: Rapport) -> list[str]:
     lignes = [f"{len(rapport.operations)} opération(s) lues."]
     ennuis = []
     if rapport.types_inconnus:
-        ennuis.append(f"{sum(rapport.types_inconnus.values())} événement(s) de type inconnu")
+        ennuis.append(f"{sum(rapport.types_inconnus.values())} ligne(s) de type non traité")
     if rapport.operations_non_produites:
-        # Un événement traité dont aucune opération n'est sortie est un trou franc dans les
-        # totaux : des parts ou des montants manquent, et rien d'autre ne le dirait.
+        # Une ligne d'un type traité dont aucune opération n'est sortie est un trou franc dans
+        # les totaux : des parts ou des montants manquent, et rien d'autre ne le dirait.
         ennuis.append(
-            f"{rapport.operations_non_produites} événement(s) traités sans opération produite"
+            f"{rapport.operations_non_produites} ligne(s) d'un type traité sans opération produite"
         )
     if rapport.anomalies:
         ennuis.append(f"{len(rapport.anomalies)} contrôle(s) de cohérence en échec")
@@ -350,22 +220,6 @@ def _etat_de_la_lecture(rapport: Rapport) -> list[str]:
             "fier aux chiffres ci-dessous."
         )
     return lignes
-
-
-def _charger_positions_reelles(
-    dossier: Path,
-) -> tuple[list[PositionReelle] | None, list[str]]:
-    """Lit le portefeuille réel s'il a déjà été récupéré. Son absence n'est pas une erreur.
-
-    Renvoie `None` quand le fichier n'est pas là — et non une liste vide, qui voudrait dire
-    « la banque ne détient plus rien », ce qui est une information très différente. Le
-    rapport invite alors à lancer `positions-reelles`, plutôt que de faire échouer une
-    commande qui n'a besoin de rien d'autre que de l'export.
-    """
-    fichier = portefeuille_banque.chemin(dossier)
-    if not fichier.exists():
-        return None, []
-    return portefeuille_banque.lire(fichier)
 
 
 def _fournisseur_de_cours(hors_ligne: bool = False) -> FournisseurDeCours:
@@ -570,25 +424,15 @@ def _periode(au: Date | None, depuis: Date | None) -> rendements_moteur.Periode 
 
 def _construire_moteur(
     dossier: Path, periode: rendements_moteur.Periode, hors_ligne: bool = False
-) -> Construit | None:
+) -> Construit:
     """Lecture, complétion des prix, rejeu, puis valorisation et rendements.
 
     La complétion s'insère **entre** la lecture et le moteur, et ne produit que du format
     pivot : le moteur ne gagne pas une ligne et ne sait rien des cours (D-26). La
     valorisation, elle, reçoit le fournisseur de cours **en paramètre** : le moteur déclare
     ce dont il a besoin, et c'est ici, et seulement ici, qu'on le lui donne.
-
-    Renvoie `None` si la lecture ne permet pas d'aller plus loin.
     """
-    rapport, _ = _lire(dossier, avec_recoupement=False)
-    if rapport.declarations_attendues:
-        print(rapport.resume())
-        print(
-            "\nAucun chiffre n'a été calculé : il manque des informations que vous seul "
-            "pouvez donner (voir ci-dessus).",
-            file=sys.stderr,
-        )
-        return None
+    rapport = _lire(dossier)
 
     fournisseur = _fournisseur_de_cours(hors_ligne)
     completion = completion_cours.completer_les_prix(rapport.operations, fournisseur)
@@ -635,28 +479,12 @@ def commande_positions(
     depuis: Date | None = None,
 ) -> int:
     """Affiche les positions calculées par le moteur, sans rien écrire."""
-    dossier = dossier_export or source.dossier_par_defaut()
     periode = _periode(au, depuis)
     if periode is None:
         return CODE_ECHEC
     try:
-        construit = _construire_moteur(dossier, periode, hors_ligne)
-        if construit is None:
-            return CODE_DECLARATION_ATTENDUE
-        # Le portefeuille de la banque est une photo d'**aujourd'hui** : le comparer à un
-        # portefeuille arrêté à une date passée signalerait à tort tout ce qui a bougé
-        # depuis. Le rapprochement n'a de sens que sur les chiffres à jour.
-        if au is None:
-            positions_reelles, anomalies_du_fichier = _charger_positions_reelles(dossier)
-        else:
-            positions_reelles, anomalies_du_fichier = None, []
-    except source.ExportIntrouvable as erreur:
-        print(erreur, file=sys.stderr)
-        return CODE_ECHEC
-    except config_comptes.ConfigurationInvalide as erreur:
-        print(erreur, file=sys.stderr)
-        return CODE_ECHEC
-    except portefeuille_banque.PortefeuilleIllisible as erreur:
+        construit = _construire_moteur(_dossier(dossier_export), periode, hors_ligne)
+    except depot_export.ExportIntrouvable as erreur:
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
     except CacheIllisible as erreur:
@@ -673,16 +501,9 @@ def commande_positions(
     if au is not None:
         print(f"Chiffres arrêtés au {au.isoformat()}.")
 
-    portefeuille = construit.portefeuille
-    rapprochement = (
-        rapprocher(portefeuille, positions_reelles, lignes_illisibles=len(anomalies_du_fichier))
-        if positions_reelles is not None
-        else None
-    )
     print(
         rapport_moteur.resume(
-            portefeuille,
-            rapprochement,
+            construit.portefeuille,
             arrete_au=au,
             synthese=construit.synthese,
             detail_des_couts=construit.detail_des_couts,
@@ -697,9 +518,6 @@ def commande_positions(
         print(ligne)
     for ligne in _rapport_des_compositions(construit.compositions):
         print(ligne)
-
-    for anomalie in anomalies_du_fichier:
-        print(f"  portefeuille réel, {anomalie}", file=sys.stderr)
 
     return CODE_SUCCES
 
@@ -717,18 +535,12 @@ def commande_exporter_positions(
     depuis: Date | None = None,
 ) -> int:
     """Écrit les six CSV du moteur dans le dossier personnel."""
-    dossier = dossier_export or source.dossier_par_defaut()
     periode = _periode(au, depuis)
     if periode is None:
         return CODE_ECHEC
     try:
-        construit = _construire_moteur(dossier, periode, hors_ligne)
-        if construit is None:
-            return CODE_DECLARATION_ATTENDUE
-    except source.ExportIntrouvable as erreur:
-        print(erreur, file=sys.stderr)
-        return CODE_ECHEC
-    except config_comptes.ConfigurationInvalide as erreur:
+        construit = _construire_moteur(_dossier(dossier_export), periode, hors_ligne)
+    except depot_export.ExportIntrouvable as erreur:
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
     except CacheIllisible as erreur:
@@ -841,43 +653,6 @@ def commande_exporter_positions(
     return CODE_SUCCES
 
 
-def commande_positions_reelles() -> int:
-    """Demande à Trade Republic ce qu'il dit détenir, et l'enregistre pour le rapprochement.
-
-    Commande à part, et non un morceau de `rafraichir` : comme rien n'est enregistré sur
-    cette machine (D-41), chaque appel à pytr redemande le numéro, le PIN et la confirmation
-    dans l'application. Les réunir obligerait à le faire deux fois à chaque rafraîchissement.
-    """
-    fichier = portefeuille_banque.chemin(source.dossier_par_defaut())
-    print("Récupération du portefeuille actuel auprès de Trade Republic.\n")
-    print("Trade Republic va vous demander votre numéro de téléphone, puis votre code PIN.")
-    print()
-    print("  ATTENTION : en tapant le PIN, vous ne verrez RIEN s'afficher.")
-    print("  C'est normal : la saisie est masquée. Tapez le PIN, puis appuyez sur Entrée.")
-    print()
-
-    code = source.recuperer_portefeuille(fichier)
-    if code != CODE_SUCCES:
-        print(
-            "\nLa récupération a échoué. Le fichier précédent, s'il existait, n'a pas été "
-            "touché.",
-            file=sys.stderr,
-        )
-        return CODE_ECHEC
-
-    try:
-        positions, anomalies = portefeuille_banque.lire(fichier)
-    except portefeuille_banque.PortefeuilleIllisible as erreur:
-        print(erreur, file=sys.stderr)
-        return CODE_ECHEC
-
-    print(f"\n{len(positions)} position(s) enregistrée(s) dans :\n  {fichier}")
-    for anomalie in anomalies:
-        print(f"  non lue : {anomalie}", file=sys.stderr)
-    print(f"\nLancez « {NOM} positions » pour comparer avec les chiffres du moteur.")
-    return CODE_SUCCES
-
-
 def _apercu_des_actifs(rapport: Rapport) -> dict[str, str]:
     """Par actif, de quoi le reconnaître dans le fichier de correspondance.
 
@@ -913,26 +688,16 @@ def commande_actifs(dossier_export: Path | None, hors_ligne: bool = False) -> in
     **Avec `--export`, rien n'est écrit** : les actifs d'un export qui n'est pas le sien
     appartiennent à quelqu'un d'autre (règle 2 de CLAUDE.md).
     """
-    dossier = dossier_export or source.dossier_par_defaut()
     try:
-        rapport, _ = _lire(dossier, avec_recoupement=False)
+        rapport = _lire(_dossier(dossier_export))
         configuration = config_actifs.charger()
-    except source.ExportIntrouvable as erreur:
+    except depot_export.ExportIntrouvable as erreur:
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
-    except config_comptes.ConfigurationInvalide as erreur:
+    except ConfigurationInvalide as erreur:
         # C'est la commande censée aider à corriger ce fichier : elle l'explique.
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
-
-    if rapport.declarations_attendues:
-        print(rapport.resume())
-        print(
-            f"\nCommencez par « {NOM} comptes » : sans le rôle de chaque compte, la poche "
-            "des opérations\nreste inconnue et la liste des actifs serait incomplète.",
-            file=sys.stderr,
-        )
-        return CODE_DECLARATION_ATTENDUE
 
     apercu = _apercu_des_actifs(rapport)
     if not apercu:
@@ -960,9 +725,10 @@ def commande_actifs(dossier_export: Path | None, hors_ligne: bool = False) -> in
             propositions, apercu, configuration
         )
 
-    # Une crypto est identifiée par un code interne à la banque, qu'aucune source de cours ne
-    # connaît : la recherche automatique ne trouvera jamais rien, et il faut le dire plutôt que
-    # de laisser croire à un échec passager. Constaté par le propriétaire sur son bitcoin.
+    # Une crypto n'a pas d'ISIN : la recherche par ISIN ne trouvera jamais rien, et il faut le
+    # dire plutôt que de laisser croire à un échec passager. L'export officiel donne son code
+    # de marché (`BTC`), d'où la forme du ticker. Son application automatique, contrôlée par la
+    # devise, est l'affaire de l'étape 8 quater (D-80).
     cryptos = {
         operation.actif for operation in rapport.operations if operation.poche is Poche.CRYPTO
     }
@@ -989,8 +755,8 @@ def commande_actifs(dossier_export: Path | None, hors_ligne: bool = False) -> in
                 etat += " - ATTENTION, pas en euros, à ne pas retenir tel quel"
         elif actif in cryptos:
             etat = (
-                "à compléter à la main : une crypto n'a pas d'ISIN, aucune source ne connaît "
-                "ce code. Son ticker est de la forme BTC-EUR (la cotation en euros)"
+                "à compléter à la main : une crypto n'a pas d'ISIN. Son ticker est de la forme "
+                f"{actif}-EUR (la cotation en euros)"
             )
         else:
             etat = "à compléter à la main"
@@ -1102,14 +868,13 @@ def commande_cours(dossier_export: Path | None, actif_demande: str | None = None
     qui permettra de valoriser le portefeuille dans le temps (étape 5) sans y revenir. Un
     cours déjà en cache n'est jamais redemandé.
     """
-    dossier = dossier_export or source.dossier_par_defaut()
     try:
-        rapport, _ = _lire(dossier, avec_recoupement=False)
+        rapport = _lire(_dossier(dossier_export))
         configuration = config_actifs.charger()
-    except source.ExportIntrouvable as erreur:
+    except depot_export.ExportIntrouvable as erreur:
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
-    except config_comptes.ConfigurationInvalide as erreur:
+    except ConfigurationInvalide as erreur:
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
 
@@ -1248,13 +1013,12 @@ def commande_composition(dossier_export: Path | None, hors_ligne: bool = False) 
     `cours` : elle **demande** les compositions manquantes, donc elle parle au réseau, et
     l'utilisateur doit savoir quand cela arrive (D-63).
     """
-    dossier = dossier_export or source.dossier_par_defaut()
     try:
-        rapport, _ = _lire(dossier, avec_recoupement=False)
+        rapport = _lire(_dossier(dossier_export))
         portefeuille = Portefeuille.construire(rapport.operations)
         fournisseur = _fournisseur_de_compositions(hors_ligne)
         referentiels = _referentiels()
-    except source.ExportIntrouvable as erreur:
+    except depot_export.ExportIntrouvable as erreur:
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
     except (ParametresInvalides, ConfigurationInvalide) as erreur:
@@ -1357,10 +1121,6 @@ def construire_analyseur() -> argparse.ArgumentParser:
 
     commandes = analyseur.add_subparsers(dest="commande")
     commandes.add_parser("emplacements", help="où sont rangés les fichiers personnels")
-    commandes.add_parser("rafraichir", help="récupérer les données Trade Republic")
-    commandes.add_parser(
-        "positions-reelles", help="demander à la banque ce qu'elle dit détenir"
-    )
 
     avec_date = {"positions", "exporter-positions"}
     sans_reseau = {
@@ -1371,7 +1131,6 @@ def construire_analyseur() -> argparse.ArgumentParser:
         "composition",
     }
     for nom, aide in (
-        ("comptes", "dire à quoi sert chaque compte espèces"),
         ("lire", "rapport de lecture, sans rien écrire"),
         ("exporter-pivot", "écrire les opérations en CSV"),
         ("actifs", "dire où chercher le cours de chaque actif"),
@@ -1386,7 +1145,7 @@ def construire_analyseur() -> argparse.ArgumentParser:
             type=Path,
             default=None,
             metavar="DOSSIER",
-            help="dossier contenant l'export, au lieu du dossier personnel "
+            help="dossier contenant l'export, au lieu du dossier de dépôt de Pastory "
             "(pour examiner l'export de quelqu'un d'autre sans le copier dans le projet)",
         )
         if nom in avec_date:
@@ -1487,10 +1246,6 @@ def main(arguments: list[str] | None = None) -> int:
     match options.commande:
         case "emplacements":
             return commande_emplacements()
-        case "rafraichir":
-            return commande_rafraichir()
-        case "comptes":
-            return commande_comptes(options.export)
         case "lire":
             return commande_lire(options.export)
         case "exporter-pivot":
@@ -1507,8 +1262,6 @@ def main(arguments: list[str] | None = None) -> int:
             return commande_exporter_positions(
                 options.export, options.au, options.hors_ligne, options.depuis
             )
-        case "positions-reelles":
-            return commande_positions_reelles()
         case "composition":
             return commande_composition(options.export, options.hors_ligne)
         case "oublier-cours":

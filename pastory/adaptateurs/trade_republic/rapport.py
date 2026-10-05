@@ -1,47 +1,50 @@
 """Le rapport de lecture : ce que l'adaptateur a compris, et ce qu'il n'a pas compris.
 
-C'est la pièce qui rend la règle 5 de CLAUDE.md vérifiable : **un type d'événement inconnu
-n'est jamais ignoré**, il apparaît ici. Le rapport sert à trois moments :
+C'est la pièce qui rend la règle 5 de CLAUDE.md vérifiable : **un type d'opération inconnu
+n'est jamais ignoré**, il apparaît ici. Il dit aussi ce que l'export lui-même ne dit pas : la
+**période couverte**, et la **limite du brut des dividendes** (D-84).
 
-- après un `pastory lire`, pour vérifier qu'aucun type n'est inconnu ;
-- dans l'interface (étape 9), en affichage permanent ;
-- au moment de comparer avec l'application Trade Republic, pour savoir quelles valeurs
-  viennent d'un texte et sont donc fragiles.
-
-**Aucune valeur de l'utilisateur n'est écrite telle quelle** : tout texte venu de l'écran
-passe par `sur()`. Le titre d'une section, par exemple, contient parfois un montant réel.
+Les lignes d'espèces n'y figurent qu'en **comptage par type**, jamais ligne à ligne
+(docs/export-officiel.md §8). Le rapport s'écrit en cp1252, la console Windows par défaut, et
+aucune de ses lignes ne dépasse 100 caractères.
 """
 
 from __future__ import annotations
 
-import re
+import textwrap
 from collections import Counter
 from dataclasses import dataclass, field
 
-from pastory.adaptateurs.trade_republic.classement import Categorie
-from pastory.pivot.operation import Operation, Provenance
+from pastory.adaptateurs.trade_republic.classement import Categorie, Classement
+from pastory.adaptateurs.trade_republic.depot import Depot
+from pastory.pivot.operation import Operation, Provenance, TypeOperation
 from pastory.pivot.validation import Anomalie
 
-LONGUEUR_MAXIMALE_AFFICHABLE = 60
+LARGEUR = 96
+"""Largeur des phrases enveloppées : 100 colonnes moins le retrait."""
+
+LIMITE_DES_DIVIDENDES = (
+    "Le brut d'un dividende est celui que donne Trade Republic. Pour certains pays (vérifié : "
+    "Pays-Bas), la banque le donne déjà diminué de la retenue à la source étrangère, sans la "
+    "montrer. Sur ces dividendes, le gain et les taxes payées sont alors un peu sous-estimés "
+    "(environ 15 % du dividende néerlandais) ; le montant net reçu, lui, est exact (D-84)."
+)
+
+PERIODE_A_VERIFIER = (
+    "La période est celle des opérations trouvées dans les fichiers. Si votre compte est plus "
+    "ancien que le premier jour, il manque des opérations : refaites l'export en choisissant "
+    "« toutes les transactions »."
+)
 
 
-def sur(texte: object) -> str:
-    """Rend un texte venu de l'écran affichable sans risque de divulguer une valeur.
-
-    Tout ce qui contient un chiffre ou une arobase est masqué : montants, quantités, IBAN,
-    numéros de compte, adresses. Un texte long l'est aussi, parce qu'il peut être une phrase
-    contenant un nom.
-
-    C'est le même garde-fou que `scripts/inventaire_structure.py`, et pour la même raison :
-    le rapport peut être collé dans une issue GitHub ou envoyé pour de l'aide.
-    """
-    if texte is None:
-        return "(vide)"
-    if not isinstance(texte, str):
-        return f"({type(texte).__name__})"
-    if re.search(r"[\d@]", texte) or len(texte) > LONGUEUR_MAXIMALE_AFFICHABLE:
-        return "«masqué»"
-    return texte
+def envelopper(texte: str, retrait: str = "  ") -> list[str]:
+    return textwrap.wrap(
+        texte,
+        width=LARGEUR,
+        initial_indent=retrait,
+        subsequent_indent=retrait + "  ",
+        break_on_hyphens=False,
+    )
 
 
 @dataclass(frozen=True)
@@ -49,59 +52,62 @@ class Signalement:
     """Quelque chose qui mérite l'attention de l'utilisateur, sans être une anomalie de calcul."""
 
     categorie: str
-    """Nom court, pour regrouper : « type inconnu », « libellé non reconnu »…"""
+    """Nom court, pour regrouper : « non traité », « forme jamais vue »…"""
     message: str
-    """Phrase en français, déjà passée par `sur()` si elle cite un texte de l'écran."""
-    reference_source: str | None = None
-    """Identifiant de l'événement d'origine, pour le retrouver dans l'export."""
+    """Phrase en français. Elle ne cite que des codes de la banque, jamais un texte libre."""
+    ou: str | None = None
+    """Où retrouver la ligne : « Exportation de transactions.csv, ligne 12 »."""
 
 
 @dataclass
 class Rapport:
     """Ce qu'une lecture a produit, et tout ce qu'elle n'a pas su faire."""
 
-    evenements_lus: int = 0
+    depot: Depot = field(default_factory=Depot)
+
+    lignes_lues: int = 0
     par_categorie: Counter[str] = field(default_factory=Counter)
     types_inconnus: Counter[str] = field(default_factory=Counter)
-    types_hors_perimetre: Counter[str] = field(default_factory=Counter)
-    types_ecartes: Counter[str] = field(default_factory=Counter)
+    """`CATEGORY/TYPE` → nombre de lignes non traitées. Le nom reste celui de l'ancien
+    adaptateur : c'est ce que l'utilisateur doit examiner avant de se fier aux chiffres."""
+    motifs: dict[str, str] = field(default_factory=dict)
+    """`CATEGORY/TYPE` → pourquoi ce type n'est pas traité."""
+    especes_par_type: Counter[str] = field(default_factory=Counter)
 
     operations: list[Operation] = field(default_factory=list)
     anomalies: list[Anomalie] = field(default_factory=list)
     signalements: list[Signalement] = field(default_factory=list)
 
     operations_non_produites: int = 0
-    """Événements traités dont aucune opération n'a pu être tirée.
+    """Lignes d'un type traité dont aucune opération n'a pu être tirée : chacune est un
+    **trou** dans les chiffres, compté à part pour que le moteur puisse le dire."""
 
-    Chacun a son signalement, mais le compte est gardé à part : c'est un **trou** dans les
-    chiffres, et le moteur doit pouvoir prévenir que ses totaux sont incomplets sans avoir
-    à relire les signalements un à un."""
-
-    comptes_a_nommer: set[str] = field(default_factory=set)
-    actifs_sans_poche: set[str] = field(default_factory=set)
+    classes_par_actif: dict[str, set[str]] = field(default_factory=dict)
+    """Actif → valeurs d'`asset_class` vues sur ses opérations. Le type d'un actif est une
+    donnée de la banque (D-82) ; il est appliqué aux estimations à l'étape 8 quater."""
 
     # --- Accumulation ---------------------------------------------------------
 
-    def compter(self, categorie: Categorie, type_affiche: str) -> None:
-        self.par_categorie[categorie.value] += 1
-        match categorie:
+    def compter(self, classement: Classement) -> None:
+        self.lignes_lues += 1
+        self.par_categorie[classement.categorie.value] += 1
+        match classement.categorie:
             case Categorie.INCONNU:
-                self.types_inconnus[type_affiche] += 1
+                self.types_inconnus[classement.type_affiche] += 1
+                if classement.motif is not None:
+                    self.motifs.setdefault(classement.type_affiche, classement.motif)
             case Categorie.HORS_PERIMETRE:
-                self.types_hors_perimetre[type_affiche] += 1
-            case Categorie.ECARTE:
-                self.types_ecartes[type_affiche] += 1
+                self.especes_par_type[classement.type_affiche] += 1
             case Categorie.TRAITE:
                 pass
 
-    def signaler(self, categorie: str, message: str, reference_source: str | None = None) -> None:
-        self.signalements.append(Signalement(categorie, message, reference_source))
+    def signaler(self, categorie: str, message: str, ou: str | None = None) -> None:
+        self.signalements.append(Signalement(categorie, message, ou))
 
     # --- Lecture du résultat --------------------------------------------------
 
     @property
     def tout_est_reconnu(self) -> bool:
-        """Vrai si aucun événement n'est resté inconnu. C'est le contrôle de l'étape 2."""
         return not self.types_inconnus
 
     @property
@@ -110,16 +116,10 @@ class Rapport:
         return [operation for operation in self.operations if not operation.complete]
 
     @property
-    def declarations_attendues(self) -> bool:
-        """Vrai s'il manque quelque chose que seul l'utilisateur peut dire (D-40)."""
-        return bool(self.comptes_a_nommer or self.actifs_sans_poche)
+    def a_des_dividendes(self) -> bool:
+        return any(operation.type is TypeOperation.DIVIDENDE for operation in self.operations)
 
     def valeurs_par_provenance(self) -> Counter[str]:
-        """Combien de valeurs viennent d'un champ structuré, d'un texte, d'une déduction.
-
-        C'est la mesure de fragilité de la lecture : plus il y a de `texte`, plus les
-        chiffres dépendent de la langue de l'application (D-09).
-        """
         compte: Counter[str] = Counter()
         for operation in self.operations:
             for provenance in operation.provenance.values():
@@ -142,28 +142,36 @@ class Rapport:
             lignes.append("")
             lignes.append(texte)
             # Tiret ordinaire, et non un trait de tableau : la console Windows par défaut
-            # ne sait pas écrire les caractères de dessin, et le rapport doit s'afficher
-            # partout plutôt que d'être joli quelque part.
+            # ne sait pas écrire les caractères de dessin.
             lignes.append("-" * len(texte))
 
-        titre(f"Lecture de {self.evenements_lus} événements")
-        for categorie in (
-            Categorie.TRAITE,
-            Categorie.HORS_PERIMETRE,
-            Categorie.ECARTE,
-            Categorie.INCONNU,
-        ):
+        self._exports(lignes, titre)
+
+        titre(f"Lecture de {self.lignes_lues} lignes")
+        for categorie in (Categorie.TRAITE, Categorie.HORS_PERIMETRE, Categorie.INCONNU):
             lignes.append(f"  {categorie.value:<16} {self.par_categorie[categorie.value]:>5}")
 
         if self.types_inconnus:
-            titre("ATTENTION - types inconnus, à examiner avant de se fier aux chiffres")
-            lignes.append("  Ces événements ne sont dans aucune liste. Ils ne sont pas comptés,")
-            lignes.append("  et ils peuvent contenir des opérations sur vos actifs.")
-            for type_evenement, nombre in self.types_inconnus.most_common():
-                lignes.append(f"  {type_evenement:<46} {nombre:>5}")
+            titre("ATTENTION - types non traités, à examiner avant de se fier aux chiffres")
+            lignes.extend(
+                envelopper(
+                    "Ces lignes ne sont dans aucune liste de types traités. Elles ne sont pas "
+                    "comptées, et elles peuvent faire entrer ou sortir des parts de vos actifs."
+                )
+            )
+            for type_affiche, nombre in self.types_inconnus.most_common():
+                lignes.append(f"  {type_affiche:<46} {nombre:>5}")
+                motif = self.motifs.get(type_affiche)
+                if motif:
+                    lignes.extend(envelopper(motif, retrait="      "))
         else:
             lignes.append("")
             lignes.append("Aucun type inconnu.")
+
+        if self.especes_par_type:
+            titre("Espèces, comptées et laissées de côté (D-11)")
+            for type_affiche, nombre in sorted(self.especes_par_type.items()):
+                lignes.append(f"  {type_affiche:<46} {nombre:>5}")
 
         titre(f"Opérations produites : {len(self.operations)}")
         for nom, nombre in sorted(self.par_type_d_operation().items()):
@@ -176,61 +184,66 @@ class Rapport:
         provenances = self.valeurs_par_provenance()
         if provenances:
             titre("D'où viennent les valeurs")
-            for nom in (
-                Provenance.DONNEE,
-                Provenance.TEXTE,
-                Provenance.DEDUCTION,
-                Provenance.A_COMPLETER,
-            ):
+            for nom in (Provenance.DONNEE, Provenance.TEXTE, Provenance.DEDUCTION):
                 if provenances[nom.value]:
                     lignes.append(f"  {nom.value:<16} {provenances[nom.value]:>5}")
-            if provenances[Provenance.TEXTE.value]:
-                lignes.append(
-                    "  « texte » = lu dans un libellé affiché : dépend de la langue de"
-                    " l'application."
+            lignes.extend(
+                envelopper(
+                    "« texte » = la nature de l'opération (plan d'épargne, ordre ponctuel), lue "
+                    "dans la description. Elle est seulement affichée : aucun calcul n'en dépend."
                 )
+            )
 
-        incompletes = self.operations_incompletes
-        if incompletes:
-            titre(f"Opérations incomplètes : {len(incompletes)}")
-            lignes.append("  Des titres sont entrés sans prix connu. Ils sont visibles, mais")
-            lignes.append("  leur montant ne compte dans aucun total tant que les cours de")
-            lignes.append("  l'étape 4 ne sont pas disponibles (D-15).")
-            for operation in incompletes:
-                lignes.append(
-                    f"  {operation.date}  {operation.actif}  quantité {operation.quantite}"
-                )
+        if self.a_des_dividendes:
+            titre("Limite connue : le brut des dividendes")
+            lignes.extend(envelopper(LIMITE_DES_DIVIDENDES))
 
         if self.anomalies:
             titre(f"Contrôles de cohérence en échec : {len(self.anomalies)}")
             lignes.append("  L'opération est conservée telle quelle, rien n'est corrigé.")
             for anomalie in self.anomalies:
-                lignes.append(f"  [{anomalie.regle}] {anomalie.message}")
-                lignes.append(f"      événement {anomalie.reference_source}")
+                lignes.extend(envelopper(f"[{anomalie.regle}] {anomalie.message}"))
+                lignes.append(f"      opération {anomalie.reference_source}")
 
         if self.signalements:
             titre(f"Signalements : {len(self.signalements)}")
             for categorie, groupe in _grouper(self.signalements):
                 lignes.append(f"  {categorie} ({len(groupe)})")
                 for signalement in groupe:
-                    lignes.append(f"    - {signalement.message}")
-                    if signalement.reference_source:
-                        lignes.append(f"      événement {signalement.reference_source}")
-
-        if self.declarations_attendues:
-            titre("ATTENTION - il manque des informations que vous seul pouvez donner")
-            if self.comptes_a_nommer:
-                lignes.append(
-                    f"  {len(self.comptes_a_nommer)} compte(s) espèces sans rôle : "
-                    "lancez « pastory comptes »."
-                )
-            if self.actifs_sans_poche:
-                lignes.append("  Actifs dont la poche est indéterminable, à déclarer")
-                lignes.append("  dans la section [poches] de votre configuration :")
-                for actif in sorted(self.actifs_sans_poche):
-                    lignes.append(f"    {actif}")
+                    lignes.extend(envelopper(f"- {signalement.message}", retrait="    "))
+                    if signalement.ou:
+                        lignes.append(f"      {signalement.ou}")
 
         return "\n".join(lignes)
+
+    def _exports(self, lignes: list[str], titre) -> None:
+        depot = self.depot
+        titre(f"Exports lus : {len(depot.fichiers)}")
+        for lu in depot.fichiers:
+            periode = (
+                f"du {lu.premier_jour} au {lu.dernier_jour}"
+                if lu.premier_jour is not None
+                else "aucune date lisible"
+            )
+            lignes.extend(envelopper(lu.nom))
+            lignes.append(f"      {lu.lignes} lignes, {periode}")
+        if depot.premier_jour is not None:
+            lignes.append(f"  Période couverte : du {depot.premier_jour} au {depot.dernier_jour}")
+            lignes.extend(envelopper(PERIODE_A_VERIFIER))
+        for trou in depot.trous():
+            lignes.extend(
+                envelopper(
+                    f"ATTENTION - aucun fichier ne couvre la période du {trou.du} au {trou.au} : "
+                    "des opérations peuvent y manquer. Déposez un export qui la couvre."
+                )
+            )
+        if depot.doublons:
+            lignes.append(
+                f"  {depot.doublons} ligne(s) présente(s) dans plusieurs fichiers, "
+                "comptée(s) une seule fois."
+            )
+        for nom, raison in depot.fichiers_ignores:
+            lignes.extend(envelopper(f"Fichier ignoré : {nom} ({raison})."))
 
 
 def _grouper(signalements: list[Signalement]) -> list[tuple[str, list[Signalement]]]:

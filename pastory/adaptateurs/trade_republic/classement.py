@@ -1,210 +1,137 @@
-"""Classement de chaque événement, par liste explicite (D-08, D-11).
+"""Classement de chaque ligne de l'export, par liste explicite (D-08, règle 5 de CLAUDE.md).
 
-Quatre catégories, aucune par défaut :
+Trois catégories, aucune par défaut :
 
 | Catégorie | Ce que c'est | Ce qu'on en fait |
 |---|---|---|
 | `TRAITE` | une opération sur un actif | elle devient une ligne pivot |
-| `HORS_PERIMETRE` | un mouvement d'espèces | écarté, mais **compté** (D-11) |
-| `ECARTE` | une information, un ordre annulé | écarté, mais **compté** |
-| `INCONNU` | tout le reste | **affiché à l'utilisateur** (règle 5 de CLAUDE.md) |
+| `HORS_PERIMETRE` | un mouvement d'espèces | écarté, mais **compté par type** (D-11) |
+| `INCONNU` | tout le reste | **affiché à l'utilisateur**, avec la raison |
 
-Deux pièges, tous deux constatés dans les exports :
+**Aucune liste des types n'est publiée par Trade Republic** (D-79). Un couple
+`(category, type)` n'est donc traité que s'il a été vu sur un vrai fichier, et comparé
+(docs/export-officiel.md §4.1). Ceux que d'autres logiciels citent sans qu'on les ait vus
+(§4.2) restent inconnus : c'est ainsi qu'on évite de ranger un brut à la place d'un net.
 
-- **la présence d'un montant ne dit rien.** Un plan d'épargne échoué porte un montant alors
-  que rien n'a bougé ; une action gagnée n'en porte aucun alors que des titres entrent ;
-- **l'absence de statut ne dit rien non plus.** Les deux seuls événements de titres reçus
-  observés n'ont **pas de champ `status`**. Exiger `status == EXECUTED` les ferait
-  disparaître en silence — précisément ce que le projet cherche à éviter. La règle retenue
-  est donc : *un statut présent doit valoir `EXECUTED`* ; un statut absent n'est pas un refus.
+Le classement ne regarde que des **codes** (`category`, `type`), jamais un libellé.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum, auto
-from typing import Any
 
-from pastory.adaptateurs.trade_republic import evenements
-
-STATUT_EXECUTE = "EXECUTED"
+from pastory.adaptateurs.trade_republic.fichier import Ligne
+from pastory.pivot.operation import TypeOperation
 
 
 class Categorie(StrEnum):
     TRAITE = auto()
     HORS_PERIMETRE = auto()
-    ECARTE = auto()
     INCONNU = auto()
 
 
-class Famille(StrEnum):
-    """Pour un événement traité : quelle lecture lui appliquer."""
-
-    PLAN_EPARGNE = auto()
-    ORDRE_PONCTUEL = auto()
-    DIVIDENDE = auto()
-    VERSEMENT_NON_DIVIDENDE = auto()
-    ACTION_GAGNEE = auto()
-    ACTIONS_GRATUITES = auto()
-
-
-TYPES_TRAITES: dict[str, Famille] = {
-    "TRADING_SAVINGSPLAN_EXECUTED": Famille.PLAN_EPARGNE,
-    "TRADING_TRADE_EXECUTED": Famille.ORDRE_PONCTUEL,
-    "SSP_CORPORATE_ACTION_CASH": Famille.DIVIDENDE,
-    "SSP_CORPORATE_ACTION_CASH_NON_DIVIDEND": Famille.VERSEMENT_NON_DIVIDENDE,
-    "GIFTING_LOTTERY_PRIZE_ACTIVITY": Famille.ACTION_GAGNEE,
-    "SSP_CORPORATE_ACTION_NO_CASH": Famille.ACTIONS_GRATUITES,
+TYPES_TRAITES: dict[tuple[str, str], TypeOperation] = {
+    ("TRADING", "BUY"): TypeOperation.ACHAT,
+    ("TRADING", "SELL"): TypeOperation.VENTE,
+    # Le dividende est rangé par la banque dans les espèces, mais il désigne un actif.
+    ("CASH", "DIVIDEND"): TypeOperation.DIVIDENDE,
+    # « Capital Distribution » : versée le même jour qu'un dividende du même titre, et
+    # identique, sur le seul cas vu, à la distribution de capital que lisait pytr (D-14).
+    ("CASH", "DIVIDEND_EQUIVALENT_PAYMENT"): TypeOperation.DISTRIBUTION_CAPITAL,
 }
 
-TYPES_HORS_PERIMETRE: frozenset[str] = frozenset(
-    {
-        # Argent qui franchit la frontière Trade Republic
-        "BANK_TRANSACTION_INCOMING",
+TYPES_HORS_PERIMETRE: frozenset[tuple[str, str]] = frozenset(
+    ("CASH", type_especes)
+    for type_especes in (
+        # Paiements par carte
         "CARD_TRANSACTION",
-        # Mouvements entre comptes espèces
-        "PEA_SAVINGS_PLAN_PAY_IN",
-        "PEA_DEPOSIT_DEBIT",
-        "PEA_WITHDRAWAL_CASH",
-        # Revenus qui ne viennent pas d'un actif
-        "INTEREST_PAYOUT",
-        "CASH_PERK",
-    }
+        "CARD_TRANSACTION_INTERNATIONAL",
+        # Virements reçus
+        "TRANSFER_INBOUND",
+        "TRANSFER_INSTANT_INBOUND",
+        # Mouvements d'argent, dont les versements et retraits du PEA
+        "TRANSFER_IN",
+        "TRANSFER_OUT",
+        # Revenus et crédits qui ne viennent pas d'un actif
+        "PEA_MARKETING",
+        "INTEREST_PAYMENT",
+        "GIFT",
+        "MANUAL",
+        "MANUAL_CASH_TRANSFER",
+    )
 )
-"""Les espèces ne sont jamais suivies (D-11). Ces types sont connus et comptés, pour qu'on
-puisse vérifier qu'ils ont bien été vus et volontairement laissés de côté."""
+"""Les espèces ne sont jamais suivies (D-11). Ces types ont tous été vus sur un vrai fichier,
+**sans** actif. Ils sont comptés, pour qu'on puisse vérifier qu'ils ont bien été vus et
+volontairement laissés de côté."""
 
-TYPES_ECARTES: frozenset[str] = frozenset(
-    {
-        # Documents, compte, sécurité, support
-        "DOCUMENTS_ACCEPTED",
-        "DOCUMENTS_CREATED",
-        "CUSTOMER_CREATED",
-        "SECURITIES_ACCOUNT_CREATED",
-        "EMAIL_VALIDATED",
-        "PIN_CHANGED",
-        "PIN_RESET",
-        "CSX_CHAT_ACTIVITY",
-        "QUARTERLY_NET_WORTH_STATEMENT_CREATED",
-        "TAX_YEAR_END_REPORT_CREATED",
-        "EX_POST_COST_REPORT_CREATED",
-        "CRYPTO_TNC_UPDATE_2025",
-        # Annonces d'opérations sur titres : rien n'a encore eu lieu
-        "SSP_CORPORATE_ACTION_INFORMATIVE",
-        "SSP_CORPORATE_ACTION_UPCOMING",
-        "SSP_CORPORATE_ACTION_INSTRUCTION",
-        # Opérations qui n'ont pas abouti
-        "TRADING_ORDER_CANCELLED",
-        "TRADING_SAVINGSPLAN_EXECUTION_FAILED",
-        "CARD_VERIFICATION",
-    }
-)
+TYPES_EN_ATTENTE: dict[tuple[str, str], str] = {
+    ("CASH", "BENEFITS_SAVEBACK"): (
+        "Saveback : un montant crédité, sans quantité ni prix. Les parts arrivent "
+        "normalement par un achat séparé, quelques jours plus tard : à confirmer sur un "
+        "export plus récent"
+    ),
+    ("CORPORATE_ACTION", "BONUS_ISSUE"): (
+        "actions gratuites : sur le seul cas vu, une « migration » retire ensuite les mêmes "
+        "parts. Les traiter seules fausserait la quantité (Q-54)"
+    ),
+    ("DELIVERY", "MIGRATION"): (
+        "« migration » : des parts sortent, sans montant. Sur le seul cas vu, elle retire "
+        "des actions gratuites reçues un mois plus tôt (Q-54)"
+    ),
+}
+"""Vus sur un vrai fichier, mais pas encore compris : affichés avec ce qu'on en sait."""
 
-NULL_HORS_PERIMETRE: frozenset[str] = frozenset(
-    {"PEA-Aktivierung", "PEA-Übertragung", "Activation PEA", "Transfert PEA"}
-)
-"""**Fragilité assumée** (règle 4 de CLAUDE.md). Certains événements n'ont aucun type, et la
-seule chose qui les identifie est un texte allemand, la ligne « Ereignistyp ». Ce sont des
-mouvements d'espèces du PEA (euro d'activation, transfert vers le compte courant), donc hors
-périmètre. Un texte non listé ici reste **inconnu** : rien n'est supposé."""
+MOTIF_INCONNU = "jamais vu sur un vrai fichier : il peut concerner vos actifs"
 
-NULL_ECARTE: frozenset[str] = frozenset(
-    {"Rechtliche Dokumente", "Documents légaux", "Documents juridiques"}
+MOTIF_ESPECES_AVEC_ACTIF = (
+    "une ligne d'espèces qui désigne un actif (code ou quantité) : elle peut faire entrer ou "
+    "sortir des parts"
 )
-"""Même fragilité, pour les événements sans type **et sans montant** : des documents."""
 
 
 @dataclass(frozen=True)
 class Classement:
-    """Le rangement d'un événement, avec la raison quand il n'est pas traité."""
+    """Le rangement d'une ligne, avec la raison quand elle n'est pas traitée."""
 
     categorie: Categorie
     type_affiche: str
-    """`eventType`, ou « (sans type) ». Toujours un identifiant technique, jamais un texte
-    de l'utilisateur : on peut l'écrire dans un rapport sans risque."""
+    """`CATEGORY/TYPE` : toujours des codes de la banque, jamais un texte de l'utilisateur.
+    On peut l'écrire dans un rapport sans risque."""
 
-    famille: Famille | None = None
+    type_operation: TypeOperation | None = None
     motif: str | None = None
-    """Pourquoi l'événement n'est pas traité, en français, pour le rapport de lecture."""
+    """Pourquoi la ligne n'est pas traitée, en français, pour le rapport de lecture."""
 
 
-SANS_TYPE = "(sans type)"
+LONGUEUR_MAXIMALE_D_UN_CODE = 40
 
 
-def _ereignistyp(evenement: dict[str, Any]) -> str | None:
-    """Ligne « Ereignistyp » : la seule identification d'un événement sans type."""
-    for ligne in evenements.lignes(evenement):
-        if ligne.titre in ("Ereignistyp", "Type d'événement"):
-            return ligne.texte
-    return None
+def _code(texte: str) -> str:
+    """Un code de la banque commence par une majuscule, et n'est fait que de majuscules, de
+    chiffres et de soulignés. Tout autre texte est masqué : la colonne pourrait contenir
+    autre chose qu'un code — un nom, un montant."""
+    if (
+        texte
+        and len(texte) <= LONGUEUR_MAXIMALE_D_UN_CODE
+        and texte[0].isascii()
+        and texte[0].isupper()
+        and all(c.isascii() and (c.isupper() or c.isdigit() or c == "_") for c in texte)
+    ):
+        return texte
+    return "(illisible)" if texte else "(vide)"
 
 
-def _classer_sans_type(evenement: dict[str, Any]) -> Classement:
-    """Un événement sans `eventType` ne peut être identifié que par un texte affiché.
+def classer(ligne: Ligne) -> Classement:
+    cle = (ligne.category, ligne.type)
+    affiche = f"{_code(ligne.category)}/{_code(ligne.type)}"
 
-    On ne range que ce qui est explicitement listé ; tout le reste est inconnu et affiché.
-    Le transfert d'un PEA venu d'un autre établissement tombe volontairement ici : il peut
-    faire entrer des titres sans qu'aucun achat n'apparaisse (limite connue de D-15).
-    """
-    if evenements.montant_signe(evenement) is not None:
-        nature = _ereignistyp(evenement)
-        if nature in NULL_HORS_PERIMETRE:
-            return Classement(
-                Categorie.HORS_PERIMETRE,
-                SANS_TYPE,
-                motif="mouvement d'espèces du PEA, identifié par son libellé seul",
-            )
-        return Classement(
-            Categorie.INCONNU,
-            SANS_TYPE,
-            motif="événement sans type, portant un montant, et dont le libellé n'est pas connu",
-        )
-
-    titre = evenement.get("title")
-    if isinstance(titre, str) and titre.strip() in NULL_ECARTE:
-        return Classement(Categorie.ECARTE, SANS_TYPE, motif="document, identifié par son titre")
-
-    return Classement(
-        Categorie.INCONNU,
-        SANS_TYPE,
-        motif="événement sans type ni montant, et dont le titre n'est pas connu",
-    )
-
-
-def classer(evenement: dict[str, Any]) -> Classement:
-    """Range un événement dans l'une des quatre catégories. Jamais de valeur par défaut."""
-    type_evenement = evenements.type_evenement(evenement)
-
-    if type_evenement is None:
-        return _classer_sans_type(evenement)
-
-    if type_evenement in TYPES_HORS_PERIMETRE:
-        return Classement(
-            Categorie.HORS_PERIMETRE, type_evenement, motif="ne concerne que les espèces (D-11)"
-        )
-
-    if type_evenement in TYPES_ECARTES:
-        return Classement(
-            Categorie.ECARTE, type_evenement, motif="ni argent ni titre ne change de main"
-        )
-
-    famille = TYPES_TRAITES.get(type_evenement)
-    if famille is None:
-        return Classement(
-            Categorie.INCONNU,
-            type_evenement,
-            motif="type absent de toutes les listes : il doit être examiné avant d'être classé",
-        )
-
-    # Filet de sécurité : un type normalement exécuté qui porte un autre statut n'est pas
-    # traité, mais il est signalé — il ne disparaît pas des comptages.
-    statut = evenements.statut(evenement)
-    if statut is not None and statut != STATUT_EXECUTE:
-        return Classement(
-            Categorie.ECARTE,
-            type_evenement,
-            motif=f"statut « {statut} » au lieu de « {STATUT_EXECUTE} » : "
-            "l'opération n'a pas eu lieu",
-        )
-
-    return Classement(Categorie.TRAITE, type_evenement, famille=famille)
+    if cle in TYPES_TRAITES:
+        return Classement(Categorie.TRAITE, affiche, type_operation=TYPES_TRAITES[cle])
+    if cle in TYPES_HORS_PERIMETRE:
+        if ligne.designe_un_actif:
+            return Classement(Categorie.INCONNU, affiche, motif=MOTIF_ESPECES_AVEC_ACTIF)
+        return Classement(Categorie.HORS_PERIMETRE, affiche)
+    if cle in TYPES_EN_ATTENTE:
+        return Classement(Categorie.INCONNU, affiche, motif=TYPES_EN_ATTENTE[cle])
+    return Classement(Categorie.INCONNU, affiche, motif=MOTIF_INCONNU)

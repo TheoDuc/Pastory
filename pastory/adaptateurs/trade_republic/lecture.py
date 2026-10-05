@@ -1,67 +1,74 @@
-"""Des événements Trade Republic aux opérations du format pivot.
+"""Lecture de l'export officiel au format pivot (D-79).
 
-C'est le cœur de l'adaptateur. Il ne produit **que** des lignes du format pivot : le moteur
-ne saura jamais qu'elles viennent de Trade Republic (D-26).
+Presque tout est une **colonne** : la poche (`account_type`), la quantité, le prix, le montant
+brut, les frais, les taxes. Rien n'est lu dans un texte, sauf la nature de l'opération (plan
+d'épargne, ordre ponctuel), qui est informative et marquée `texte`.
 
-Trois principes, qui expliquent la forme du code :
-
-- **rien n'est deviné.** Un libellé non reconnu, une nature inconnue, une poche
-  indéterminable : l'opération n'est pas produite au petit bonheur, elle est signalée ;
-- **chaque valeur dit d'où elle vient.** Un champ structuré est `donnee`, un libellé lu à
-  l'écran est `texte`, une règle écrite est `deduction` (D-09) ;
-- **les champs structurés priment.** Le sens d'un ordre vient du signe du montant, pas du
-  mot « Kauf » ; le libellé sert à recouper, et un désaccord part au rapport.
-
-Les correspondances exactes entre libellés et notions sont dans `lexique.py`, les écritures
-des nombres dans `nombres.py`, et le classement des types dans `classement.py`.
+**Une forme jamais vue n'est pas traitée**, même pour un type connu. Chaque type traité a
+été vu sur de vrais fichiers avec une forme précise (docs/export-officiel.md §5) : un achat a
+une quantité positive et un montant négatif, un dividende un montant positif et pas de prix.
+Une ligne qui s'en écarte — un dividende négatif, qui est une extourne chez d'autres
+utilisateurs ; une obligation, dont le montant inclut les intérêts courus — n'est pas
+« corrigée » : elle n'est pas produite, et le rapport dit pourquoi. C'est un trou affiché
+plutôt qu'un chiffre faux.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterable
-from dataclasses import dataclass
-from decimal import Decimal
-from typing import Any
+from datetime import UTC, date, datetime
+from decimal import Decimal, InvalidOperation
+from enum import StrEnum
 
-from pastory.adaptateurs.trade_republic import evenements, lexique
-from pastory.adaptateurs.trade_republic import poche as module_poche
-from pastory.adaptateurs.trade_republic.classement import Categorie, Famille, classer
-from pastory.adaptateurs.trade_republic.lexique import NatureSource, Notion, Section
-from pastory.adaptateurs.trade_republic.nombres import (
-    LectureImpossible,
-    NombreLu,
-    lire_nombre,
-)
-from pastory.adaptateurs.trade_republic.rapport import Rapport, sur
-from pastory.config.comptes import Configuration
-from pastory.pivot.operation import (
-    DEVISE_UNIQUE,
-    Operation,
-    Provenance,
-    TypeOperation,
-    jour_a_paris,
-)
-from pastory.pivot.validation import controler
+from pastory.adaptateurs.trade_republic.classement import Categorie, classer
+from pastory.adaptateurs.trade_republic.depot import Depot
+from pastory.adaptateurs.trade_republic.fichier import Ligne
+from pastory.adaptateurs.trade_republic.rapport import Rapport
+from pastory.pivot.operation import DEVISE_UNIQUE, Operation, Poche, Provenance, TypeOperation
+from pastory.pivot.validation import Anomalie, controler
 
 ZERO = Decimal("0")
 
+CLASSES_ACCEPTEES = frozenset({"FUND", "STOCK", "CRYPTO"})
+"""Les valeurs d'`asset_class` vues sur nos fichiers. `BOND` existe chez d'autres
+utilisateurs, mais son montant inclut les intérêts courus : `amount ≠ shares × price`."""
 
-@dataclass(frozen=True)
-class ValeurLue:
-    """Un nombre lu, et l'origine à inscrire dans la provenance de l'opération."""
+CLASSE_CRYPTO = "CRYPTO"
 
-    nombre: NombreLu
-    provenance: Provenance
+POCHE_PAR_COMPTE: dict[str, Poche] = {"DEFAULT": Poche.CTO, "PEA": Poche.PEA}
+"""`account_type` → poche. `JUNIOR` (compte enfant) existe chez d'autres : il n'est pas
+traité, faute de savoir à quelle enveloppe fiscale il correspond."""
 
-    @property
-    def valeur(self) -> Decimal:
-        return self.nombre.valeur
+TOLERANCE_DU_CHANGE = Decimal("0.01")
+"""Écart admis entre `original_amount × fx_rate` et `amount` : l'arrondi au centime."""
+
+
+class NatureSource(StrEnum):
+    """Nature d'origine d'une opération (`nature_source` du pivot). Informative."""
+
+    PLAN_EPARGNE = "plan_epargne"
+    ORDRE_PONCTUEL = "ordre_ponctuel"
+    DIVIDENDE_ESPECES = "dividende_especes"
+    DISTRIBUTION_CAPITAL = "distribution_capital"
+    NON_RECONNUE = "non_reconnue"
+
+
+NATURES_EN_DESCRIPTION: tuple[tuple[str, NatureSource], ...] = (
+    ("Savings plan", NatureSource.PLAN_EPARGNE),
+    ("Buy trade", NatureSource.ORDRE_PONCTUEL),
+    ("Sell trade", NatureSource.ORDRE_PONCTUEL),
+    ("Cash Dividend", NatureSource.DIVIDENDE_ESPECES),
+    ("Capital Distribution", NatureSource.DISTRIBUTION_CAPITAL),
+)
+"""**Fragilité assumée** (règle 4 de CLAUDE.md), sans conséquence sur les chiffres : le début
+de la `description`, toujours en anglais. La nature n'est qu'affichée ; le moteur ne calcule
+jamais dessus (format-pivot §2)."""
 
 
 class OperationNonProduite(Exception):
-    """L'opération ne peut pas être construite sans inventer quelque chose.
+    """La ligne ne peut pas devenir une opération sans inventer quelque chose.
 
-    Le message explique quoi, en français : il part tel quel au rapport de lecture.
+    Le message explique quoi, en français : il part tel quel au rapport de lecture. Il ne
+    cite que des noms de colonnes et des codes, jamais une valeur.
     """
 
     def __init__(self, categorie: str, message: str) -> None:
@@ -69,781 +76,305 @@ class OperationNonProduite(Exception):
         super().__init__(message)
 
 
+def _ou(ligne: Ligne) -> str:
+    return f"{ligne.fichier}, ligne {ligne.numero}"
+
+
+def _nombre(ligne: Ligne, colonne: str) -> Decimal | None:
+    """La valeur d'une colonne numérique : `None` si elle est vide, refus si illisible."""
+    texte = getattr(ligne, colonne)
+    if not texte:
+        return None
+    try:
+        valeur = Decimal(texte)
+    except InvalidOperation as erreur:
+        raise OperationNonProduite(
+            "valeur illisible", f"la colonne « {colonne} » ne contient pas un nombre"
+        ) from erreur
+    if not valeur.is_finite():
+        raise OperationNonProduite(
+            "valeur illisible", f"la colonne « {colonne} » ne contient pas un nombre"
+        )
+    return valeur
+
+
+def _instant(ligne: Ligne) -> datetime:
+    try:
+        instant = datetime.fromisoformat(ligne.datetime)
+    except ValueError as erreur:
+        raise OperationNonProduite(
+            "horodatage illisible", "la colonne « datetime » n'est pas une date et une heure"
+        ) from erreur
+    if instant.tzinfo is None:
+        # Sans fuseau, le jour de l'opération dépendrait de l'ordinateur (D-36).
+        raise OperationNonProduite(
+            "horodatage illisible", "la colonne « datetime » n'indique pas le fuseau horaire"
+        )
+    return instant
+
+
+_APRES_TOUT = datetime.max.replace(tzinfo=UTC)
+
+
+def _ordre(ligne: Ligne) -> tuple[datetime, str, int]:
+    try:
+        instant = _instant(ligne)
+    except OperationNonProduite:
+        instant = _APRES_TOUT
+    return instant, ligne.fichier, ligne.numero
+
+
+def _jour(ligne: Ligne) -> date:
+    try:
+        return date.fromisoformat(ligne.date)
+    except ValueError as erreur:
+        raise OperationNonProduite(
+            "date illisible", "la colonne « date » n'est pas une date"
+        ) from erreur
+
+
+def _forme(condition: bool, nom_du_type: str, attendu: str) -> None:
+    if not condition:
+        raise OperationNonProduite(
+            "forme jamais vue",
+            f"{nom_du_type} : {attendu}. Cette forme n'a jamais été vue sur un vrai fichier, "
+            "elle n'est pas interprétée",
+        )
+
+
+def _negatif_ou_vide(valeur: Decimal | None) -> bool:
+    return valeur is None or valeur <= 0
+
+
+def _positif(valeur: Decimal | None) -> bool:
+    return valeur is not None and valeur > 0
+
+
+def _nature(ligne: Ligne) -> NatureSource:
+    for debut, nature in NATURES_EN_DESCRIPTION:
+        if ligne.description.startswith(debut):
+            return nature
+    return NatureSource.NON_RECONNUE
+
+
 class Lecteur:
-    """Lit un export complet et produit le rapport de lecture."""
+    """Lit le contenu d'un dossier de dépôt et produit le rapport de lecture."""
 
-    def __init__(self, configuration: Configuration | None = None) -> None:
-        self.configuration = configuration or Configuration()
+    def lire(self, depot: Depot) -> Rapport:
+        rapport = Rapport(depot=depot)
+        self._signaler_le_depot(depot, rapport)
 
-    def lire(self, evenements_bruts: Iterable[dict[str, Any]]) -> Rapport:
-        rapport = Rapport()
-
-        for evenement in evenements_bruts:
-            rapport.evenements_lus += 1
-            classement = classer(evenement)
-            rapport.compter(classement.categorie, classement.type_affiche)
-
-            reference = evenements.identifiant(evenement)
+        # Le fichier n'est pas trié (export-officiel.md §2) : l'ordre des opérations est
+        # rétabli ici, sur l'instant lu et non sur le texte (le nombre de décimales de
+        # seconde varie d'une ligne à l'autre). Une ligne sans horodatage lisible va à la
+        # fin, où elle sera refusée.
+        for ligne in sorted(depot.lignes, key=_ordre):
+            classement = classer(ligne)
+            rapport.compter(classement)
 
             if classement.categorie is Categorie.INCONNU:
                 rapport.signaler(
-                    "type inconnu",
-                    f"{classement.type_affiche} : {classement.motif}",
-                    reference,
+                    "non traité",
+                    f"{classement.type_affiche} (voir « types non traités » plus haut)",
+                    _ou(ligne),
                 )
                 continue
-
-            if classement.categorie is not Categorie.TRAITE:
+            if classement.categorie is Categorie.HORS_PERIMETRE:
                 continue
 
-            assert classement.famille is not None
-            self._signaler_libelles_non_reconnus(evenement, rapport, reference)
-
+            assert classement.type_operation is not None
             try:
-                operation = self._construire(evenement, classement.famille, rapport)
+                operation = self._construire(ligne, classement.type_operation, rapport)
             except OperationNonProduite as refus:
-                # Un événement traité qui ne donne aucune opération est un **trou** dans les
-                # chiffres : il est compté à part, pour que le moteur puisse prévenir que
-                # ses totaux sont incomplets sans avoir à relire les signalements un à un.
                 rapport.operations_non_produites += 1
-                rapport.signaler(refus.categorie, str(refus), reference)
+                rapport.signaler(
+                    refus.categorie, f"{classement.type_affiche} : {refus}", _ou(ligne)
+                )
                 continue
 
             rapport.operations.append(operation)
             rapport.anomalies.extend(controler(operation))
+            rapport.anomalies.extend(self._controler_le_change(ligne, operation))
+            rapport.classes_par_actif.setdefault(operation.actif, set()).add(ligne.asset_class)
 
         return rapport
 
-    # --- Repérage des valeurs dans l'écran ------------------------------------
+    # --- Le dossier ------------------------------------------------------------
 
-    def _index(self, evenement: dict[str, Any]) -> dict[tuple[Section, Notion], str | None]:
-        """Associe (section, notion) au texte affiché, une fois les libellés traduits."""
-        index: dict[tuple[Section, Notion], str | None] = {}
-        for ligne in evenements.lignes(evenement):
-            section = lexique.section_connue(ligne.section)
-            if section is None or section is Section.SANS_INFORMATION:
-                continue
-            entree = lexique.entree(section, ligne.titre)
-            if entree is not None:
-                index[(section, entree.notion)] = ligne.texte
-        return index
-
-    def _signaler_libelles_non_reconnus(
-        self, evenement: dict[str, Any], rapport: Rapport, reference: str | None
-    ) -> None:
-        """Un libellé inconnu n'est jamais ignoré : il part au rapport (D-19)."""
-        for ligne in evenements.lignes(evenement):
-            section = lexique.section_connue(ligne.section)
-            if section is None:
-                rapport.signaler(
-                    "section non reconnue",
-                    f"section {sur(ligne.section)}, ligne {sur(ligne.titre)}",
-                    reference,
-                )
-                continue
-            if section is Section.SANS_INFORMATION:
-                continue
-            if lexique.entree(section, ligne.titre) is not None:
-                continue
-            if ligne.titre in lexique.NATURES_EN_TITRE:
-                continue
+    @staticmethod
+    def _signaler_le_depot(depot: Depot, rapport: Rapport) -> None:
+        for gardee, ecartee in depot.conflits:
             rapport.signaler(
-                "libellé non reconnu",
-                f"« {sur(ligne.titre)} » dans la section {section.value}",
-                reference,
+                "deux versions d'une opération",
+                "la même opération figure dans deux fichiers avec un contenu différent : la "
+                f"première lue est gardée ({_ou(gardee)}), l'autre est écartée. Vérifiez "
+                "laquelle correspond à l'application",
+                _ou(ecartee),
+            )
+        for ligne in depot.sans_identifiant:
+            rapport.signaler(
+                "ligne sans identifiant",
+                "ligne sans « transaction_id » : impossible de savoir si un autre fichier la "
+                "contient déjà, elle n'est pas lue",
+                _ou(ligne),
             )
 
-    def _nombre(
-        self,
-        index: dict[tuple[Section, Notion], str | None],
-        section: Section,
-        notion: Notion,
-        *,
-        obligatoire: bool,
-        devise_attendue: bool = True,
-    ) -> NombreLu | None:
-        """Lit un nombre en imposant l'écriture déclarée par le lexique.
-
-        « Ligne absente » et « ligne présente mais vide » sont deux choses différentes.
-        Une ligne de taxe absente veut dire qu'aucune taxe n'a été prélevée ; une ligne de
-        taxe présente et illisible veut dire qu'on ne sait pas combien. Les confondre
-        reviendrait à inventer un zéro, et le montant brut d'un dividende s'en trouverait
-        amputé de la retenue, sans que rien ne le signale.
-        """
-        if not _presente(index, section, notion):
-            if obligatoire:
-                raise OperationNonProduite(
-                    "valeur absente",
-                    f"la valeur « {notion.value} » est absente de l'écran, alors qu'elle est "
-                    "indispensable au calcul",
-                )
-            return None
-
-        texte = index[(section, notion)]
-
-        convention = lexique.convention(section, notion)
-        if convention is None:  # pragma: no cover - toute notion numérique en déclare une
-            raise OperationNonProduite(
-                "écriture non déclarée",
-                f"le lexique ne dit pas comment « {notion.value} » est écrit dans "
-                f"la section {section.value}",
-            )
-        try:
-            lu = lire_nombre(texte, convention)
-        except LectureImpossible as echec:
-            raise OperationNonProduite(
-                "nombre illisible",
-                f"« {notion.value} » : {echec.raison} (texte {sur(texte)})",
-            ) from echec
-
-        if devise_attendue and lu.devise is not None and lu.devise != DEVISE_UNIQUE:
-            raise OperationNonProduite(
-                "devise étrangère",
-                f"« {notion.value} » est libellé en {lu.devise} ; "
-                f"seul l'euro est pris en charge (D-26)",
-            )
-        return lu
-
-    # --- Construction d'une opération ----------------------------------------
+    # --- Une ligne -------------------------------------------------------------
 
     def _construire(
-        self, evenement: dict[str, Any], famille: Famille, rapport: Rapport
+        self, ligne: Ligne, type_operation: TypeOperation, rapport: Rapport
     ) -> Operation:
-        index = self._index(evenement)
+        instant = _instant(ligne)
+        jour = _jour(ligne)
 
-        match famille:
-            case Famille.PLAN_EPARGNE | Famille.ORDRE_PONCTUEL:
-                return self._achat_ou_vente(evenement, index, famille, rapport)
-            case Famille.DIVIDENDE:
-                return self._dividende(evenement, index, rapport)
-            case Famille.VERSEMENT_NON_DIVIDENDE:
-                return self._distribution(evenement, index, rapport)
-            case Famille.ACTION_GAGNEE:
-                return self._action_gagnee(evenement, index, rapport)
-            case Famille.ACTIONS_GRATUITES:
-                return self._actions_gratuites(evenement, index, rapport)
+        if not ligne.symbol:
+            raise OperationNonProduite("actif absent", "la colonne « symbol » est vide")
 
-        raise OperationNonProduite(  # pragma: no cover - la liste des familles est fermée
-            "famille inconnue", f"famille {famille} non prévue par la lecture"
-        )
-
-    def _achat_ou_vente(
-        self,
-        evenement: dict[str, Any],
-        index: dict[tuple[Section, Notion], str | None],
-        famille: Famille,
-        rapport: Rapport,
-    ) -> Operation:
-        """Plan d'épargne ou ordre ponctuel.
-
-        Le **sens vient du signe du montant** (champ structuré) : négatif = achat,
-        positif = vente. Le mot « Kauf » ou « Verkaufen » ne fait que le recouper.
-        """
-        reference = _reference(evenement)
-        montant = _montant(evenement)
-        type_operation = TypeOperation.ACHAT if montant < 0 else TypeOperation.VENTE
-        self._controler_sens(evenement, type_operation, rapport, reference)
-
-        detail = Section.DETAIL_TRANSACTION
-        quantite = self._nombre(index, detail, Notion.QUANTITE, obligatoire=True)
-        prix = self._nombre(index, detail, Notion.PRIX_UNITAIRE, obligatoire=True)
-        brut = self._nombre(index, detail, Notion.MONTANT_BRUT, obligatoire=True)
-
-        assert quantite is not None
-        self._controler_quantite_du_resume(index, quantite, rapport, reference)
-
-        frais = self._frais(index)
-        taxes = self._taxes(index, Section.APERCU)
-        montant_regle = abs(montant)
-        self._controler_total_affiche(index, Section.APERCU, montant_regle, rapport, reference)
-
-        actif, provenance_actif = self._actif(evenement)
-        resolution = self._poche(
-            actif,
-            evenements.compte(evenement),
-            index.get((Section.APERCU, Notion.POCHE)),
-            rapport,
-            reference,
-        )
-
-        nature = self._nature_en_titre(evenement) or (
-            NatureSource.PLAN_EPARGNE
-            if famille is Famille.PLAN_EPARGNE
-            else NatureSource.ORDRE_PONCTUEL
-        )
-
-        return self._assembler(
-            evenement=evenement,
-            type_operation=type_operation,
-            nature=nature,
-            actif=actif,
-            provenance_actif=provenance_actif,
-            resolution=resolution,
-            index=index,
-            quantite=ValeurLue(quantite, Provenance.TEXTE),
-            prix=ValeurLue(prix, Provenance.TEXTE),
-            brut=ValeurLue(brut, Provenance.TEXTE),
-            frais=frais,
-            taxes=taxes,
-            montant_regle=montant_regle,
-        )
-
-    def _dividende(
-        self,
-        evenement: dict[str, Any],
-        index: dict[tuple[Section, Notion], str | None],
-        rapport: Rapport,
-    ) -> Operation:
-        """Dividende en espèces.
-
-        `Gesamt` est le montant **net** reçu, et il vaut le montant structuré. Le **brut**,
-        qui seul compte dans la performance (D-29), est donc `net + taxe`. Vérifié sur les
-        dividendes libellés en euros : parts × dividende par action retombe bien sur ce brut.
-        """
-        self._exiger_nature(index, NatureSource.DIVIDENDE_ESPECES, "dividende")
-        return self._versement(
-            evenement,
-            index,
-            rapport,
-            TypeOperation.DIVIDENDE,
-            NatureSource.DIVIDENDE_ESPECES,
-            notion_brut=None,
-        )
-
-    def _distribution(
-        self,
-        evenement: dict[str, Any],
-        index: dict[tuple[Section, Notion], str | None],
-        rapport: Rapport,
-    ) -> Operation:
-        """Distribution de capital (« Kapitalverteilung »).
-
-        Ce type d'événement peut porter autre chose qu'une distribution de capital (Q-07) :
-        la nature doit donc être écrite noir sur blanc, sinon rien n'est produit. Ici le brut
-        est affiché directement (« Bruttoertrag »), et il vaut bien net + taxe.
-        """
-        self._exiger_nature(index, NatureSource.DISTRIBUTION_CAPITAL, "distribution de capital")
-        return self._versement(
-            evenement,
-            index,
-            rapport,
-            TypeOperation.DISTRIBUTION_CAPITAL,
-            NatureSource.DISTRIBUTION_CAPITAL,
-            notion_brut=Notion.PRODUIT_BRUT,
-        )
-
-    def _versement(
-        self,
-        evenement: dict[str, Any],
-        index: dict[tuple[Section, Notion], str | None],
-        rapport: Rapport,
-        type_operation: TypeOperation,
-        nature: NatureSource,
-        notion_brut: Notion | None,
-    ) -> Operation:
-        """Tronc commun d'un dividende et d'une distribution : de l'argent, pas de parts."""
-        reference = _reference(evenement)
-        montant = _montant(evenement)
-        if montant < 0:
+        classe = ligne.asset_class
+        if classe not in CLASSES_ACCEPTEES:
             raise OperationNonProduite(
-                "sens inattendu",
-                "un versement sur un actif devrait faire entrer de l'argent, "
-                "or le montant est négatif",
+                "classe d'actif non prise en charge",
+                f"classe d'actif « {classe or 'vide'} » : seules FUND, STOCK et CRYPTO ont "
+                "été vues et vérifiées",
+            )
+        poche = self._poche(ligne)
+
+        if ligne.currency != DEVISE_UNIQUE:
+            raise OperationNonProduite(
+                "devise étrangère",
+                f"montant en « {ligne.currency or 'vide'} » ; seul l'euro est pris en charge",
             )
 
-        affaire = Section.AFFAIRE
-        taxes = self._taxes(index, affaire)
-        montant_regle = montant
-        self._controler_total_affiche(index, affaire, montant_regle, rapport, reference)
+        actions = _nombre(ligne, "shares")
+        prix = _nombre(ligne, "price")
+        montant = _nombre(ligne, "amount")
+        frais = _nombre(ligne, "fee")
+        taxes = _nombre(ligne, "tax")
+        montant_en_devise = _nombre(ligne, "original_amount")
+        taux = _nombre(ligne, "fx_rate")
 
-        if notion_brut is None:
-            # Le brut n'est pas affiché : il se reconstitue à partir du net et de la taxe.
-            # Il dépend donc d'un texte, et sa provenance le dit.
-            brut = ValeurLue(
-                NombreLu(montant_regle + taxes.valeur, decimales=2), Provenance.TEXTE
+        nom = type_operation.value
+        _forme(_negatif_ou_vide(frais), nom, "des frais positifs, alors qu'ils sont négatifs")
+        _forme(_negatif_ou_vide(taxes), nom, "des taxes positives, alors qu'elles sont négatives")
+
+        if type_operation in (TypeOperation.ACHAT, TypeOperation.VENTE):
+            sens = 1 if type_operation is TypeOperation.ACHAT else -1
+            _forme(
+                actions is not None and actions * sens > 0,
+                nom,
+                "une quantité de signe inattendu",
+            )
+            _forme(_positif(prix), nom, "un prix absent ou négatif")
+            _forme(
+                montant is not None and montant * sens < 0,
+                nom,
+                "un montant absent ou de signe inattendu",
+            )
+            _forme(
+                montant_en_devise is None and taux is None,
+                nom,
+                "un montant en devise étrangère sur un ordre",
             )
         else:
-            lu = self._nombre(index, affaire, notion_brut, obligatoire=True)
-            assert lu is not None
-            brut = ValeurLue(lu, Provenance.TEXTE)
+            # Dividende ou distribution de capital : des parts détenues, un montant reçu.
+            _forme(_positif(montant), nom, "un montant absent ou négatif (une extourne ?)")
+            _forme(_positif(actions), nom, "un nombre de parts absent ou négatif")
+            _forme(prix is None, nom, "un prix, qui n'a jamais été vu sur un versement")
+            if montant_en_devise is not None or taux is not None:
+                _forme(
+                    _positif(montant_en_devise)
+                    and _positif(taux)
+                    and bool(ligne.original_currency),
+                    nom,
+                    "des colonnes de change incomplètes",
+                )
 
-        quantite = self._quantite_informative(index, rapport, reference)
-        prix = self._dividende_par_action(index, rapport, reference)
-
-        actif, provenance_actif = self._actif(evenement)
-        resolution = self._poche(
-            actif, evenements.compte(evenement), None, rapport, reference
-        )
-
-        return self._assembler(
-            evenement=evenement,
-            type_operation=type_operation,
-            nature=nature,
-            actif=actif,
-            provenance_actif=provenance_actif,
-            resolution=resolution,
-            index=index,
-            quantite=quantite,
-            prix=prix,
-            brut=brut,
-            frais=ValeurLue(NombreLu(ZERO, decimales=2), Provenance.DONNEE),
-            taxes=taxes,
-            montant_regle=montant_regle,
-        )
-
-    def _action_gagnee(
-        self,
-        evenement: dict[str, Any],
-        index: dict[tuple[Section, Notion], str | None],
-        rapport: Rapport,
-    ) -> Operation:
-        """Action gagnée : des titres entrent, rien n'est payé (D-15).
-
-        Trade Republic affiche ici le cours du jour : c'est exactement le prix que D-15
-        demande de retenir, et il est vérifiable à l'écran. Il est donc lu plutôt que laissé
-        à compléter. La part en espèces du lot, elle, est hors périmètre (D-11).
-        """
-        reference = _reference(evenement)
-        apercu, transaction = Section.APERCU, Section.TRANSACTION
-
-        quantite = self._nombre(index, apercu, Notion.QUANTITE, obligatoire=True)
-        prix = self._nombre(index, apercu, Notion.PRIX_UNITAIRE, obligatoire=True)
-        brut = self._nombre(index, transaction, Notion.VALEUR_DES_TITRES, obligatoire=True)
-
-        if index.get((transaction, Notion.CREDIT_ESPECES)) is not None:
+        assert actions is not None and montant is not None
+        nature = _nature(ligne)
+        if nature is NatureSource.NON_RECONNUE:
             rapport.signaler(
-                "part en espèces ignorée",
-                "ce lot comporte aussi un crédit en espèces, laissé de côté : "
-                "les espèces ne sont pas suivies (D-11)",
-                reference,
+                "nature non reconnue",
+                "la description ne commence par aucune nature connue (plan d'épargne, ordre "
+                "ponctuel, dividende) : sans effet sur les chiffres, la nature est seulement "
+                "affichée « non_reconnue »",
+                _ou(ligne),
             )
-
-        actif, provenance_actif = self._actif(evenement)
-        resolution = self._poche(
-            actif, evenements.compte(evenement), None, rapport, reference
-        )
-
-        return self._assembler(
-            evenement=evenement,
-            type_operation=TypeOperation.TITRES_RECUS,
-            nature=NatureSource.ACTION_GAGNEE,
-            actif=actif,
-            provenance_actif=provenance_actif,
-            resolution=resolution,
-            index=index,
-            quantite=ValeurLue(quantite, Provenance.TEXTE),
-            prix=ValeurLue(prix, Provenance.TEXTE),
-            brut=ValeurLue(brut, Provenance.TEXTE),
-            frais=ValeurLue(NombreLu(ZERO, decimales=2), Provenance.DONNEE),
-            taxes=ValeurLue(NombreLu(ZERO, decimales=2), Provenance.DONNEE),
-            montant_regle=ZERO,
-        )
-
-    def _actions_gratuites(
-        self,
-        evenement: dict[str, Any],
-        index: dict[tuple[Section, Notion], str | None],
-        rapport: Rapport,
-    ) -> Operation:
-        """Actions gratuites : des titres entrent, et **aucun prix n'est affiché**.
-
-        Le prix retenu sera le cours du jour d'apparition (D-15), disponible à l'étape 4.
-        En attendant, le prix et le montant brut sont marqués « à compléter » : la ligne est
-        visible, signalée, et ne compte dans aucun total.
-        """
-        reference = _reference(evenement)
-        self._exiger_nature(index, NatureSource.ACTIONS_GRATUITES, "actions gratuites")
-
-        quantite = self._nombre(index, Section.APERCU, Notion.QUANTITE, obligatoire=True)
-        actif, provenance_actif = self._actif(evenement)
-        resolution = self._poche(
-            actif, evenements.compte(evenement), None, rapport, reference
-        )
-
-        return self._assembler(
-            evenement=evenement,
-            type_operation=TypeOperation.TITRES_RECUS,
-            nature=NatureSource.ACTIONS_GRATUITES,
-            actif=actif,
-            provenance_actif=provenance_actif,
-            resolution=resolution,
-            index=index,
-            quantite=ValeurLue(quantite, Provenance.TEXTE),
-            prix=None,
-            brut=None,
-            frais=ValeurLue(NombreLu(ZERO, decimales=2), Provenance.DONNEE),
-            taxes=ValeurLue(NombreLu(ZERO, decimales=2), Provenance.DONNEE),
-            montant_regle=ZERO,
-            en_attente_de_cours=True,
-        )
-
-    # --- Briques communes -----------------------------------------------------
-
-    def _assembler(
-        self,
-        *,
-        evenement: dict[str, Any],
-        type_operation: TypeOperation,
-        nature: NatureSource,
-        actif: str,
-        provenance_actif: Provenance,
-        resolution: module_poche.Resolution,
-        index: dict[tuple[Section, Notion], str | None],
-        quantite: ValeurLue | None,
-        prix: ValeurLue | None,
-        brut: ValeurLue | None,
-        frais: ValeurLue,
-        taxes: ValeurLue,
-        montant_regle: Decimal,
-        en_attente_de_cours: bool = False,
-    ) -> Operation:
-        """Assemble la ligne pivot et son dictionnaire de provenance.
-
-        `en_attente_de_cours` distingue les deux raisons pour lesquelles un prix peut
-        manquer, que le format pivot ne confond pas :
-
-        - des titres sont entrés **sans prix affiché** : le cours du jour les complétera à
-          l'étape 4, donc `a_completer`, et la ligne ne compte dans aucun total (D-15) ;
-        - un dividende par action est libellé en devise étrangère : il est simplement
-          **absent**, ce qui est permis pour une valeur informative (format-pivot §3). Le
-          montant brut, lui, est connu : rien n'attend de donnée externe.
-        """
-        instant = evenements.horodatage(evenement)
-        if instant is None:
-            raise OperationNonProduite(
-                "horodatage absent", "l'événement n'a pas d'horodatage exploitable (D-36)"
-            )
-
-        devise = evenements.devise(evenement)
-        if devise is not None and devise != DEVISE_UNIQUE:
-            raise OperationNonProduite(
-                "devise étrangère", f"opération en {devise} ; seul l'euro est pris en charge"
-            )
-
-        assert resolution.poche is not None
-        assert resolution.provenance is not None
 
         provenance: dict[str, Provenance] = {
-            "actif": provenance_actif,
-            "poche": resolution.provenance,
-            "montant_regle": Provenance.DONNEE,
-            "frais": frais.provenance,
-            "taxes": taxes.provenance,
+            "actif": Provenance.DONNEE,
+            "poche": Provenance.DONNEE,
+            "quantite": Provenance.DONNEE,
+            "montant_brut": Provenance.DONNEE,
+            "frais": Provenance.DONNEE,
+            "taxes": Provenance.DONNEE,
+            "nature_source": Provenance.TEXTE,
         }
-        if quantite is not None:
-            provenance["quantite"] = quantite.provenance
         if prix is not None:
-            provenance["prix_unitaire"] = prix.provenance
-        elif en_attente_de_cours:
-            provenance["prix_unitaire"] = Provenance.A_COMPLETER
-        if brut is not None:
-            provenance["montant_brut"] = brut.provenance
-        elif en_attente_de_cours:
-            provenance["montant_brut"] = Provenance.A_COMPLETER
+            provenance["prix_unitaire"] = Provenance.DONNEE
+        if ligne.name:
+            provenance["nom_actif"] = Provenance.DONNEE
 
-        nom_actif = index.get((Section.APERCU, Notion.NOM_ACTIF))
-        if nom_actif is not None:
-            provenance["nom_actif"] = Provenance.TEXTE
-
-        reference = _reference(evenement)
         return Operation(
-            identifiant=f"tr-{reference}",
+            identifiant=f"tr-{ligne.transaction_id}",
             instant_utc=instant,
-            date=jour_a_paris(instant),
+            date=jour,
             type=type_operation,
             nature_source=nature.value,
-            actif=actif,
-            nom_actif=nom_actif,
-            poche=resolution.poche,
-            quantite=quantite.valeur if quantite else None,
-            prix_unitaire=prix.valeur if prix else None,
-            montant_brut=brut.valeur if brut else None,
-            frais=frais.valeur,
-            taxes=taxes.valeur,
-            montant_regle=montant_regle,
-            reference_source=reference,
+            actif=ligne.symbol,
+            nom_actif=ligne.name or None,
+            poche=poche,
+            quantite=abs(actions),
+            prix_unitaire=prix,
+            montant_brut=abs(montant),
+            frais=abs(frais) if frais is not None else ZERO,
+            taxes=abs(taxes) if taxes is not None else ZERO,
+            # La banque ne donne pas ce qui a été réellement réglé (D-83).
+            montant_regle=None,
+            reference_source=ligne.transaction_id,
             provenance=provenance,
         )
 
-    def _actif(self, evenement: dict[str, Any]) -> tuple[str, Provenance]:
-        """Identifiant de l'actif, et la solidité de cette information.
-
-        L'en-tête `instrumentDetail` est la bonne source. Pour les dividendes et les titres
-        reçus, elle n'existe pas : l'ISIN ne se lit que dans le **chemin de l'icône**. C'est
-        exact, mais c'est le détournement d'une image, donc une déduction.
-        """
-        entete = evenements.isin_entete(evenement)
-        icone = evenements.isin_icone(evenement)
-
-        if entete is not None:
-            if icone is not None and icone != entete:
+    @staticmethod
+    def _poche(ligne: Ligne) -> Poche:
+        if ligne.asset_class == CLASSE_CRYPTO:
+            if ligne.account_type != "DEFAULT":
                 raise OperationNonProduite(
-                    "actif incertain",
-                    "l'en-tête et l'icône ne désignent pas le même actif",
+                    "poche indéterminable",
+                    f"une crypto sur un compte « {ligne.account_type or 'vide'} », qui n'a "
+                    "jamais été vu",
                 )
-            return entete, Provenance.DONNEE
-
-        if icone is not None:
-            return icone, Provenance.DEDUCTION
-
-        raise OperationNonProduite(
-            "actif introuvable", "aucun identifiant d'actif dans cet événement"
-        )
-
-    def _poche(
-        self,
-        actif: str,
-        compte: str | None,
-        poche_affichee: str | None,
-        rapport: Rapport,
-        reference: str | None,
-    ) -> module_poche.Resolution:
-        resolution = module_poche.resoudre(actif, compte, self.configuration, poche_affichee)
-
-        if not resolution.trouvee:
-            if compte is not None:
-                rapport.comptes_a_nommer.add(compte)
-            else:
-                rapport.actifs_sans_poche.add(actif)
-            raise OperationNonProduite("poche indéterminable", resolution.motif or "")
-
-        if resolution.desaccord:
-            rapport.signaler("poche en désaccord", resolution.desaccord, reference)
-        return resolution
-
-    def _frais(self, index: dict[tuple[Section, Notion], str | None]) -> ValeurLue:
-        """Frais de l'opération. « Gebühr » vaut parfois un **mot** (« Kostenlos »).
-
-        Un mot inconnu à cette place n'est pas traité comme zéro : ce serait effacer un frais
-        réel. L'opération est alors refusée et signalée.
-        """
-        if not _presente(index, Section.APERCU, Notion.FRAIS):
-            return ValeurLue(NombreLu(ZERO, decimales=2), Provenance.DONNEE)
-
-        texte = index[(Section.APERCU, Notion.FRAIS)]
-        if texte is not None and texte.strip() in lexique.MOTS_SANS_FRAIS:
-            return ValeurLue(NombreLu(ZERO, decimales=2), Provenance.TEXTE)
-
-        lu = self._nombre(index, Section.APERCU, Notion.FRAIS, obligatoire=True)
-        assert lu is not None
-        return ValeurLue(lu.absolu(), Provenance.TEXTE)
-
-    def _taxes(
-        self, index: dict[tuple[Section, Notion], str | None], section: Section
-    ) -> ValeurLue:
-        """Taxes prélevées. Elles sont **affichées négatives** ; le pivot n'accepte que des
-        nombres positifs, le signe est donc retiré ici, explicitement."""
-        if not _presente(index, section, Notion.TAXES):
-            return ValeurLue(NombreLu(ZERO, decimales=2), Provenance.DONNEE)
-
-        lu = self._nombre(index, section, Notion.TAXES, obligatoire=True)
-        assert lu is not None
-        return ValeurLue(lu.absolu(), Provenance.TEXTE)
-
-    def _quantite_informative(
-        self,
-        index: dict[tuple[Section, Notion], str | None],
-        rapport: Rapport,
-        reference: str | None,
-    ) -> ValeurLue | None:
-        """Parts détenues au moment d'un versement : utile pour vérifier, jamais pour compter.
-
-        Son absence n'empêche rien (format-pivot §3), donc une lecture ratée est signalée
-        plutôt que bloquante.
-        """
-        if not _presente(index, Section.AFFAIRE, Notion.QUANTITE):
-            return None
-        try:
-            lu = self._nombre(index, Section.AFFAIRE, Notion.QUANTITE, obligatoire=True)
-        except OperationNonProduite as echec:
-            rapport.signaler("quantité illisible", str(echec), reference)
-            return None
-        assert lu is not None
-        return ValeurLue(lu, Provenance.TEXTE)
-
-    def _dividende_par_action(
-        self,
-        index: dict[tuple[Section, Notion], str | None],
-        rapport: Rapport,
-        reference: str | None,
-    ) -> ValeurLue | None:
-        """Dividende par action, quand il est libellé en euros.
-
-        Il est parfois affiché dans la devise d'origine de l'actif. Il n'est alors pas
-        comparable au montant brut en euros : il est laissé vide plutôt que recopié, et le
-        contrôle « quantité × prix » est simplement sans objet.
-        """
-        if not _presente(index, Section.AFFAIRE, Notion.DIVIDENDE_PAR_ACTION):
-            return None
-        try:
-            lu = self._nombre(
-                index, Section.AFFAIRE, Notion.DIVIDENDE_PAR_ACTION, obligatoire=True
-            )
-        except OperationNonProduite as echec:
-            rapport.signaler("dividende par action non retenu", str(echec), reference)
-            return None
-        assert lu is not None
-        return ValeurLue(lu, Provenance.TEXTE)
-
-    # --- Contrôles qui ne bloquent pas, mais qui parlent ----------------------
-
-    def _controler_sens(
-        self,
-        evenement: dict[str, Any],
-        type_operation: TypeOperation,
-        rapport: Rapport,
-        reference: str | None,
-    ) -> None:
-        """Le mot affiché doit dire la même chose que le signe du montant."""
-        for titre in _titres_apercu(evenement):
-            sens = lexique.SENS_EN_TITRE.get(titre)
-            if sens is not None and sens != type_operation.value:
-                rapport.signaler(
-                    "sens en désaccord",
-                    f"le montant indique « {type_operation.value} » alors que l'écran "
-                    f"affiche « {sur(titre)} »",
-                    reference,
-                )
-
-    def _controler_quantite_du_resume(
-        self,
-        index: dict[tuple[Section, Notion], str | None],
-        quantite: NombreLu,
-        rapport: Rapport,
-        reference: str | None,
-    ) -> None:
-        """La quantité est écrite à **deux endroits** de l'écran : elles doivent coïncider.
-
-        L'écran d'un achat résume l'opération par « quantité × prix », et la page de détail
-        qu'il ouvre redonne la quantité seule. C'est un contrôle gratuit, qui ne dépend
-        d'aucun fichier extérieur : si la lecture d'un nombre dérape, les deux ne tombent
-        plus sur la même valeur.
-        """
-        resume = index.get((Section.APERCU, Notion.RESUME_TRANSACTION))
-        if resume is None or "×" not in resume:
-            return
-
-        convention = lexique.convention(Section.DETAIL_TRANSACTION, Notion.QUANTITE)
-        if convention is None:  # pragma: no cover - déclarée par le lexique
-            return
-        try:
-            depuis_le_resume = lire_nombre(resume.split("×")[0], convention)
-        except LectureImpossible:
-            rapport.signaler(
-                "quantité du résumé illisible",
-                "la quantité rappelée par le résumé « quantité × prix » n'a pas pu être lue",
-                reference,
-            )
-            return
-
-        if depuis_le_resume.valeur != quantite.valeur:
-            rapport.signaler(
-                "quantité en désaccord",
-                "les deux endroits où l'écran affiche la quantité ne donnent pas la même "
-                "valeur : la lecture de l'un des deux est faussée",
-                reference,
-            )
-
-    def _controler_total_affiche(
-        self,
-        index: dict[tuple[Section, Notion], str | None],
-        section: Section,
-        montant_regle: Decimal,
-        rapport: Rapport,
-        reference: str | None,
-    ) -> None:
-        """Le total affiché doit valoir le montant structuré. Sinon, la lecture a dérapé."""
-        notion = (
-            Notion.MONTANT_REGLE if section is Section.APERCU else Notion.MONTANT_NET_RECU
-        )
-        if not _presente(index, section, notion):
-            return
-        try:
-            lu = self._nombre(index, section, notion, obligatoire=True)
-        except OperationNonProduite as echec:
-            rapport.signaler("total affiché illisible", str(echec), reference)
-            return
-        assert lu is not None
-        if abs(lu.absolu().valeur - montant_regle) > Decimal("0.01"):
-            rapport.signaler(
-                "total en désaccord",
-                "le total affiché à l'écran ne correspond pas au montant enregistré "
-                "par la banque : la lecture des textes est peut-être faussée",
-                reference,
-            )
-
-    def _exiger_nature(
-        self,
-        index: dict[tuple[Section, Notion], str | None],
-        attendue: NatureSource,
-        nom_lisible: str,
-    ) -> None:
-        """Certaines natures ne sont écrites que dans un libellé, et rien ne les remplace.
-
-        Le type d'événement d'une distribution de capital sert aussi à d'autres versements
-        (Q-07) : sans le mot, on ne sait pas ce qu'on lit, et on ne produit rien.
-        """
-        texte = index.get((Section.APERCU, Notion.NATURE))
-        if texte is None:
+            return Poche.CRYPTO
+        poche = POCHE_PAR_COMPTE.get(ligne.account_type)
+        if poche is None:
             raise OperationNonProduite(
-                "nature absente",
-                f"rien n'indique qu'il s'agit d'un(e) {nom_lisible} : "
-                "le libellé qui le dirait est absent",
+                "poche indéterminable",
+                f"compte « {ligne.account_type or 'vide'} » : seuls DEFAULT (compte-titres) et "
+                "PEA ont été vus",
             )
-        nature = lexique.NATURES_EN_VALEUR.get(texte.strip())
-        if nature is not attendue:
-            raise OperationNonProduite(
-                "nature non reconnue",
-                f"le libellé {sur(texte)} n'est pas celui d'un(e) {nom_lisible} ; "
-                "l'événement doit être examiné avant d'être compté",
+        return poche
+
+    @staticmethod
+    def _controler_le_change(ligne: Ligne, operation: Operation) -> list[Anomalie]:
+        """Sur un versement en devise étrangère, `original_amount × fx_rate = amount`.
+
+        Vérifié sur de vrais fichiers (export-officiel.md §5.3) : `fx_rate` est le nombre
+        d'euros pour une unité de devise. Un écart veut dire que le montant en euros ne
+        découle pas du montant versé, et il est montré, jamais corrigé.
+        """
+        if not ligne.original_amount or operation.montant_brut is None:
+            return []
+        attendu = Decimal(ligne.original_amount) * Decimal(ligne.fx_rate)
+        if abs(attendu - operation.montant_brut) <= TOLERANCE_DU_CHANGE:
+            return []
+        return [
+            Anomalie(
+                identifiant_operation=operation.identifiant,
+                reference_source=operation.reference_source,
+                regle="change",
+                message=(
+                    f"montant brut {operation.montant_brut} alors que le montant en "
+                    f"{ligne.original_currency} multiplié par le taux de change donne "
+                    f"{attendu.quantize(Decimal('0.01'))}"
+                ),
             )
-
-    def _nature_en_titre(self, evenement: dict[str, Any]) -> NatureSource | None:
-        for titre in _titres_apercu(evenement):
-            nature = lexique.NATURES_EN_TITRE.get(titre)
-            if nature is not None:
-                return nature
-        return None
-
-
-def _presente(
-    index: dict[tuple[Section, Notion], str | None], section: Section, notion: Notion
-) -> bool:
-    """Vrai si l'écran **porte** cette ligne, même si son texte est vide.
-
-    Distinction essentielle : une ligne de taxe absente veut dire « aucune taxe » ; une
-    ligne de taxe présente mais illisible veut dire « on ne sait pas combien ». Traiter la
-    seconde comme la première inventerait un zéro.
-    """
-    return (section, notion) in index
-
-
-def _titres_apercu(evenement: dict[str, Any]) -> list[str]:
-    """Titres des lignes de la section « Übersicht », quelle que soit la langue.
-
-    Trade Republic y range parfois l'information **dans le titre** : la ligne s'appelle
-    « Kauf » ou « Verkaufen » et sa valeur est le statut.
-    """
-    return [
-        ligne.titre
-        for ligne in evenements.lignes(evenement)
-        if lexique.section_connue(ligne.section) is Section.APERCU
-    ]
-
-
-def _montant(evenement: dict[str, Any]) -> Decimal:
-    montant = evenements.montant_signe(evenement)
-    if montant is None:
-        raise OperationNonProduite(
-            "montant absent", "l'événement ne porte aucun montant alors qu'il devrait"
-        )
-    return montant
-
-
-def _reference(evenement: dict[str, Any]) -> str:
-    reference = evenements.identifiant(evenement)
-    if reference is None:
-        raise OperationNonProduite(
-            "identifiant absent", "l'événement n'a pas d'identifiant : il serait introuvable"
-        )
-    return reference
+        ]

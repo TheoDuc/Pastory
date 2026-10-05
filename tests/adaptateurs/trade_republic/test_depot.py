@@ -6,9 +6,9 @@ from datetime import date
 
 import pytest
 
-from pastory.adaptateurs.trade_republic_officiel import depot as module_depot
-from pastory.adaptateurs.trade_republic_officiel.depot import ExportIntrouvable, lire_dossier
-from tests.adaptateurs.trade_republic_officiel import export_fictif as fictif
+from pastory.adaptateurs.trade_republic import depot as module_depot
+from pastory.adaptateurs.trade_republic.depot import ExportIntrouvable, lire_dossier
+from tests.adaptateurs.trade_republic import export_fictif as fictif
 
 
 def test_un_dossier_absent_explique_ou_trouver_l_export(tmp_path):
