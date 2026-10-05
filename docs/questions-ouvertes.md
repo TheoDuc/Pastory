@@ -11,115 +11,35 @@ pas une décision.**
 
 ## En attente
 
-### Q-50 · Sans pytr, que devient la photo du portefeuille ?
-*Ouverte le 2026-10-01, avec [D-79](decisions.md). Elle englobe [Q-26](#q-26--faut-il-aller-chercher-le-second-compte-titres-pour-rapprocher-le-pea-), qui se pose dans ses termes.*
+### Q-54 · Actions gratuites puis « migration » : que s'est-il passé ?
+*Ouverte le 2026-10-05, en lisant l'export officiel d'un second utilisateur.*
 
-**Le constat.** L'export officiel donne **l'histoire** des opérations, pas la **photo** de ce qui
-est détenu aujourd'hui. Or cette photo sert au contrôle le plus fort du projet
-([D-46](decisions.md)) : comparer les quantités du moteur à celles de la banque, sans aucune
-déduction — le seul moyen de repérer des titres entrés **sans aucune ligne** dans l'historique
-(limite de [D-15](decisions.md)). Aujourd'hui, seul pytr la fournit (`pastory positions-reelles`),
-et encore **sans le PEA** (Q-26).
+**Le constat.** Sur une même action française détenue en PEA, l'export contient, dans l'ordre :
+deux achats, un dividende, puis une ligne `CORPORATE_ACTION / BONUS_ISSUE` qui ajoute des
+**fractions** d'action (une pour dix détenues, sans prix ni montant), puis, **30 jours plus tard**,
+une ligne `DELIVERY / MIGRATION` qui retire **exactement** la même quantité (quantité négative,
+un prix, aucun montant). Aucune autre ligne ce jour-là, aucun autre actif, aucun crédit d'espèces.
 
-**Options :**
-- (a) **Retirer pytr complètement.** Le rapprochement automatique disparaît. Pastory affiche les
-  quantités par actif et par poche, et le cahier de vérification demande de les comparer **à
-  l'écran de l'application** Trade Republic. Plus aucune interface non officielle, plus aucun
-  identifiant, plus de README sur les PIN.
-- (b) **Garder pytr pour cette seule commande, facultative.** Le rapprochement reste pour qui
-  installe pytr, avec un avertissement clair sur les conditions générales. Le reste de
-  l'application n'en dépend pas. Contrepartie : la clause revient pour ceux qui l'utilisent, le
-  code de connexion reste à maintenir, et le PEA n'est toujours pas couvert.
-- (c) **Lire le relevé de titres officiel** (le PDF de positions que la banque produit). Officiel,
-  et il couvrirait peut-être le PEA. Mais c'est un PDF : il faudrait en **lire le texte**, ce que
-  la règle 4 de `CLAUDE.md` cherche justement à éviter, et son contenu n'a pas été étudié.
+**Ce qu'on sait :** `BONUS_ISSUE` désigne bien des actions gratuites (deux sources, dont un projet
+français). `MIGRATION` est décrit par un seul importeur comme un « changement technique d'ISIN »,
+sans preuve ; Portfolio Performance n'importe aucune ligne `DELIVERY`.
 
-**Recommandation :** (a). Le rapprochement n'a jamais couvert le PEA, qui est la poche principale
-de l'utilisateur type français ; il demandait une connexion complète à chaque fois ; et la
-comparaison à l'écran de la banque est celle que le propriétaire fait déjà. (c) peut être étudiée
-plus tard, sans rien bloquer. **Si (a) est retenue, Q-26 est sans objet.**
+**Pourquoi c'est important :** traiter l'un sans l'autre fausse la quantité. Traiter
+`BONUS_ISSUE` seul ajoute des parts qui ne sont plus là ; traiter `MIGRATION` demande un type
+« titres sortis » que le format pivot n'a pas. Les droits d'attribution fractionnaires ont pu être
+vendus, convertis ou transférés vers un autre ISIN : chacune de ces explications donne un calcul
+différent.
 
-### Q-51 · Le type d'un actif : donnée de la banque, ou proposition à valider ?
-*Ouverte le 2026-10-01, avec [D-79](decisions.md).*
+**En attendant :** les deux lignes sont **affichées comme non traitées**, avec cette explication.
+Sur le seul cas vu, elles s'annulent : la quantité affichée est donc la bonne.
 
-**Le constat.** [D-55](decisions.md) veut que le type d'un actif (`etf`, `action`, `crypto`) soit
-**déclaré** par l'utilisateur, parce que pytr ne le donnait que sur les ordres, et de façon
-inexploitable. L'export officiel porte une colonne `asset_class` (`FUND`, `CRYPTO` vus ; `STOCK`
-probable) sur chaque ligne d'actif. C'est lui qui choisit le spread estimé et dit si un TER est
-attendu.
+**Ce qu'il faut pour trancher :** demander à ton ami ce que l'application Trade Republic montre
+pour cette action à ces deux dates (actions gratuites reçues ? vendues ? un nouvel actif ?). Selon
+la réponse : (a) les deux restent non traités tant qu'ils s'annulent, et un cas où ils ne
+s'annulent pas est signalé ; (b) `BONUS_ISSUE` devient des titres reçus ([D-15](decisions.md)), et
+`MIGRATION` demande un nouveau type au format pivot ; (c) autre chose, selon ce qu'il voit.
 
-**Options :**
-- (a) **Donnée** : le type vient de `asset_class`, sans validation. L'utilisateur peut le
-  corriger s'il le souhaite.
-- (b) **Proposition** : l'application pré-remplit le type depuis `asset_class` et demande un clic
-  de validation, comme pour le ticker.
-- (c) **Inchangé** : déclaré à la main.
-
-**Recommandation :** (a), pour les trois valeurs dont le sens est sans ambiguïté (`FUND` → ETF,
-`STOCK` → action, `CRYPTO` → crypto) ; toute autre valeur est affichée et attend une déclaration.
-C'est la confiance dans les données de la banque que [D-79](decisions.md) assume.
-[D-80](decisions.md) va dans le même sens : (b) et (c) demandent une action que la vision du
-propriétaire veut éviter. Ce qui reste
-vrai de D-55 : `asset_class` ne distingue pas un ETF de niche d'un ETF large, donc le spread
-reste celui de la classe.
-
-### Q-52 · Le contrôle du montant réglé perd son second avis : que fait-on ?
-*Ouverte le 2026-10-01, avec [D-79](decisions.md).*
-
-**Le constat.** Le [§5 du format pivot](format-pivot.md) vérifie que montant brut, frais et taxes
-retombent sur le montant **réellement débité**, donné à part par la banque. L'export officiel ne
-donne **pas** ce montant ([export-officiel.md §5](export-officiel.md)) : `amount` est le brut, et
-les frais sont à côté. Le contrôle deviendrait une tautologie. Et sur un achat de crypto, pytr et
-l'export diffèrent de quelques centimes sur ce qui a été débité.
-
-**Options :**
-- (a) `montant_regle` est **calculé** (brut + frais + taxes) et marqué `deduction` ; le contrôle
-  ne vérifie plus que la cohérence des signes et de `quantité × prix = montant`. Le dire dans le
-  cahier de vérification.
-- (b) Laisser `montant_regle` **vide** pour ce fichier, et faire porter le contrôle sur
-  `quantité × prix = montant` seulement.
-
-**Recommandation :** (b). Un champ calculé qui ressemble à une donnée de la banque est exactement
-ce que la règle 6 demande d'éviter, et `quantité × prix = montant`, lui, compare bien deux
-colonnes indépendantes. **Avant de trancher :** regarder dans l'application ce qui a été réellement
-débité sur l'achat de crypto.
-
-### Q-26 · Faut-il aller chercher le second compte-titres, pour rapprocher le PEA ?
-*Ouverte le 2026-09-21, après le premier essai du rapprochement sur de vraies données.*
-*Depuis le 2026-10-01 : englobée par [Q-50](#q-50--sans-pytr-que-devient-la-photo-du-portefeuille-). Sans objet si pytr est retiré.*
-
-**Le constat.** `pytr portfolio` ne demande les positions que d'**un seul** compte-titres : le
-`securitiesAccountNumber` unique que renvoie `/api/v2/auth/account`. Trade Republic logeant le
-PEA dans un second compte-titres, ses positions ne remontent jamais. Le rapprochement fonctionne
-donc sur le CTO et la crypto, mais **pas sur le PEA** ([D-47](decisions.md) évite les fausses
-alertes que cela produisait).
-
-**Ce qui est perdu :** sur le PEA, on ne peut ni confirmer les quantités, ni détecter des titres
-entrés sans événement — la limite connue de [D-15](decisions.md), précisément celle que le
-rapprochement devait lever.
-
-**Ce qu'il faut savoir avant de trancher :** le diagnostic
-[`scripts/diagnostic_comptes_titres.py`](../scripts/diagnostic_comptes_titres.py) affiche, sans
-aucune valeur personnelle, combien de comptes-titres le compte contient. **Plusieurs** confirme
-l'explication ; **un seul** l'infirme, et la cause est ailleurs.
-
-**Options :**
-- (a) **Laisser en l'état.** Le rapprochement couvre le CTO et la crypto ; le PEA est signalé
-  comme non couvert, une fois, sans bruit. Rien à écrire.
-- (b) **Écrire notre propre récupération**, compte-titres par compte-titres, en utilisant pytr
-  comme bibliothèque. Contrepartie sérieuse : c'est nous qui gérerions alors le dialogue de
-  connexion, ce que [D-41](decisions.md) a justement évité pour que le PIN ne transite jamais par
-  cette application. **Deux pièges connus**, rencontrés en écrivant le diagnostic : `login()` a
-  pour défaut `waf_token="playwright"`, qui réclame un navigateur — il faut `"default"` avec
-  `v2=True` ; et `login()` journalise le JSON complet du compte en niveau *debug*, qu'il faut
-  filtrer. Les deux sont détaillés dans
-  [prompt-session-suivante.md](prompt-session-suivante.md).
-- (c) **Le signaler en amont**, à pytr, et attendre que l'outil sache demander tous les
-  comptes-titres. Gratuit pour nous, sans garantie de délai.
-
-**Recommandation :** (a) pour l'instant, puis (c). Le rapprochement du PEA est un confort, pas un
-préalable : les chiffres du PEA sont justes, ils sont seulement non confirmés par une seconde
-source. À reprendre si le diagnostic montre que le second compte est facile à atteindre.
+**Recommandation :** aucune avant la réponse : c'est exactement le cas de la règle 7.
 
 ---
 
@@ -300,3 +220,20 @@ classes d'actifs et un fonds de fonds y tombe dans `other`, qu'un garde-fou refu
 d'Amundi a un vocabulaire d'**instruments**, pas de véhicules. Le propriétaire a alors préféré (c) à
 (a) : la notion explique **pourquoi** un fonds peut être non couvert, et un trou expliqué vaut mieux
 qu'un trou muet.
+
+### Lot 11 (2026-10-05) — la porte d'entrée de l'export officiel
+
+| Question | Réponse | Retenu | Décision |
+|---|---|---|---|
+| Q-50 Sans pytr, que devient la photo du portefeuille ? | a | **pytr est retiré entièrement**, après la comparaison des deux adaptateurs ; les quantités se comparent à l'écran de la banque | D-81 |
+| Q-51 Le type d'un actif : donnée ou proposition ? | a | **Donnée de la banque** : `FUND` → ETF, `STOCK` → action, `CRYPTO` → crypto ; toute autre valeur est affichée | D-82 |
+| Q-52 Le contrôle du montant réglé perd son second avis | b | **`montant_regle` reste vide** ; le contrôle `quantité × prix = montant` reste | D-83 |
+| Q-53 Le brut des dividendes néerlandais est déjà net de la retenue des Pays-Bas | a | **Le brut est celui de la banque**, et la limite est affichée en face des dividendes | D-84 |
+| Q-26 Aller chercher le second compte-titres, pour rapprocher le PEA ? | — | **Sans objet** : le rapprochement disparaît avec pytr | D-81 |
+
+Le propriétaire a suivi les quatre recommandations. Q-53 est née pendant l'étape, en comparant
+l'export officiel d'un second utilisateur à son export pytr : c'est la seule question où le
+fichier officiel donne **moins** d'information que pytr. Pour Q-52, le propriétaire n'a pas eu
+besoin de regarder le débit réel de son achat de crypto : la comparaison sur 72 opérations du
+second utilisateur a montré que brut ± frais ± taxes retombe exactement sur ce que pytr annonçait
+comme réglé.

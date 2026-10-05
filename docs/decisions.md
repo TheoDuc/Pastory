@@ -74,7 +74,7 @@ texte est marquée comme telle.
 **Raison :** textes en allemand, **et mélange allemand/français dans un même export**.
 **Écarte :** chercher des libellés un peu partout dans le code.
 
-### D-10 · 2026-09-17 · Les comptes sont nommés par l'utilisateur · Validée
+### D-10 · 2026-09-17 · Les comptes sont nommés par l'utilisateur · **Remplacée par D-81**
 **Décision :** à l'installation, l'utilisateur associe chaque numéro de compte à un rôle (compte
 courant, espèces PEA, ancien compte…). L'application l'aide en montrant les types d'opérations
 vus sur chaque compte.
@@ -136,7 +136,7 @@ cours de l'actif le jour où les titres apparaissent. La valeur est marquée com
 la timeline. Ils ne pourront être détectés qu'en comparant avec les positions réelles du compte
 (voir [feuille-de-route.md](feuille-de-route.md)).
 
-### D-16 · 2026-09-17 · Poche crypto déduite du code `XF` · Validée
+### D-16 · 2026-09-17 · Poche crypto déduite du code `XF` · **Remplacée par D-81**
 **Décision :** un actif dont le code commence par `XF` est rangé en crypto, avec mention « poche
 déduite » et correction possible par l'utilisateur.
 **Raison :** Q-12 (a).
@@ -209,7 +209,7 @@ les frais d'achat (voir D-13).
 machine, aucun conflit constaté. **À surveiller :** en cas d'erreur git inexpliquée, penser à
 OneDrive en premier.
 
-### D-25 · 2026-09-17 · Identifiants : choix de l'utilisateur, jamais de PIN en clair · Validée
+### D-25 · 2026-09-17 · Identifiants : choix de l'utilisateur, jamais de PIN en clair · **Remplacée par D-81**
 **Décision :** le passage du PIN en argument de commande est supprimé. À l'installation,
 l'utilisateur choisit, avec une explication des risques :
 1. rien d'enregistré, le PIN est redemandé à chaque fois (le plus sûr) ;
@@ -398,7 +398,7 @@ opérations disparaîtraient sans message. Et avec `--export`, il **n'écrit rie
 de compte d'un export qui n'est pas le sien appartiennent à quelqu'un d'autre (règle 2 de
 CLAUDE.md).
 
-### D-41 · 2026-09-18 · `rafraichir` ne manipule aucun identifiant · Validée
+### D-41 · 2026-09-18 · `rafraichir` ne manipule aucun identifiant · **Remplacée par D-81**
 **Décision :** `pastory rafraichir` appelle pytr **sans** `-n`, **sans** `-p` et **sans**
 `--store_credentials`. C'est pytr qui demande lui-même le numéro et le PIN, la saisie du PIN
 étant masquée. Rien n'est enregistré.
@@ -411,7 +411,7 @@ l'étape 10.
 **Reste à l'étape 10 :** les deux autres modes (gestionnaire d'identifiants du système,
 session pytr seule) et le choix à l'installation.
 
-### D-42 · 2026-09-18 · Recoupement systématique avec le CSV · Validée
+### D-42 · 2026-09-18 · Recoupement systématique avec le CSV · **Remplacée par D-81**
 **Décision :** à chaque lecture, la quantité, les frais et les taxes lus dans les textes sont
 comparés aux colonnes du CSV. Tout désaccord part au rapport. Le CSV ne fait **jamais**
 autorité (D-06) : un désaccord est une invitation à aller vérifier, pas une correction.
@@ -494,7 +494,7 @@ négatif.
 **Limite connue, et c'est le sujet de D-46 :** une vente au-delà du stock est le **symptôme** de
 titres entrés sans événement. Le moteur seul ne peut pas les retrouver.
 
-### D-46 · 2026-09-20 · Les positions réelles entrent dans le pivot ; la quantité contrôle, le PRU informe · Validée
+### D-46 · 2026-09-20 · Les positions réelles entrent dans le pivot ; la quantité contrôle, le PRU informe · **Remplacée par D-81**
 **Décision :**
 - le format pivot reçoit un **second contrat**, la `PositionReelle` : ce que la banque dit
   détenir aujourd'hui (actif, quantité, nom, prix de revient de la banque). Décrit au
@@ -533,7 +533,7 @@ plus cher à l'étape 2 ([inventaire §11.1](inventaire-donnees.md)).
 
 ---
 
-### D-47 · 2026-09-21 · Une poche que la photo ne couvre pas n'est pas un désaccord · Validée
+### D-47 · 2026-09-21 · Une poche que la photo ne couvre pas n'est pas un désaccord · **Remplacée par D-81**
 **Décision :** si **aucun** actif d'une poche n'apparaît dans le portefeuille réel donné par la
 banque, cette poche est déclarée **non couverte** : elle fait l'objet d'**un seul** signalement,
 et ses actifs sortent en `hors périmètre`, sans alerte individuelle. Leur quantité reste
@@ -741,7 +741,7 @@ drapeau « peu significatif » (sous 365 jours) qui porte ce jugement, pas une b
 recommandations du plan, approuvées par le propriétaire le 2026-09-27, après trois recherches
 dont le comparatif est dans [couts-et-fiscalite.md](couts-et-fiscalite.md).*
 
-### D-55 · 2026-09-27 · Le type d'un actif est déclaré par l'utilisateur, jamais deviné · Validée
+### D-55 · 2026-09-27 · Le type d'un actif est déclaré par l'utilisateur, jamais deviné · **Remplacée par D-82**
 **Décision :** le type d'un actif — `etf`, `action` ou `crypto` — est **déclaré** dans
 `actifs.toml`, à côté du ticker. L'assistant `pastory actifs` le **propose** (la recherche de la
 source de cours l'annonce), l'utilisateur **valide**. Une crypto l'est d'office par sa poche
@@ -1373,3 +1373,82 @@ Ce qui protège réellement contre une valeur fausse, ce sont les **contrôles**
 reste ; une valeur « par défaut » sans source pour combler un trou.
 **Conséquence pour l'étape 8 quater :** son critère de réussite est le **nombre de valeurs que
 l'application ne sait pas trouver** sur un portefeuille type, et non plus le nombre de clics.
+
+### D-81 · 2026-10-05 · pytr est retiré entièrement ; les quantités se comparent à l'écran de la banque · Validée
+**Décision :** une fois prouvé que l'export officiel donne les mêmes opérations que pytr sur la
+même période (étape 8 ter), **pytr et tout ce qui en dépend disparaissent** : l'adaptateur,
+les commandes `rafraichir`, `comptes` et `positions-reelles`, le rapprochement automatique avec
+les positions réelles, la configuration des comptes (`comptes.toml`, rôles et corrections de
+poche) et la dépendance elle-même. Pour confirmer les quantités, Pastory les affiche par actif et
+par poche, et le cahier de vérification demande de les comparer **à l'écran de l'application**
+Trade Republic.
+**Raison :** [Q-50](questions-ouvertes.md) (a). Le rapprochement n'a jamais couvert le PEA
+([Q-26](questions-ouvertes.md)), qui est la poche principale de l'utilisateur type français ; il
+exigeait une connexion complète (numéro, PIN, confirmation) à chaque appel ; et il était la
+dernière raison de garder une interface non officielle, que [D-79](#d-79) écarte.
+**Écarte :** garder pytr pour cette seule commande, facultative — la clause des conditions
+générales serait revenue pour ceux qui l'utilisent, et le PEA serait resté non couvert ; lire le
+relevé de titres officiel en PDF, qui reste possible plus tard sans rien bloquer, mais oblige à
+lire un texte (règle 4 de `CLAUDE.md`).
+**Conséquence assumée :** la limite connue de [D-15](#d-15) — des titres entrés **sans aucune
+ligne** dans l'historique — n'est plus détectée automatiquement. Elle l'est par la comparaison à
+l'écran de la banque.
+**Remplace :** [D-10](#d-10) et [D-40](#d-40) pour leur moitié « compte » (la poche est
+désormais écrite sur chaque ligne de l'export) ; [D-16](#d-16) (la crypto est désignée par
+`asset_class`) ; [D-25](#d-25) et [D-41](#d-41) (plus aucun identifiant) ; [D-42](#d-42) (plus
+aucun texte à recouper) ; [D-46](#d-46) et [D-47](#d-47) (plus de photo du portefeuille).
+
+### D-82 · 2026-10-05 · Le type d'un actif est une donnée de la banque · Validée
+**Décision :** le type d'un actif vient de la colonne `asset_class` de l'export officiel, sans
+validation : `FUND` → ETF, `STOCK` → action, `CRYPTO` → crypto. L'utilisateur peut le corriger,
+il n'a jamais à le faire. Toute autre valeur (`BOND`, `DERIVATIVE`, `PRIVATE_FUND`, relevées par
+la recherche, ou une valeur jamais vue) est **affichée** et n'est pas traduite.
+**Raison :** [Q-51](questions-ouvertes.md) (a). Les trois valeurs ont un sens sans ambiguïté, et
+la colonne est remplie sur **chaque** ligne d'actif, y compris un actif reçu sans achat — ce qui
+manquait à `instrumentType` de pytr et motivait [D-55](#d-55). [D-80](#d-80) va dans le même
+sens : une validation qu'un non-connaisseur ne sait pas juger ne rend pas la valeur plus sûre.
+**Écarte :** une proposition à valider d'un clic ; la déclaration à la main.
+**Ce qui reste vrai de D-55 :** `asset_class` ne distingue pas un ETF de niche d'un ETF large ; le
+spread estimé reste celui de la classe ([D-56](#d-56)).
+**Réalisation :** l'étape 8 ter lit la classe et la garde dans le rapport de lecture ; son
+application aux estimations est faite à l'étape 8 quater.
+**Remplace :** [D-55](#d-55), pour l'origine du type.
+
+### D-83 · 2026-10-05 · Le montant réglé reste vide quand la banque ne le donne pas · Validée
+**Décision :** le champ `montant_regle` du format pivot devient **facultatif**. L'export officiel
+ne donne pas le montant réellement débité ou crédité : il reste vide, et le contrôle « montant
+réglé » n'est pas fait. Le contrôle `quantité × prix = montant brut`, qui compare deux colonnes
+indépendantes, reste fait sur chaque achat et chaque vente.
+**Raison :** [Q-52](questions-ouvertes.md) (b). Calculer le champ à partir du brut, des frais et
+des taxes produirait une valeur qui **ressemble** à une donnée de la banque sans en être une — ce
+que la règle 6 de `CLAUDE.md` demande d'éviter — et le contrôle deviendrait une tautologie.
+**Vérifié avant de trancher :** sur les 72 opérations communes de l'export officiel et de l'export
+pytr d'un second utilisateur, brut ± frais ± taxes retombe **exactement** sur le montant réglé que
+pytr annonçait. Les colonnes de l'export sont donc cohérentes avec ce qui a été débité ; seule
+manque la colonne qui permettrait de le contrôler.
+**Écarte :** un montant réglé calculé et marqué `deduction`.
+**Conséquence :** le moteur ne change pas — il n'a jamais lu ce champ.
+
+### D-84 · 2026-10-05 · Le brut d'un dividende est celui de la banque ; sa limite est affichée · Validée
+**Décision :** le montant brut d'un dividende est la colonne `amount` de l'export officiel, et sa
+taxe la colonne `tax`. Un **message permanent**, partout où les dividendes s'affichent, dit que
+pour certains pays ce brut est **déjà diminué d'une retenue étrangère que la banque ne montre
+pas**, et que le gain et les taxes de ces dividendes sont alors légèrement sous-estimés, le net
+restant exact.
+**Le constat :** sur l'export d'un second utilisateur, comparé ligne à ligne à son export pytr, le
+net de **chaque** dividende concorde. Mais pour les actions **néerlandaises**, `amount` vaut
+environ 85 % du brut que pytr lisait : la retenue des Pays-Bas (15 %) est déduite avant `amount`
+et n'apparaît pas dans `tax`. Pour les actions françaises et américaines, `amount` est bien le
+brut et `tax` contient toute la retenue. **Rien dans le fichier ne distingue les deux cas.**
+Aucun importeur connu (Portfolio Performance compris) ne le corrige : tous prennent `amount` pour
+le brut. Le relevé PDF de la banque, lui, montre la retenue néerlandaise sur une ligne à part.
+**Raison :** [Q-53](questions-ouvertes.md) (a). C'est la seule option qui n'invente rien et qui
+garde les dividendes dans les calculs : le chiffre affiché est celui de la banque, et sa limite est
+dite.
+**Écarte :** reconstituer le brut par pays (`amount ÷ 0,85` pour un ISIN néerlandais), qui
+demanderait une table de taux datée et sourcée ([D-58](#d-58)), alors que le pays d'un ISIN n'est
+pas toujours celui de l'impôt et qu'une retenue peut être réduite par convention — le risque est
+d'**inventer** un brut faux ; ne pas traiter les dividendes, qui retirerait tous les dividendes
+des calculs pour un écart de quelques pour cent sur certains.
+**Limite assumée :** sur les dividendes concernés, le gain est sous-estimé de la retenue
+étrangère (environ 15 % du dividende néerlandais) et les taxes payées le sont du même montant.
