@@ -15,6 +15,7 @@ from pastory.adaptateurs.trade_republic.depot import lire_dossier
 from pastory.adaptateurs.trade_republic.lecture import Lecteur
 from pastory.pivot.operation import Poche, Provenance, TypeOperation
 from pastory.pivot.validation import controler
+from pastory.reglages import MouvementPea, Sens
 from tests.adaptateurs.trade_republic import export_fictif as fictif
 
 
@@ -129,6 +130,41 @@ class TestVersements:
         assert operation.type is TypeOperation.DISTRIBUTION_CAPITAL
         assert operation.nature_source == "distribution_capital"
         assert operation.montant_brut == Decimal("2.00")
+
+
+class TestMouvementsPea:
+    """Les mouvements d'espèces du PEA, d'où se lit sa date d'ouverture (D-59, D-86)."""
+
+    def test_versements_primes_et_retraits_sont_releves_dans_l_ordre(self, tmp_path):
+        rapport = lire(
+            tmp_path,
+            fictif.versement_pea(datetime="2026-04-01T07:00:00.000Z", date="2026-04-01"),
+            fictif.versement_pea(
+                datetime="2026-02-01T07:00:00.000Z", date="2026-02-01", type="PEA_MARKETING"
+            ),
+            fictif.versement_pea(
+                datetime="2026-03-01T07:00:00.000Z", date="2026-03-01", type="TRANSFER_OUT",
+                amount="-10.00",
+            ),
+        )
+        assert rapport.mouvements_pea == [
+            MouvementPea(date(2026, 2, 1), Sens.ENTREE),
+            MouvementPea(date(2026, 3, 1), Sens.SORTIE),
+            MouvementPea(date(2026, 4, 1), Sens.ENTREE),
+        ]
+
+    def test_un_mouvement_sur_le_compte_titres_ne_compte_pas(self, tmp_path):
+        rapport = lire(tmp_path, fictif.versement_pea(account_type="DEFAULT"))
+        assert rapport.mouvements_pea == []
+
+    def test_un_autre_type_d_especes_sur_le_pea_ne_compte_pas(self, tmp_path):
+        rapport = lire(tmp_path, fictif.versement_pea(type="INTEREST_PAYMENT"))
+        assert rapport.mouvements_pea == []
+
+    def test_le_montant_n_est_jamais_lu(self, tmp_path):
+        rapport = lire(tmp_path, fictif.versement_pea(amount="pas un nombre"))
+        assert rapport.mouvements_pea == [MouvementPea(date(2026, 1, 2), Sens.ENTREE)]
+        assert rapport.signalements == []
 
 
 class TestFormesJamaisVues:

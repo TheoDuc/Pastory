@@ -50,6 +50,7 @@ from collections.abc import Callable, Mapping, Sequence
 from datetime import date as Date
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
+from pastory.config.actifs import FraisCourantsProposes
 from pastory.donnees_externes.composition import (
     Composition,
     CompositionIncoherente,
@@ -425,3 +426,81 @@ def _envoyer(adresse: str, corps: bytes) -> bytes:
             f"Amundi est injoignable ({erreur}) : la composition de secours n'a pas pu être "
             "récupérée."
         ) from erreur
+
+
+# --- Les frais courants (étape 8 quater) ---------------------------------------------------
+
+NOM_FRAIS_COURANTS = "Amundi (fiche produit de l'émetteur)"
+
+CHAMP_TER = "TER"
+"""Les frais courants, **en pour cent** (`0.2` vaut 0,20 %) — contrairement aux répartitions de
+ce même service, qui sont des fractions. Mesuré le 2026-10-05 : égal au DIC sur les 116 ETF
+éligibles au PEA de l'émetteur (docs/reglages-automatiques.md)."""
+
+CHAMP_DATE_DU_TER = "TER_EFFECTIVE_DATE"
+"""La date d'effet du taux : lancement du fonds ou dernier changement. **Pas** la date du DIC.
+
+**Fragilité** : ce nom n'apparaît pas dans le code du site, il a été trouvé en essayant, et le
+service l'accepte. S'il disparaît, le service l'ignorera sans erreur : le TER, alors sans date,
+ne sera plus retenu (D-58), et l'écran dira que les frais courants manquent."""
+
+
+def corps_des_frais_courants(actif: str) -> bytes:
+    """Le corps de la requête des frais courants : ni répartition, ni lignes détenues."""
+    return json.dumps(
+        {
+            "productIds": [actif.strip().upper()],
+            "context": dict(CONTEXTE),
+            "metrics": [],
+            "historics": [],
+            "characteristics": [CHAMP_ISIN, CHAMP_TER, CHAMP_DATE_DU_TER],
+        }
+    ).encode("utf-8")
+
+
+class FraisCourantsAmundi:
+    """Les frais courants publiés par Amundi pour ses propres fonds, dont les ETF « PEA » de droit
+    français, absents de la liste de Xetra (D-61)."""
+
+    nom = NOM_FRAIS_COURANTS
+
+    def __init__(self, poster: Poster | None = None) -> None:
+        self.poster = poster or _envoyer
+
+    def frais_courants(self, actif: str) -> FraisCourantsProposes | None:
+        """Le TER de ce fonds et sa date d'effet, ou `None` si Amundi ne le connaît pas.
+
+        Une réponse illisible lève une `ErreurDeSource` : ce n'est pas la même chose que « ce
+        fonds n'est pas un fonds Amundi », et l'appelant doit pouvoir le dire.
+        """
+        charge = _json(self.poster(ADRESSE, corps_des_frais_courants(actif)), actif)
+        produits = charge.get("products")
+        if not isinstance(produits, Sequence) or not produits:
+            return None
+        produit = produits[0]
+        caracteristiques = (
+            produit.get("characteristics") if isinstance(produit, Mapping) else None
+        )
+        if not isinstance(caracteristiques, Mapping):
+            raise CompositionIncoherente(
+                f"la réponse d'Amundi pour {actif} n'a pas la forme attendue"
+            )
+        brut = caracteristiques.get(CHAMP_TER)
+        if brut is None:
+            return None
+        try:
+            ter = Decimal(str(brut))
+        except InvalidOperation as erreur:
+            raise CompositionIncoherente(
+                f"les frais courants rendus par Amundi pour {actif} ne sont pas lisibles "
+                f"({brut!r})"
+            ) from erreur
+        date = caracteristiques.get(CHAMP_DATE_DU_TER)
+        if not isinstance(date, str) or not date.strip():
+            # Un taux sans date n'est pas vérifiable (D-58) : il n'est pas retenu.
+            return None
+        return FraisCourantsProposes(
+            ter_pour_cent=ter.quantize(PAS).normalize(),
+            source=NOM_FRAIS_COURANTS,
+            date=_jour(date, actif),
+        )

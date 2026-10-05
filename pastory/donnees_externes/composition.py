@@ -34,7 +34,7 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import Protocol
 
-from pastory.config.actifs import Configuration, Declaration, TypeActif
+from pastory.config.actifs import SECOURS_AUCUN, Configuration, Declaration, TypeActif
 from pastory.donnees_externes.cours import ErreurDeSource, Refus
 
 TOTAL_MAXIMAL = Decimal("105")
@@ -353,13 +353,15 @@ class FournisseurDeCompositions:
             try:
                 composition = controler(source())
             except ErreurDeSource as erreur:
-                # La principale a échoué. Avant de renoncer, le secours — s'il est déclaré pour
-                # cet actif, et seulement s'il l'est (D-72).
+                # La principale a échoué. Avant de renoncer, le secours (D-72, D-80).
+                nombre_de_refus = len(self._refus)
                 de_secours = self._de_secours(actif, apres=erreur)
                 if de_secours is not None:
                     self.cache.ecrire(de_secours)
                     return de_secours
-                self._refuser(actif, erreur.categorie, str(erreur))
+                # Un secours imposé qui échoue a déjà dit pourquoi : ne pas répéter.
+                if len(self._refus) == nombre_de_refus:
+                    self._refuser(actif, erreur.categorie, str(erreur))
                 return None
             self.cache.ecrire(composition)
             return composition
@@ -369,19 +371,30 @@ class FournisseurDeCompositions:
         return None
 
     def _de_secours(self, actif: str, apres: ErreurDeSource) -> Composition | None:
-        """La composition de la source de secours de cet actif, si elle est déclarée (D-72).
+        """La composition d'une source de secours, pour un ETF que la principale n'ouvre pas.
 
-        **Déclarée par actif, et jamais devinée.** Deux sources n'ont ni la même nomenclature
-        sectorielle ni la même règle de pays : basculer sur un secours en silence donnerait un
-        total juste et une répartition fausse — 5 points d'écart mesurés sur la technologie.
+        **Essayée d'elle-même** depuis l'étape 8 quater (D-80) : le secours ne connaît que ses
+        propres fonds — Amundi répond « aucun produit » pour les autres — et la source comme la
+        règle de pays de chaque chiffre restent affichées ligne par ligne, ce qui était la
+        condition posée par D-72 pour mélanger deux sources. Une correction `secours = "aucun"`
+        le refuse pour un actif ; `secours = "amundi"` l'impose.
 
-        Si le secours échoue à son tour, c'est **le motif du secours** qui est retenu, et non
-        celui de la source principale : c'est lui qui est actionnable. Le motif de la principale
-        est rappelé dans le message, pour qu'on sache que les deux ont été essayées.
+        Essayé de lui-même, un secours qui ne connaît pas le fonds se tait : c'est le motif de la
+        source principale qui est retenu, puisque c'est elle qu'on attendait. Imposé par une
+        correction, c'est **son** motif qui est retenu, la principale étant rappelée.
         """
         declaration = self.actifs.declaration(actif)
         nom = declaration.secours if declaration is not None else None
-        if not nom:
+        if nom == SECOURS_AUCUN:
+            return None
+        if nom is None:
+            if declaration is None or declaration.type is not TypeActif.ETF:
+                return None
+            for source in self.secours.values():
+                try:
+                    return controler(source.composition(actif))
+                except ErreurDeSource:
+                    continue
             return None
         source = self.secours.get(nom)
         if source is None:
@@ -405,21 +418,12 @@ class FournisseurDeCompositions:
     def _source(self, actif: str):
         """Quelle source interroger, selon ce que l'utilisateur a déclaré du type de l'actif."""
         declaration = self.actifs.declaration(actif)
-        if declaration is None:
+        if declaration is None or declaration.type is None:
             self._refuser(
                 actif,
-                "actif non déclaré",
-                "cet actif n'est pas déclaré dans actifs.toml : sans son type, je ne sais pas "
-                "où chercher sa composition. Lancez « pastory actifs » pour le déclarer.",
-            )
-            return None
-        if declaration.type is None:
-            self._refuser(
-                actif,
-                "type non déclaré",
-                "le type de cet actif n'est pas déclaré dans actifs.toml. Un ETF et une action "
-                "ne se regardent pas au même endroit. Ajoutez  type = \"etf\"  ou "
-                'type = "action"  sur sa ligne.',
+                "type inconnu",
+                "le type de cet actif (ETF, action) n'est pas connu, et un ETF et une action "
+                "ne se regardent pas au même endroit : sa composition n'est pas cherchée.",
             )
             return None
 
@@ -433,7 +437,9 @@ class FournisseurDeCompositions:
             if self.source_action is None:
                 self._refuser(actif, "aucune source", "aucune source de composition d'action.")
                 return None
-            ticker = declaration.ticker
+            # Sans cotation retenue, le pays se trouve encore par l'ISIN ; seul le secteur,
+            # qui se cherche par le ticker, manquera.
+            ticker = declaration.ticker or ""
             return lambda: self.source_action.composition(actif, ticker)
 
         # La crypto n'a ni pays ni secteur : ce n'est pas un manque, c'est sa nature (D-68).
@@ -468,6 +474,25 @@ class FournisseurDeCompositions:
             return None
 
         jour = self.aujourd_hui if self.aujourd_hui is not None else Date.today()
+        trouvee = (
+            declaration.source_du_contenu is not None
+            and declaration.pays is None
+            and declaration.secteurs is None
+        )
+        if trouvee:
+            # Un contenu trouvé par une source (D-89) : il a une source et une date de relevé, et
+            # il se met à jour seul. Ce n'est pas une composition « déclarée par vous ».
+            return Composition(
+                actif=actif,
+                pays=(),
+                secteurs=(),
+                classes=(Part(code=_classe_declaree(declaration), pour_cent=CENT),),
+                arrete_le=declaration.date_du_contenu or jour,
+                intitule_de_la_date="date de relevé de la classe d'actifs chez la source",
+                source=declaration.source_du_contenu or SOURCE_DECLAREE,
+                recupere_le=jour,
+                date_est_un_arrete=declaration.date_du_contenu is not None,
+            )
         return Composition(
             actif=actif,
             pays=_parts(declaration.pays),

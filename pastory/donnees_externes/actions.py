@@ -93,9 +93,8 @@ class SourceDActions:
         secteur = self._secteur(actif, ticker)
         if pays is None and secteur is None:
             raise CompositionIndisponible(
-                f"ni le pays ni le secteur de {actif} n'ont pu être obtenus. Vous pouvez les "
-                f"déclarer à la main dans actifs.toml : pays = {{ FR = 100 }}, "
-                f"secteurs = {{ technology = 100 }}"
+                f"ni le pays ni le secteur de {actif} n'ont pu être obtenus : la société est "
+                "comptée comme non couverte, avec son montant."
             )
         jour = self.aujourd_hui if self.aujourd_hui is not None else Date.today()
         return Composition(
@@ -147,9 +146,9 @@ class SourceDActions:
     def _secteur(self, actif: str, ticker: str) -> str | None:
         """Le secteur de la société, normalisé en code, ou `None`.
 
-        La recherche est faite sur le **ticker validé par l'utilisateur**, et le résultat n'est
-        retenu que si le symbole renvoyé est bien celui-là : prendre « la première réponse » a
-        déjà fait retenir la mauvaise cotation à l'étape 4.
+        La recherche est faite sur le **ticker retenu** (trouvé et contrôlé, ou corrigé), et le
+        résultat n'est gardé que si le symbole renvoyé est bien celui-là : prendre « la première
+        réponse » a déjà fait retenir la mauvaise cotation à l'étape 4.
         """
         voulu = ticker.strip().upper()
         if not voulu:

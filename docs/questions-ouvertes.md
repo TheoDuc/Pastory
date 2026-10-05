@@ -88,6 +88,34 @@ crée pas de vente que l'utilisateur n'a pas passée, et ça rend visible l'arge
 perdu. À trancher par le propriétaire. Un deuxième cas, idéalement sur un compte-titres
 ordinaire ou avec plus de dix actions, dirait si le schéma tient.
 
+### Q-60 · Le monétaire, les fonds multi-actifs et l'immobilier : quel contenu ?
+*Ouverte le 2026-10-05, en réalisant D-89.*
+
+**Le constat.** extraETF range chaque fonds dans une classe : actions (2), obligations (3),
+matières premières (4) — celles-là sont traduites (D-89) —, mais aussi **monétaire** (5
+« Geldmarkt »), **multi-actifs** (9 « Portfoliokonzepte ») et **immobilier** (1160
+« Immobilien »). L'application ne sait pas où ranger ces trois-là : leur contenu reste « non
+trouvé », et l'écran le dit en nommant la classe.
+
+**Pourquoi c'est important :** un ETF monétaire est un placement courant pour la trésorerie d'un
+compte-titres. Sans contenu, il dépend de sa composition, que la source décrit mal (un fonds
+monétaire à swap y est à 99,9 % en actions : son collatéral, D-64).
+
+**Options :**
+- **(a) Une classe « monétaire » à part**, à côté des obligations, hors de la géographie et des
+  secteurs, avec son libellé ;
+- **(b) Le monétaire avec les obligations** : c'est de la dette à très court terme. Le multi-actifs
+  et l'immobilier restent des trous ;
+- **(c) Rien de plus** : les trois restent des trous expliqués.
+
+Pour le **multi-actifs**, un contenu unique n'a pas de sens : sa répartition vient de sa
+composition, s'il en a une. Pour l'**immobilier** coté, Amundi le range en actions, extraETF à
+part.
+
+**Recommandation (pas une décision) :** (a) pour le monétaire, la plus fidèle à l'écran ; le
+multi-actifs reste un trou ; l'immobilier compté en actions, comme le fait l'émetteur. Rien ne
+presse : aucun des deux portefeuilles connus n'en détient.
+
 ---
 
 ## Tranchées
@@ -284,3 +312,20 @@ fichier officiel donne **moins** d'information que pytr. Pour Q-52, le propriét
 besoin de regarder le débit réel de son achat de crypto : la comparaison sur 72 opérations du
 second utilisateur a montré que brut ± frais ± taxes retombe exactement sur ce que pytr annonçait
 comme réglé.
+
+### Lot 12 (2026-10-05) — des réglages qui se proposent seuls
+
+| Question | Réponse | Retenu | Décision |
+|---|---|---|---|
+| Q-55 Le contenu d'un fonds : peut-on le trouver ? | a | **extraETF, code et libellé ensemble, recoupé par le code CFI de l'ESMA**. Un désaccord donne un trou avec les deux réponses ; un contenu « actions » est montré sans s'appliquer | D-89 |
+| Q-56 La date d'ouverture du PEA : laquelle retenir ? | — | **Le premier crédit du plan en cours** : une sortie d'espèces avant cinq ans clôt le plan, le crédit suivant en ouvre un nouveau | D-86 |
+| Q-57 Le TER des ETF iShares « Swap PEA », absents de Xetra | a | **Écarté** : la liste de BlackRock n'a pas de date (D-58), et une part couverte s'écarte de son DIC. Le trou est affiché | D-90 |
+| Q-58 Une action américaine : Xetra ou Francfort ? | a | **Francfort**, qui cote jusque vers 22 h ; la place ne départage que des cotations à écart comparable | D-88 |
+| Q-59 Les versements et retraits du PEA : jusqu'où s'en servir ? | a | **Vérifier l'hypothèse** « aucun retrait passé », sur les seules dates. Le calcul du gain comme le fisc, qui lirait les montants, n'est pas retenu | D-87 |
+
+Le propriétaire a suivi quatre recommandations sur cinq. Pour Q-56, aucune des trois options
+proposées n'était la bonne, et c'est **sa réponse** qui a donné la règle : il avait ouvert son PEA,
+l'avait fermé et rouvert six jours plus tard, et la date qui compte est celle de la réouverture.
+La première règle essayée — le premier versement — la manquait d'une semaine. Q-55 revient sur
+D-71, à partir d'une mesure refaite sur ses propres fonds : le code d'extraETF, lu avec son
+libellé, y est juste cinq fois sur cinq.

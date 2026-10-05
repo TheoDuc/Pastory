@@ -521,6 +521,16 @@ Quatre choses, jamais, sur aucun écran :
 > un manque se dit là où il se voit, rien n'exige un réglage pour afficher le reste — mais la règle
 > « l'application propose, l'utilisateur décide » est remplacée, et le rôle des comptes n'existe
 > plus ([D-79](decisions.md)).
+>
+> **Ce que l'étape 8 quater met en place pour ces écrans (2026-10-05).** Chaque réglage existe
+> désormais sous une seule forme (`pastory/reglages`) : une valeur, **sa source, sa date, ce qui a
+> été vérifié, ce qu'il faut savoir** — ou le **motif** de son absence — et, quand l'utilisateur
+> l'a corrigée, **ce que la source donnait**. `pastory actifs` en est la version texte : c'est le
+> contenu exact de l'écran de correction, à reprendre tel quel. Les réglages à montrer : cotation,
+> type, frais courants, contenu, source de secours (`aucun` pour la refuser), date d'ouverture du
+> PEA et retraits relevés ([D-85](decisions.md) à [D-92](decisions.md)). Une correction de ticker
+> n'a rien à faire des cours déjà gardés : ceux d'une autre cotation ne sont jamais employés
+> ([architecture-notes §7 bis](architecture-notes.md)).
 
 **Ajouté le 2026-10-01, et ce n'est pas un complément :** [D-78](decisions.md) fait de ces écrans
 une partie de l'étape 9, au même titre que la synthèse. La raison est un arbitrage du propriétaire,

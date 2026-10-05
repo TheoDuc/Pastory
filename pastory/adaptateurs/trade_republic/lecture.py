@@ -22,21 +22,34 @@ from enum import StrEnum
 from pastory.adaptateurs.trade_republic.classement import Categorie, classer, code_affichable
 from pastory.adaptateurs.trade_republic.depot import Depot
 from pastory.adaptateurs.trade_republic.fichier import Ligne
-from pastory.adaptateurs.trade_republic.rapport import Rapport
+from pastory.adaptateurs.trade_republic.rapport import TYPE_PAR_CLASSE, Rapport
 from pastory.pivot.operation import DEVISE_UNIQUE, Operation, Poche, Provenance, TypeOperation
 from pastory.pivot.validation import Anomalie, controler, tolerance_du_produit
+from pastory.reglages import MouvementPea, Sens
 
 ZERO = Decimal("0")
 
-CLASSES_ACCEPTEES = frozenset({"FUND", "STOCK", "CRYPTO"})
-"""Les valeurs d'`asset_class` vues sur nos fichiers. `BOND` existe chez d'autres
-utilisateurs, mais son montant inclut les intérêts courus : `amount ≠ shares × price`."""
+CLASSES_ACCEPTEES = frozenset(TYPE_PAR_CLASSE)
+"""Les valeurs d'`asset_class` vues sur nos fichiers, chacune avec son type (D-82). `BOND`
+existe chez d'autres utilisateurs, mais son montant inclut les intérêts courus :
+`amount ≠ shares × price`."""
 
 CLASSE_CRYPTO = "CRYPTO"
 
 POCHE_PAR_COMPTE: dict[str, Poche] = {"DEFAULT": Poche.CTO, "PEA": Poche.PEA}
 """`account_type` → poche. `JUNIOR` (compte enfant) existe chez d'autres : il n'est pas
 traité, faute de savoir à quelle enveloppe fiscale il correspond."""
+
+COMPTE_PEA = "PEA"
+
+SENS_SUR_LE_PEA: dict[tuple[str, str], Sens] = {
+    ("CASH", "TRANSFER_IN"): Sens.ENTREE,
+    ("CASH", "PEA_MARKETING"): Sens.ENTREE,
+    ("CASH", "TRANSFER_OUT"): Sens.SORTIE,
+}
+"""Les mouvements d'espèces du PEA dont se lit la date d'ouverture (D-86) : un versement, la
+prime d'ouverture que la banque crédite à l'ouverture du plan, un retrait. Vus sur un vrai
+fichier, sur le compte `PEA` (docs/export-officiel.md §4.1)."""
 
 
 class NatureSource(StrEnum):
@@ -182,6 +195,7 @@ class Lecteur:
                 )
                 continue
             if classement.categorie is Categorie.HORS_PERIMETRE:
+                self._noter_un_mouvement_pea(ligne, rapport)
                 continue
 
             assert classement.type_operation is not None
@@ -219,6 +233,24 @@ class Lecteur:
                 "contient déjà, elle n'est pas lue",
                 _ou(ligne),
             )
+
+    @staticmethod
+    def _noter_un_mouvement_pea(ligne: Ligne, rapport: Rapport) -> None:
+        """Retient le jour et le sens d'un mouvement d'espèces du PEA, jamais son montant (D-11).
+
+        Les lignes arrivent dans l'ordre de leur horodatage : la liste reste chronologique, ce
+        qui compte quand une clôture et une réouverture tombent le même jour. Une date illisible
+        n'est pas retenue : la ligne est hors périmètre, et la refuser ici ne ferait que masquer
+        les autres mouvements.
+        """
+        sens = SENS_SUR_LE_PEA.get((ligne.category, ligne.type))
+        if sens is None or ligne.account_type != COMPTE_PEA:
+            return
+        try:
+            jour = _jour(ligne)
+        except OperationNonProduite:
+            return
+        rapport.mouvements_pea.append(MouvementPea(jour, sens))
 
     # --- Une ligne -------------------------------------------------------------
 

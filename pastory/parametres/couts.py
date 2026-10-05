@@ -4,8 +4,8 @@ Deux choses sont réunies ici :
 
 - le **barème** livré avec l'application (`couts.toml`) : frais par ordre, et spread par côté
   par type d'actif ;
-- ce que l'utilisateur a **déclaré** dans `actifs.toml` : le type de chaque actif, son TER, et
-  éventuellement son propre taux de spread.
+- les **réglages** de chaque actif (`pastory/reglages`) : son type, son TER — trouvés et
+  contrôlés, ou corrigés — et éventuellement son propre taux de spread, corrigé à la main.
 
 `ParametresDuPortefeuille` les combine et répond, actif par actif, aux questions que
 `moteur/couts.py` pose par son protocole `ParametresDeCouts`. Le moteur ne sait pas ce qu'est
@@ -18,18 +18,18 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-from pastory.config.actifs import Configuration, Declaration, TypeActif
+from pastory.config.actifs import TypeActif
 from pastory.parametres import DOSSIER, ParametresInvalides
 from pastory.parametres.lecture import Parametre
 from pastory.parametres.lecture import charger as charger_parametres
 from pastory.pivot.operation import Poche
+from pastory.reglages import SOURCE_CORRECTION_ACTIFS, Trouvee
+from pastory.reglages.assemblage import Reglages, ReglagesDUnActif
 
 FICHIER = DOSSIER / "couts.toml"
 
 NATURES_DE_FRAIS = ("titres", "crypto", "plan")
 TYPES_DE_SPREAD = tuple(type_actif.value for type_actif in TypeActif)
-
-SOURCE_DECLAREE = "déclaré par vous dans actifs.toml"
 
 
 @dataclass(frozen=True)
@@ -68,34 +68,37 @@ def charger(fichier: Path | None = None) -> Bareme:
 
 
 class ParametresDuPortefeuille:
-    """Le barème et les déclarations de l'utilisateur, vus actif par actif.
+    """Le barème et les réglages du portefeuille, vus actif par actif.
 
-    Satisfait `moteur.couts.ParametresDeCouts` sans que le moteur le sache.
+    Satisfait `moteur.couts.ParametresDeCouts` sans que le moteur le sache. Les réglages sont
+    ceux que `pastory/reglages` a assemblés : trouvés et contrôlés, ou corrigés (D-80). Chaque
+    taux rendu porte donc sa source réelle, que le rapport affiche.
     """
 
-    def __init__(self, bareme: Bareme, actifs: Configuration) -> None:
+    def __init__(self, bareme: Bareme, reglages: Reglages) -> None:
         self.bareme = bareme
-        self.actifs = actifs
+        self.reglages = reglages
 
-    def _declaration(self, actif: str) -> Declaration | None:
-        return self.actifs.declaration(actif)
+    def _actif(self, actif: str) -> ReglagesDUnActif | None:
+        return self.reglages.actifs.get(actif)
 
     def type_actif(self, actif: str, poche: Poche) -> TypeActif | None:
-        """Le type déclaré ; une crypto l'est d'office par sa poche (D-55)."""
+        """Le type retenu ; une crypto l'est d'office par sa poche (D-55)."""
         if poche is Poche.CRYPTO:
             return TypeActif.CRYPTO
-        declaration = self._declaration(actif)
-        return declaration.type if declaration is not None else None
+        reglages = self._actif(actif)
+        return reglages.type.valeur if reglages is not None else None
 
     def spread_par_cote(self, actif: str, poche: Poche) -> Parametre | None:
         """Le taux propre à l'actif s'il en a un, sinon celui de son type, sinon rien."""
-        declaration = self._declaration(actif)
-        if declaration is not None and declaration.spread_pour_cent is not None:
+        reglages = self._actif(actif)
+        correction = reglages.correction if reglages is not None else None
+        if correction is not None and correction.spread_pour_cent is not None:
             return Parametre(
-                nom=f"spread déclaré pour {actif}",
-                valeur=declaration.spread_pour_cent,
+                nom=f"spread corrigé pour {actif}",
+                valeur=correction.spread_pour_cent,
                 unite="pour cent",
-                source=SOURCE_DECLAREE,
+                source=SOURCE_CORRECTION_ACTIFS,
             )
         type_actif = self.type_actif(actif, poche)
         if type_actif is None:
@@ -107,15 +110,21 @@ class ParametresDuPortefeuille:
         return self.type_actif(actif, poche) is TypeActif.ETF
 
     def ter(self, actif: str) -> Parametre | None:
-        """Le TER **validé** par l'utilisateur, ou rien : jamais une valeur devinée (D-61)."""
-        declaration = self._declaration(actif)
-        if declaration is None or declaration.ter_pour_cent is None:
+        """Le TER retenu, avec sa source et sa date, ou rien : jamais une valeur devinée."""
+        reglages = self._actif(actif)
+        if reglages is None or reglages.ter is None:
             return None
+        retenu = reglages.ter.retenu
+        if not isinstance(retenu, Trouvee):
+            return None
+        origine = retenu.origine
+        # La date est écrite dans la source, avec ce qu'elle veut dire : « au » pour l'état d'une
+        # liste, « taux en vigueur depuis le » pour la date d'effet publiée par l'émetteur.
+        source = origine.source
+        if origine.date is not None:
+            source += f", {origine.intitule_de_la_date} {origine.date.isoformat()}"
         return Parametre(
-            nom=f"TER déclaré pour {actif}",
-            valeur=declaration.ter_pour_cent,
-            unite="pour cent",
-            source=SOURCE_DECLAREE,
+            nom=f"TER de {actif}", valeur=retenu.valeur, unite="pour cent", source=source
         )
 
     def frais_par_ordre(self, poche: Poche) -> Parametre:

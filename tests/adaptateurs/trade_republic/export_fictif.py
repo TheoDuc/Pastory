@@ -258,6 +258,22 @@ def virement_recu(**champs: str) -> dict[str, str]:
     )
 
 
+def versement_pea(**champs: str) -> dict[str, str]:
+    """Un versement d'espèces sur le PEA : la forme vue, montant compris (export-officiel §4.1)."""
+    return (
+        ligne(
+            datetime="2026-01-02T07:00:00.000Z",
+            date="2026-01-02",
+            account_type="PEA",
+            category="CASH",
+            type="TRANSFER_IN",
+            amount="500.00",
+            description="PEA deposit",
+        )
+        | champs
+    )
+
+
 def saveback(**champs: str) -> dict[str, str]:
     return (
         ligne(

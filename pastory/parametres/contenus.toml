@@ -1,0 +1,42 @@
+# Comment lire le contenu d'un fonds dans ses deux sources (D-89, D-58).
+#
+# Le contenu dit de quoi un fonds est fait à l'intérieur : actions, obligations, matières
+# premières (D-71). Il est trouvé chez extraETF, et recoupé par le code CFI que les plateformes
+# déclarent au registre public de l'ESMA.
+#
+# Ce qui n'est pas dans cette table n'est **pas traduit** : le contenu reste non trouvé, et
+# l'écran le dit. En particulier le monétaire (extraETF 5 « Geldmarkt »), les fonds multi-actifs
+# (9 « Portfoliokonzepte ») et l'immobilier coté (1160 « Immobilien ») attendent une décision.
+# Un code inconnu n'est jamais rangé par défaut (règle 5 de CLAUDE.md).
+
+[meta]
+source = "Relevé du 2026-10-05 sur 310 fonds : asset_class_id et asset_class_name d'extraETF, toujours concordants ; norme ISO 10962:2021, groupes CE et EY (https://www.iotafinance.com/en/Attributes-ISO-10962-2021-CFI-Codes-Group-CE.html). Voir docs/reglages-automatiques.md §3."
+verifie_le = 2026-10-05
+note = "Le code d'extraETF n'est publié nulle part : il n'est traduit que si son libellé, livré dans la même réponse, est celui attendu."
+
+# extraETF : asset_class_id → le libellé qui doit l'accompagner, et le contenu qu'il donne.
+[extraetf.2]
+libelle = "Aktien"
+contenu = "actions"
+
+[extraetf.3]
+libelle = "Anleihen"
+contenu = "obligations"
+
+[extraetf.4]
+libelle = "Rohstoffe"
+contenu = "matieres_premieres"
+
+# Code CFI : pour une famille (les deux premières lettres), la position de la lettre qui dit le
+# contenu, et les lettres qui parlent. Toute autre lettre est muette : « M » (autres), code par
+# défaut de presque tous les ISIN luxembourgeois ; « L » (mixte), qui couvre en réalité surtout
+# des fonds d'actions ; « D », « F », « V », « X », presque toujours des fonds d'actions.
+[cfi.CE]
+position = 5
+E = "actions"
+B = "obligations"
+C = "matieres_premieres"
+
+[cfi.EY]
+position = 6
+T = "matieres_premieres"

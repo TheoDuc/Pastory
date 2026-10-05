@@ -31,6 +31,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 from datetime import date as Date
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
@@ -62,6 +63,13 @@ CHAMP_PAYS = "country_stocks_exposure_list"
 CHAMP_SECTEURS = "global_stock_exposure_list"
 CHAMP_CLASSES = "asset_allocation_exposure_list"
 CHAMP_DATE = "index_date_last_update"
+
+CHAMP_CLASSE_CODE = "asset_class_id"
+CHAMP_CLASSE_LIBELLE = "asset_class_name"
+CHAMP_CLASSE_DATE = "last_imported_at"
+"""La classe d'actifs du fonds (D-89). **À ne pas confondre** avec `asset_class` lu seul, et
+avec la répartition par classes (`CHAMP_CLASSES`), qui décrit le panier détenu : 99,9 %
+« actions » pour un fonds monétaire à swap, son collatéral (le piège de D-64)."""
 
 INTITULE_DE_LA_DATE = (
     "champ « index_date_last_update » de la source, qui nomme l'indice et non le portefeuille"
@@ -115,6 +123,54 @@ class SourceExtraEtf:
         """La composition de cet ISIN, ou une `ErreurDeSource` que l'appelant change en refus."""
         adresse = f"{ADRESSE}?{urllib.parse.urlencode({'isin': actif.strip().upper()})}"
         return lire(self.ouvrir(adresse), actif, aujourd_hui=self.aujourd_hui)
+
+    def classe_d_actifs(self, actif: str) -> ClasseAnnoncee | None:
+        """La classe d'actifs de ce fonds, telle que la source l'annonce (D-89)."""
+        adresse = f"{ADRESSE}?{urllib.parse.urlencode({'isin': actif.strip().upper()})}"
+        return lire_la_classe(self.ouvrir(adresse), actif)
+
+
+@dataclass(frozen=True)
+class ClasseAnnoncee:
+    """La classe d'actifs qu'extraETF donne à un fonds : un code **et** son libellé (D-89).
+
+    Le code seul n'est documenté nulle part : c'est en le lisant sans son libellé que D-71
+    l'avait cru « faux sur deux actifs sur trois ». Les deux ensemble se recoupent, et
+    `parametres/contenus.toml` exige qu'ils concordent avant de traduire quoi que ce soit.
+    """
+
+    code: int
+    libelle: str
+    releve_le: Date | None
+    """Le jour où la source a mis la fiche à jour (`last_imported_at`)."""
+
+
+def lire_la_classe(contenu: bytes, actif: str) -> ClasseAnnoncee | None:
+    """La classe d'actifs du fonds, ou `None` si extraETF ne le connaît pas ou ne la donne pas."""
+    try:
+        charge = json.loads(contenu.decode("utf-8", errors="replace"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as erreur:
+        raise CompositionIncoherente(
+            f"la réponse d'extraETF pour {actif} n'est pas du JSON lisible ({erreur})"
+        ) from erreur
+    resultats = charge.get("results") if isinstance(charge, Mapping) else None
+    if not isinstance(resultats, Sequence) or not resultats:
+        return None
+    fonds = resultats[0]
+    if not isinstance(fonds, Mapping):
+        return None
+    code = fonds.get(CHAMP_CLASSE_CODE)
+    libelle = fonds.get(CHAMP_CLASSE_LIBELLE)
+    if isinstance(code, bool) or not isinstance(code, int) or not isinstance(libelle, str):
+        return None
+    releve = fonds.get(CHAMP_CLASSE_DATE)
+    releve_le = None
+    if isinstance(releve, str) and releve.strip():
+        try:
+            releve_le = Date.fromisoformat(releve.strip()[:10])
+        except ValueError:
+            releve_le = None
+    return ClasseAnnoncee(code, libelle.strip(), releve_le)
 
 
 def lire(contenu: bytes, actif: str, aujourd_hui: Date | None = None) -> Composition:

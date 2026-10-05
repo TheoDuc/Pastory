@@ -87,7 +87,7 @@ class ParametresDeCouts(Protocol):
 
     def spread_par_cote(self, actif: str, poche: Poche) -> ParametreDate | None:
         """Le taux de spread par côté, en pour cent. `None` si le type de l'actif n'est pas
-        déclaré : on n'estime rien sur une base inconnue (D-55)."""
+        connu : on n'estime rien sur une base inconnue (D-55, D-82)."""
         ...
 
     def attend_un_ter(self, actif: str, poche: Poche) -> bool:
@@ -95,7 +95,8 @@ class ParametresDeCouts(Protocol):
         ...
 
     def ter(self, actif: str) -> ParametreDate | None:
-        """Les frais courants annuels validés par l'utilisateur, en pour cent, ou rien."""
+        """Les frais courants annuels, en pour cent, trouvés et contrôlés ou corrigés par
+        l'utilisateur, avec leur source ; ou rien (D-61, D-80)."""
         ...
 
     def frais_par_ordre(self, poche: Poche) -> ParametreDate:
@@ -334,7 +335,7 @@ def frais_courants(
 ) -> list[FraisCourantsEstimes]:
     """Pour chaque ETF valorisé : valeur brute × TER, par an (glossaire §6).
 
-    Un ETF sans TER validé apparaît avec un motif, jamais pour zéro (D-61). Les actifs qui ne
+    Un ETF sans TER apparaît avec un motif, jamais pour zéro (D-61). Les actifs qui ne
     sont pas des ETF n'apparaissent pas : ils n'ont pas de frais courants.
     """
     resultat: list[FraisCourantsEstimes] = []
@@ -352,8 +353,9 @@ def frais_courants(
                 FraisCourantsEstimes(
                     position,
                     None,
-                    motif="TER non déclaré : « pastory actifs » en propose un, à vérifier "
-                    "sur la fiche de l'émetteur",
+                    motif="frais courants introuvables : aucune source consultée ne les "
+                    "publie pour ce fonds. Ils ne sont pas comptés ; « pastory actifs » dit "
+                    "quelles sources ont été consultées",
                 )
             )
             continue

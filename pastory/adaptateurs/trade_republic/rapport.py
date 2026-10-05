@@ -17,8 +17,21 @@ from dataclasses import dataclass, field
 
 from pastory.adaptateurs.trade_republic.classement import Categorie, Classement
 from pastory.adaptateurs.trade_republic.depot import Depot
-from pastory.pivot.operation import Operation, Provenance, TypeOperation
+from pastory.config.actifs import TypeActif
+from pastory.pivot.operation import Operation, Poche, Provenance, TypeOperation
 from pastory.pivot.validation import Anomalie
+from pastory.reglages import CeQueDitLaBanque, MouvementPea
+
+SOURCE = "export Trade Republic"
+
+TYPE_PAR_CLASSE: dict[str, TypeActif] = {
+    "FUND": TypeActif.ETF,
+    "STOCK": TypeActif.ACTION,
+    "CRYPTO": TypeActif.CRYPTO,
+}
+"""`asset_class` → type d'actif (D-82). Ses clés sont les classes acceptées par la lecture
+(`lecture.CLASSES_ACCEPTEES`) : une autre classe ne produit pas d'opération, et n'arrive donc
+jamais jusqu'ici."""
 
 LARGEUR = 96
 """Largeur des phrases enveloppées : 100 colonnes moins le retrait."""
@@ -84,7 +97,13 @@ class Rapport:
 
     classes_par_actif: dict[str, set[str]] = field(default_factory=dict)
     """Actif → valeurs d'`asset_class` vues sur ses opérations. Le type d'un actif est une
-    donnée de la banque (D-82) ; il est appliqué aux estimations à l'étape 8 quater."""
+    donnée de la banque (D-82) : `reglages.depuis_l_export` le traduit et l'applique."""
+
+    mouvements_pea: list[MouvementPea] = field(default_factory=list)
+    """Les entrées et sorties d'espèces du PEA, dans l'ordre (`lecture.SENS_SUR_LE_PEA`).
+
+    Seuls le type, le compte et le jour de chaque ligne sont regardés, jamais son montant
+    (D-11). `pastory/reglages` en tire la date d'ouverture du plan (D-86)."""
 
     # --- Accumulation ---------------------------------------------------------
 
@@ -133,6 +152,31 @@ class Rapport:
         if depot.conflits:
             reserves.append(f"{len(depot.conflits)} opération(s) en deux versions")
         return reserves
+
+    def ce_que_dit_la_banque(self) -> CeQueDitLaBanque:
+        """Les réglages que l'export donne lui-même : le type de chaque actif (D-82) et la date
+        d'ouverture proposée pour le PEA (D-59, D-80)."""
+        noms: dict[str, str] = {}
+        poches: dict[str, set[Poche]] = {}
+        for operation in self.operations:
+            poches.setdefault(operation.actif, set()).add(operation.poche)
+            if operation.nom_actif and operation.actif not in noms:
+                noms[operation.actif] = operation.nom_actif
+        jours_pea = sorted(
+            operation.date for operation in self.operations if operation.poche is Poche.PEA
+        )
+        return CeQueDitLaBanque(
+            source=SOURCE,
+            date=self.depot.dernier_jour,
+            types={
+                actif: frozenset(TYPE_PAR_CLASSE[classe] for classe in classes)
+                for actif, classes in self.classes_par_actif.items()
+            },
+            poches={actif: frozenset(lesquelles) for actif, lesquelles in poches.items()},
+            noms=noms,
+            mouvements_pea=tuple(self.mouvements_pea),
+            jours_operations_pea=tuple(jours_pea),
+        )
 
     @property
     def a_des_dividendes(self) -> bool:

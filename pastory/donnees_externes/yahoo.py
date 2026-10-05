@@ -45,7 +45,6 @@ from pastory.config.actifs import Declaration, Proposition, TypeActif
 from pastory.donnees_externes.cours import (
     Cours,
     DeviseInattendue,
-    ErreurDeSource,
     ReponseIncoherente,
     SourceInjoignable,
     TickerInconnu,
@@ -127,61 +126,65 @@ class Yahoo:
             if debut <= jour <= min(fin, dernier_jour_clos)
         ]
 
-    # --- Pour l'assistant `pastory actifs` seulement -----------------------------------
+    # --- Pour la recherche des réglages (`pastory/reglages`) seulement ----------------
 
-    def chercher(self, actif: str) -> Proposition | None:
-        """Cherche un ticker pour un ISIN, **sans rien décider**.
+    def serie_brute(
+        self, ticker: str, debut: Date, fin: Date
+    ) -> tuple[str, list[tuple[Date, Decimal]]]:
+        """Les clôtures d'un ticker **dans sa devise**, telle que la source l'écrit (« GBp »
+        pour des pence, à ne pas confondre avec « GBP »).
 
-        Deux appels : la recherche donne un symbole, puis un appel de série d'un jour donne
-        la **devise** et la place — que la recherche ne dit pas. C'est ce second appel qui
-        rend visible le piège du dollar (D-48), et c'est pour cela qu'il est fait ici plutôt
-        que laissé à la charge de l'utilisateur.
-
-        Renvoie `None` dès que quelque chose manque : une proposition douteuse vaut mieux que
-        rien, mais une proposition inventée ne vaut rien.
+        Ne sert **jamais** à valoriser : seulement à contrôler un candidat en euros contre la
+        cotation que la recherche par ISIN a trouvée dans une autre monnaie, une fois convertie
+        (`pastory/reglages/recherche`). Rien de ce qui est lu ici n'entre dans le cache.
         """
-        parametres = urllib.parse.urlencode({"q": actif, "quotesCount": 5, "newsCount": 0})
-        adresse = f"{ADRESSE_RECHERCHE}?{parametres}"
-        try:
-            reponse = json.loads(self.ouvrir(adresse), parse_float=Decimal)
-        except (ErreurDeSource, json.JSONDecodeError):
-            return None
-
-        quotes = reponse.get("quotes") or []
-        if not quotes:
-            return None
-
-        premier = quotes[0]
-        ticker = str(premier.get("symbol") or "").strip()
-        if not ticker:
-            return None
-
-        nom = premier.get("longname") or premier.get("shortname")
-        place = premier.get("exchDisp") or premier.get("exchange")
-
-        devise, place_complete = self._identite(ticker)
-        return Proposition(
-            ticker=ticker,
-            place=place_complete or (str(place) if place else None),
-            devise=devise,
-            nom=str(nom) if nom else None,
-            type=_type_actif(premier.get("quoteType")),
-        )
-
-    def _identite(self, ticker: str) -> tuple[str | None, str | None]:
-        """La devise et la place d'un ticker, prises sur une série d'un seul jour."""
-        fin = Date.today()
-        adresse = _adresse_serie(ticker, fin - timedelta(days=7), fin)
-        try:
-            contenu = _resultat(self.ouvrir(adresse), ticker)
-        except ErreurDeSource:
-            return None, None
-
+        contenu = _resultat(self.ouvrir(_adresse_serie(ticker, debut, fin)), ticker)
         meta = contenu.get("meta") or {}
-        devise = str(meta.get("currency") or "").upper() or None
-        place = str(meta.get("fullExchangeName") or meta.get("exchangeName") or "") or None
-        return devise, place
+        devise = str(meta.get("currency") or "")
+        if not devise:
+            raise ReponseIncoherente(f"la source ne dit pas dans quelle monnaie {ticker} cote")
+        return devise, _jours(contenu, _fuseau(meta))
 
+    def candidats(self, requete: str) -> list[Proposition]:
+        """**Tous** les résultats d'une recherche (un ISIN ou un nom), sans rien décider.
+
+        La recherche par ISIN renvoie d'abord la cotation de Londres, **en dollars**, pour la
+        plupart des ETF irlandais ; une recherche par nom trouve leurs cotations en euros, mais
+        mêle les parts d'un même fonds (docs/reglages-automatiques.md). Aucun de ces résultats
+        n'est donc pris tel quel : c'est le contrôle par le prix payé qui choisit
+        (`pastory/reglages/recherche`). Ni la devise ni la place ne sont lues ici — la série de
+        cours, demandée ensuite, les vérifie.
+        """
+        parametres = urllib.parse.urlencode({"q": requete, "quotesCount": 10, "newsCount": 0})
+        # Une panne remonte (`SourceInjoignable`) : « la source n'a pas répondu » n'est pas « la
+        # source ne connaît rien », et seul le second peut être gardé en mémoire.
+        try:
+            reponse = json.loads(
+                self.ouvrir(f"{ADRESSE_RECHERCHE}?{parametres}"), parse_float=Decimal
+            )
+        except json.JSONDecodeError as erreur:
+            raise SourceInjoignable(
+                "la recherche a répondu autre chose que du JSON : la page d'un antivirus ou d'un "
+                "portail, sans doute"
+            ) from erreur
+        trouves: list[Proposition] = []
+        for quote in reponse.get("quotes") or []:
+            if not isinstance(quote, dict):
+                continue
+            ticker = str(quote.get("symbol") or "").strip()
+            if not ticker:
+                continue
+            nom = quote.get("longname") or quote.get("shortname")
+            place = quote.get("exchDisp") or quote.get("exchange")
+            trouves.append(
+                Proposition(
+                    ticker=ticker,
+                    place=str(place) if place else None,
+                    nom=str(nom) if nom else None,
+                    type=_type_actif(quote.get("quoteType")),
+                )
+            )
+        return trouves
 
 # --- Lecture de la réponse ---------------------------------------------------------------
 
@@ -242,7 +245,7 @@ def _telecharger(adresse: str) -> str:
             ) from erreur
         if erreur.code == 404:
             raise TickerInconnu(
-                "la source ne connaît pas ce ticker : corrigez-le dans actifs.toml"
+                "la source ne connaît pas ce ticker"
             ) from erreur
         raise ErreurDeReseau(
             f"la source a répondu une erreur {erreur.code} ({erreur.reason})"
@@ -276,7 +279,7 @@ def _resultat(texte: str, ticker: str) -> dict:
         )
         if "not found" in description.lower() or "No data found" in description:
             raise TickerInconnu(
-                f"la source ne connaît pas le ticker {ticker} : corrigez-le dans actifs.toml"
+                f"la source ne connaît pas le ticker {ticker}"
             )
         raise SourceInjoignable(f"la source a refusé la demande : {description}")
 
@@ -300,8 +303,8 @@ def _verifier_la_devise(devise: str, declaration: Declaration) -> None:
     if devise != declaration.devise.upper():
         raise DeviseInattendue(
             f"« {declaration.ticker} » est coté en {devise}, or {declaration.devise} est "
-            f"attendu. L'application ne convertit rien : retenez la cotation en "
-            f"{declaration.devise} de cet actif, sur une autre place, dans « actifs.toml »."
+            "attendu. L'application ne convertit rien : ce cours n'est pas utilisé, et "
+            "l'actif est signalé plutôt qu'estimé."
         )
 
 

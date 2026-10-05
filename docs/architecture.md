@@ -13,12 +13,14 @@ choix dans [decisions.md](decisions.md) ; le détail du contrat entre couches da
 [format-pivot.md](format-pivot.md). Ici, aucune raison n'est réexpliquée : elle est citée
 (`D-xx`).
 
-> État à la dernière mise à jour (fin de l'étape 8 ter) : les couches **adaptateur** — celui de
-> l'**export officiel** de Trade Republic, pytr ayant été retiré ([D-81](decisions.md)) —, **pivot**,
-> **moteur** (rejeu, valorisation, rendements, coûts, fiscalité, valeur réelle et
+> État à la dernière mise à jour (fin de l'étape 8 quater) : les couches **adaptateur** — celui
+> de l'**export officiel** de Trade Republic, pytr ayant été retiré ([D-81](decisions.md)) —,
+> **pivot**, **moteur** (rejeu, valorisation, rendements, coûts, fiscalité, valeur réelle et
 > **diversification**) et **données externes** sont écrites, ainsi que les **paramètres** datés et
-> sourcés, qui portent désormais aussi les **référentiels** (secteurs, pays et zones). La couche
-> **vues** existe comme dossier vide, avec sa place déjà définie. Le §10 dit ce qui s'y branchera.
+> sourcés, qui portent aussi les **référentiels**. Depuis l'étape 8 quater, une couche
+> **réglages** trouve seule ce que l'utilisateur déclarait à la main ([D-80](decisions.md)), et
+> `config/` ne porte plus que ses corrections. La couche **vues** existe comme dossier vide, avec
+> sa place déjà définie. Le §10 dit ce qui s'y branchera.
 
 ---
 
@@ -40,6 +42,13 @@ choix dans [decisions.md](decisions.md) ; le détail du contrat entre couches da
    │  colonnes · refuser les formes jamais vues                │
    └───────────────────────┬───────────────────────────────────┘
                            │  opérations + ce qui n'a pas été compris
+                           │  + ce que dit la banque (type, mouvements du PEA)
+                           │        │
+                           │        └──► RÉGLAGES  reglages/  (D-80)
+                           │             banque + sources (contrôlées) + corrections
+                           │             → la configuration effective, chaque valeur
+                           │             avec sa source ; cli.py la passe aux cours,
+                           │             aux coûts et aux compositions
                            ▼
    ┌───────────────────────────────────────────────────────────┐
    │  PIVOT  pivot/            ◄── le contrat, figé (D-35)     │
@@ -77,13 +86,14 @@ de banque ne demande d'écrire qu'un adaptateur.
 
 ---
 
-## 2. Les six couches, et ce que chacune s'interdit
+## 2. Les couches, et ce que chacune s'interdit
 
 L'interdiction compte autant que le rôle : c'est elle qui garantit qu'un défaut reste local.
 
 | Couche | Son travail | Ce qu'elle ne sait pas, volontairement |
 |---|---|---|
-| `config/` | Où sont les fichiers personnels ; ce que l'utilisateur a déclaré ou corrigé (ticker, type, TER, date du PEA) | Ce qu'on fera de ces réponses |
+| `config/` | Où sont les fichiers personnels ; ce que l'utilisateur a **corrigé**, champ par champ (D-92) | Ce qu'on fera de ces corrections, et ce qui a été trouvé sans lui |
+| `reglages/` | Trouver la cotation, le type, le TER, le contenu, la date du PEA ; les **contrôler** ; les fusionner avec les corrections ; dire d'où vient chaque valeur, ou pourquoi elle manque (D-80, D-85 à D-92) | Lire un export (l'adaptateur lui donne `CeQueDitLaBanque`), calculer quoi que ce soit sur une position |
 | `adaptateurs/` | Comprendre les fichiers d'**une** banque et les traduire en pivot | Ce qu'est un prix de revient, un gain, un rendement |
 | `pivot/` | Décrire une opération, et vérifier qu'une ligne se tient | Qui l'a produite, qui va la lire |
 | `donnees_externes/` | Aller chercher un cours, **la composition d'un actif**, les garder, et **compléter un prix manquant** | Ce qu'est une position, un prix de revient, une plus-value. Et ce qu'est un secteur « Technologie » : elle ne transporte que des **codes** |
@@ -120,9 +130,16 @@ adaptateurs/  ──────► pivot/  ◄────── moteur/
 cli.py ──► tout ce qui précède
 ```
 
-`parametres/` lit `config/actifs.py` et `pivot/operation.py`, pour croiser le barème avec ce que
-l'utilisateur a déclaré et parler des mêmes poches que tout le monde. **Aucune flèche ne part de
-`moteur/`** : c'est lui qui déclare ce qu'il attend, et `cli.py` qui le lui donne.
+`parametres/` lit `config/actifs.py`, `pivot/operation.py` et `reglages/`, pour croiser le barème
+avec les réglages de chaque actif et parler des mêmes poches que tout le monde. **Aucune flèche ne
+part de `moteur/`** : c'est lui qui déclare ce qu'il attend, et `cli.py` qui le lui donne.
+
+**`reglages/`** (étape 8 quater) lit `config/` (les corrections), `pivot/` (les prix payés, pour
+contrôler une cotation), `donnees_externes/` (les sources), `parametres/contenus` (la table de
+lecture du contenu) et une seule fonction du moteur, `moteur.fiscalite.anniversaire` (compter cinq
+ans comme le compte l'impôt). L'adaptateur, lui, ne connaît de `reglages/` que la forme neutre
+qu'il remplit (`CeQueDitLaBanque`, `MouvementPea`) : `reglages/` ne sait pas lire un export, comme
+le moteur ne sait pas lire un CSV de la banque.
 
 Ce qui en découle, et qui se vérifie en lisant les imports :
 
@@ -172,8 +189,15 @@ pastory/
 ├── tableur.py                 comment on écrit un nombre (CSV et phrases)
 ├── config/
 │   ├── emplacements.py        où vivent les fichiers personnels (D-37)
-│   ├── actifs.py              de l'ISIN au ticker, la devise, le type et le TER (D-48, D-55)
-│   └── fiscalite.py           la date du premier versement du PEA, déclarée (D-59)
+│   ├── actifs.py              les corrections, champ par champ : jamais réécrites (D-92)
+│   └── fiscalite.py           la date du PEA, corrigée à la main si besoin (D-86)
+├── reglages/                  ce qui se trouve seul, et d'où ça vient (D-80)
+│   ├── __init__.py            Origine, Trouvee, Trou, Reglage ; ce que dit la banque
+│   ├── assemblage.py          correction > valeur trouvée > trou ; l'histoire du PEA (D-86)
+│   ├── recherche.py           cotation contrôlée par le prix payé (D-85), TER (D-90),
+│   │                          contenu (D-89)
+│   ├── cache.py               reglages.csv : ce qui a été trouvé, avec son origine
+│   └── rapport.py             le rapport de « pastory actifs »
 ├── adaptateurs/
 │   └── trade_republic/        l'export officiel des transactions (D-79)
 │       ├── fichier.py         lire un fichier, ses deux variantes, sans rien garder d'une
@@ -206,11 +230,14 @@ pastory/
 │   ├── cours.py               le contrat : un cours, un refus, une source interchangeable
 │   ├── cache.py               un CSV par actif, définitif et oubliable (D-50)
 │   ├── yahoo.py               la source retenue, et ses trois garde-fous (D-51)
-│   ├── xetra.py               la liste des ETF : le TER par ISIN, à valider (D-61)
+│   ├── xetra.py               la liste des ETF : le TER par ISIN (D-61, D-90)
+│   ├── amundi.py              le secours (pays de l'indice, D-77) et le TER de l'émetteur (D-90)
+│   ├── firds.py               le code CFI du registre de l'ESMA, témoin du contenu (D-89)
 │   ├── completion.py          les prix manquants complétés, du pivot vers du pivot (D-15)
 │   ├── composition.py         le contrat : une composition, ses contrôles, le fournisseur (D-63)
 │   ├── cache_compositions.py  un CSV par actif, daté et **remplaçable** (D-70)
-│   ├── extraetf.py            la composition d'un ETF par ISIN, agrégats seuls (D-63, D-64)
+│   ├── extraetf.py            la composition d'un ETF par ISIN, agrégats seuls (D-63, D-64),
+│   │                          et sa classe d'actifs, code et libellé (D-89)
 │   └── actions.py             le pays (GLEIF) et le secteur d'une action en direct (D-66)
 ├── parametres/
 │   ├── lecture.py             un taux sans date ni source est refusé (D-58)
@@ -220,8 +247,10 @@ pastory/
 │   ├── secteurs.toml          les 11 secteurs Morningstar, jamais « GICS » (D-65)
 │   ├── zones.toml             pays ISO 3166-1 → nom français et zone (D-66, D-67)
 │   ├── classes_actifs.toml    actions, obligations, liquidités : qui entre dans quoi (D-68)
+│   ├── contenus.toml          code d'extraETF et lettre CFI → contenu d'un fonds (D-89)
+│   ├── contenus.py            sa lecture
 │   ├── fiscalite.py           les règles fiscales, telles que le moteur les attend
-│   └── couts.py               le barème croisé avec ce que l'utilisateur a déclaré
+│   └── couts.py               le barème croisé avec les réglages de chaque actif
 └── vues/                      vide — l'interface Dash (étapes 8 et 9)
 
 scripts/
@@ -247,8 +276,9 @@ n'écrivent donc jamais dans le vrai dossier de l'utilisateur.
 **Plus aucune question préalable.** Jusqu'à l'étape 8 ter, `comptes.py` demandait le rôle de
 chaque compte espèces, parce que pytr ne disait pas à quelle poche appartenait un achat. L'export
 officiel l'écrit sur chaque ligne : la question a disparu avec lui ([D-81](decisions.md)). Ce qui
-reste dans `config/` — ticker, type, TER, date du PEA — est en passe d'être trouvé seul
-(étape 8 quater, [D-80](decisions.md)).
+restait dans `config/` — ticker, type, TER, contenu, date du PEA — est **trouvé seul** depuis
+l'étape 8 quater ([D-80](decisions.md)) : `actifs.toml` et `fiscalite.toml` ne portent plus que des
+**corrections**, toutes facultatives, que l'application ne réécrit jamais ([D-92](decisions.md)).
 
 ### 5.2 `adaptateurs/trade_republic/` — de l'export aux opérations
 
@@ -418,6 +448,7 @@ l'adaptateur sur le moteur. Aucune couche n'appelle l'autre d'elle-même.
 |---|---|---|
 | `emplacements` | `config` | crée les dossiers |
 | `lire` | adaptateur | **non** — un rapport à l'écran (crée le dossier de dépôt s'il manque) |
+| `actifs` | adaptateur → `reglages` → `donnees_externes` | **non** dans les fichiers de l'utilisateur ; ce qui est trouvé va dans `cache/reglages.csv` |
 | `exporter-pivot` | adaptateur → `pivot` | les opérations en CSV |
 | `positions` | adaptateur → `pivot` → `donnees_externes` → `parametres` → moteur | **non** — un rapport à l'écran |
 | `exporter-positions` | idem | les douze CSV du moteur |
@@ -436,10 +467,14 @@ complétion des prix manquants et à la valorisation : ses refus couvrent les de
 rendements, aux coûts et à la valeur réelle : deux valorisations du même jour pourraient différer
 d'un centime, et le rapport montrerait deux valeurs brutes.
 
-C'est aussi ici que les **paramètres** entrent : `_parametres_des_couts()` croise le barème livré
-avec ce que l'utilisateur a déclaré, `_regles_fiscales()` réunit les taux et la date du PEA, et
-`_liste_des_etf()` est le seul endroit qui nomme la source du TER — comme `_fournisseur_de_cours()`
-est le seul qui nomme celle des cours.
+C'est aussi ici que les **réglages** sont assemblés, une fois par commande : `_reglages()` réunit
+ce que dit la banque, ce que trouvent les sources et les corrections, et rend la configuration
+effective que `_fournisseur_de_cours()`, `_parametres_des_couts()` et
+`_fournisseur_de_compositions()` reçoivent en paramètre. `_regles_fiscales()` y prend la date du
+PEA, son origine, sa réserve, et l'alerte d'un retrait ([D-87](decisions.md)).
+`_source_des_cotations()`, `_frais_courants_de_l_emetteur()`, `_liste_des_etf()`,
+`_classes_d_actifs()` et `_registre_cfi()` sont les seuls endroits qui nomment ces sources — et
+ceux que les tests remplacent, pour qu'aucun ne sorte de la machine.
 
 ### 5.7 `donnees_externes/` — les cours, et ce qu'on refuse d'inventer
 
@@ -468,6 +503,36 @@ Quatre fichiers, et un principe qui les explique tous : **on refuse plutôt que 
   savait déjà traiter les deux cas.
 
 Ce qui reste vide : `vues/`, dont le §10 dit ce qui s'y branchera.
+
+### 5.8 `reglages/` — ce qui se trouve seul, et d'où ça vient
+
+Une seule forme pour tout réglage ([D-80](decisions.md)) : une **valeur trouvée** (`Trouvee`)
+porte son `Origine` — la source, la date que décrit la source, ce qui a été **vérifié**, et ce
+qu'il faut savoir pour s'y fier — ; un **trou** (`Trou`) porte son motif. `Reglage` réunit la
+valeur retenue et, quand une correction l'a remplacée, celle que la source donnait, pour que les
+deux se voient côte à côte.
+
+- **`assemblage.py`** décide, réglage par réglage : la correction, sinon la valeur trouvée, sinon
+  le trou. Il lit aussi l'**histoire du PEA** dans ses mouvements d'espèces ([D-86](decisions.md)).
+  Il rend `Reglages`, dont `configuration()` donne la configuration effective : les cours, les
+  coûts et les compositions la lisent comme avant, sans savoir qu'elle a été trouvée.
+- **`recherche.py`** cherche ce que l'export ne donne pas et le **contrôle** : la cotation par le
+  prix payé et le change ([D-85](decisions.md)), le TER par sa fourchette et l'accord des sources
+  ([D-90](decisions.md)), le contenu par le témoin CFI ([D-89](decisions.md)). Rien n'est cherché
+  pour l'export d'un tiers (règle 2 de CLAUDE.md).
+- **`cache.py`** garde ce qui a été trouvé, origine comprise, dans un CSV ouvrable dans un
+  tableur : une cotation pour toujours (ses cours le sont aussi), un TER ou un contenu un mois, un
+  trou une semaine, une panne jamais.
+
+Le trajet d'une valeur trouvée, pour la cotation d'un ETF *(valeurs fictives)* :
+
+| Où | Ce qui se passe | Ce qu'on peut vérifier |
+|---|---|---|
+| `recherche` | Par l'ISIN : `AAAA.L` en dollars, écarté (D-48). Par le nom : `AAAA.DE` et `AAAD.DE`, en euros | — |
+| `recherche` | Clôtures aux jours des quatre derniers achats : écart médian 0,3 % du prix payé pour l'un, 2,1 % pour l'autre ; change contre `AAAA.L` converti : 0,04 % et 2,0 % | `pastory actifs`, ligne « vérifié » |
+| `cache` | `AAAA.DE` gardé, avec sa source, sa date et son contrôle | `cache/reglages.csv` |
+| `assemblage` | Aucune correction : `AAAA.DE` s'applique | « trouvé : Yahoo Finance (recherche) » |
+| `cours` | Les cours de `AAAA.DE`, refusés s'ils n'arrivent pas en euros | Le cache des cours |
 
 ---
 
@@ -514,8 +579,8 @@ Six règles ne sont la propriété d'aucune couche, et se retrouvent dans toutes
 |---|---|---|
 | Le code, la documentation, les tests | Dossier du projet (OneDrive) | oui |
 | Exports officiels (`Exportation de transactions.csv`) | Dossier personnel → `exports/`, le dossier de dépôt | **non** |
-| Cours, TER, compositions en cache *(étape 4)* | Dossier personnel → `cache/` | **non** |
-| Tickers, types, TER, date du PEA | Dossier personnel → `configuration/` | **non** |
+| Cours, compositions, et les réglages trouvés (`reglages.csv`) | Dossier personnel → `cache/` | **non** |
+| Les corrections de l'utilisateur (`actifs.toml`, `fiscalite.toml`) | Dossier personnel → `configuration/` | **non** |
 | Les CSV de vérification (opérations, positions, journal) | Dossier personnel | **non** |
 | Résultats de vérification sur vraies données | `docs/verification/etape-N.local.md` | **non** (exclu) |
 | Identifiants Trade Republic | **nulle part** : aucune connexion depuis l'étape 8 ter ([D-81](decisions.md)) | **non** |
@@ -536,6 +601,7 @@ précédente :
 | `tests/pivot/` | Opérations écrites à la main (`exemples.py`) | Les contrôles de cohérence attrapent ce qu'ils doivent |
 | `tests/moteur/` | Opérations pivot fictives (`operations_fictives.py`) | Les calculs sont justes — **sans aucune banque** |
 | `tests/donnees_externes/` | Réponses écrites à la main, source factice (`cours_fictifs.py`) | Les pièges de la source sont attrapés — **sans aucun réseau** |
+| `tests/reglages/` | Ce que dit une banque fictive, des sources factices qui reproduisent les pièges mesurés | Chaque contrôle refuse ce qu'il doit, une correction l'emporte, une panne n'est pas gardée |
 | `tests/test_cli.py` | Un export officiel fictif (`export_ligne_de_commande.py`), plus deux titres reçus ajoutés à la lecture, en le disant ([architecture-notes §3 bis](architecture-notes.md)) | Les commandes s'enchaînent, et les rapports s'affichent en cp1252 |
 
 **Aucune donnée réelle dans les tests** ([D-38](decisions.md)). La vérification sur vraies
@@ -602,6 +668,10 @@ en trois endroits : `TypeOperation`, les contrôles de `validation.py`, et le ta
 Aucune n'est un défaut à corriger dans l'urgence, mais toutes doivent être connues avant de se
 fier à un chiffre.
 
+- **Une valeur trouvée vaut ce que vaut son contrôle.** Deux cotations du même titre sur deux
+  places, deux classes d'une même société, une prime d'ouverture lue comme le début du plan : les
+  limites de chaque contrôle sont dites dans [reglages-automatiques.md](reglages-automatiques.md),
+  et chaque valeur est montrée avec sa source pour qu'on puisse la corriger.
 - **Un titre entré sans aucune ligne est invisible** — un transfert de titres depuis un autre
   établissement, par exemple. Aucune seconde source ne confirme plus les quantités : la
   comparaison se fait à l'écran de l'application Trade Republic ([D-81](decisions.md)).

@@ -426,7 +426,7 @@ class TestLeBlocDeRepartitionDeLEtape7:
         assert "Obligations (hors actions)" in texte
         assert "Non couvert" not in texte
 
-    def test_un_actif_sans_composition_dit_quoi_faire(self):
+    def test_un_actif_sans_composition_dit_ce_qui_en_est_fait(self):
         # D-62 : le message est lu par quelqu'un qui n'a pas suivi la construction du projet.
         portefeuille, la_synthese, detail, valeur = detail_et_valeur()
         la_diversification = diversification_moteur.diversifier(
@@ -443,7 +443,7 @@ class TestLeBlocDeRepartitionDeLEtape7:
 
         assert "Non couvert : composition inconnue" in texte
         assert "rien\n      n'est estimé" in texte or "rien n'est estimé" in texte
-        assert "actifs.toml" in texte
+        assert "actifs.toml" not in texte
 
 
 class TestLeBlocDeRepartitionSAfficheSurUneConsoleWindows:
@@ -540,10 +540,10 @@ class TestLesTroisBlocsDeLEtape6:
     def test_sans_ter_declare_le_bloc_le_dit_sans_afficher_zero(self):
         texte = rapport_complet(ter={})
 
-        assert "TER non déclaré" in texte
+        assert "frais courants introuvables" in texte
 
-    def test_sans_date_de_pea_la_poche_dit_ou_l_ecrire(self):
-        """D-59 : l'ancienneté décide du taux, et l'application ne la devine pas."""
+    def test_sans_date_de_pea_la_poche_le_dit(self):
+        """D-59 : l'ancienneté décide du taux ; sans date, l'impôt du PEA n'est pas calculé."""
         # L'enchaînement du glossaire est en CTO : on rejoue la même chose en PEA.
         portefeuille = Portefeuille.construire(
             [
@@ -569,7 +569,7 @@ class TestLesTroisBlocsDeLEtape6:
             portefeuille, synthese=la_synthese, valeur_reelle_estimee=valeur
         )
 
-        assert "fiscalite.toml" in texte
+        assert "date d'ouverture du PEA inconnue" in texte
         assert "PARTIEL" in texte
 
 

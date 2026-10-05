@@ -1,17 +1,15 @@
-"""La configuration « déclarer ses actifs » : ISIN → ticker, et devise attendue (D-48, D-51).
+"""Les corrections de l'utilisateur : `actifs.toml` (D-78, D-80).
 
-Elle est relue par quelqu'un qui ne code pas. Deux exigences en découlent, et ce sont les
-mêmes que pour les comptes : un message d'erreur qui dit **quoi écrire**, et une ligne laissée
-vide traitée comme « pas encore fait » plutôt que comme une panne.
+Depuis l'étape 8 quater, tout est trouvé seul ; ce fichier ne sert qu'à corriger, et chaque champ
+y est facultatif. Il est écrit à la main par quelqu'un qui ne code pas : un message d'erreur doit
+dire **quoi écrire**, et une ligne laissée vide ne corrige rien plutôt que de tout bloquer.
 
-Le cas le plus important est celui du §4 du comparatif : une correspondance proposée dans une
-autre monnaie que l'euro ne doit **jamais** pouvoir servir par inadvertance.
+Le cas le plus important reste celui du §4 du comparatif : une cotation dans une autre monnaie
+que l'euro ne doit **jamais** pouvoir servir (D-48).
 """
 
 from __future__ import annotations
 
-import tomllib
-from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -19,14 +17,10 @@ import pytest
 from pastory.config import ConfigurationInvalide
 from pastory.config.actifs import (
     CONTENUS_ACCEPTES,
-    Configuration,
     ContenuActif,
     Declaration,
-    FraisCourantsProposes,
-    Proposition,
     TypeActif,
     charger,
-    modele,
 )
 from pastory.parametres.referentiels import charger_classes
 
@@ -43,7 +37,7 @@ def ecrire(tmp_path, contenu):
 
 class TestLecture:
     def test_un_fichier_absent_donne_une_configuration_vide(self, tmp_path):
-        # Le premier lancement, avant `pastory actifs` : ce n'est pas une erreur ici.
+        # Le cas normal : l'utilisateur n'a rien eu à corriger.
         assert charger(tmp_path / "rien.toml").declarations == {}
 
     def test_une_declaration_complete_est_lue(self, tmp_path):
@@ -62,31 +56,30 @@ class TestLecture:
         )
         assert charger(fichier).declaration(CRYPTO).ticker == "BBB-EUR"
 
-    def test_un_actif_laisse_vide_est_un_travail_en_cours(self, tmp_path):
+    def test_un_actif_laisse_vide_ne_corrige_rien(self, tmp_path):
         fichier = ecrire(tmp_path, f'[actifs]\n"{ACTIF}" = ""\n')
         assert charger(fichier).declarations == {}
 
-    def test_un_ticker_laisse_vide_est_un_travail_en_cours(self, tmp_path):
+    def test_un_ticker_laisse_vide_laisse_la_cotation_trouvee(self, tmp_path):
         fichier = ecrire(
-            tmp_path, f'[actifs]\n"{ACTIF}" = {{ ticker = "", devise = "EUR" }}\n'
+            tmp_path, f'[actifs]\n"{ACTIF}" = {{ ticker = "", devise = "EUR", type = "etf" }}\n'
         )
-        assert charger(fichier).declarations == {}
+        declaration = charger(fichier).declaration(ACTIF)
+        assert declaration.ticker is None
+        assert declaration.type is TypeActif.ETF
+
+    def test_une_correction_peut_ne_porter_que_sur_un_champ(self, tmp_path):
+        # Corriger le seul TER, sans réécrire de ticker : le reste reste trouvé (D-80).
+        fichier = ecrire(tmp_path, f'[actifs]\n"{ACTIF}" = {{ ter_pour_cent = 0.07 }}\n')
+        declaration = charger(fichier).declaration(ACTIF)
+        assert declaration.ticker is None
+        assert declaration.ter_pour_cent == Decimal("0.07")
 
     def test_les_espaces_autour_du_ticker_sont_ignores(self, tmp_path):
         fichier = ecrire(
             tmp_path, f'[actifs]\n"{ACTIF}" = {{ ticker = " AAAA.DE ", devise = " eur " }}\n'
         )
         assert charger(fichier).declaration(ACTIF) == Declaration("AAAA.DE", "EUR")
-
-    def test_les_actifs_non_declares_se_listent(self, tmp_path):
-        fichier = ecrire(
-            tmp_path, f'[actifs]\n"{ACTIF}" = {{ ticker = "AAAA.DE", devise = "EUR" }}\n'
-        )
-        configuration = charger(fichier)
-
-        # Ordre alphabétique : « XF » (crypto) précède « XX ».
-        assert configuration.manquants([ACTIF, AUTRE_ACTIF, CRYPTO]) == [CRYPTO, AUTRE_ACTIF]
-
 
 class TestMessagesDErreur:
     def test_un_ticker_seul_dit_quoi_ecrire(self, tmp_path):
@@ -130,104 +123,6 @@ class TestMessagesDErreur:
 
         with pytest.raises(ConfigurationInvalide, match=r"\[actifs\]"):
             charger(fichier)
-
-
-class TestModele:
-    def test_le_modele_se_relit_tout_seul(self):
-        # Le fichier écrit par l'assistant doit repasser par sa propre lecture : sans cela,
-        # l'assistant pourrait produire un fichier que l'application refuse.
-        texte = modele(
-            {ACTIF: "ETF Exemple - PEA"},
-            {ACTIF: Proposition("AAAA.DE", "XETRA", "EUR", "ETF Exemple")},
-            Configuration(),
-        )
-        assert tomllib.loads(texte)["actifs"][ACTIF] == {
-            "ticker": "AAAA.DE",
-            "devise": "EUR",
-        }
-
-    def test_une_proposition_en_euros_est_active(self):
-        texte = modele(
-            {}, {ACTIF: Proposition("AAAA.DE", "XETRA", "EUR")}, Configuration()
-        )
-        assert f'"{ACTIF}" = {{ ticker = "AAAA.DE", devise = "EUR" }}' in texte
-
-    def test_une_proposition_dans_une_autre_monnaie_reste_inactive(self):
-        # Elle est écrite en commentaire, avec un avertissement : la ligne active reste
-        # vide. C'est le garde-fou de D-48 au niveau du fichier.
-        texte = modele(
-            {}, {ACTIF: Proposition("BBBB.L", "London", "USD")}, Configuration()
-        )
-
-        assert f'"{ACTIF}" = ""' in texte
-        assert "ATTENTION" in texte
-        assert '#   "XX0000000001" = { ticker = "BBBB.L", devise = "USD" }' in texte
-        assert tomllib.loads(texte)["actifs"][ACTIF] == ""
-
-    def test_un_actif_sans_proposition_est_a_completer_a_la_main(self):
-        texte = modele({ACTIF: "ETF Exemple"}, {}, Configuration())
-
-        assert f'"{ACTIF}" = ""' in texte
-        assert "à compléter à la main" in texte
-
-    def test_l_apercu_aide_a_reconnaitre_l_actif(self):
-        texte = modele({ACTIF: "ETF Exemple - PEA, CTO"}, {}, Configuration())
-        assert "# ETF Exemple - PEA, CTO" in texte
-
-    def test_le_modele_ne_perd_rien_de_ce_qui_etait_declare(self):
-        # La leçon de comptes.py : l'assistant réécrit le fichier entier. Un actif déjà
-        # déclaré mais absent de cet export-ci doit être recopié, sinon relancer
-        # l'assistant effacerait un travail de relecture déjà fait.
-        deja = Configuration(
-            declarations={
-                ACTIF: Declaration("AAAA.DE", "EUR"),
-                CRYPTO: Declaration("BBB-EUR", "EUR"),
-            }
-        )
-
-        texte = modele({AUTRE_ACTIF: "Action Exemple"}, {}, deja)
-
-        relu = tomllib.loads(texte)["actifs"]
-        assert relu[ACTIF] == {"ticker": "AAAA.DE", "devise": "EUR"}
-        assert relu[CRYPTO] == {"ticker": "BBB-EUR", "devise": "EUR"}
-        assert relu[AUTRE_ACTIF] == ""
-
-    def test_un_nom_d_actif_biscornu_ne_casse_pas_le_fichier(self):
-        # Le nom vient de la banque, le ticker d'une source : ni l'un ni l'autre n'est sous
-        # notre contrôle. Un guillemet ou un retour à la ligne rendrait le fichier illisible,
-        # et c'est l'assistant censé le réparer qui refuserait alors de démarrer.
-        texte = modele(
-            {ACTIF: 'ETF « Exemple » "spécial"\nsur deux lignes'},
-            {ACTIF: Proposition('AAA".DE', "XETRA", "EUR", 'Nom avec " et\nretour')},
-            Configuration(),
-        )
-
-        relu = tomllib.loads(texte)["actifs"]
-        assert relu[ACTIF]["devise"] == "EUR"
-        assert relu[ACTIF]["ticker"] == 'AAA".DE'
-
-    def test_un_ticker_deja_declare_avec_un_guillemet_se_relit(self):
-        deja = Configuration(declarations={ACTIF: Declaration('AAA".DE', "EUR")})
-
-        texte = modele({}, {}, deja)
-
-        assert tomllib.loads(texte)["actifs"][ACTIF]["ticker"] == 'AAA".DE'
-
-    def test_une_declaration_existante_prime_sur_une_proposition(self):
-        # L'utilisateur a validé : on ne lui repropose pas autre chose, et surtout on
-        # n'écrase pas son choix.
-        deja = Configuration(declarations={ACTIF: Declaration("AAAA.DE", "EUR")})
-
-        texte = modele({}, {ACTIF: Proposition("ZZZZ.MI", "Milan", "EUR")}, deja)
-
-        assert tomllib.loads(texte)["actifs"][ACTIF] == {
-            "ticker": "AAAA.DE",
-            "devise": "EUR",
-        }
-        assert "ZZZZ.MI" not in texte
-
-
-# --- Étape 6 : le type de l'actif et ses frais courants (D-55, D-61) -----------------
 
 
 def declarer(tmp_path, champs):
@@ -292,128 +187,6 @@ class TestTypeEtFraisCourants:
             charger(fichier)
 
 
-class TestModeleAvecLesFraisCourants:
-    def test_une_proposition_complete_s_ecrit_en_ligne_active(self):
-        proposition = Proposition(
-            "AAAA.DE",
-            "XETRA",
-            "EUR",
-            "ETF Exemple",
-            type=TypeActif.ETF,
-            frais_courants=FraisCourantsProposes(
-                Decimal("0.20"), "Xetra", "ETF Exemple", "Accumulating", date(2026, 9, 28)
-            ),
-        )
-
-        texte = modele({}, {ACTIF: proposition}, Configuration())
-
-        assert tomllib.loads(texte)["actifs"][ACTIF] == {
-            "ticker": "AAAA.DE",
-            "devise": "EUR",
-            "type": "etf",
-            "ter_pour_cent": 0.20,
-        }
-        assert "À vérifier sur la fiche de l'émetteur" in texte
-        assert "Accumulating" in texte
-
-    def test_le_ter_propose_pour_un_actif_deja_declare_reste_en_commentaire(self):
-        """L'utilisateur a validé son ticker : on ne réécrit pas sa ligne, on lui souffle."""
-        deja = Configuration(declarations={ACTIF: Declaration("AAAA.DE", "EUR")})
-        proposition = Proposition(
-            "AAAA.DE",
-            type=TypeActif.ETF,
-            frais_courants=FraisCourantsProposes(Decimal("0.20"), "Xetra"),
-        )
-
-        texte = modele({}, {ACTIF: proposition}, deja)
-
-        assert tomllib.loads(texte)["actifs"][ACTIF] == {
-            "ticker": "AAAA.DE",
-            "devise": "EUR",
-        }
-        assert "# type proposé par la source" in texte
-        assert "TER proposé : 0.2 %" in texte
-
-    def test_un_type_deja_declare_n_est_jamais_contredit(self):
-        deja = Configuration(
-            declarations={ACTIF: Declaration("AAAA.DE", "EUR", type=TypeActif.ACTION)}
-        )
-
-        texte = modele({}, {ACTIF: Proposition("AAAA.DE", type=TypeActif.ETF)}, deja)
-
-        assert tomllib.loads(texte)["actifs"][ACTIF]["type"] == "action"
-        assert "type proposé" not in texte
-
-    def test_une_proposition_en_dollars_emporte_le_ter_avec_elle(self):
-        """Tout reste inactif : la ligne commentée montre ce qui aurait été écrit."""
-        proposition = Proposition(
-            "BBBB.L",
-            "London",
-            "USD",
-            type=TypeActif.ETF,
-            frais_courants=FraisCourantsProposes(Decimal("0.20"), "Xetra"),
-        )
-
-        texte = modele({}, {ACTIF: proposition}, Configuration())
-
-        assert tomllib.loads(texte)["actifs"][ACTIF] == ""
-        assert "ATTENTION" in texte
-
-    def test_un_ter_declare_se_relit_apres_reecriture(self, tmp_path):
-        deja = Configuration(
-            declarations={
-                ACTIF: Declaration(
-                    "AAAA.DE",
-                    "EUR",
-                    type=TypeActif.ETF,
-                    ter_pour_cent=Decimal("0.07"),
-                    spread_pour_cent=Decimal("0.25"),
-                )
-            }
-        )
-
-        texte = modele({}, {}, deja)
-
-        relu = charger(ecrire(tmp_path, texte)).declaration(ACTIF)
-        assert relu.ter_pour_cent == Decimal("0.07")
-        assert relu.spread_pour_cent == Decimal("0.25")
-        assert relu.type is TypeActif.ETF
-
-
-# --- Défauts trouvés à la relecture indépendante --------------------------------------
-
-
-class TestPropositionSansTicker:
-    """Trouvé à la relecture : une source peut connaître les frais courants d'un actif sans
-    qu'aucune n'ait trouvé son ticker. La ligne s'écrivait alors avec un ticker **vide**,
-    d'apparence valide, et la lecture l'écartait en silence."""
-
-    def test_une_proposition_sans_ticker_laisse_la_ligne_a_completer(self):
-        proposition = Proposition(
-            "",
-            type=TypeActif.ETF,
-            frais_courants=FraisCourantsProposes(Decimal("0.20"), "Xetra"),
-        )
-
-        texte = modele({}, {ACTIF: proposition}, Configuration())
-
-        assert tomllib.loads(texte)["actifs"][ACTIF] == ""
-        assert "aucun ticker proposé" in texte
-        # Le TER trouvé n'est pas perdu : il reste en commentaire, à recopier.
-        assert "TER proposé : 0.2 %" in texte
-
-    def test_aucune_ligne_active_ne_porte_jamais_un_ticker_vide(self, tmp_path):
-        proposition = Proposition(
-            "   ", frais_courants=FraisCourantsProposes(Decimal("0.07"), "Xetra")
-        )
-
-        texte = modele({}, {ACTIF: proposition}, Configuration())
-
-        # Relu par la vraie lecture, l'actif reste non déclaré — et le fichier le dit.
-        assert charger(ecrire(tmp_path, texte)).declaration(ACTIF) is None
-        assert "à compléter à la main" in texte
-
-
 class TestLeContenuDeclare:
     """D-71 : de quoi l'actif est fait, à ne pas confondre avec ce qu'on détient."""
 
@@ -468,14 +241,13 @@ LIGNE = '"{}" = {{ ticker = "A.DE", devise = "EUR", type = "etf"{} }}'
 
 
 class TestLaSourceDeSecoursSeDeclare:
-    """Le champ « secours » d'un actif (D-72, D-77).
+    """Le champ « secours » d'un actif (D-72, D-77, D-80).
 
-    Déclarée **par actif**, et jamais devinée : deux sources n'ont ni la même nomenclature
-    sectorielle ni la même règle de pays, et basculer en silence donnerait un total juste et une
-    répartition fausse — 5 points d'écart mesurés sur la technologie.
+    Sans correction, le secours est essayé de lui-même, et la source de chaque chiffre reste
+    affichée ligne par ligne. La correction sert à l'imposer, ou à le refuser.
     """
 
-    def test_un_actif_peut_demander_une_source_de_secours(self, tmp_path):
+    def test_un_actif_peut_imposer_une_source_de_secours(self, tmp_path):
         fichier = ecrire(tmp_path, "[actifs]\n" + LIGNE.format(ACTIF, ', secours = "amundi"'))
 
         declaration = charger(fichier).declaration(ACTIF)
@@ -483,8 +255,11 @@ class TestLaSourceDeSecoursSeDeclare:
         assert declaration is not None
         assert declaration.secours == "amundi"
 
-    def test_sans_le_champ_aucun_secours_n_est_employe(self, tmp_path):
-        """Le défaut, et le plus important de ces tests : rien ne bascule tout seul."""
+    def test_un_actif_peut_refuser_toute_source_de_secours(self, tmp_path):
+        fichier = ecrire(tmp_path, "[actifs]\n" + LIGNE.format(ACTIF, ', secours = "aucun"'))
+        assert charger(fichier).declaration(ACTIF).secours == "aucun"
+
+    def test_sans_le_champ_rien_n_est_corrige(self, tmp_path):
         fichier = ecrire(tmp_path, "[actifs]\n" + LIGNE.format(ACTIF, ""))
 
         assert charger(fichier).declaration(ACTIF).secours is None
@@ -503,12 +278,3 @@ class TestLaSourceDeSecoursSeDeclare:
         fichier = ecrire(tmp_path, "[actifs]\n" + LIGNE.format(ACTIF, ', secours = " Amundi "'))
 
         assert charger(fichier).declaration(ACTIF).secours == "amundi"
-
-    def test_le_modele_du_fichier_explique_le_champ_et_sa_limite(self):
-        """Il est lu par quelqu'un qui n'a pas suivi le projet (D-62)."""
-        texte = modele({ACTIF: "Un fonds quelconque"}, {}, Configuration())
-
-        assert "secours" in texte
-        assert "amundi" in texte
-        # La limite qui compte : la géographie seulement, jamais les secteurs.
-        assert "PAYS" in texte

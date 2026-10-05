@@ -53,8 +53,14 @@ NAVIGATEUR = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
 DELAI = 30
 
 MOTIF_DU_LIEN = re.compile(
-    r'href="(/resource/blob/[^"]*Master_DataSheet_Download\.xls[^"]*)"', re.IGNORECASE
+    r'href="((?:https://www\.cashmarket\.deutsche-boerse\.com)?'
+    r'/resource/blob/[^"]*Master_DataSheet_Download\.xls[^"]*)"',
+    re.IGNORECASE,
 )
+"""Le lien du fichier. **La page l'écrit de deux façons** selon le serveur qui répond : relatif
+(`/resource/…`) ou complet (`https://www.cashmarket…/resource/…`). Relevé le 2026-10-05 : trois
+pages sur quatre en adresse complète à certaines heures ; ne reconnaître que l'une faisait
+manquer les frais courants une fois sur deux, sans autre signe qu'un « lien non trouvé »."""
 RACINE = "https://www.cashmarket.deutsche-boerse.com"
 
 TYPES_RETENUS = frozenset({"ETF", "ACTIVE ETF"})

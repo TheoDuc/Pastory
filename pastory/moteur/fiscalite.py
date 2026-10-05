@@ -51,6 +51,12 @@ class ReglesFiscales(Protocol):
     pea_duree_exoneration_ir: ParametreDate
     crypto_seuil_exoneration: ParametreDate
     pea_premier_versement: Date | None
+    pea_origine_de_la_date: str | None
+    """D'où vient la date : trouvée dans l'export, ou corrigée (D-80)."""
+    pea_reserve: str | None
+    """Ce qu'il faut savoir pour s'y fier ; ajouté aux hypothèses affichées."""
+    pea_alerte: str | None
+    """Une hypothèse que les exports contredisent ; elle remplace celle qu'elle contredit."""
 
 
 # --- Ce qu'une vente rapporterait, position par position ---------------------------------
@@ -329,8 +335,10 @@ def impot_crypto(
 # --- PEA : le gain du plan -------------------------------------------------------------------
 
 
+HYPOTHESE_SANS_RETRAIT = "aucun retrait n'a jamais été fait sur le plan"
+
 HYPOTHESES_PEA = (
-    "aucun retrait n'a jamais été fait sur le plan",
+    HYPOTHESE_SANS_RETRAIT,
     "les espèces du plan ne portent ni intérêt ni frais",
     "tout mouvement d'espèces est un versement ou la contrepartie d'une opération sur titres "
     "connue (pas de transfert de PEA : l'histoire d'avant manquerait)",
@@ -370,6 +378,16 @@ def impot_pea(
     """
     cessions = tuple(cession for cession in cessions if cession.poche is Poche.PEA)
     positions = [position for position in positions_pea if position.poche is Poche.PEA]
+    hypotheses = HYPOTHESES_COMMUNES + HYPOTHESES_PEA
+    if regles.pea_alerte:
+        # L'hypothèse contredite n'est pas répétée telle quelle : elle est remplacée par ce que
+        # les exports montrent (D-87).
+        hypotheses = tuple(
+            regles.pea_alerte if hypothese == HYPOTHESE_SANS_RETRAIT else hypothese
+            for hypothese in hypotheses
+        )
+    if regles.pea_premier_versement is not None and regles.pea_reserve:
+        hypotheses += (f"la date d'ouverture du PEA : {regles.pea_reserve}",)
 
     def rien(pourquoi: str) -> ImpotEstime:
         return ImpotEstime(
@@ -381,7 +399,7 @@ def impot_pea(
             taux=None,
             impot=None,
             parametres=(),
-            hypotheses=HYPOTHESES_COMMUNES + HYPOTHESES_PEA,
+            hypotheses=hypotheses,
             motif=pourquoi,
             fiable=_fiable(positions),
         )
@@ -390,9 +408,12 @@ def impot_pea(
         return rien(motif)
     if regles.pea_premier_versement is None:
         return rien(
-            "date du premier versement sur le PEA non déclarée : l'ancienneté du plan décide du "
-            "taux. Écrivez-la dans fiscalite.toml (dossier de configuration), section [pea]"
+            "date d'ouverture du PEA inconnue : l'ancienneté du plan décide du taux. "
+            "« pastory actifs » dit pourquoi elle n'a pas été trouvée"
         )
+    ouverture = regles.pea_premier_versement.isoformat()
+    if regles.pea_origine_de_la_date:
+        ouverture += f", {regles.pea_origine_de_la_date}"
 
     brutes, couts_de_sortie = _decomposition(cessions, Poche.PEA)
     latentes = brutes - couts_de_sortie
@@ -407,8 +428,8 @@ def impot_pea(
     if exonere_ir:
         taux = regles.prelevements_sociaux.valeur
         regle = (
-            f"PEA de {duree} ans ou plus (premier versement le "
-            f"{regles.pea_premier_versement.isoformat()}) : exonéré d'impôt sur le revenu, "
+            f"PEA de {duree} ans ou plus (premier versement le {ouverture}) : exonéré "
+            "d'impôt sur le revenu, "
             f"prélèvements sociaux {regles.prelevements_sociaux.en_clair} sur le gain du plan"
         )
         parametres: tuple[ParametreDate, ...] = (
@@ -418,8 +439,8 @@ def impot_pea(
     else:
         taux = _taux_total(regles)
         regle = (
-            f"PEA de moins de {duree} ans (premier versement le "
-            f"{regles.pea_premier_versement.isoformat()}) : retirer clôt le plan ; impôt sur "
+            f"PEA de moins de {duree} ans (premier versement le {ouverture}) : retirer clôt "
+            "le plan ; impôt sur "
             f"le revenu {regles.impot_sur_le_revenu.en_clair} + prélèvements sociaux "
             f"{regles.prelevements_sociaux.en_clair} sur le gain du plan"
         )
@@ -438,7 +459,7 @@ def impot_pea(
         taux=taux,
         impot=_impot(base, taux),
         parametres=parametres,
-        hypotheses=HYPOTHESES_COMMUNES + HYPOTHESES_PEA,
+        hypotheses=hypotheses,
         # Ce que le plan a déjà transformé en espèces : son impôt est compté, son argent non.
         hors_des_titres=max(realisees + dividendes - couts, ZERO),
         composantes=(

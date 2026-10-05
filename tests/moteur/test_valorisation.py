@@ -267,4 +267,4 @@ class TestLeFournisseurDeLEtape4ALaFormeAttendue:
 
         assert not resultat.complete
         [refus] = fournisseur.refus
-        assert refus.categorie == "actif non déclaré"
+        assert refus.categorie == "aucune cotation trouvée"

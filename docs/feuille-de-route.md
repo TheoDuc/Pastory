@@ -575,45 +575,47 @@ Le propriétaire a vérifié le 2026-10-05 que les quantités sont celles de l'a
 
 **Session :** nouvelle session : recherche d'abord, code ensuite. `/code-review` à la fin.
 
-## Étape 8 quater · Des réglages qui se proposent seuls 🔜
+## Étape 8 quater · Des réglages qui se proposent seuls ✅
 **But :** que l'application **trouve et applique seule** chaque réglage restant, avec sa source,
 sa date et un contrôle ([D-80](decisions.md)). L'utilisateur ne fait que déposer l'export ; il
 peut corriger, il n'a jamais à le faire.
 
-**L'inventaire de départ**, à confirmer en début d'étape :
+**Fait :** une couche `pastory/reglages/` trouve, contrôle et montre chaque réglage ; `actifs.toml`
+n'est plus qu'un fichier de **corrections**, jamais réécrit ([D-92](decisions.md)) ; `pastory
+actifs` montre chaque valeur avec sa source, sa date, ce qui a été vérifié — ou le motif du trou.
+Comparatif : [reglages-automatiques.md](reglages-automatiques.md). Cahier :
+[verification/etape-8-quater.md](verification/etape-8-quater.md).
 
-| Réglage | Aujourd'hui | Piste |
-|---|---|---|
-| Le fichier d'export | **fait à l'étape 8 ter** : le dossier de dépôt `Pastory/exports`, dont tout le contenu est lu | — |
-| Rôle des comptes espèces ([D-10](decisions.md)) | **supprimé à l'étape 8 ter** ([D-81](decisions.md)) | — |
-| Type d'un actif ([D-55](decisions.md)) | proposé par la source de cours, validé | **donnée de la banque** ([D-82](decisions.md)) : `asset_class` est lu et gardé par l'étape 8 ter (`Rapport.classes_par_actif`), reste à l'appliquer aux estimations |
-| Ticker d'une crypto | **saisi à la main** ; depuis l'étape 8 ter, une déclaration rangée sous l'ancien code pytr (`XF…`) est **orpheline** | `symbol` de l'export (`BTC` → `BTC-EUR`), à vérifier par la devise ([D-48](decisions.md)) ; et dire qu'une déclaration ne correspond plus à aucun actif |
-| Ticker et devise d'un ETF ou d'une action | proposés, validés | inchangé : déjà une proposition |
-| TER ([D-61](decisions.md)) | proposé depuis Xetra ; **les ETF « PEA » français en sont absents** | chercher une source pour eux — le service d'Amundi ([D-77](decisions.md)) publie-t-il les frais courants ? |
-| `contenu` : obligations, matières premières ([D-71](decisions.md)) | **déclaré à la main** | chercher une source de classe d'actifs fiable : colonne de la liste Xetra, service d'Amundi, `asset_class` de l'export ; celle d'extraETF a été jugée fausse deux fois sur trois |
-| Source de secours ([D-77](decisions.md)) | champ `secours = "amundi"` | **proposée** quand le fonds est non couvert et qu'Amundi le connaît ([§6.3 du contrat](conception-interface.md)) |
-| Date d'ouverture du PEA ([D-59](decisions.md)) | **déclarée à la main** dans `fiscalite.toml` | proposée depuis le premier versement `PEA` de l'export ; un PEA transféré d'ailleurs garde une date invisible, d'où la validation |
+| Réglage | Trouvé où | Contrôle | Décision |
+|---|---|---|---|
+| Type d'un actif | l'export (`asset_class`) | une seule classe | [D-82](decisions.md) |
+| Cotation | recherche par ISIN, puis par nom ; `CODE-EUR` pour une crypto | **prix payé** à la banque, et change pour un candidat trouvé par nom | [D-85](decisions.md), [D-88](decisions.md) |
+| TER | l'émetteur (Amundi), puis la liste de Xetra | fourchette, date, accord des sources | [D-90](decisions.md) |
+| Contenu d'un fonds | extraETF, code et libellé | code CFI du registre de l'ESMA | [D-89](decisions.md) |
+| Source de secours | essayée d'elle-même | — | [D-91](decisions.md) |
+| Date d'ouverture du PEA | mouvements d'espèces du PEA, jour et sens seulement | aucun titre avant ; un retrait avant 5 ans clôt le plan | [D-86](decisions.md) |
+| Hypothèse « aucun retrait » | sorties d'espèces du PEA, dates seulement | — | [D-87](decisions.md) |
 
-**Une piste de plus, à soumettre et non à décider :** l'export contient les versements et retraits
-du PEA. [D-59](decisions.md) approche le gain du plan depuis les titres, sous trois hypothèses
-dont « aucun retrait passé ». Ces lignes permettraient au moins de **vérifier** l'hypothèse, et
-peut-être de calculer le gain du plan comme le fisc (valeur moins versements). Ce serait lire des
-montants d'espèces, ce que [D-11](decisions.md) écarte pour l'affichage : à trancher.
+**Le critère**, sur le portefeuille du propriétaire sans aucune correction : **22 valeurs
+trouvées, 1 introuvable** (le TER d'un ETF iShares « Swap PEA », dont la seule source n'a pas de
+date). Toutes les valeurs qu'il avait validées à la main sont retrouvées à l'identique ; la date
+d'ouverture de son PEA l'est depuis sa propre réponse sur une fermeture-réouverture.
 
-**Claude :** agent de recherche sur les pistes du tableau (critères : gratuit, sans clé, par ISIN,
-daté, conditions d'utilisation qui l'autorisent, **et fiabilité mesurée** sur un échantillon,
-comme le TER de Xetra l'a été à [D-61](decisions.md)), puis l'application automatique côté moteur et
-données externes. Chaque valeur trouvée porte sa source et sa date, et passe un contrôle ; une
-valeur qui échoue n'est pas appliquée, et le trou s'affiche. Retire du code les messages qui
-renvoient vers un fichier à éditer.
+En route, deux défauts anciens trouvés sur ses données : le lien de la liste de Xetra, écrit de
+deux façons selon le serveur (la liste manquait trois fois sur quatre à certaines heures), et une
+panne passagère qui aurait été gardée une semaine comme « TER introuvable ».
 
-**Toi :** trancher chaque piste, et la piste du PEA. Le critère : **combien de valeurs l'application
-ne sait-elle pas trouver** sur un portefeuille type ? La réponse visée est zéro, et chaque trou qui
-reste doit s'expliquer à l'écran.
+**Toi :**
+- ✅ tranché les cinq pistes ([questions-ouvertes.md](questions-ouvertes.md), lot 12).
+- 🔜 suivre le [cahier](verification/etape-8-quater.md) : déplacer ta configuration dans le dossier
+  `Pastory`, alléger `actifs.toml`, comparer les cotations et les TER à ton application et aux
+  documents des émetteurs.
+- [Q-60](questions-ouvertes.md) (monétaire, multi-actifs, immobilier) et [Q-54](questions-ouvertes.md)
+  restent ouvertes, sans urgence.
 
-**Session :** nouvelle session : recherche d'abord, code ensuite.
+**Session :** réalisée en une session : trois agents de recherche en parallèle, puis le code.
 
-## Étape 9 · Réalisation de l'interface ⏳
+## Étape 9 · Réalisation de l'interface 🔜
 **But :** brancher l'interface retenue sur le moteur, **et faire disparaître l'édition de
 fichiers**.
 
@@ -628,7 +630,9 @@ fichiers**.
   trouvée (ticker, devise, type, TER, `contenu`, source de secours, date du PEA) y est montrée avec
   sa source, et peut être corrigée. Aucun n'est un passage obligé. Le fichier TOML reste le format
   de stockage. **L'étape n'est pas terminée tant qu'une correction n'existe qu'en fichier.** Le
-  [§6 du contrat](conception-interface.md) est à réécrire en conséquence, en premier.
+  [§6 du contrat](conception-interface.md) est à réécrire en conséquence, en premier. Le contenu
+  de ces écrans existe déjà : c'est `pastory/reglages` (une valeur, sa source, sa date, son
+  contrôle, ou le motif du trou), et `pastory actifs` en est la version texte.
 - Traite la contrainte annoncée : un écran qui écrit dans le fichier doit le **relire et le
   réécrire sans perdre ses commentaires**, sans quoi l'édition à la main perd son sens.
 

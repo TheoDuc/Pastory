@@ -184,12 +184,12 @@ def test_un_actif_sans_cours_sort_de_la_valeur_reelle_qui_est_partielle():
     assert resultat.par_poche[Poche.CTO].valeur_brute == Decimal("300.00")
 
 
-def test_un_actif_sans_type_declare_sort_aussi_et_dit_quoi_faire():
+def test_un_actif_sans_type_sort_aussi_et_dit_pourquoi():
     """D-55 : sans type, pas de spread estimé — donc pas de valeur réelle pour cet actif."""
     resultat = construire([achat_etf()], serie(ACTIF, "30.00"), ParametresFictifs())
 
     assert resultat.partielle
-    assert "actifs.toml" in resultat.exclues[0].motif
+    assert "type d'actif inconnu" in resultat.exclues[0].motif
 
 
 def test_un_pea_dont_une_ligne_manque_n_a_pas_d_impot_du_tout():

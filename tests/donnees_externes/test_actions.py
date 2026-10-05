@@ -152,17 +152,17 @@ class TestLesCasIncomplets:
         assert composition.pays
         assert composition.secteurs == ()
 
-    def test_sans_rien_le_refus_dit_comment_declarer_a_la_main(self):
+    def test_sans_rien_le_refus_dit_que_la_societe_est_non_couverte(self):
         une = source(
             {"gleif": registre(sans_resultat=True), "search": recherche(secteur=None)}
         )
 
-        with pytest.raises(CompositionIndisponible, match="actifs.toml"):
+        with pytest.raises(CompositionIndisponible, match="non couverte"):
             une.composition(ISIN, TICKER)
 
     def test_un_symbole_qui_ne_correspond_pas_est_ecarte(self):
         # Prendre « la première réponse » a déjà fait retenir la mauvaise cotation à l'étape 4 :
-        # ici, on exige que le symbole soit celui que l'utilisateur a validé.
+        # ici, on exige que le symbole soit celui qui a été retenu.
         une = source({"gleif": registre(), "search": recherche(symbole="AUTRE.MI")})
 
         composition = une.composition(ISIN, TICKER)

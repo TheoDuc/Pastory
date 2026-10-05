@@ -238,6 +238,35 @@ l'écriture a confirmé, et ce qu'elle a ajouté :
   personnels (exports, cache, configuration, `*.local.md`) sont écrits dans un dossier local non
   synchronisé, dont l'application affiche l'emplacement ([D-37](decisions.md)).
 
+## 7 bis. Réglages trouvés seuls — **écrits à l'étape 8 quater** ([D-80](decisions.md))
+
+- **Une configuration effective, et non un second chemin.** Les cours, les coûts et les
+  compositions lisent toujours une `Configuration` de `Declaration` ; `reglages/` la fabrique en
+  fusionnant ce qui est trouvé et ce qui est corrigé. Rien en aval n'a eu à savoir qu'une valeur
+  avait été trouvée, sauf pour **l'afficher** : le TER porte sa source jusqu'au rapport par son
+  `Parametre`, le contenu par deux champs de `Declaration` (`source_du_contenu`,
+  `date_du_contenu`), la date du PEA par `ReglesFiscales`.
+- **Un contenu « actions » trouvé ne s'applique pas.** Un contenu déclaré passe **avant** la
+  composition du fonds (`FournisseurDeCompositions._declaree`) : appliqué à un fonds d'actions, il
+  lui ferait perdre ses pays et ses secteurs. Il est montré, avec cette réserve. Corrigé à la main,
+  il s'applique comme avant (D-71).
+- **Une cotation trouvée ne change jamais d'elle-même**, et quand elle change quand même
+  (correction, `oublier-reglages`), les cours ne se mêlent pas : le cache des cours est par actif
+  et garde le ticker de chaque cours ; `FournisseurDeCours` n'emploie jamais un cours pris sur une
+  autre cotation que la cotation retenue, et, en ligne, oublie ces cours pour reprendre la série
+  (trouvé par la relecture de l'étape).
+- **Une panne n'est jamais gardée.** Une recherche interrompue par le réseau, ou un TER introuvable
+  parce qu'une source n'a pas répondu, n'entre pas dans `cache/reglages.csv` : le lancement suivant
+  refait la recherche. Le défaut a été vu sur les données du propriétaire, avec la liste de Xetra.
+- **La date d'une source n'a pas toujours le même sens** : l'état d'une liste (« au »), ou la date
+  d'effet d'un taux (« taux en vigueur depuis le »). `Origine.intitule_de_la_date` le dit, pour
+  qu'un taux de 2023 encore en vigueur ne se lise pas comme périmé.
+- **L'histoire du PEA se lit dans l'ordre des horodatages**, pas des jours : une clôture et une
+  réouverture tombent le même jour. Et la sortie qui clôt un plan n'est pas un retrait du suivant.
+- **Les tests coupent cinq sources** de plus par des fixtures automatiques de `tests/test_cli.py`
+  (`_source_des_cotations`, `_frais_courants_de_l_emetteur`, `_classes_d_actifs`, `_registre_cfi`,
+  en plus de la liste de Xetra et des compositions) : aucun test ne sort de la machine.
+
 ## 8. Vues
 
 - Séparation voulue par le propriétaire :

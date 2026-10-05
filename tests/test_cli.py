@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import csv
 from datetime import date as Date
+from datetime import timedelta
 from decimal import Decimal
 
 import pytest
@@ -16,7 +17,7 @@ from pastory import cli, tableur
 from pastory.config import actifs as config_actifs
 from pastory.config import emplacements
 from pastory.config import fiscalite as config_fiscalite
-from pastory.config.actifs import FraisCourantsProposes, Proposition, TypeActif
+from pastory.config.actifs import FraisCourantsProposes, Proposition
 from pastory.donnees_externes.cache import Cache
 from pastory.donnees_externes.cache_compositions import CacheDeCompositions
 from pastory.donnees_externes.composition import Composition, Part
@@ -63,10 +64,58 @@ def aucune_source_de_composition(monkeypatch):
     """
     vrai_fournisseur = cli._fournisseur_de_compositions
 
-    def sans_reseau(hors_ligne: bool = False):
-        return vrai_fournisseur(hors_ligne=True)
+    def sans_reseau(configuration, hors_ligne: bool = False):
+        return vrai_fournisseur(configuration, hors_ligne=True)
 
     monkeypatch.setattr(cli, "_fournisseur_de_compositions", sans_reseau)
+
+
+class CotationsMuettes:
+    """La recherche des cotations, coupée : elle ne connaît rien, et ne sort pas de la machine."""
+
+    nom = "recherche de test"
+
+    def candidats(self, requete):
+        return []
+
+    def serie(self, actif, declaration, debut, fin):
+        raise ErreurDeSource("aucun appel réseau dans les tests")
+
+    def serie_brute(self, ticker, debut, fin):
+        raise ErreurDeSource("aucun appel réseau dans les tests")
+
+
+@pytest.fixture(autouse=True)
+def aucune_recherche_de_reglages(monkeypatch):
+    """Coupe la recherche des réglages (étape 8 quater) : **aucun test ne sort de la machine**.
+
+    Quatrième garde-fou de la famille. Sans lui, chaque test qui lit un export chercherait en
+    ligne la cotation et les frais courants de chaque actif. Les tests qui veulent une recherche
+    branchent leur propre source avec `brancher_les_cotations`.
+    """
+    monkeypatch.setattr(cli, "_source_des_cotations", CotationsMuettes)
+    # L'émetteur ne connaît pas les fonds fictifs : c'est le cas normal d'un ETF qu'il n'émet
+    # pas. Le simuler « en panne » empêcherait tout TER d'être gardé en mémoire.
+    monkeypatch.setattr(cli, "_frais_courants_de_l_emetteur", lambda: EmetteurMuet())
+    monkeypatch.setattr(cli, "_classes_d_actifs", lambda: ClassesMuettes())
+    monkeypatch.setattr(cli, "_registre_cfi", lambda: ClassesMuettes())
+
+
+class EmetteurMuet:
+    nom = "émetteur de test"
+
+    def frais_courants(self, actif):
+        return None
+
+
+class ClassesMuettes:
+    """extraETF et le registre de l'ESMA, coupés : ils ne savent rien du contenu d'un fonds."""
+
+    def classe_d_actifs(self, actif):
+        return None
+
+    def codes_cfi(self, actif):
+        return frozenset()
 
 
 class ListeFictive:
@@ -453,8 +502,11 @@ def declarer_les_actifs(*actifs: str) -> None:
     fichier.write_text("\n".join(lignes) + "\n", encoding="utf-8")
 
 
-def deposer_un_cours(actif: str, jour: Date, valeur: str) -> None:
-    """Écrit un cours dans le cache, comme si la source l'avait déjà donné."""
+def deposer_un_cours(actif: str, jour: Date, valeur: str, ticker: str | None = None) -> None:
+    """Écrit un cours dans le cache, comme si la source l'avait déjà donné.
+
+    Sans ticker, le cours est présumé pris sur la cotation retenue, quelle qu'elle soit : un
+    cours pris sur une **autre** cotation n'est jamais employé (D-50, D-85)."""
     Cache().ecrire(
         actif,
         [
@@ -466,7 +518,7 @@ def deposer_un_cours(actif: str, jour: Date, valeur: str) -> None:
                 place="XETRA",
                 source="Source de test",
                 recupere_le=Date(2026, 9, 26),
-                ticker="T1.DE",
+                ticker=ticker,
             )
         ],
     )
@@ -506,113 +558,186 @@ def brancher(monkeypatch, faux):
     monkeypatch.setattr(cli, "Yahoo", lambda *args, **kwargs: faux)
 
 
-class TestDeclarerLesActifs:
-    def test_l_assistant_ecrit_un_fichier_a_completer(self, export, capsys):
+class CotationsFictives:
+    """Une recherche de cotations qui ne sort pas de la machine (étape 8 quater).
+
+    `recherches` : requête → tickers trouvés. `cours` : ticker → (devise, cours constant). Les
+    cours couvrent tous les jours ouvrés, pour que le contrôle par le prix payé puisse se faire.
+    """
+
+    nom = "recherche de test"
+
+    def __init__(self, recherches=None, cours=None):
+        self.recherches = recherches or {}
+        self.cours = cours or {}
+        self.requetes: list[str] = []
+
+    def candidats(self, requete):
+        self.requetes.append(requete)
+        return [Proposition(ticker=ticker) for ticker in self.recherches.get(requete, [])]
+
+    def serie(self, actif, declaration, debut, fin):
+        if declaration.ticker not in self.cours:
+            raise ErreurDeSource("ticker inconnu")
+        devise, valeur = self.cours[declaration.ticker]
+        if devise != declaration.devise:
+            raise ErreurDeSource(f"coté en {devise}")
+        jours = [debut + timedelta(days=n) for n in range((fin - debut).days + 1)]
+        return [
+            Cours(actif, jour, Decimal(valeur), devise, "XETRA", self.nom, Date(2026, 9, 26),
+                  declaration.ticker)
+            for jour in jours
+            if jour.weekday() < 5
+        ]
+
+    def serie_brute(self, ticker, debut, fin):
+        raise ErreurDeSource("aucune cotation de référence dans ce test")
+
+
+def brancher_les_cotations(monkeypatch, faux):
+    """Remplace la recherche des cotations par une fausse."""
+    monkeypatch.setattr(cli, "_source_des_cotations", lambda: faux)
+
+
+class TestLesReglagesTrouves:
+    """`pastory actifs` : ce que l'application a trouvé seule, avec sa source (D-80)."""
+
+    def test_le_type_vient_de_l_export_avec_sa_source(self, export, capsys):
         code = cli.main(["actifs", "--hors-ligne"])
         affichage = capsys.readouterr().out
 
         assert code == 0
-        assert "sans correspondance" in affichage
-        assert "attendent votre validation" in affichage
-        contenu = config_actifs.chemin().read_text(encoding="utf-8")
-        assert fictifs.ACTIF_ETF in contenu
-        assert fictifs.ACTIF_CRYPTO in contenu
+        assert "Réglages de vos actifs" in affichage
+        assert "ETF (fonds)" in affichage
+        assert "export Trade Republic (colonne asset_class)" in affichage
 
-    def test_une_crypto_est_dite_a_completer_a_la_main_avec_la_forme_du_ticker(
-        self, export, capsys
-    ):
-        # Une crypto n'a pas d'ISIN : la recherche par ISIN ne la trouvera jamais, et l'assistant
-        # doit le dire au lieu de laisser croire à un échec passager de la recherche.
-
+    def test_la_commande_n_ecrit_jamais_le_fichier_des_corrections(self, export):
+        # D-78 : un fichier écrit à la main n'est jamais réécrit par l'application.
         cli.main(["actifs", "--hors-ligne"])
-        affichage = capsys.readouterr().out
-
-        def ligne_de(actif: str) -> str:
-            return next(
-                ligne for ligne in affichage.splitlines() if ligne.strip().startswith(actif)
-            )
-
-        assert "à compléter à la main" in ligne_de(fictifs.ACTIF_CRYPTO)
-        assert "BTC-EUR" in ligne_de(fictifs.ACTIF_CRYPTO)
-        # Les autres actifs, eux, n'ont pas ce message : la recherche pourrait les trouver.
-        assert "BTC-EUR" not in ligne_de(fictifs.ACTIF_ETF)
-
-    def test_le_fichier_rappelle_les_poches_de_chaque_actif(self, export):
-        cli.main(["actifs", "--hors-ligne"])
-
-        contenu = config_actifs.chemin().read_text(encoding="utf-8")
-        assert "PEA" in contenu
-        assert "crypto" in contenu
-
-    def test_une_proposition_en_euros_est_ecrite_telle_quelle(
-        self, export, monkeypatch, capsys
-    ):
-        brancher(
-            monkeypatch,
-            FauxYahoo(
-                propositions={
-                    fictifs.ACTIF_ETF: Proposition("AAAA.DE", "XETRA", "EUR", "ETF Exemple")
-                }
-            ),
-        )
-
-        cli.main(["actifs"])
-
-        contenu = config_actifs.chemin().read_text(encoding="utf-8")
-        assert '{ ticker = "AAAA.DE", devise = "EUR" }' in contenu
-        assert "proposé : AAAA.DE" in capsys.readouterr().out
-
-    def test_une_proposition_en_dollars_est_signalee_et_reste_inactive(
-        self, export, monkeypatch, capsys
-    ):
-        # Le piège de D-48 : la cotation londonienne en dollars d'un ETF qui cote aussi en
-        # euros. Elle doit être visible et **pas** utilisable par inadvertance.
-        brancher(
-            monkeypatch,
-            FauxYahoo(
-                propositions={fictifs.ACTIF_ETF: Proposition("BBBB.L", "London", "USD")}
-            ),
-        )
-
-        cli.main(["actifs"])
-
-        affichage = capsys.readouterr().out
-        contenu = config_actifs.chemin().read_text(encoding="utf-8")
-        assert "pas en euros" in affichage
-        assert "ATTENTION" in contenu
-        assert f'"{fictifs.ACTIF_ETF}" = ""' in contenu
-
-    def test_avec_un_export_d_ailleurs_rien_n_est_ecrit(self, export_ailleurs, capsys):
-        # Les actifs de quelqu'un d'autre ne s'écrivent pas dans notre configuration
-        # (règle 2 de CLAUDE.md), pas plus que ses numéros de compte.
-
-        code = cli.main(["actifs", "--hors-ligne", "--export", str(export_ailleurs)])
-
-        assert code == 0
-        assert "Rien n'a été écrit" in capsys.readouterr().out
         assert not config_actifs.chemin().exists()
+
+    def test_hors_ligne_une_cotation_jamais_cherchee_est_un_trou_explique(self, export, capsys):
+        cli.main(["actifs", "--hors-ligne"])
+        affichage = " ".join(capsys.readouterr().out.split())
+
+        assert "INTROUVABLE" in affichage
+        assert "sans accès au réseau" in affichage
+        assert "introuvable(s)" in affichage
+
+    def test_une_cotation_trouvee_s_affiche_avec_son_controle(
+        self, export, monkeypatch, capsys
+    ):
+        # L'ETF fictif a été acheté 25,00 € le 2 janvier : une clôture à 25,10 € le confirme.
+        brancher_les_cotations(
+            monkeypatch,
+            CotationsFictives({fictifs.ACTIF_ETF: ["AAAA.DE"]}, {"AAAA.DE": ("EUR", "25.10")}),
+        )
+
+        cli.main(["actifs"])
+        affichage = " ".join(capsys.readouterr().out.split())
+
+        assert "AAAA.DE, en EUR" in affichage
+        assert "trouvée par son ISIN" in affichage
+        assert "du prix payé" in affichage
+
+    def test_une_cotation_en_dollars_n_est_jamais_retenue(self, export, monkeypatch, capsys):
+        # Le piège de D-48 : la cotation londonienne en dollars d'un ETF qui cote aussi en euros.
+        brancher_les_cotations(
+            monkeypatch,
+            CotationsFictives({fictifs.ACTIF_ETF: ["BBBB.L"]}, {"BBBB.L": ("USD", "29")}),
+        )
+
+        cli.main(["actifs"])
+        affichage = " ".join(capsys.readouterr().out.split())
+
+        assert "BBBB.L, en" not in affichage
+        assert "aucune en euros" in affichage
+
+    def test_la_cotation_d_une_crypto_vient_du_code_de_la_banque(
+        self, export, monkeypatch, capsys
+    ):
+        brancher_les_cotations(
+            monkeypatch, CotationsFictives(cours={"BTC-EUR": ("EUR", "30200")})
+        )
+
+        cli.main(["actifs"])
+
+        assert "BTC-EUR, en EUR" in capsys.readouterr().out
+
+    def test_une_correction_l_emporte_et_se_dit(self, export, capsys):
+        declarer_les_actifs(fictifs.ACTIF_ETF)
+
+        cli.main(["actifs", "--hors-ligne"])
+        affichage = " ".join(capsys.readouterr().out.split())
+
+        assert "T1.DE, en EUR" in affichage
+        assert "corrigé par vous dans actifs.toml" in affichage
+
+    def test_une_correction_orpheline_est_signalee(self, export, capsys):
+        # L'ancien code pytr d'une crypto ne désigne plus rien depuis l'export officiel.
+        declarer_les_actifs("XF000ANCIEN01")
+
+        cli.main(["actifs", "--hors-ligne"])
+        affichage = " ".join(capsys.readouterr().out.split())
+
+        assert "XF000ANCIEN01" in affichage
+        assert "ne désignent aucun actif de vos exports" in affichage
 
     def test_avec_un_export_d_ailleurs_aucune_recherche_n_est_lancee(
         self, export_ailleurs, monkeypatch, capsys
     ):
         # Envoyer les ISIN de quelqu'un d'autre à un service extérieur, ce serait divulguer ce
-        # qu'il détient (règle 2 de CLAUDE.md). Le garde-fou ne doit donc pas se contenter
-        # d'empêcher l'écriture du fichier : aucune requête ne doit partir.
-        interroges = []
-
-        class YahooEspion:
-            nom = "espion"
-
-            def chercher(self, actif):
-                interroges.append(actif)
-                return None
-
-        brancher(monkeypatch, YahooEspion())
+        # qu'il détient (règle 2 de CLAUDE.md). Aucune requête ne doit partir.
+        espion = CotationsFictives()
+        brancher_les_cotations(monkeypatch, espion)
+        demandes = []
+        monkeypatch.setattr(cli, "_liste_des_etf", lambda: demandes.append(1))
 
         assert cli.main(["actifs", "--export", str(export_ailleurs)]) == 0
 
-        assert interroges == []
-        assert "Rien n'a été écrit" in capsys.readouterr().out
+        assert espion.requetes == []
+        assert demandes == []
+        assert "l'export de quelqu'un d'autre" in " ".join(capsys.readouterr().out.split())
+
+    def test_le_rapport_s_affiche_en_cp1252_sans_depasser_100_colonnes(
+        self, export, monkeypatch, capsys
+    ):
+        brancher_les_cotations(
+            monkeypatch,
+            CotationsFictives({fictifs.ACTIF_ETF: ["AAAA.DE"]}, {"AAAA.DE": ("EUR", "25.10")}),
+        )
+        cli.main(["actifs"])
+        affichage = capsys.readouterr().out
+
+        affichage.encode("cp1252")
+        assert max(len(ligne) for ligne in affichage.splitlines()) <= 100
+
+    def test_les_positions_annoncent_les_reglages_introuvables(self, export, capsys):
+        cli.main(["positions", "--hors-ligne"])
+        affichage = " ".join(capsys.readouterr().out.split())
+
+        assert "réglage(s) introuvable(s)" in affichage
+        assert "pastory actifs" in affichage
+
+
+class TestOublierReglages:
+    def test_sans_precision_la_commande_refuse_d_agir(self, capsys):
+        assert cli.main(["oublier-reglages"]) == cli.CODE_ECHEC
+        assert "--tout" in capsys.readouterr().err
+
+    def test_une_cotation_oubliee_est_recherchee_de_nouveau(self, export, monkeypatch, capsys):
+        faux = CotationsFictives(
+            {fictifs.ACTIF_ETF: ["AAAA.DE"]}, {"AAAA.DE": ("EUR", "25.10")}
+        )
+        brancher_les_cotations(monkeypatch, faux)
+        cli.main(["actifs"])
+        faux.requetes.clear()
+        cli.main(["actifs"])
+        assert fictifs.ACTIF_ETF not in faux.requetes
+
+        assert cli.main(["oublier-reglages", "--actif", fictifs.ACTIF_ETF]) == 0
+        cli.main(["actifs"])
+        assert fictifs.ACTIF_ETF in faux.requetes
 
 
 class TestCours:
@@ -658,13 +783,15 @@ class TestCours:
 
         assert "0 cours ajouté(s) au cache" in capsys.readouterr().out
 
-    def test_un_actif_non_declare_demande_explicitement_est_refuse(self, export, capsys):
+    def test_un_actif_sans_cotation_demande_explicitement_est_refuse(self, export, capsys):
         declarer_les_actifs(fictifs.ACTIF_ACTION_B)
 
         code = cli.main(["cours", "--actif", fictifs.ACTIF_ETF])
 
         assert code == cli.CODE_DECLARATION_ATTENDUE
-        assert "n'est pas déclaré" in capsys.readouterr().err
+        erreur = capsys.readouterr().err
+        assert "n'a pas de cotation" in erreur
+        assert "pastory actifs" in erreur
 
     def test_un_actif_sans_aucun_cours_est_signale(self, export, monkeypatch, capsys):
         declarer_les_actifs(fictifs.ACTIF_ACTION_B)
@@ -867,9 +994,10 @@ class TestValorisationEtRendements:
 
         assert "Non valorisés, exclus de tous les totaux (D-53)" in affichage
         assert "PARTIEL" in affichage
-        # Le bloc « Cours de marché » explique pourquoi : ces actifs n'ont pas de ticker.
-        assert "actif non déclaré" in affichage
-        assert "pastory actifs" in affichage
+        # Le bloc « Cours de marché » explique pourquoi : ces actifs n'ont pas de cotation,
+        # parce que hors ligne rien n'a pu être cherché.
+        assert "aucune cotation trouvée" in affichage
+        assert "sans accès au réseau" in " ".join(affichage.split())
 
     def test_depuis_borne_la_periode(self, export, capsys):
         self.preparer()
@@ -1043,14 +1171,40 @@ class TestCoutsEstimesEtValeurReelle:
         assert "18,6 %" in affichage
         assert "legifrance" in affichage
 
-    def test_sans_date_de_pea_la_poche_dit_quoi_ecrire(self, export, capsys):
-        """D-59 : l'ancienneté décide du taux, elle ne se devine pas."""
+    def test_un_plan_plus_ancien_que_l_export_n_a_pas_de_date(self, export, capsys):
+        """D-59 : l'ancienneté décide du taux. Un achat sur le PEA **avant** le premier
+        versement que montre l'export prouve que le plan est plus ancien : la date n'est pas
+        retenue, et rien n'est inventé à sa place (D-80)."""
         self.preparer()
+        export_fictif.deposer(
+            export,
+            [
+                export_fictif.achat_plan_epargne(
+                    datetime="2026-01-05T09:15:00.000Z", date="2026-01-05"
+                )
+            ],
+            nom="plus ancien.csv",
+        )
 
         cli.main(["positions", "--hors-ligne", "--au", "2026-02-28"])
 
-        affichage = capsys.readouterr().out
-        assert "fiscalite.toml" in affichage
+        affichage = " ".join(capsys.readouterr().out.split())
+        assert "date d'ouverture du PEA inconnue" in affichage
+        assert "fiscalite.toml" not in affichage
+
+    def test_la_date_du_pea_trouvee_dans_l_export_se_dit(self, export, capsys):
+        self.preparer()
+        export_fictif.deposer(
+            export,
+            [export_fictif.versement_pea(datetime="2026-01-02T07:00:00.000Z", date="2026-01-02")],
+            nom="versement.csv",
+        )
+
+        cli.main(["positions", "--hors-ligne", "--au", "2026-02-28"])
+
+        affichage = " ".join(capsys.readouterr().out.split())
+        assert "premier versement le 2026-01-02, trouvée dans votre export" in affichage
+        assert "transféré" in affichage
 
     def test_une_date_de_pea_mal_ecrite_est_expliquee_sans_trace(self, export, capsys):
         self.preparer()
@@ -1061,15 +1215,16 @@ class TestCoutsEstimesEtValeurReelle:
         assert code == cli.CODE_ECHEC
         assert "sans guillemets" in capsys.readouterr().err
 
-    def test_un_actif_sans_type_declare_sort_de_la_valeur_reelle(self, export, capsys):
-        """D-55 : sans type, pas de spread estimé, donc pas de valeur réelle pour cet actif."""
+    def test_le_type_vient_de_l_export_sans_rien_declarer(self, export, capsys):
+        """D-82 : le type est une donnée de la banque. Sans le déclarer, le spread de l'ETF et
+        de l'action est estimé quand même."""
         self.preparer(avec_type=False)
 
         cli.main(["positions", "--hors-ligne", "--au", "2026-02-28"])
 
         affichage = capsys.readouterr().out
-        assert "actifs.toml" in affichage
-        assert "PARTIEL" in affichage
+        assert "leur type (ETF, action, crypto) n'est pas connu" not in affichage
+        assert "spread estimé, total" in affichage
 
     def test_les_deux_csv_de_l_etape_sont_ecrits(self, export, dossier_personnel, capsys):
         self.preparer()
@@ -1118,61 +1273,44 @@ class TestCoutsEstimesEtValeurReelle:
         assert position["impot_estime"] == tableur.VALEUR_SANS_OBJET
 
 
-class TestTerPropose:
-    """L'assistant propose un TER, l'utilisateur valide (D-61)."""
+class TestLeTerTrouve:
+    """Les frais courants d'un ETF : trouvés, contrôlés, montrés avec leur source (D-61, D-80)."""
 
-    def test_le_ter_de_la_liste_est_propose_dans_le_fichier(
+    def test_le_ter_de_la_liste_s_applique_avec_sa_source_et_sa_reserve(
         self, export, monkeypatch, capsys
     ):
-        brancher(monkeypatch, FauxYahoo(propositions={
-            fictifs.ACTIF_ETF: Proposition(
-                "AAAA.DE", "XETRA", "EUR", "ETF Exemple", type=TypeActif.ETF
-            )
-        }))
         brancher_la_liste_des_etf(
-            monkeypatch,
-            {fictifs.ACTIF_ETF: ("0.20", "ETF Exemple", "Accumulating")},
+            monkeypatch, {fictifs.ACTIF_ETF: ("0.20", "ETF Exemple", "Accumulating")}
         )
 
         assert cli.main(["actifs"]) == 0
+        affichage = " ".join(capsys.readouterr().out.split())
 
-        contenu = config_actifs.chemin().read_text(encoding="utf-8")
-        assert "ter_pour_cent = 0.2" in contenu
-        assert "À vérifier sur la fiche de l'émetteur" in contenu
-        assert "frais courants" in capsys.readouterr().out
+        assert "0,2 % par an" in affichage
+        assert "liste de test, au 2026-09-28" in affichage
 
-    def test_un_actif_deja_declare_recoit_sa_proposition_en_commentaire(
-        self, export, monkeypatch
-    ):
-        """Sa ligne validée n'est pas réécrite : on lui souffle la valeur au-dessus."""
-        declarer_les_actifs(fictifs.ACTIF_ETF)
-        brancher(monkeypatch, FauxYahoo())
-        brancher_la_liste_des_etf(monkeypatch, {fictifs.ACTIF_ETF: ("0.07", None, None)})
-
-        cli.main(["actifs"])
-
-        contenu = config_actifs.chemin().read_text(encoding="utf-8")
-        assert "# TER proposé : 0.07 %" in contenu
-        assert (
-            config_actifs.charger().declaration(fictifs.ACTIF_ETF).ter_pour_cent is None
+    def test_le_ter_de_l_emetteur_fait_foi(self, export, monkeypatch, capsys):
+        brancher_la_liste_des_etf(monkeypatch, {fictifs.ACTIF_ETF: ("0.20", None, None)})
+        monkeypatch.setattr(
+            cli, "_frais_courants_de_l_emetteur", lambda: FraisDeLEmetteur("0.12")
         )
 
-    def test_une_liste_injoignable_n_empeche_pas_l_assistant(
-        self, export, monkeypatch, capsys
-    ):
-        """La liste est un confort : sans elle, le TER se saisit à la main, et c'est dit."""
-        brancher(monkeypatch, FauxYahoo())
+        cli.main(["actifs"])
+        affichage = " ".join(capsys.readouterr().out.split())
+
+        assert "0,12 % par an" in affichage
+        assert "liste de test donne 0,2 %" in affichage
+
+    def test_une_liste_injoignable_laisse_un_trou_explique(self, export, monkeypatch, capsys):
         monkeypatch.setattr(
             cli, "_liste_des_etf", lambda: (_ for _ in ()).throw(ErreurDeSource("injoignable"))
         )
 
         assert cli.main(["actifs"]) == 0
+        affichage = " ".join(capsys.readouterr().out.split())
+        assert "injoignable" in affichage
 
-        erreurs = capsys.readouterr().err
-        assert "injoignable" in erreurs
-        assert "à saisir à la main" in erreurs
-
-    def test_hors_ligne_aucune_liste_n_est_demandee(self, export, monkeypatch, capsys):
+    def test_hors_ligne_aucune_liste_n_est_demandee(self, export, monkeypatch):
         demandes = []
         monkeypatch.setattr(cli, "_liste_des_etf", lambda: demandes.append(1))
 
@@ -1180,65 +1318,43 @@ class TestTerPropose:
 
         assert demandes == []
 
-    def test_avec_un_export_d_ailleurs_aucune_liste_n_est_demandee(
-        self, export_ailleurs, monkeypatch
-    ):
-        """Les ISIN de quelqu'un d'autre ne partent vers aucun service (règle 2)."""
-        demandes = []
-        monkeypatch.setattr(cli, "_liste_des_etf", lambda: demandes.append(1))
-
-        assert cli.main(["actifs", "--export", str(export_ailleurs)]) == 0
-
-        assert demandes == []
-
-    def test_le_ter_declare_est_affiche_a_l_ecran(self, export, monkeypatch, capsys):
-        declarer_les_actifs_complets((fictifs.ACTIF_ETF, "etf", "0.07"))
-        brancher(monkeypatch, FauxYahoo())
-        brancher_la_liste_des_etf(monkeypatch, {})
+    def test_le_ter_n_est_cherche_que_pour_un_etf(self, export, monkeypatch, capsys):
+        """Une action ou une crypto ne prélève aucun frais courant : chercher son TER
+        enverrait chercher un chiffre qui n'existe pas."""
+        brancher_la_liste_des_etf(monkeypatch, {fictifs.ACTIF_ACTION: ("0.20", None, None)})
 
         cli.main(["actifs"])
-
-        assert "TER 0,07 %" in capsys.readouterr().out
-
-
-    def test_le_ter_n_est_reclame_que_pour_un_etf(self, export, monkeypatch, capsys):
-        """Trouvé à la relecture : une action ou une crypto ne prélève aucun frais courant.
-        Réclamer son TER enverrait chercher un chiffre qui n'existe pas."""
-        declarer_les_actifs_complets(
-            (fictifs.ACTIF_ETF, "etf", None), (fictifs.ACTIF_ACTION, "action", None)
-        )
-        brancher(monkeypatch, FauxYahoo())
-        brancher_la_liste_des_etf(monkeypatch, {})
-
-        cli.main(["actifs"])
-
         affichage = capsys.readouterr().out
-        lignes = {
-            actif: next(
-                ligne
-                for ligne in affichage.splitlines()
-                if ligne.strip().startswith(actif)
-            )
-            for actif in (fictifs.ACTIF_ETF, fictifs.ACTIF_ACTION)
-        }
-        assert "TER à compléter" in lignes[fictifs.ACTIF_ETF]
-        assert "TER" not in lignes[fictifs.ACTIF_ACTION]
+        bloc_de_l_action = affichage.split(fictifs.ACTIF_ACTION, 1)[1].split("\n\n", 1)[0]
 
-    def test_un_ter_propose_sans_ticker_ne_cree_pas_de_ligne_vide(
-        self, export, monkeypatch
+        assert "frais courants" not in bloc_de_l_action
+
+    def test_le_ter_trouve_sert_au_calcul_et_sa_source_s_affiche(
+        self, export, monkeypatch, capsys
     ):
-        """Le même défaut, vu depuis la commande : si la recherche de ticker ne trouve rien
-        mais que la liste des ETF connaît l'ISIN, la ligne doit rester « à compléter »."""
-        brancher(monkeypatch, FauxYahoo())  # aucune proposition de ticker
+        declarer_les_actifs(fictifs.ACTIF_ETF)
+        deposer_un_cours(fictifs.ACTIF_ETF, Date(2026, 3, 31), "26.00")
         brancher_la_liste_des_etf(monkeypatch, {fictifs.ACTIF_ETF: ("0.20", None, None)})
+        cli.main(["actifs"])  # trouve et garde le TER
+        capsys.readouterr()
 
-        assert cli.main(["actifs"]) == 0
+        cli.main(["positions", "--hors-ligne", "--au", "2026-03-31"])
+        affichage = " ".join(capsys.readouterr().out.split())
 
-        contenu = config_actifs.chemin().read_text(encoding="utf-8")
-        assert 'ticker = ""' not in contenu
-        assert "TER proposé" in contenu
-        # Et l'actif reste bien non déclaré aux yeux de l'application.
-        assert config_actifs.charger().declaration(fictifs.ACTIF_ETF) is None
+        assert "D'où viennent les TER" in affichage
+        assert "liste de test, au 2026-09-28" in affichage
+
+
+class FraisDeLEmetteur:
+    nom = "émetteur de test"
+
+    def __init__(self, ter):
+        self.ter = ter
+
+    def frais_courants(self, actif):
+        return FraisCourantsProposes(
+            ter_pour_cent=Decimal(self.ter), source=self.nom, date=Date(2026, 6, 1)
+        )
 
 
 """La poche que l'export fictif ne permet pas de déduire, déclarée comme le ferait l'utilisateur."""
@@ -1408,3 +1524,32 @@ class TestPositionsAvecRepartition:
         affichage = capsys.readouterr().out
         assert "Répartition, avec ce qui n'y entre pas" in affichage
         assert "Source et règle de pays de chaque composition" in affichage
+
+
+class TestLExportDUnTiers:
+    """Relecture de l'étape 8 quater : avec `--export`, **aucun** appel réseau (règle 2).
+
+    Depuis que le type vient de la banque et que le secours s'essaie seul, chaque ISIN d'un tiers
+    serait parti vers les sources de composition si `positions` restait en ligne."""
+
+    @pytest.mark.parametrize("commande", ["positions", "exporter-pivot", "composition"])
+    def test_rien_n_est_demande_en_ligne(self, commande, export_ailleurs, monkeypatch):
+        en_ligne = []
+        vrai_cours = cli._fournisseur_de_cours
+        vraies_compositions = cli._fournisseur_de_compositions
+
+        def cours(configuration, hors_ligne=False):
+            en_ligne.append(("cours", hors_ligne))
+            return vrai_cours(configuration, hors_ligne=True)
+
+        def compositions(configuration, hors_ligne=False):
+            en_ligne.append(("compositions", hors_ligne))
+            return vraies_compositions(configuration, hors_ligne=True)
+
+        monkeypatch.setattr(cli, "_fournisseur_de_cours", cours)
+        monkeypatch.setattr(cli, "_fournisseur_de_compositions", compositions)
+
+        cli.main([commande, "--export", str(export_ailleurs)])
+
+        assert en_ligne
+        assert all(hors_ligne for _, hors_ligne in en_ligne)

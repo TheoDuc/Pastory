@@ -91,7 +91,7 @@ les transactions »** pour Pastory — puis *Créer*. On reçoit un fichier CSV 
 | `CASH` | `CARD_TRANSACTION`, `CARD_TRANSACTION_INTERNATIONAL` | — | 20 | paiements par carte | espèces, hors périmètre ([D-11](decisions.md)) |
 | `CASH` | `TRANSFER_INBOUND`, `TRANSFER_INSTANT_INBOUND` | — | 22 | virements reçus | espèces |
 | `CASH` | `TRANSFER_IN`, `TRANSFER_OUT` | — | 42 | mouvements d'argent, dont **versements et retraits PEA** | espèces |
-| `CASH` | `PEA_MARKETING` | — | 2 | prime d'ouverture du PEA (« PEA activation ») | espèces ([D-43](decisions.md)) |
+| `CASH` | `PEA_MARKETING` | — | 2 | prime d'ouverture du PEA (« PEA activation ») ; avec `TRANSFER_IN` et `TRANSFER_OUT` sur le compte `PEA`, elle date le plan — jour et sens seulement ([D-86](decisions.md)) | espèces ([D-43](decisions.md)) |
 | `CASH` | `INTEREST_PAYMENT` | — | 16 | intérêts sur espèces, avec leur retenue dans `tax` | espèces |
 | `CASH` | `GIFT`, `MANUAL`, `MANUAL_CASH_TRANSFER` | — | 3 | crédits d'espèces divers | espèces |
 
@@ -227,7 +227,10 @@ Le fichier mêle les actifs et **toute la vie du compte courant** : IBAN et noms
 contreparties, commerçants, catégories de dépenses. L'adaptateur :
 
 - classe les lignes d'espèces **par leur `type`**, dans une liste explicite, et n'en lit aucune
-  autre colonne que `symbol` et `shares`, pour vérifier qu'elles sont vides ;
+  autre colonne que `symbol` et `shares`, pour vérifier qu'elles sont vides — à une exception
+  près, depuis l'étape 8 quater : pour les versements, primes d'ouverture et retraits du compte
+  `PEA`, il retient aussi `account_type` et le **jour**, jamais le montant, pour dater le plan
+  ([D-86](decisions.md), [D-87](decisions.md)) ;
 - ne les affiche qu'en **comptage par type**, jamais ligne à ligne ;
 - n'en recopie rien dans le format pivot, un journal ou un cache ;
 - ne garde jamais `counterparty_name`, `counterparty_iban`, `payment_reference`, `mcc_code` ni le

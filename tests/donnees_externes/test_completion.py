@@ -146,8 +146,8 @@ class TestRefus:
     def test_le_motif_du_refus_est_rapporte(self):
         completion = completer_les_prix([titres_recus()], fournisseur({}, declarations={}))
 
-        assert [refus.categorie for refus in completion.refus] == ["actif non déclaré"]
-        assert "pastory actifs" in completion.refus[0].motif
+        assert [refus.categorie for refus in completion.refus] == ["aucune cotation trouvée"]
+        assert "signalé plutôt qu'estimé" in completion.refus[0].motif
 
     def test_rien_n_est_estime_a_zero(self):
         # L'erreur qu'il ne faut jamais commettre : un montant absent remplacé par zéro

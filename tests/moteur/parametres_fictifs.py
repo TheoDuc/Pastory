@@ -128,7 +128,18 @@ class ReglesFictives:
     pea_duree_exoneration_ir: ParametreFictif = annees("pea.duree_exoneration_ir", "5")
     crypto_seuil_exoneration: ParametreFictif = euros("crypto.seuil_exoneration", "305")
     pea_premier_versement: Date | None = None
+    pea_origine_de_la_date: str | None = None
+    pea_reserve: str | None = None
+    pea_alerte: str | None = None
 
 
-def regles(premier_versement_pea: Date | None = None) -> ReglesFictives:
-    return ReglesFictives(pea_premier_versement=premier_versement_pea)
+def regles(
+    premier_versement_pea: Date | None = None,
+    origine: str | None = None,
+    reserve: str | None = None,
+) -> ReglesFictives:
+    return ReglesFictives(
+        pea_premier_versement=premier_versement_pea,
+        pea_origine_de_la_date=origine,
+        pea_reserve=reserve,
+    )

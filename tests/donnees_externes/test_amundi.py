@@ -20,6 +20,7 @@ from pastory.donnees_externes.amundi import (
     CHAMP_SECTEURS_NON_LU,
     NOM,
     REGLE_DE_PAYS,
+    FraisCourantsAmundi,
     SourceAmundi,
     corps_de_requete,
     lire,
@@ -319,3 +320,51 @@ class TestLaTableDesLibelles:
     def test_tous_les_codes_sont_des_codes_iso_a_deux_lettres(self, libelles):
         mauvais = [c for c in libelles.codes.values() if len(c) != 2 or not c.isalpha()]
         assert mauvais == []
+
+
+class TestLesFraisCourants:
+    """Le TER d'Amundi (étape 8 quater) : en pour cent, daté, sans répartition ni lignes."""
+
+    @staticmethod
+    def source(caracteristiques=None, produits=True):
+        envoye = []
+
+        def poster(adresse, corps):
+            envoye.append(json.loads(corps))
+            if not produits:
+                return json.dumps({"products": []}).encode()
+            return json.dumps(
+                {"products": [{"characteristics": caracteristiques or {}}]}
+            ).encode()
+
+        return FraisCourantsAmundi(poster), envoye
+
+    def test_le_ter_est_lu_en_pour_cent_avec_sa_date_d_effet(self):
+        source, _ = self.source(
+            {"TER": 0.2, "TER_EFFECTIVE_DATE": "2025-10-01T00:00:00.000+00:00"}
+        )
+        frais = source.frais_courants(ACTIF)
+
+        assert frais.ter_pour_cent == Decimal("0.2")
+        assert frais.date == Date(2025, 10, 1)
+
+    def test_trois_decimales_sont_gardees(self):
+        source, _ = self.source({"TER": 0.165, "TER_EFFECTIVE_DATE": "2024-03-31"})
+        assert source.frais_courants(ACTIF).ter_pour_cent == Decimal("0.165")
+
+    def test_un_ter_sans_date_n_est_pas_retenu(self):
+        # D-58 : un taux sans date n'est pas vérifiable.
+        source, _ = self.source({"TER": 0.2})
+        assert source.frais_courants(ACTIF) is None
+
+    def test_un_fonds_d_un_autre_emetteur_n_a_pas_de_ter_ici(self):
+        source, _ = self.source(produits=False)
+        assert source.frais_courants("IE0000000001") is None
+
+    def test_on_ne_demande_ni_repartition_ni_lignes_detenues(self):
+        source, envoye = self.source({"TER": 0.2, "TER_EFFECTIVE_DATE": "2025-10-01"})
+        source.frais_courants(ACTIF)
+
+        texte = json.dumps(envoye[0])
+        assert "breakDown" not in texte
+        assert CHAMP_INTERDIT not in texte

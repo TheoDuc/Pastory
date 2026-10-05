@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import date as Date
 from decimal import Decimal
 
-from pastory.config.actifs import Declaration
+from pastory.config.actifs import Configuration, Declaration
 from pastory.donnees_externes.cours import (
     DeviseInattendue,
     FournisseurDeCours,
@@ -22,6 +22,7 @@ from tests.donnees_externes.cours_fictifs import (
     ACTIF,
     AUJOURD_HUI,
     AUTRE_ACTIF,
+    TICKER,
     CacheEnMemoire,
     SourceFictive,
     configuration,
@@ -93,7 +94,7 @@ class TestCoursTrouve:
 
 
 class TestRefus:
-    def test_un_actif_non_declare_est_refuse_sans_toucher_au_reseau(self):
+    def test_un_actif_sans_cotation_est_refuse_sans_toucher_au_reseau(self):
         source = SourceFictive({AUTRE_ACTIF: [cours(VENDREDI, "100.00")]})
         leur_fournisseur = fournisseur(source)
 
@@ -101,8 +102,21 @@ class TestRefus:
         assert source.appels == []
 
         refus = leur_fournisseur.refus
-        assert [un_refus.categorie for un_refus in refus] == ["actif non déclaré"]
-        assert "pastory actifs" in refus[0].motif
+        assert [un_refus.categorie for un_refus in refus] == ["aucune cotation trouvée"]
+        assert "signalé plutôt qu'estimé" in refus[0].motif
+
+    def test_le_motif_d_une_cotation_introuvable_suit_jusqu_au_refus(self):
+        # Le trou dit pourquoi aucune cotation n'a été retenue (D-80, règle 3) : c'est ce motif,
+        # et non un message générique, qui doit arriver à l'utilisateur.
+        configuration = Configuration(
+            {AUTRE_ACTIF: Declaration()}, sans_cotation={AUTRE_ACTIF: "motif de test"}
+        )
+        leur_fournisseur = FournisseurDeCours(
+            configuration, CacheEnMemoire(), SourceFictive({}), aujourd_hui=AUJOURD_HUI
+        )
+
+        assert leur_fournisseur.cours(AUTRE_ACTIF, VENDREDI) is None
+        assert leur_fournisseur.refus[0].motif == "motif de test"
 
     def test_un_cours_trop_vieux_est_refuse_plutot_que_reutilise(self):
         # Au-delà du recul maximal, ce n'est plus un jour férié : c'est un actif qui ne cote
@@ -306,7 +320,7 @@ class TestPlusieursActifs:
         source = SourceFictive(
             {
                 ACTIF: [cours(VENDREDI, "100.00")],
-                AUTRE_ACTIF: [cours(VENDREDI, "200.00", actif=AUTRE_ACTIF)],
+                AUTRE_ACTIF: [cours(VENDREDI, "200.00", actif=AUTRE_ACTIF, ticker="BBBB.PA")],
             }
         )
         leur_fournisseur = fournisseur(source, declarations=declarations)
@@ -314,3 +328,37 @@ class TestPlusieursActifs:
         assert leur_fournisseur.cours(ACTIF, VENDREDI).valeur == Decimal("100.00")
         assert leur_fournisseur.cours(AUTRE_ACTIF, VENDREDI).valeur == Decimal("200.00")
         assert leur_fournisseur.refus == []
+
+
+class TestUneCotationQuiChange:
+    """Le cache est tenu par actif : changer de cotation ne doit jamais mêler deux places dans une
+    même série (relecture de l'étape 8 quater, D-50, D-85)."""
+
+    def test_hors_ligne_les_cours_d_une_autre_cotation_ne_servent_pas(self):
+        cache = CacheEnMemoire()
+        cache.ecrire(ACTIF, [cours(VENDREDI, "100.00", ticker="ANCIEN.F")])
+        leur_fournisseur = FournisseurDeCours(
+            configuration(), cache, None, hors_ligne=True, aujourd_hui=AUJOURD_HUI
+        )
+
+        assert leur_fournisseur.cours(ACTIF, VENDREDI) is None
+
+    def test_en_ligne_ils_sont_oublies_et_la_serie_reprise_a_la_source(self):
+        cache = CacheEnMemoire()
+        cache.ecrire(ACTIF, [cours(VENDREDI, "100.00", ticker="ANCIEN.F")])
+        source = SourceFictive({ACTIF: [cours(VENDREDI, "101.00")]})
+        leur_fournisseur = FournisseurDeCours(
+            configuration(), cache, source, aujourd_hui=AUJOURD_HUI
+        )
+
+        assert leur_fournisseur.cours(ACTIF, VENDREDI).valeur == Decimal("101.00")
+        assert {un.ticker for un in cache.lire(ACTIF).values()} == {TICKER}
+
+    def test_un_cours_garde_sans_ticker_reste_presume_juste(self):
+        cache = CacheEnMemoire()
+        cache.ecrire(ACTIF, [cours(VENDREDI, "100.00", ticker=None)])
+        leur_fournisseur = FournisseurDeCours(
+            configuration(), cache, None, hors_ligne=True, aujourd_hui=AUJOURD_HUI
+        )
+
+        assert leur_fournisseur.cours(ACTIF, VENDREDI).valeur == Decimal("100.00")

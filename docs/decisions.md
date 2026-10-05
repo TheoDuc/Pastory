@@ -572,7 +572,7 @@ rapprochement incomplet serait une fausse impression de contrôle.
 **Reste ouvert :** [Q-26](questions-ouvertes.md) — faut-il aller chercher ce second compte-titres
 pour que le PEA soit rapproché lui aussi ?
 
-### D-48 · 2026-09-26 · Le cours de référence est celui du marché principal, en euros · Validée
+### D-48 · 2026-09-26 · Le cours de référence est celui du marché principal, en euros · Validée ; la cotation est trouvée et contrôlée par le prix payé depuis D-85, Francfort pour une action américaine (D-88)
 **Décision :** le cours d'un actif est celui de sa **place principale cotant en euros** — Xetra
 pour un ETF ou une action allemande, Euronext Paris pour une française, et ainsi de suite. La
 **devise attendue est déclarée** dans la correspondance ISIN → ticker, et un cours dont la devise
@@ -810,7 +810,7 @@ plus si 17,2 % est un oubli ou un choix).
 **Précision :** les valeurs sont converties en `Decimal` **par le texte** — TOML lit `18.6` comme
 un flottant, et `Decimal(18.6)` vaut 18,600000000000001421… ([D-33](#d-33)).
 
-### D-59 · 2026-09-27 · Le gain du PEA est approché depuis les titres, sur une date déclarée · Validée
+### D-59 · 2026-09-27 · Le gain du PEA est approché depuis les titres, sur une date déclarée · Validée ; la date est trouvée depuis D-86, l'hypothèse « aucun retrait » vérifiée depuis D-87
 **Décision :** l'impôt du PEA se calcule sur le **gain du plan**, approché par
 `plus-values latentes + plus-values réalisées brutes + dividendes bruts − frais − taxes`, sur
 **toutes** les positions du PEA, soldées comprises. L'ancienneté vient d'une date de **premier
@@ -849,7 +849,7 @@ déclaration et non de la sortie.
 **Limite connue, et assumée :** ce n'est pas le montant que l'utilisateur paiera. Les hypothèses
 sont affichées, et la production de déclarations reste hors périmètre ([D-26](#d-26)).
 
-### D-61 · 2026-09-27 · Le TER est proposé depuis la liste de Xetra, et validé par l'utilisateur · Validée
+### D-61 · 2026-09-27 · Le TER est proposé depuis la liste de Xetra, et validé par l'utilisateur · Validée ; l'émetteur passe avant Xetra depuis D-90, sans validation (D-80)
 **Décision :** les frais courants d'un ETF sont **proposés** depuis la « List of Tradable ETFs &
 ETPs » de Deutsche Börse — fichier public, sans clé, une ligne par ISIN — et **validés** par
 l'utilisateur dans `actifs.toml`. Un ETF sans TER validé n'a **aucun** frais courant estimé, avec
@@ -1034,7 +1034,7 @@ faux et crédible**, exactement ce que ce projet traque. Une composition dont le
 et l'actif devient **non couvert**. Le contrôle vit dans le module de la source, seul endroit qui
 connaît son vocabulaire.
 
-### D-71 · 2026-09-28 · Le contenu d'un actif se déclare, et n'avoir ni pays ni secteur n'est pas un manque · Validée
+### D-71 · 2026-09-28 · Le contenu d'un actif se déclare, et n'avoir ni pays ni secteur n'est pas un manque · Validée ; le contenu est trouvé depuis D-89, qui revient sur l'écart d'extraETF
 **Décision :** l'utilisateur peut déclarer le **contenu** d'un actif dans `actifs.toml` —
 `contenu = "obligations"`, `"matieres_premieres"` ou `"actions"`. Un actif dont le contenu est
 déclaré compte **à 100 % dans sa classe** et reste **hors** de la géographie et des secteurs, sans
@@ -1179,7 +1179,7 @@ de premier niveau est « 100 % fonds d'investissement », et une source qui appl
 sectorielle à ces lignes répond **« 100 % finance, Irlande »**. Crédible, absurde. C'est ce chiffre
 que le refus évite.
 
-### D-77 · 2026-09-30 · La source de secours est le service produit d'Amundi, et elle ne sert que la géographie · Validée
+### D-77 · 2026-09-30 · La source de secours est le service produit d'Amundi, et elle ne sert que la géographie · Validée ; essayée d'elle-même depuis D-91
 **Décision :** la source de secours de [D-72](#d-72) est le **service produit d'Amundi**
 (`POST /mapi/ProductAPI/getProductsData`, champ `breakDown.aggregationFields`), déclarée **par
 actif** dans `actifs.toml` comme le contenu de [D-71](#d-71). Elle fournit **la répartition par pays
@@ -1452,3 +1452,156 @@ d'**inventer** un brut faux ; ne pas traiter les dividendes, qui retirerait tous
 des calculs pour un écart de quelques pour cent sur certains.
 **Limite assumée :** sur les dividendes concernés, le gain est sous-estimé de la retenue
 étrangère (environ 15 % du dividende néerlandais) et les taxes payées le sont du même montant.
+
+---
+
+*Étape 8 quater (2026-10-05). Les réglages se trouvent seuls (D-80) : ce que la recherche a
+établi, et ce que le propriétaire a tranché. Le comparatif est
+[reglages-automatiques.md](reglages-automatiques.md).*
+
+### D-85 · 2026-10-05 · Une cotation n'est retenue que si elle retombe sur le prix payé · Validée
+**Décision :** la cotation de chaque actif est **cherchée** par l'application, puis **contrôlée par
+le prix que la banque a fait payer** : sur les six derniers achats ou ventes, le cours de clôture
+du candidat, le jour même, doit retomber sur le prix d'exécution à une tolérance près (écart
+médian). Trois étages, du plus sûr au moins sûr :
+1. **par l'ISIN**, une cotation en euros qui a des cours : la recherche l'associe à l'ISIN, et elle
+   doit en plus retomber sur le prix payé quand l'export en donne un ;
+2. **par le nom**, une cotation en euros : elle doit retomber sur le prix payé **et** suivre, une
+   fois convertie, la cotation que la recherche par ISIN a trouvée dans une autre monnaie (à 1 %
+   près) ;
+3. pour une crypto, `CODE-EUR` (le code donné par la banque), contrôlé par le prix payé.
+
+La tolérance dépend du type et du nombre d'ordres comparés (ETF 6 / 4 / 2 %, action 12 / 6 / 4 %,
+crypto 20 / 10 / 5 % pour 1–2, 3–5 et 6 ordres ou plus). Une cotation trouvée est **gardée pour
+toujours** (`cache/reglages.csv`) : ses cours le sont aussi (D-50), et changer de ticker en route
+mêlerait deux places dans une même série. `pastory oublier-reglages` la fait rechercher.
+**Raison :** mesuré le 2026-10-05 sur 62 ISIN publics, la recherche par ISIN ne donne une
+cotation en euros que pour 53 % d'entre eux — elle renvoie d'abord **Londres en dollars** pour
+presque tous les ETF irlandais, et New York pour les actions américaines — mais ces 33 cotations
+en euros sont **toutes** le bon instrument. La recherche par nom trouve les autres (85 %), en
+mêlant les parts d'un même fonds : le prix payé, donné par la banque sur chaque ordre, est le
+contrôle qui manquait. Il attrape les pence (− 99 %), un autre fonds sur le même indice (+ 73 %
+et plus), la part couverte, le dollar (− 14 % au change de 2026) ; le contrôle de change attrape
+les parts capitalisante et distribuante, que le prix payé, trop bruité, ne sépare pas toujours
+(1,6 à 2,6 % d'écart).
+**Écarte :** prendre le premier résultat (47 % de trous) ; le premier résultat en euros (un
+pseudo-ticker de Stuttgart sans aucun historique, choisi 8 fois sur 62) ; appliquer une cotation
+trouvée par le nom sans contrôle.
+**Limites connues :** un actif sans aucun achat ni vente (titres reçus seulement) ne peut être
+retenu que par son ISIN, avec une réserve affichée ; deux classes d'une même société (Alphabet A
+et C, 0,4 % d'écart) ne se distinguent pas par le prix.
+**Remplace :** la validation de [D-48](#d-48), déjà retirée par [D-80](#d-80). La devise reste
+vérifiée, jamais convertie.
+
+### D-86 · 2026-10-05 · La date d'ouverture du PEA se lit dans l'histoire de ses mouvements · Validée
+**Décision :** la date d'ouverture du PEA est trouvée dans les mouvements d'espèces du compte
+`PEA` de l'export — **leur jour et leur sens, jamais leur montant** ([D-11](#d-11)). Le plan
+commence au premier crédit (versement `TRANSFER_IN`, ou prime d'ouverture `PEA_MARKETING`) ; une
+sortie (`TRANSFER_OUT`) **avant cinq ans clôt le plan** (CMF art. L. 221-32), et le crédit suivant
+en ouvre un nouveau. Contrôle : aucun titre n'est entré sur le PEA avant cette date (sauf dans un
+plan clos) ; sinon le plan est plus ancien que les exports, et la date est un trou. La réserve est
+affichée en permanence : un PEA transféré d'une autre banque, ou des exports qui ne remontent pas
+à l'ouverture, donnent une date trop récente.
+**Raison :** le propriétaire, le 2026-10-05, sur ses propres données : une prime d'ouverture,
+une sortie d'espèces six jours plus tard, une seconde prime le même jour, puis ses premiers
+versements une semaine après. « J'ai ouvert une fois, puis fermé et rouvert mon PEA : c'est la
+réouverture qui ouvre mon PEA actuel. » La première règle essayée — le premier `TRANSFER_IN` —
+donnait la date de son premier versement, une semaine trop tard ; la date qu'il avait écrite à la
+main dans `fiscalite.toml` est celle que la nouvelle règle retrouve seule.
+**Écarte :** le premier `TRANSFER_IN` seul ; le premier mouvement de l'export quel qu'il soit (il
+ignore la clôture) ; ne rien proposer dès qu'une prime précède un versement (un trou pour presque
+tout nouvel utilisateur de la banque).
+**Remplace :** [D-59](#d-59) pour l'**origine** de la date (déclarée → trouvée). Le calcul de
+l'impôt ne change pas.
+
+### D-87 · 2026-10-05 · L'hypothèse « aucun retrait passé » est vérifiée, sans lire de montant · Validée
+**Décision :** [D-59](#d-59) approche le gain du PEA depuis les titres sous l'hypothèse « aucun
+retrait n'a jamais été fait ». Les sorties d'espèces du PEA postérieures à son ouverture sont
+désormais relevées — **leur date seulement** — et, s'il y en a, l'hypothèse affichée est remplacée
+par ce que montrent les exports : « contredit : de l'argent est sorti du PEA le … ».
+`pastory actifs` le dit aussi.
+**Raison :** la piste que la feuille de route demandait de soumettre. Le propriétaire a retenu la
+vérification (a) : elle rend l'hypothèse contrôlable sans toucher à [D-11](#d-11).
+**Écarte :** calculer le gain du plan comme le fisc (valeur − versements nets), qui demanderait
+de lire les montants d'espèces — une décision nouvelle, non prise ; ne rien changer.
+
+### D-88 · 2026-10-05 · Pour une action américaine, Francfort avant Xetra · Validée
+**Décision :** quand deux cotations en euros d'un même titre passent les contrôles avec des écarts
+comparables (à 1 point près), la place décide : **Francfort d'abord pour un ISIN américain**,
+Xetra d'abord pour les autres.
+**Raison :** Francfort cote jusque vers 22 h, au plus près de la clôture de New York et de l'heure
+où ferme la banque ; Xetra ferme à 17 h 30. Mesuré sur cinq ans pour neuf actions américaines :
+± 1,5 à 2 % du cours américain converti au pire jour à Francfort, ± 2,6 à 4,9 % à Xetra, et des
+clôtures figées sur Xetra pour un titre peu échangé.
+**Écarte :** Xetra pour tout. Et le départage au plus petit écart : entre deux places du même
+titre, l'écart tient au hasard des heures de clôture.
+
+### D-89 · 2026-10-05 · Le contenu d'un fonds vient d'extraETF, recoupé par le code CFI · Validée
+**Décision :** le contenu d'un fonds ([D-71](#d-71)) est trouvé chez extraETF, dans son **code de
+classe d'actifs et son libellé** (`asset_class_id`, `asset_class_name`), traduits par une table
+datée et sourcée (`parametres/contenus.toml`) qui exige qu'ils concordent : 2 « Aktien » →
+actions, 3 « Anleihen » → obligations, 4 « Rohstoffe » → matières premières. Le **code CFI** que
+les plateformes déclarent au registre public de l'ESMA sert de **témoin** : s'il concorde, c'est
+dit ; s'il se tait (30 % des fonds), le contenu est retenu « non recoupé » ; s'il contredit, rien
+n'est retenu et les deux réponses sont affichées. Un contenu « actions » trouvé est montré mais
+**ne s'applique pas** : il ferait passer le fonds avant sa composition, et lui ferait perdre ses
+pays et ses secteurs. Le monétaire, les fonds multi-actifs et l'immobilier ne sont pas traduits
+([Q-60](questions-ouvertes.md)).
+**Raison :** mesuré le 2026-10-05 sur 310 fonds : le couple code-libellé d'extraETF est juste
+**307 fois sur 307** trouvés, y compris là où le code CFI se trompe ; il est juste sur les cinq
+fonds du propriétaire. Le code CFI, normé mais déclaré sans contrôle, a une trentaine d'erreurs
+franches sur 3 574 ISIN : il ne décide jamais seul, mais il transforme chacune de ses erreurs en
+trou affiché, jamais en chiffre faux.
+**Ce qu'elle corrige :** [D-71](#d-71) avait écarté l'`asset_class` d'extraETF, « faux sur deux
+actifs sur trois ». L'hypothèse la plus probable : la table des codes n'est publiée nulle part, et
+le sens deviné des nombres était décalé d'un rang — ce qui donne exactement deux erreurs sur un
+trio actions, obligations, or. Lu avec son libellé, le code ne se devine plus.
+**Écarte :** la colonne `PRODUCT TYPE` de la liste de Xetra (seulement « ETC », et des ETF de
+matières premières y sont typés « ETF ») ; la répartition par classes d'extraETF (un fonds
+monétaire à swap y est à 99,9 % en actions : son collatéral) ; OpenFIGI (toujours « fonds ») ; le
+code CFI seul.
+
+### D-90 · 2026-10-05 · Le TER vient de l'émetteur, puis de Xetra ; une source sans date est écartée · Validée
+**Décision :** les frais courants d'un ETF viennent d'abord de **l'émetteur** quand il les publie
+— le service produit d'Amundi, celui de [D-77](#d-77), champ `TER` en pour cent, avec sa **date
+d'effet** — puis de la liste de Xetra ([D-61](#d-61)). Contrôle : la fourchette de vraisemblance ;
+quand les deux sources répondent et diffèrent, l'émetteur fait foi et l'écart est dit. Un TER sans
+date n'est pas retenu ([D-58](#d-58)). La date d'Amundi s'affiche « taux en vigueur depuis le »,
+qui n'est pas la même chose que l'état d'une liste.
+**Raison :** les ETF « PEA » de droit français sont absents de Xetra. Mesuré le 2026-10-05 : le
+service d'Amundi répond pour ses 116 ETF éligibles au PEA, et sa valeur est **égale au DIC sur les
+116** ; sur 402 fonds présents dans les deux sources, 394 concordent et les 8 écarts donnent
+raison à l'émetteur (Xetra en retard). Le propriétaire a écarté la liste de BlackRock, qui couvre
+les ETF iShares « Swap PEA » également absents de Xetra : elle n'a **pas de date**, et une part
+couverte s'y écarte de son DIC.
+**Écarte :** BNP Paribas Easy (aucune interface lisible, et ses ETF PEA sont dans la liste de
+Xetra) ; la liste de BlackRock, sans date.
+**Limite connue :** la date d'effet d'Amundi (`TER_EFFECTIVE_DATE`) n'est pas un nom documenté :
+s'il disparaît, le TER n'a plus de date et n'est plus retenu — un trou, jamais un chiffre faux.
+
+### D-91 · 2026-10-05 · La source de secours est essayée d'elle-même · Validée
+**Décision :** quand la source principale ne sait pas ouvrir un ETF, le service d'Amundi
+([D-77](#d-77)) est **essayé de lui-même** ; il ne répond que pour ses propres fonds. Une
+correction `secours = "aucun"` le refuse pour un actif, `secours = "amundi"` l'impose. Essayé de
+lui-même et muet, il se tait : c'est le motif de la source principale qui s'affiche.
+**Raison :** [D-80](#d-80) et le cas d'école de [D-78](#d-78). La condition que [D-72](#d-72)
+posait pour mélanger deux sources — la source et la règle de pays de chaque actif affichées ligne
+par ligne — est remplie depuis l'étape 8 bis.
+**Remplace :** [D-77](#d-77) pour le déclenchement (déclaré par actif → essayé de lui-même).
+
+### D-92 · 2026-10-05 · `actifs.toml` devient un fichier de corrections, que l'application ne réécrit jamais · Validée
+**Décision :** l'assistant qui réécrivait `actifs.toml` disparaît. Le fichier ne contient plus
+que des **corrections**, champ par champ et toutes facultatives : un ticker corrigé, un TER, un
+type, un contenu, un spread, une répartition, un refus de secours. Ce qui est écrit l'emporte ; le
+reste reste trouvé ; quand une correction contredit la source, les deux sont montrées côte à côte.
+Une correction qui ne désigne aucun actif des exports est signalée. `pastory actifs` **montre**
+chaque réglage avec sa source, sa date, ce qui a été vérifié — ou le motif du trou — et n'écrit
+rien. Tout message qui renvoyait vers un fichier à éditer est réécrit pour dire ce qui manque et
+pourquoi.
+**Raison :** [D-78](#d-78) (point 2 : l'édition à la main n'est jamais écrasée) et [D-80](#d-80)
+(une correction est possible, jamais nécessaire). Vérifié sur les données du propriétaire :
+toutes les valeurs qu'il avait validées à la main sont retrouvées à l'identique par la recherche,
+sauf la date d'ouverture du PEA, que la première règle donnait une semaine trop tard
+([D-86](#d-86)).
+**Écarte :** garder l'assistant en ligne de commande ; réécrire le fichier en y ajoutant les
+valeurs trouvées (il redeviendrait une configuration).

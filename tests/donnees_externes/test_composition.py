@@ -189,15 +189,14 @@ class TestQuelleSourceEstInterrogee:
 
 
 class TestLesRefusSontLisibles:
-    def test_un_actif_non_declare_dit_quoi_faire(self):
+    def test_un_actif_sans_reglages_est_dit_sans_type(self):
         fournisseur = FournisseurDeCompositions(cache=CacheFictif(), actifs=config())
 
         assert fournisseur.composition(ETF) is None
         (refus,) = fournisseur.refus
-        assert refus.categorie == "actif non déclaré"
-        assert "pastory actifs" in refus.motif
+        assert refus.categorie == "type inconnu"
 
-    def test_un_type_non_declare_dit_quoi_ecrire(self):
+    def test_un_type_inconnu_dit_pourquoi_la_composition_n_est_pas_cherchee(self):
         declaration = Declaration(ticker="AAAA.DE", devise="EUR")
         fournisseur = FournisseurDeCompositions(
             cache=CacheFictif(), actifs=config(**{ETF: declaration})
@@ -205,8 +204,9 @@ class TestLesRefusSontLisibles:
 
         assert fournisseur.composition(ETF) is None
         (refus,) = fournisseur.refus
-        assert refus.categorie == "type non déclaré"
-        assert 'type = "etf"' in refus.motif
+        assert refus.categorie == "type inconnu"
+        assert "pas au même endroit" in refus.motif
+        assert "actifs.toml" not in refus.motif
 
     def test_une_source_injoignable_devient_un_refus_et_non_une_exception(self):
         source = SourceEtfFictive(erreur=SourceInjoignable("le service ne répond pas"))
@@ -248,7 +248,7 @@ class TestLesRefusSontLisibles:
         groupes = grouper_refus(fournisseur.refus)
 
         assert [(categorie, len(refus)) for categorie, refus in groupes] == [
-            ("actif non déclaré", 2)
+            ("type inconnu", 2)
         ]
 
 
@@ -289,12 +289,13 @@ class TestLaSourceDeSecours:
     """L'étage ajouté par l'étape 8 bis (D-72, D-77).
 
     Deux sources n'ont ni la même nomenclature sectorielle ni la même règle de pays : basculer
-    sur un secours **en silence** donnerait un total juste et une répartition fausse — 5 points
-    d'écart mesurés sur la technologie. D'où la règle que ces tests gardent : le secours ne sert
-    **que** là où l'utilisateur l'a demandé par actif.
+    sur un secours **sans le dire** donnerait un total juste et une répartition fausse — 5
+    points d'écart mesurés sur la technologie. Depuis l'étape 8 quater (D-80), le secours est
+    essayé de lui-même, et c'est l'affichage de la source ligne par ligne qui protège ; une
+    correction `secours = "aucun"` le refuse pour un actif.
     """
 
-    def test_le_secours_n_est_pas_employe_quand_il_n_est_pas_declare(self):
+    def test_le_secours_est_essaye_de_lui_meme_pour_un_etf_non_couvert(self):
         principale = SourceEtfFictive(erreur=CompositionIndisponible("fonds à swap opaque"))
         secours = SourceEtfFictive(table={ETF: composition(ETF, source="secours de test")})
 
@@ -302,6 +303,58 @@ class TestLaSourceDeSecours:
             cache=CacheFictif(),
             source_etf=principale,
             actifs=config(**{ETF: etf_declare()}),
+            secours={"amundi": secours},
+        )
+        trouvee = fournisseur.composition(ETF)
+
+        assert trouvee.source == "secours de test"
+        assert fournisseur.refus == []
+
+    def test_un_secours_qui_ne_connait_pas_le_fonds_laisse_le_motif_de_la_principale(self):
+        # Essayé de lui-même, le secours n'était pas attendu : son « aucun produit » n'apprend
+        # rien, c'est le motif de la source principale qui compte.
+        principale = SourceEtfFictive(erreur=CompositionIndisponible("fonds à swap opaque"))
+        secours = SourceEtfFictive(erreur=CompositionIndisponible("aucun produit"))
+
+        fournisseur = FournisseurDeCompositions(
+            cache=CacheFictif(),
+            source_etf=principale,
+            actifs=config(**{ETF: etf_declare()}),
+            secours={"amundi": secours},
+        )
+
+        assert fournisseur.composition(ETF) is None
+        (refus,) = fournisseur.refus
+        assert refus.motif == "fonds à swap opaque"
+
+    def test_un_secours_refuse_par_correction_n_est_pas_appele(self):
+        principale = SourceEtfFictive(erreur=CompositionIndisponible("fonds à swap opaque"))
+        secours = SourceEtfFictive(table={ETF: composition(ETF, source="secours de test")})
+
+        fournisseur = FournisseurDeCompositions(
+            cache=CacheFictif(),
+            source_etf=principale,
+            actifs=config(**{ETF: etf_declare(secours="aucun")}),
+            secours={"amundi": secours},
+        )
+
+        assert fournisseur.composition(ETF) is None
+        assert secours.appels == []
+
+    def test_le_secours_ne_sert_pas_une_action(self):
+        # La source de secours décrit l'indice d'un fonds : elle n'a rien à dire d'une société.
+        class SocieteInconnue:
+            nom = "source d'actions de test"
+
+            def composition(self, actif: str, ticker: str) -> Composition:
+                raise CompositionIndisponible("société inconnue")
+
+        secours = SourceEtfFictive(table={ETF: composition(ETF, source="secours de test")})
+
+        fournisseur = FournisseurDeCompositions(
+            cache=CacheFictif(),
+            source_action=SocieteInconnue(),
+            actifs=config(**{ETF: Declaration(ticker="AAAA.PA", type=TypeActif.ACTION)}),
             secours={"amundi": secours},
         )
 

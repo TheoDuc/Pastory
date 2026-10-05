@@ -24,6 +24,7 @@ lisible et vérifiable à la main.
 | [docs/sources-de-cours.md](docs/sources-de-cours.md) | **Comparatif des sources de cours** (étape 4) : ce qui est vérifié, ce qui est écarté, et les pièges |
 | [docs/couts-et-fiscalite.md](docs/couts-et-fiscalite.md) | **Comparatif des coûts estimés et des règles fiscales** (étape 6) : TER, spreads, impôt par poche, avec les sources officielles |
 | [docs/composition-des-etf.md](docs/composition-des-etf.md) | **Comparatif des sources de composition d'ETF** (étape 7) : ce qui est retenu, ce qui est écarté, et les 19 pièges vérifiés |
+| [docs/reglages-automatiques.md](docs/reglages-automatiques.md) | **Comparatif des sources des réglages** (étape 8 quater) : cotation contrôlée par le prix payé, TER de l'émetteur, contenu d'un fonds, date du PEA — mesures et pièges |
 | [docs/export-officiel.md](docs/export-officiel.md) | **L'export officiel de Trade Republic** (D-79) : ses colonnes, les types vus, ce qui est vérifié et ce qui reste à confirmer |
 | [docs/inventaire-donnees.md](docs/inventaire-donnees.md) | *Historique* : la structure des données pytr, retiré à l'étape 8 ter (D-81). Ses pièges expliquent bien des décisions |
 | [docs/verification/](docs/verification/) | Cahiers de vérification : cas fictifs refaisables à la main, et contrôles sur les vraies données |

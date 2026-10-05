@@ -195,6 +195,23 @@ class TestTelechargement:
         assert demandees[0] == xetra.ADRESSE_PAGE
         assert demandees[1].startswith("https://www.cashmarket.deutsche-boerse.com/resource/")
 
+    def test_un_lien_ecrit_en_adresse_complete_est_trouve_aussi(self):
+        # Relevé le 2026-10-05 : selon le serveur qui répond, la page écrit l'adresse complète.
+        fichier = fabriquer([ligne(ETF, "0.002")])
+        complete = (
+            "https://www.cashmarket.deutsche-boerse.com/resource/blob/1553442/abcdef/data/"
+            "Master_DataSheet_Download.xls"
+        )
+        page = f'<html><a class="x"\r\nhref="{complete}">Download</a></html>'
+        demandees = []
+
+        def ouvrir(adresse):
+            demandees.append(adresse)
+            return fichier if adresse.endswith(".xls") else page.encode("utf-8")
+
+        assert xetra.telecharger(ouvrir).frais_courants(ETF) is not None
+        assert demandees[1] == complete
+
     def test_une_page_qui_a_change_de_forme_le_dit(self):
         with pytest.raises(ErreurDeSource, match="changé de forme"):
             xetra.telecharger(lambda adresse: b"<html>plus de lien</html>")

@@ -260,14 +260,14 @@ def test_les_frais_courants_estimes_sont_la_valeur_fois_le_ter():
     assert frais[0].estimation.base == Decimal("600.00")
 
 
-def test_sans_ter_declare_rien_n_est_estime_et_le_motif_le_dit():
-    """D-61 : un TER non validé ne devient jamais un zéro."""
+def test_sans_ter_rien_n_est_estime_et_le_motif_le_dit():
+    """D-61 : un TER introuvable ne devient jamais un zéro."""
     frais = couts.frais_courants(
         valorisation_d_un_etf(), ParametresFictifs(types={ACTIF: "etf"})
     )
 
     assert frais[0].estimation is None
-    assert "TER non déclaré" in frais[0].motif
+    assert "frais courants introuvables" in frais[0].motif
 
 
 def test_ce_qui_n_est_pas_un_etf_n_a_pas_de_frais_courants():

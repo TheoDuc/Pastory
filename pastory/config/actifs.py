@@ -1,22 +1,20 @@
-"""« Déclarer ses actifs » : de l'ISIN au ticker, la devise attendue, et depuis l'étape 6 le
-type de l'actif et ses frais courants (D-48, D-51, D-55, D-61).
+"""Les **corrections** de l'utilisateur, actif par actif : `actifs.toml` (D-78, D-80).
 
-Trade Republic identifie un actif par son **ISIN** ; les sources de cours gratuites, elles,
-travaillent au **ticker** et à la place de cotation. Personne ne peut établir cette
-correspondance à notre place de façon sûre : un même ETF cote sur des dizaines de places, et
-la recherche automatique se trompe. Le comparatif en a trouvé un cas franc — pour un ETF qui
-cote aussi à Xetra en euros, la recherche renvoie la cotation londonienne **en dollars**
-(`docs/sources-de-cours.md` §4).
+Depuis l'étape 8 quater, l'application **trouve seule** le ticker et la devise d'un actif, son
+type, ses frais courants et son contenu, chacun avec sa source, sa date et un contrôle
+(`pastory/reglages`). Ce fichier ne sert plus à configurer : il sert à **corriger**. Chaque champ
+y est facultatif, et celui qui est écrit **l'emporte** sur la valeur trouvée ; les autres restent
+trouvés. Une correction est possible, jamais nécessaire.
 
-D'où ce fichier : l'application **propose**, l'utilisateur **valide**, et la devise attendue
-est écrite noir sur blanc pour que le cours reçu puisse être confronté à elle (D-48). Un
-actif non déclaré n'est pas valorisé : il est signalé, jamais estimé (D-45).
+L'application ne réécrit **jamais** ce fichier (D-78, point 2) : il est écrit à la main, ou
+demain par l'écran de correction de l'étape 9, qui devra garder ses commentaires.
 
-Le même schéma vaut pour ce que l'étape 6 a ajouté : le **type** de l'actif (ETF, action,
-crypto), qui choisit son taux de spread par défaut, et le **TER** d'un ETF, proposé depuis la
-liste Xetra et relu par l'utilisateur sur la fiche de l'émetteur — la liste est en retard sur
-environ 5 % des lignes (`docs/couts-et-fiscalite.md` §2). Sans type : pas de spread estimé ;
-sans TER : pas de frais courants estimés. Jamais une valeur par défaut silencieuse.
+Les contrôles de lecture restent ceux d'avant, et pour les mêmes raisons :
+
+- la **devise** d'un ticker corrigé est exigée, et ne peut être que l'euro (D-48) : sans elle,
+  un cours en dollars passerait pour des euros ;
+- un **TER** ou un **spread** hors de leur fourchette est refusé comme une erreur d'unité ;
+- un **type**, un **contenu** ou une **source de secours** inconnus sont refusés, pas ignorés.
 
 Le fichier vit dans le dossier personnel, hors du dossier synchronisé et hors de git
 (D-37, D-01).
@@ -25,7 +23,7 @@ Le fichier vit dans le dossier personnel, hors du dossier synchronisé et hors d
 from __future__ import annotations
 
 import tomllib
-from collections.abc import Iterable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date as Date
 from decimal import Decimal
@@ -38,11 +36,7 @@ from pastory.pivot.operation import DEVISE_UNIQUE
 NOM_FICHIER = "actifs.toml"
 
 FORME_ATTENDUE = '"<ISIN>" = { ticker = "AAAA.DE", devise = "EUR" }'
-"""Ce qu'il faut écrire au minimum, cité tel quel dans les messages d'erreur."""
-
-FORME_COMPLETE = (
-    '"<ISIN>" = { ticker = "AAAA.DE", devise = "EUR", type = "etf", ter_pour_cent = 0.20 }'
-)
+"""Comment corriger une cotation, cité tel quel dans les messages d'erreur."""
 
 TER_MINIMUM = Decimal("0.03")
 TER_MAXIMUM = Decimal("1.00")
@@ -96,8 +90,13 @@ class ContenuActif(StrEnum):
 
 CONTENUS_ACCEPTES = tuple(contenu.value for contenu in ContenuActif)
 
-SECOURS_ACCEPTES = ("amundi",)
-"""Les sources de secours qu'on sait interroger (D-77).
+SECOURS_AMUNDI = "amundi"
+SECOURS_AUCUN = "aucun"
+"""Refuser toute source de secours pour cet actif : la seule correction possible d'un secours
+essayé automatiquement (D-80)."""
+
+SECOURS_ACCEPTES = (SECOURS_AMUNDI, SECOURS_AUCUN)
+"""Les sources de secours qu'on sait interroger (D-77), et le refus.
 
 Une valeur inconnue est **refusée à la lecture du fichier**, et non ignorée : un utilisateur qui
 écrit « amundy » doit l'apprendre tout de suite, et non découvrir six écrans plus loin que son
@@ -107,11 +106,17 @@ fonds est resté non couvert.
 
 @dataclass(frozen=True)
 class Declaration:
-    """Ce que l'utilisateur déclare pour un actif : où chercher son cours, en quoi, et ce
-    qu'il coûte."""
+    """Les réglages d'un actif : où chercher son cours, en quoi, ce qu'il coûte, ce qu'il
+    contient.
 
-    ticker: str
-    """Identifiant de l'actif chez la source, place comprise (« AAAA.DE », « BBB-EUR »)."""
+    Deux usages, une seule forme : la **correction** lue dans `actifs.toml`, où tout champ vide
+    veut dire « gardez ce que vous avez trouvé » ; et la **déclaration effective** que
+    `pastory/reglages` assemble, où tout champ vide veut dire « rien de fiable n'a été trouvé ».
+    """
+
+    ticker: str | None = None
+    """Identifiant de l'actif chez la source, place comprise (« AAAA.DE », « BBB-EUR »).
+    Sans lui, l'actif n'est pas valorisé : il est signalé, jamais estimé (D-45)."""
 
     devise: str = DEVISE_UNIQUE
     """Devise **attendue**. Un cours qui arrive dans une autre est refusé, pas converti."""
@@ -120,7 +125,7 @@ class Declaration:
     """ETF, action ou crypto. Sans lui, pas de spread estimé pour cet actif."""
 
     ter_pour_cent: Decimal | None = None
-    """Frais courants annuels d'un ETF, en pour cent, **validés** par l'utilisateur."""
+    """Frais courants annuels d'un ETF, en pour cent."""
 
     spread_pour_cent: Decimal | None = None
     """Un taux de spread par côté propre à cet actif, qui remplace celui de son type."""
@@ -145,18 +150,24 @@ class Declaration:
     """Répartition par secteur déclarée à la main. Mêmes règles ; les clés sont les codes de la
     nomenclature retenue (`parametres/secteurs.toml`)."""
 
+    source_du_contenu: str | None = None
+    """Pour un contenu **trouvé** (pas corrigé) : sa source, pour que la répartition la nomme.
+    Jamais lu dans le fichier : c'est la déclaration effective qui le porte (D-89)."""
+
+    date_du_contenu: Date | None = None
+    """Le jour où cette source a relevé le contenu."""
+
     secours: str | None = None
     """La **source de secours** à interroger pour cet actif, quand la principale ne sait pas
     l'ouvrir (D-72, D-77).
 
-    Déclarée **par actif**, et jamais devinée. La raison est que deux sources n'ont ni la même
-    nomenclature sectorielle ni la même règle de pays : les mélanger en silence donnerait un
-    total juste et une répartition fausse — 5 points d'écart mesurés sur la technologie. Le
-    secours n'est donc employé que là où l'utilisateur l'a demandé, et la source de chaque
-    chiffre reste affichée ligne par ligne.
+    Sans correction (`None`), le secours est **essayé de lui-même** quand la source principale
+    ne sait pas ouvrir un fonds (D-80) : il ne connaît que ses propres fonds, et la source comme
+    la règle de pays de chaque chiffre restent affichées ligne par ligne, ce qui était la
+    condition de D-72. `"amundi"` l'impose ; `"aucun"` le refuse pour cet actif.
 
-    Une seule valeur existe aujourd'hui : `"amundi"`, qui ne sert que la **géographie** — les
-    secteurs de cette source sont du GICS, et restent non couverts.
+    Amundi ne sert que la **géographie** — les secteurs de cette source sont du GICS, et restent
+    non couverts (D-77).
     """
 
 
@@ -178,10 +189,10 @@ class FraisCourantsProposes:
 
 @dataclass(frozen=True)
 class Proposition:
-    """Une correspondance trouvée par une source, à soumettre à l'utilisateur.
+    """Une cotation trouvée par la recherche d'une source, **avant** tout contrôle.
 
-    Elle n'est jamais utilisée pour calculer : elle sert à remplir le fichier avec, en
-    commentaire, de quoi la reconnaître ou la rejeter d'un coup d'œil.
+    Elle ne sert à calculer qu'après avoir passé les contrôles de `pastory/reglages` (devise,
+    prix d'exécution) ; sinon elle est seulement montrée, avec le motif du refus.
     """
 
     ticker: str
@@ -192,38 +203,29 @@ class Proposition:
     (règle 4 de CLAUDE.md)."""
 
     type: TypeActif | None = None
-    """Ce que la source dit de la nature de l'actif (ETF, action)."""
-
-    frais_courants: FraisCourantsProposes | None = None
-
-    @property
-    def douteuse(self) -> bool:
-        """Vrai si la devise proposée n'est pas celle que l'application sait traiter.
-
-        C'est le piège du §4 du comparatif. Une proposition douteuse est écrite en
-        commentaire et **pas** en ligne active : elle ne peut pas servir par inadvertance.
-        """
-        return self.devise is not None and self.devise.strip().upper() != DEVISE_UNIQUE
+    """Ce que la source dit de la nature de l'actif. Informatif seulement : le type retenu
+    est celui de la banque (D-82), et la source se trompe sur un ETC d'or."""
 
 
 @dataclass(frozen=True)
 class Configuration:
-    """Ce que l'utilisateur a déclaré."""
+    """Les réglages de tous les actifs : les corrections lues dans le fichier, ou la
+    configuration effective assemblée par `pastory/reglages`."""
 
     declarations: Mapping[str, Declaration] = field(default_factory=dict)
-    """Actif (ISIN ou code crypto) → où chercher son cours."""
+    """Actif (ISIN ou code crypto) → ses réglages."""
+
+    sans_cotation: Mapping[str, str] = field(default_factory=dict)
+    """Actif → pourquoi aucune cotation n'a été trouvée, pour que le refus d'un cours le dise."""
 
     def declaration(self, actif: str) -> Declaration | None:
-        """La déclaration d'un actif, ou `None` s'il n'en a pas encore."""
+        """Les réglages d'un actif, ou `None` s'il n'en a aucun."""
         return self.declarations.get(actif)
 
     @property
     def actifs_declares(self) -> frozenset[str]:
         return frozenset(self.declarations)
 
-    def manquants(self, actifs: Iterable[str]) -> list[str]:
-        """Les actifs sans déclaration, dans l'ordre alphabétique."""
-        return sorted(set(actifs) - self.actifs_declares)
 
 
 def chemin(environnement: Mapping[str, str] | None = None) -> Path:
@@ -233,12 +235,8 @@ def chemin(environnement: Mapping[str, str] | None = None) -> Path:
 def charger(
     fichier: Path | None = None, environnement: Mapping[str, str] | None = None
 ) -> Configuration:
-    """Lit la configuration. Un fichier absent donne une configuration vide, pas une erreur.
-
-    C'est le cas du premier lancement, avant `pastory actifs`. Ce n'est pas à la lecture du
-    fichier de protester : ce sont les commandes qui ont besoin des cours qui diront quels
-    actifs ne sont pas encore déclarés, et quoi faire.
-    """
+    """Lit les corrections. Un fichier absent n'est pas une erreur : c'est le cas normal, celui
+    où l'utilisateur n'a rien eu à corriger."""
     fichier = chemin(environnement) if fichier is None else fichier
     if not fichier.exists():
         return Configuration()
@@ -259,8 +257,8 @@ def _lire_declarations(brut: object, fichier: Path) -> dict[str, Declaration]:
 
     declarations: dict[str, Declaration] = {}
     for actif, valeur in brut.items():
-        # Une ligne laissée vide est un actif que l'utilisateur n'a pas encore déclaré :
-        # travail en cours, pas erreur de fichier. Même règle que pour les comptes.
+        # Une ligne laissée vide ne corrige rien : c'est la forme qu'écrivait l'ancien
+        # assistant pour un actif « à compléter ». Ce qui est trouvé s'applique.
         if isinstance(valeur, str):
             if valeur.strip() == "":
                 continue
@@ -275,17 +273,15 @@ def _lire_declarations(brut: object, fichier: Path) -> dict[str, Declaration]:
                 f"pas. Écrivez  {FORME_ATTENDUE}"
             )
 
-        ticker = valeur.get("ticker")
-        if not isinstance(ticker, str):
-            raise ConfigurationInvalide(
-                f"{fichier} : l'actif {actif} n'a pas de « ticker ». Écrivez  {FORME_ATTENDUE}"
-            )
-        if ticker.strip() == "":
-            continue
-
+        ticker = _lire_ticker(valeur.get("ticker"), actif, fichier)
         declarations[actif] = Declaration(
-            ticker=ticker.strip(),
-            devise=_lire_devise(valeur.get("devise"), actif, fichier),
+            ticker=ticker,
+            # La devise n'a de sens qu'avec un ticker : c'est celle de cette cotation-là.
+            devise=(
+                _lire_devise(valeur.get("devise"), actif, fichier)
+                if ticker is not None
+                else DEVISE_UNIQUE
+            ),
             type=_lire_type(valeur.get("type"), actif, fichier),
             ter_pour_cent=_lire_taux(
                 valeur.get("ter_pour_cent"), "ter_pour_cent", TER_MINIMUM, TER_MAXIMUM,
@@ -301,6 +297,18 @@ def _lire_declarations(brut: object, fichier: Path) -> dict[str, Declaration]:
             secours=_lire_secours(valeur.get("secours"), actif, fichier),
         )
     return declarations
+
+
+def _lire_ticker(valeur: object, actif: str, fichier: Path) -> str | None:
+    """Le ticker corrigé, facultatif : absent ou vide, c'est celui trouvé qui s'applique."""
+    if valeur is None:
+        return None
+    if not isinstance(valeur, str):
+        raise ConfigurationInvalide(
+            f"{fichier} : l'actif {actif} a un « ticker » qui n'est pas un texte : {valeur!r}. "
+            f"Écrivez  {FORME_ATTENDUE}"
+        )
+    return valeur.strip() or None
 
 
 def _lire_contenu(valeur: object, actif: str, fichier: Path) -> ContenuActif | None:
@@ -446,232 +454,3 @@ def _lire_taux(
             f"d'unité : 0,20 % s'écrit  {champ} = 0.20"
         )
     return taux
-
-
-def modele(
-    apercu: Mapping[str, str],
-    propositions: Mapping[str, Proposition],
-    configuration: Configuration,
-) -> str:
-    """Le texte du fichier à écrire : un actif par ligne, à valider.
-
-    `apercu` donne, par actif, de quoi le reconnaître (son nom tel que la banque l'affiche,
-    ses poches). `propositions` donne ce qu'une source a trouvé pour les actifs pas encore
-    déclarés — ou, pour un actif déjà déclaré, ce qu'elle propose de compléter (un type, un
-    TER), écrit en commentaire au-dessus de sa ligne.
-
-    **Tout ce que l'utilisateur avait déjà écrit est repris**, y compris ses actifs absents de
-    cet export-ci : l'assistant réécrit le fichier entier, et n'en recopier qu'une partie
-    effacerait le reste en silence. C'est la leçon de `comptes.py`.
-    """
-    deja_declares = configuration.declarations
-    lignes = [
-        "# De l'ISIN au ticker : où chercher le cours de chaque actif, en quelle monnaie,",
-        "# et ce que l'actif coûte.",
-        "#",
-        "# Votre banque identifie un actif par son ISIN ; les sources de cours travaillent au",
-        "# ticker, place de cotation comprise. Un même titre cote sur plusieurs places, dans",
-        "# plusieurs monnaies : c'est à vous de dire laquelle fait référence.",
-        "#",
-        f"# Forme d'une ligne :  {FORME_COMPLETE}",
-        "#   ticker : l'identifiant chez la source, suffixe de place compris",
-        "#            (« .DE » Xetra, « .PA » Euronext Paris, « -EUR » pour une crypto)",
-        f"#   devise : la monnaie attendue. Seul « {DEVISE_UNIQUE} » est accepté : un cours",
-        "#            reçu dans une autre monnaie est refusé, jamais converti.",
-        f"#   type   : {', '.join(TYPES_ACCEPTES)}. Choisit le spread estimé par défaut ;",
-        "#            sans type, aucun spread n'est estimé pour cet actif.",
-        "#   ter_pour_cent : les frais courants annuels d'un ETF, en pour cent (0.20 pour",
-        "#            0,20 %). Proposés depuis la liste Xetra, parfois en retard sur une",
-        "#            baisse de frais : vérifiez sur la fiche de l'émetteur. Sans TER, aucun",
-        "#            frais courant n'est estimé.",
-        "#   spread_pour_cent : facultatif, un taux par côté propre à cet actif (ETF de niche,",
-        "#            petite capitalisation, altcoin), qui remplace celui de son type.",
-        "#",
-        f"#   contenu : facultatif — {', '.join(CONTENUS_ACCEPTES)}. Dit de quoi l'actif est",
-        "#            fait à l'intérieur, là où « type » dit ce que vous détenez. Un ETF",
-        "#            d'obligations ou de matières premières n'a ni pays ni secteur : le",
-        "#            déclarer ici le range à sa place, au lieu de l'annoncer « composition",
-        "#            inconnue ». Sans contenu, c'est la source qui décide.",
-        f"#   secours : facultatif — {', '.join(SECOURS_ACCEPTES)}. La source de secours à",
-        "#            interroger si la source principale ne sait pas ouvrir ce fonds. Utile",
-        "#            surtout pour un ETF « PEA » à swap, que la source principale ne",
-        "#            transparise pas toujours. « amundi » ne sert que la répartition par",
-        "#            PAYS : ses secteurs suivent une autre nomenclature, et resteraient",
-        "#            faux mélangés aux autres. À ne mettre que sur un fonds Amundi.",
-        "#   pays, secteurs : facultatifs, pour corriger une composition que la source donne",
-        f"#            fausse ou ne donne pas :  {FORME_REPARTITION}",
-        "#            Ce que vous écrivez l'emporte sur la source. Les totaux n'ont pas besoin",
-        "#            de faire 100 : le reste devient du « non attribué », jamais comblé.",
-        "#",
-        "# Un actif laissé vide n'est pas valorisé — il est signalé, jamais estimé.",
-        "# Ce fichier reste sur votre machine : il n'entre jamais dans git.",
-        "",
-        "[actifs]",
-    ]
-
-    for actif in sorted(set(apercu) | set(propositions) | set(deja_declares)):
-        description = _commentaire(apercu.get(actif, ""))
-        if description:
-            lignes.append(f"# {description}")
-
-        declaration = deja_declares.get(actif)
-        proposition = propositions.get(actif)
-        if declaration is not None:
-            lignes.extend(_complements_proposes(declaration, proposition))
-            lignes.append(_ligne(actif, declaration))
-        else:
-            lignes.extend(_lignes_a_valider(actif, proposition))
-        lignes.append("")
-
-    return "\n".join(lignes)
-
-
-def _texte_toml(valeur: str) -> str:
-    """Échappe une valeur écrite dans une chaîne TOML.
-
-    Un ticker ou un nom d'actif vient d'ailleurs — de la banque, ou d'une source de cours. Un
-    guillemet ou un retour à la ligne suffirait à rendre `actifs.toml` illisible, et c'est
-    précisément l'assistant censé le réparer qui refuserait alors de démarrer.
-    """
-    propre = valeur.replace("\\", "\\\\").replace('"', '\\"')
-    return "".join(caractere for caractere in propre if caractere.isprintable())
-
-
-def _commentaire(texte: str) -> str:
-    """Une ligne de commentaire : tout tient sur une ligne, sinon le reste cesse d'être un
-    commentaire et devient du TOML invalide."""
-    return " ".join(texte.split())
-
-
-def _taux_toml(taux: Decimal) -> str:
-    """Un taux écrit en TOML : un nombre à point décimal, sans zéros inutiles."""
-    return format(taux.normalize(), "f") if taux != taux.to_integral() else str(int(taux))
-
-
-def _ligne(actif: str, declaration: Declaration) -> str:
-    champs = [
-        f'ticker = "{_texte_toml(declaration.ticker)}"',
-        f'devise = "{_texte_toml(declaration.devise)}"',
-    ]
-    if declaration.type is not None:
-        champs.append(f'type = "{declaration.type.value}"')
-    if declaration.ter_pour_cent is not None:
-        champs.append(f"ter_pour_cent = {_taux_toml(declaration.ter_pour_cent)}")
-    if declaration.spread_pour_cent is not None:
-        champs.append(f"spread_pour_cent = {_taux_toml(declaration.spread_pour_cent)}")
-    return f'"{_texte_toml(actif)}" = {{ {", ".join(champs)} }}'
-
-
-def _commentaire_frais_courants(frais: FraisCourantsProposes) -> str:
-    details = ", ".join(
-        partie
-        for partie in (
-            frais.nom,
-            frais.politique,
-            f"au {frais.date.isoformat()}" if frais.date else None,
-            frais.source,
-        )
-        if partie
-    )
-    return _commentaire(
-        f"TER proposé : {_taux_toml(frais.ter_pour_cent)} % ({details}). À vérifier sur la "
-        "fiche de l'émetteur : la liste est parfois en retard sur une baisse de frais."
-    )
-
-
-def _complements_proposes(
-    declaration: Declaration, proposition: Proposition | None
-) -> list[str]:
-    """Pour un actif déjà déclaré : ce que la source propose d'ajouter, en commentaire.
-
-    La déclaration prime toujours ; un type ou un TER que l'utilisateur a déjà écrit n'est
-    jamais contredit par une proposition. Ce qui manque encore est proposé au-dessus de la
-    ligne, pour qu'il n'ait qu'à le recopier.
-    """
-    if proposition is None:
-        return []
-    lignes = []
-    if declaration.type is None and proposition.type is not None:
-        lignes.append(f'# type proposé par la source :  type = "{proposition.type.value}"')
-    if (
-        declaration.ter_pour_cent is None
-        and proposition.frais_courants is not None
-        and (declaration.type in (None, TypeActif.ETF))
-    ):
-        lignes.append(f"# {_commentaire_frais_courants(proposition.frais_courants)}")
-    return lignes
-
-
-def _lignes_a_valider(actif: str, proposition: Proposition | None) -> list[str]:
-    """La ligne d'un actif pas encore déclaré, avec ce que la source en dit.
-
-    **Sans ticker, pas de ligne active.** Une source peut connaître les frais courants d'un
-    actif sans qu'aucune n'ait trouvé son ticker : la ligne serait alors écrite avec un ticker
-    vide, d'apparence valide, et la lecture l'écarterait en silence — l'utilisateur ne verrait
-    ni l'avertissement « à compléter », ni l'actif dans ses cours. Le TER proposé reste écrit
-    en commentaire, pour qu'il n'ait qu'à le recopier.
-    """
-    if proposition is None:
-        return [
-            "# aucune correspondance proposée : à compléter à la main",
-            f'"{actif}" = ""',
-        ]
-
-    if not proposition.ticker.strip():
-        lignes = []
-        if proposition.frais_courants is not None:
-            lignes.append(f"# {_commentaire_frais_courants(proposition.frais_courants)}")
-        lignes += [
-            "# aucun ticker proposé : à compléter à la main",
-            f'"{actif}" = ""',
-        ]
-        return lignes
-
-    trouve = _commentaire(
-        ", ".join(
-            partie
-            for partie in (
-                proposition.nom,
-                proposition.place,
-                proposition.devise,
-                proposition.type.value if proposition.type else None,
-            )
-            if partie
-        )
-    )
-    lignes = [f"# proposé par la source : {trouve}" if trouve else "# proposé par la source"]
-    if proposition.frais_courants is not None:
-        lignes.append(f"# {_commentaire_frais_courants(proposition.frais_courants)}")
-
-    proposee = Declaration(
-        ticker=proposition.ticker,
-        devise=proposition.devise or "",
-        type=proposition.type,
-        ter_pour_cent=(
-            proposition.frais_courants.ter_pour_cent if proposition.frais_courants else None
-        ),
-    )
-
-    if proposition.douteuse:
-        # Écrite en commentaire, donc inactive : une cotation dans une autre monnaie ne doit
-        # pas pouvoir servir par simple inattention (D-48).
-        lignes += [
-            f"# ATTENTION : cette cotation est en {_commentaire(proposition.devise or '')}, "
-            f"pas en {DEVISE_UNIQUE}. Ce n'est probablement pas la bonne place.",
-            f"#   {_ligne(actif, proposee)}",
-            f'"{actif}" = ""',
-        ]
-        return lignes
-
-    lignes.append(
-        _ligne(
-            actif,
-            Declaration(
-                ticker=proposee.ticker,
-                devise=DEVISE_UNIQUE,
-                type=proposee.type,
-                ter_pour_cent=proposee.ter_pour_cent,
-            ),
-        )
-    )
-    return lignes

@@ -10,7 +10,7 @@ dossier `exports` de Pastory (`pastory emplacements` dit où), puis :
 ```
 pastory lire                vérifier qu'aucun type d'opération n'est inconnu
 pastory exporter-pivot      écrire les opérations en CSV, à vérifier dans un tableur
-pastory actifs              dire où chercher le cours de chaque actif (une seule fois)
+pastory actifs              ce que Pastory a trouvé seul pour chaque actif, avec sa source
 pastory cours               récupérer les cours de marché et les garder en cache
 pastory positions           ce que le moteur en déduit : quantités, capital investi, PRU,
                               valeur des actifs, gain, TRI et TWRR
@@ -20,6 +20,7 @@ pastory exporter-positions  écrire les positions, le journal, la valorisation, 
 pastory composition         ce qu'il y a à l'intérieur de chaque actif détenu
 pastory oublier-cours       effacer des cours en cache, pour les reprendre à la source
 pastory oublier-composition effacer des compositions, pour les reprendre à la source
+pastory oublier-reglages    effacer ce qui a été trouvé en ligne, pour le rechercher
 ```
 
 `positions` et `exporter-positions` acceptent `--au AAAA-MM-JJ` (la fin de la période, et la
@@ -28,19 +29,22 @@ date de valorisation ; par défaut aujourd'hui, valorisé à la dernière clôtu
 
 Depuis l'étape 6, les deux affichent aussi les **coûts estimés** (spread, frais courants des
 ETF) et la **valeur réelle** — ce qu'on récupérerait en vendant tout (D-17, D-23). Les taux
-viennent de `pastory/parametres/`, datés et sourcés ; le type de chaque actif et son TER
-se déclarent dans `actifs.toml`, que `pastory actifs` propose de remplir.
+viennent de `pastory/parametres/`, datés et sourcés.
+
+Depuis l'étape 8 quater, **rien n'est à déclarer** (D-80) : la cotation de chaque actif, son
+type, ses frais courants et la date d'ouverture du PEA sont trouvés seuls, contrôlés, et
+montrés avec leur source par `pastory actifs`. Une correction reste possible dans
+`actifs.toml` ou `fiscalite.toml`, jamais nécessaire.
 """
 
 from __future__ import annotations
 
 import argparse
-import collections
 import contextlib
 import sys
 import textwrap
-from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, replace
+from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import date as Date
 from datetime import timedelta
 from importlib.metadata import PackageNotFoundError, version
@@ -54,14 +58,14 @@ from pastory.config import ConfigurationInvalide, emplacements
 from pastory.config import actifs as config_actifs
 from pastory.config import fiscalite as config_fiscalite
 from pastory.donnees_externes import actions as source_actions
-from pastory.donnees_externes import amundi, extraetf, xetra
+from pastory.donnees_externes import amundi, extraetf, firds, xetra
 from pastory.donnees_externes import completion as completion_cours
 from pastory.donnees_externes import composition as composition_externe
 from pastory.donnees_externes import cours as cours_module
 from pastory.donnees_externes.cache import Cache, CacheIllisible
 from pastory.donnees_externes.cache_compositions import CacheDeCompositions
 from pastory.donnees_externes.completion import Completion
-from pastory.donnees_externes.cours import ErreurDeSource, FournisseurDeCours, Refus
+from pastory.donnees_externes.cours import FournisseurDeCours, Refus
 from pastory.donnees_externes.yahoo import Yahoo
 from pastory.moteur import couts as couts_moteur
 from pastory.moteur import diversification as diversification_moteur
@@ -72,11 +76,18 @@ from pastory.moteur import valeur_reelle as valeur_reelle_moteur
 from pastory.moteur import valorisation as valorisation_moteur
 from pastory.moteur.portefeuille import Portefeuille
 from pastory.parametres import ParametresInvalides
+from pastory.parametres import contenus as parametres_contenus
 from pastory.parametres import couts as parametres_couts
 from pastory.parametres import fiscalite as parametres_fiscalite
 from pastory.parametres import referentiels as parametres_referentiels
 from pastory.pivot import export_csv
 from pastory.pivot.operation import Poche
+from pastory.reglages import Trouvee
+from pastory.reglages import assemblage as assemblage_reglages
+from pastory.reglages import rapport as rapport_reglages
+from pastory.reglages.assemblage import Reglages
+from pastory.reglages.cache import CacheDesReglages
+from pastory.reglages.recherche import Recherche
 
 NOM = "pastory"
 
@@ -91,8 +102,8 @@ l'histoire d'un titre qu'on ne détient pas."""
 CODE_SUCCES = 0
 CODE_ECHEC = 1
 CODE_DECLARATION_ATTENDUE = 2
-"""La commande s'est arrêtée parce qu'il manque une déclaration (le ticker d'un actif). Un
-code distinct de l'échec : rien n'est cassé, il faut compléter."""
+"""La commande a fini, mais des actifs restent sans cours : un code distinct de l'échec, rien
+n'est cassé."""
 
 
 def _version() -> str:
@@ -170,8 +181,11 @@ def commande_exporter_pivot(dossier_export: Path | None, hors_ligne: bool = Fals
     print(rapport.resume())
 
     try:
+        # L'export d'un tiers : aucun appel réseau (règle 2 de CLAUDE.md).
+        hors_ligne = hors_ligne or dossier_export is not None
+        reglages = _reglages(rapport, hors_ligne, tiers=dossier_export is not None)
         completion = completion_cours.completer_les_prix(
-            rapport.operations, _fournisseur_de_cours(hors_ligne)
+            rapport.operations, _fournisseur_de_cours(reglages.configuration(), hors_ligne)
         )
     except CacheIllisible as erreur:
         print(erreur, file=sys.stderr)
@@ -230,33 +244,86 @@ def _etat_de_la_lecture(rapport: Rapport) -> list[str]:
     return lignes
 
 
-def _fournisseur_de_cours(hors_ligne: bool = False) -> FournisseurDeCours:
-    """Réunit la correspondance ISIN vers ticker, le cache local et la source.
+def _source_des_cotations() -> Yahoo:
+    """**Le seul endroit qui nomme Yahoo** pour la recherche des cotations (D-51), et celui que
+    les tests remplacent : aucun test ne sort de la machine."""
+    return Yahoo()
 
-    **C'est le seul endroit de l'application qui nomme Yahoo** (D-51). Le moteur ne sait pas
-    d'où viennent les cours, et changer de source ne toucherait que cette fonction (D-26).
+
+def _frais_courants_de_l_emetteur() -> amundi.FraisCourantsAmundi:
+    """Les frais courants publiés par l'émetteur (Amundi), première source de TER."""
+    return amundi.FraisCourantsAmundi()
+
+
+def _classes_d_actifs() -> extraetf.SourceExtraEtf:
+    """La classe d'actifs d'un fonds (D-89). La construire n'appelle rien."""
+    return extraetf.SourceExtraEtf()
+
+
+def _registre_cfi() -> firds.RegistreFirds:
+    """Le registre de l'ESMA, témoin du contenu d'un fonds (D-89). Le construire n'appelle rien."""
+    return firds.RegistreFirds()
+
+
+def _reglages(rapport: Rapport, hors_ligne: bool = False, tiers: bool = False) -> Reglages:
+    """Tout ce que l'application trouve seule, contrôle et montre (D-80).
+
+    Ce que dit la banque, ce que les sources trouvent — gardé dans `cache/reglages.csv` — et
+    les corrections de l'utilisateur, qui l'emportent. Hors ligne, seul le cache sert ; pour
+    l'export d'un tiers (`--export`), rien n'est cherché (règle 2 de CLAUDE.md).
+
+    Les sources de TER sont rangées **par ordre de confiance** : l'émetteur, qui publie le
+    chiffre de son document d'information clé, puis la liste de Xetra, parfois en retard.
+    """
+    recherche = Recherche(
+        CacheDesReglages(),
+        None if hors_ligne else _source_des_cotations(),
+        (lambda: _frais_courants_de_l_emetteur(), lambda: _liste_des_etf()),
+        classes=_classes_d_actifs(),
+        registre=_registre_cfi(),
+        lecture_des_contenus=parametres_contenus.charger(),
+        tiers=tiers,
+    )
+    banque = rapport.ce_que_dit_la_banque()
+    duree = parametres_fiscalite.charger().pea_duree_exoneration_ir.valeur
+    corrections = config_actifs.charger()
+    return assemblage_reglages.assembler(
+        banque,
+        recherche.trouver(banque, rapport.operations, corrections),
+        corrections,
+        config_fiscalite.charger(),
+        duree_avant_retrait_libre=int(duree),
+    )
+
+
+def _fournisseur_de_cours(
+    configuration: config_actifs.Configuration, hors_ligne: bool = False
+) -> FournisseurDeCours:
+    """Réunit la cotation de chaque actif, le cache local et la source.
+
+    **C'est le seul endroit de l'application qui nomme Yahoo pour les cours** (D-51). Le moteur
+    ne sait pas d'où viennent les cours, et changer de source ne toucherait que cette fonction
+    (D-26).
     """
     return FournisseurDeCours(
-        config_actifs.charger(),
+        configuration,
         Cache(),
         None if hors_ligne else Yahoo(),
         hors_ligne=hors_ligne,
     )
 
 
-def _parametres_des_couts() -> couts_moteur.ParametresDeCouts:
-    """Le barème livré avec l'application, croisé avec ce que l'utilisateur a déclaré.
+def _parametres_des_couts(reglages: Reglages) -> couts_moteur.ParametresDeCouts:
+    """Le barème livré avec l'application, croisé avec les réglages de chaque actif.
 
     C'est **le seul endroit** qui réunit les deux : le moteur, lui, ne connaît qu'un protocole
     (`ParametresDeCouts`) et ne sait ni ce qu'est un fichier TOML, ni ce qu'est un ETF (D-26).
     """
-    return parametres_couts.ParametresDuPortefeuille(
-        parametres_couts.charger(), config_actifs.charger()
-    )
+    return parametres_couts.ParametresDuPortefeuille(parametres_couts.charger(), reglages)
 
 
 def _fournisseur_de_compositions(
-    hors_ligne: bool = False,
+    configuration: config_actifs.Configuration, hors_ligne: bool = False
 ) -> composition_externe.FournisseurDeCompositions:
     """Réunit le cache local, la source des fonds et celle des actions (D-63, D-70).
 
@@ -264,25 +331,23 @@ def _fournisseur_de_compositions(
     d'où viennent les compositions : il déclare un protocole, et changer de source ne toucherait
     que cette fonction (D-26).
 
-    Le type déclaré de chaque actif décide de la source interrogée : un ETF et une action ne se
-    regardent pas au même endroit, et une crypto ne se regarde nulle part (D-68).
-
-    **Les sources de secours sont branchées ici, et employées nulle part par défaut** (D-72,
-    D-77) : elles n'interviennent que pour un actif qui les demande par son « secours » dans
-    `actifs.toml`. Les construire n'appelle rien — c'est la première demande qui le fait.
+    Le type de chaque actif décide de la source interrogée : un ETF et une action ne se
+    regardent pas au même endroit, et une crypto ne se regarde nulle part (D-68). La source de
+    secours est essayée d'elle-même pour un ETF que la principale n'ouvre pas (D-80) ; la source
+    de chaque chiffre reste affichée ligne par ligne.
     """
     return composition_externe.FournisseurDeCompositions(
         cache=CacheDeCompositions(),
         source_etf=None if hors_ligne else extraetf.SourceExtraEtf(),
         source_action=None if hors_ligne else source_actions.SourceDActions(),
-        actifs=config_actifs.charger(),
+        actifs=configuration,
         hors_ligne=hors_ligne,
         secours={} if hors_ligne else _sources_de_secours(),
     )
 
 
 def _sources_de_secours() -> dict[str, composition_externe.SourceDeCompositionDEtf]:
-    """Les sources de secours, par le nom sous lequel un actif les demande (D-77).
+    """Les sources de secours, par le nom sous lequel une correction les désigne (D-77).
 
     Une seule pour l'instant. Sa table de libellés de pays est chargée ici, parce que c'est ici
     qu'on sait qu'elle existe : le moteur n'a jamais à connaître ni Amundi, ni un fichier TOML.
@@ -295,10 +360,30 @@ def _referentiels() -> parametres_referentiels.Referentiels:
     return parametres_referentiels.charger_tout()
 
 
-def _regles_fiscales() -> parametres_fiscalite.ReglesFiscales:
-    """Les taux datés et sourcés, plus la date du premier versement du PEA (D-58, D-59)."""
+def _regles_fiscales(reglages: Reglages) -> parametres_fiscalite.ReglesFiscales:
+    """Les taux datés et sourcés, plus la date d'ouverture du PEA et son origine (D-59, D-80)."""
+    pea = reglages.premier_versement_pea
+    retenu = pea.retenu if pea is not None else None
+    if not isinstance(retenu, Trouvee):
+        return parametres_fiscalite.charger()
+    alerte = None
+    if reglages.retraits_pea:
+        alerte = (
+            "aucun retrait n'a jamais été fait sur le plan - CONTREDIT par vos exports : de "
+            "l'argent est sorti du PEA le "
+            + ", le ".join(jour.isoformat() for jour in reglages.retraits_pea)
+            + ". Le gain du plan est alors mal approché, et l'impôt estimé aussi"
+        )
+    origine = (
+        "corrigée par vous dans fiscalite.toml"
+        if retenu.origine.corrigee
+        else f"trouvée dans votre {retenu.origine.source}"
+    )
     return parametres_fiscalite.charger(
-        premier_versement_pea=config_fiscalite.charger().premier_versement_pea
+        premier_versement_pea=retenu.valeur,
+        origine_de_la_date=origine,
+        reserve=None if retenu.origine.corrigee else retenu.origine.reserve,
+        alerte=alerte,
     )
 
 
@@ -415,6 +500,9 @@ class Construit:
     compositions: composition_externe.FournisseurDeCompositions | None = None
     """Gardé pour que les refus de compositions soient affichés après les chiffres."""
 
+    reglages: Reglages | None = None
+    """Ce qui a été trouvé seul pour chaque actif, et ce qui ne l'a pas été (D-80)."""
+
 
 def _periode(au: Date | None, depuis: Date | None) -> rendements_moteur.Periode | None:
     """La période des chiffres clés, ou `None` avec un message si elle est à l'envers.
@@ -431,7 +519,10 @@ def _periode(au: Date | None, depuis: Date | None) -> rendements_moteur.Periode 
 
 
 def _construire_moteur(
-    dossier: Path, periode: rendements_moteur.Periode, hors_ligne: bool = False
+    dossier: Path,
+    periode: rendements_moteur.Periode,
+    hors_ligne: bool = False,
+    tiers: bool = False,
 ) -> Construit:
     """Lecture, complétion des prix, rejeu, puis valorisation et rendements.
 
@@ -441,8 +532,13 @@ def _construire_moteur(
     ce dont il a besoin, et c'est ici, et seulement ici, qu'on le lui donne.
     """
     rapport = _lire(dossier)
+    # L'export d'un tiers : aucun appel réseau, ni recherche, ni cours, ni composition. Envoyer
+    # ses ISIN à un service extérieur, ce serait divulguer ce qu'il détient (règle 2).
+    hors_ligne = hors_ligne or tiers
+    reglages = _reglages(rapport, hors_ligne, tiers)
+    configuration = reglages.configuration()
 
-    fournisseur = _fournisseur_de_cours(hors_ligne)
+    fournisseur = _fournisseur_de_cours(configuration, hors_ligne)
     completion = completion_cours.completer_les_prix(rapport.operations, fournisseur)
 
     portefeuille = Portefeuille.construire(completion.operations).au(periode.fin)
@@ -451,24 +547,24 @@ def _construire_moteur(
     # Les coûts et la valeur réelle partent de la **même** valorisation que les rendements :
     # deux valorisations du même jour pourraient différer d'un centime, et le propriétaire
     # verrait deux valeurs brutes dans le même rapport.
-    parametres = _parametres_des_couts()
+    parametres = _parametres_des_couts(reglages)
     detail = couts_moteur.detailler(
         portefeuille, periode, synthese.valorisation, parametres
     )
     valeur = valeur_reelle_moteur.valeur_reelle(
-        portefeuille, synthese.valorisation, parametres, _regles_fiscales()
+        portefeuille, synthese.valorisation, parametres, _regles_fiscales(reglages)
     )
 
     # La répartition part de la **même** valorisation que tout le reste : c'est elle qui fournit
     # les poids, et deux valorisations du même jour pourraient différer d'un centime.
-    compositions = _fournisseur_de_compositions(hors_ligne)
+    compositions = _fournisseur_de_compositions(configuration, hors_ligne)
     diversification = diversification_moteur.diversifier(
         synthese.valorisation, compositions, _referentiels()
     )
     return Construit(
         portefeuille=portefeuille,
         rapport=rapport,
-        entete=_etat_de_la_lecture(rapport),
+        entete=_etat_de_la_lecture(rapport) + _etat_des_reglages(reglages),
         completion=completion,
         fournisseur=fournisseur,
         periode=periode,
@@ -477,6 +573,29 @@ def _construire_moteur(
         valeur_reelle=valeur,
         diversification=diversification,
         compositions=compositions,
+        reglages=reglages,
+    )
+
+
+def _etat_des_reglages(reglages: Reglages) -> list[str]:
+    """Une ligne en tête des chiffres : ce que l'application n'a pas su trouver seule.
+
+    Le détail — chaque valeur, sa source, son contrôle — est dans `pastory actifs` ; ici, il
+    suffit qu'aucun trou ne passe inaperçu (D-80, règle 3).
+    """
+    trous = reglages.trous()
+    if not trous and not reglages.orphelines:
+        return []
+    morceaux = []
+    if trous:
+        morceaux.append(f"{len(trous)} réglage(s) introuvable(s)")
+    if reglages.orphelines:
+        morceaux.append(f"{len(reglages.orphelines)} correction(s) sans actif")
+    return textwrap.wrap(
+        "Réglages : " + ", ".join(morceaux) + f". « {NOM} actifs » dit lesquels et pourquoi ; "
+        "le reste est compté.",
+        width=100,
+        break_on_hyphens=False,
     )
 
 
@@ -491,7 +610,9 @@ def commande_positions(
     if periode is None:
         return CODE_ECHEC
     try:
-        construit = _construire_moteur(_dossier(dossier_export), periode, hors_ligne)
+        construit = _construire_moteur(
+            _dossier(dossier_export), periode, hors_ligne, tiers=dossier_export is not None
+        )
     except depot_export.ExportIntrouvable as erreur:
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
@@ -547,7 +668,9 @@ def commande_exporter_positions(
     if periode is None:
         return CODE_ECHEC
     try:
-        construit = _construire_moteur(_dossier(dossier_export), periode, hors_ligne)
+        construit = _construire_moteur(
+            _dossier(dossier_export), periode, hors_ligne, tiers=dossier_export is not None
+        )
     except depot_export.ExportIntrouvable as erreur:
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
@@ -661,216 +784,47 @@ def commande_exporter_positions(
     return CODE_SUCCES
 
 
-def _apercu_des_actifs(rapport: Rapport) -> dict[str, str]:
-    """Par actif, de quoi le reconnaître dans le fichier de correspondance.
-
-    Le nom affiché par la banque et les poches où l'actif est détenu. Le nom ne sert à aucun
-    calcul (règle 4 de CLAUDE.md) ; il n'est là que pour que le propriétaire sache de quel
-    titre on parle, dans un fichier qui reste sur sa machine.
-    """
-    noms: dict[str, str] = {}
-    poches: dict[str, set[str]] = collections.defaultdict(set)
-    for operation in rapport.operations:
-        poches[operation.actif].add(operation.poche.value)
-        if operation.nom_actif and operation.actif not in noms:
-            noms[operation.actif] = operation.nom_actif
-
-    return {
-        actif: " - ".join(
-            partie
-            for partie in (noms.get(actif), ", ".join(sorted(poches[actif])))
-            if partie
-        )
-        for actif in poches
-    }
-
-
 def commande_actifs(dossier_export: Path | None, hors_ligne: bool = False) -> int:
-    """Assistant « déclarer ses actifs » : de l'ISIN au ticker (D-48, D-51).
+    """Ce que l'application a trouvé seule pour chaque actif, avec sa source (D-80).
 
-    L'application **propose**, l'utilisateur **valide**. Une proposition dans une autre
-    monnaie que l'euro est écrite en commentaire, donc inactive : c'est le garde-fou de D-48
-    au niveau du fichier, parce que la recherche automatique renvoie parfois la cotation
-    londonienne en dollars d'un ETF qui cote aussi en euros.
+    Elle **n'écrit rien** dans les fichiers de l'utilisateur : `actifs.toml` n'est plus qu'un
+    fichier de corrections, écrit à la main (D-78). Elle cherche ce qui manque, le contrôle, le
+    garde en mémoire, et le montre — chaque valeur avec sa source, sa date et ce qui a été
+    vérifié, ou le motif du trou.
 
-    **Avec `--export`, rien n'est écrit** : les actifs d'un export qui n'est pas le sien
-    appartiennent à quelqu'un d'autre (règle 2 de CLAUDE.md).
+    **Avec `--export`, aucune recherche n'est faite** : envoyer les ISIN de quelqu'un d'autre à un
+    service extérieur, ce serait divulguer ce qu'il détient (règle 2 de CLAUDE.md).
     """
     try:
         rapport = _lire(_dossier(dossier_export))
-        configuration = config_actifs.charger()
+        reglages = _reglages(rapport, hors_ligne, tiers=dossier_export is not None)
     except depot_export.ExportIntrouvable as erreur:
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
-    except ConfigurationInvalide as erreur:
-        # C'est la commande censée aider à corriger ce fichier : elle l'explique.
+    except (ConfigurationInvalide, ParametresInvalides, CacheIllisible) as erreur:
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
 
-    apercu = _apercu_des_actifs(rapport)
-    if not apercu:
-        print("Aucun actif n'apparaît dans cet export.")
+    if not reglages.actifs:
+        print("Aucun actif n'apparaît dans vos exports.")
         return CODE_SUCCES
 
-    manquants = configuration.manquants(apercu)
-    propositions: dict[str, config_actifs.Proposition] = {}
-    # Avec --export, **aucune** recherche n'est lancée : envoyer les ISIN de quelqu'un d'autre
-    # à un service extérieur, ce serait divulguer ce qu'il détient (règle 2 de CLAUDE.md).
-    # L'assistant se contente alors d'afficher ce qu'il a trouvé dans le fichier.
-    if manquants and not hors_ligne and dossier_export is None:
-        print(f"Recherche d'un ticker pour {len(manquants)} actif(s) sans correspondance...")
-        yahoo = Yahoo()
-        for actif in manquants:
-            proposition = yahoo.chercher(actif)
-            if proposition is not None:
-                propositions[actif] = proposition
-
-    # Les frais courants, pour tous les actifs : même ceux déjà déclarés peuvent attendre leur
-    # TER, puisqu'il n'existe que depuis l'étape 6. La proposition reste une proposition : elle
-    # est écrite en commentaire au-dessus d'une ligne déjà validée (D-61).
-    if not hors_ligne and dossier_export is None:
-        propositions = _completer_par_les_frais_courants(
-            propositions, apercu, configuration
-        )
-
-    # Une crypto n'a pas d'ISIN : la recherche par ISIN ne trouvera jamais rien, et il faut le
-    # dire plutôt que de laisser croire à un échec passager. L'export officiel donne son code
-    # de marché (`BTC`), d'où la forme du ticker. Son application automatique, contrôlée par la
-    # devise, est l'affaire de l'étape 8 quater (D-80).
-    cryptos = {
-        operation.actif for operation in rapport.operations if operation.poche is Poche.CRYPTO
-    }
-
-    print(f"\n{len(apercu)} actif(s) dans l'export, {len(manquants)} sans correspondance.")
-    for actif in sorted(apercu):
-        declaration = configuration.declaration(actif)
-        if declaration is not None:
-            etat = f"déclaré : {declaration.ticker} ({declaration.devise})"
-            if declaration.type is not None:
-                etat += f", {declaration.type.value}"
-            if declaration.ter_pour_cent is not None:
-                etat += f", TER {tableur.nombre_lisible(declaration.ter_pour_cent)} %"
-            elif declaration.type in (None, config_actifs.TypeActif.ETF):
-                # Seul un ETF prélève des frais courants : réclamer un TER pour une action ou
-                # une crypto enverrait chercher un chiffre qui n'existe pas.
-                etat += ", TER à compléter"
-        elif actif in propositions:
-            proposition = propositions[actif]
-            etat = f"proposé : {proposition.ticker}"
-            if proposition.devise:
-                etat += f" ({proposition.devise})"
-            if proposition.douteuse:
-                etat += " - ATTENTION, pas en euros, à ne pas retenir tel quel"
-        elif actif in cryptos:
-            etat = (
-                "à compléter à la main : une crypto n'a pas d'ISIN. Son ticker est de la forme "
-                f"{actif}-EUR (la cotation en euros)"
-            )
-        else:
-            etat = "à compléter à la main"
-        print(f"  {actif:<14} {etat}")
-        if apercu[actif]:
-            print(f"  {'':<14} {apercu[actif]}")
-
-    if dossier_export is not None:
-        print(
-            "\nRien n'a été écrit : cet export a été lu depuis un dossier que vous avez "
-            f"indiqué,\net ses actifs ne sont pas forcément les vôtres. Pour déclarer les "
-            f"vôtres,\nlancez « {NOM} actifs » sans --export."
-        )
-        return CODE_SUCCES
-
-    fichier = config_actifs.chemin()
-    fichier.parent.mkdir(parents=True, exist_ok=True)
-    fichier.write_text(
-        config_actifs.modele(apercu, propositions, configuration), encoding="utf-8"
-    )
-
-    print(f"\nOuvrez ce fichier et vérifiez chaque ligne :\n  {fichier}\n")
-    print("Une ligne vide veut dire « pas valorisé » : l'actif sera signalé, jamais estimé.")
-    print("Le « type » choisit le spread estimé ; le TER, proposé depuis la liste de Xetra,")
-    print("est à vérifier sur la fiche de l'émetteur : la liste est parfois en retard sur une")
-    print("baisse de frais. Sans type ni TER, rien n'est estimé pour cet actif.")
-    if manquants:
-        print(f"\n{len(manquants)} actif(s) attendent votre validation.")
-        print(f"Ensuite, lancez « {NOM} cours » pour récupérer les cours.")
-    else:
-        print("\nTous les actifs de cet export sont déjà déclarés.")
+    print(rapport_reglages.resume(reglages))
     return CODE_SUCCES
 
 
 def _liste_des_etf() -> xetra.ListeXetra:
-    """La liste des ETF de Xetra, d'où viennent les frais courants proposés (D-61).
+    """La liste des ETF de Xetra, seconde source des frais courants (D-61).
 
-    Fonction à part, et non un appel direct, pour la même raison que `_fournisseur_de_cours` :
+    Fonction à part, et non un appel direct, pour la même raison que `_source_des_cotations` :
     c'est **le seul endroit** qui nomme la source, et les tests la remplacent ici — aucun test
     du projet ne sort de la machine.
     """
     return xetra.telecharger()
 
 
-def _completer_par_les_frais_courants(
-    propositions: dict[str, config_actifs.Proposition],
-    apercu: Mapping[str, str],
-    configuration: config_actifs.Configuration,
-) -> dict[str, config_actifs.Proposition]:
-    """Ajoute à chaque proposition le TER trouvé dans la liste des ETF de Xetra (D-61).
-
-    Un échec n'interrompt rien : la liste est un confort, pas une dépendance. Sans elle, les
-    frais courants restent à saisir à la main, et l'assistant le dit.
-    """
-    a_completer = [
-        actif
-        for actif in apercu
-        if (declaration := configuration.declaration(actif)) is None
-        or declaration.ter_pour_cent is None
-    ]
-    if not a_completer:
-        return propositions
-
-    print("Recherche des frais courants (TER) dans la liste des ETF de Xetra...")
-    try:
-        liste = _liste_des_etf()
-    except ErreurDeSource as erreur:
-        print(f"  {erreur}", file=sys.stderr)
-        print(
-            "  Les frais courants des ETF resteront à saisir à la main, depuis la fiche de\n"
-            "  l'émetteur ou son document d'information clé.",
-            file=sys.stderr,
-        )
-        return propositions
-
-    print(f"  {len(liste)} ETF dans la liste" + (
-        f", au {liste.date.isoformat()}." if liste.date else "."
-    ))
-    completees = dict(propositions)
-    trouves = 0
-    for actif in a_completer:
-        frais = liste.frais_courants(actif)
-        if frais is None:
-            continue
-        trouves += 1
-        existante = completees.get(actif)
-        if existante is None:
-            declaration = configuration.declaration(actif)
-            ticker = declaration.ticker if declaration is not None else ""
-            completees[actif] = config_actifs.Proposition(
-                ticker=ticker,
-                type=config_actifs.TypeActif.ETF,
-                frais_courants=frais,
-            )
-        else:
-            completees[actif] = replace(
-                existante,
-                frais_courants=frais,
-                type=existante.type or config_actifs.TypeActif.ETF,
-            )
-    print(f"  {trouves} actif(s) avec des frais courants proposés.")
-    return completees
-
-
 def commande_cours(dossier_export: Path | None, actif_demande: str | None = None) -> int:
-    """Récupère les cours des actifs déclarés et les garde en cache (D-50).
+    """Récupère les cours des actifs qui ont une cotation et les garde en cache (D-50).
 
     La période demandée va de la **première opération** sur l'actif à aujourd'hui : c'est ce
     qui permettra de valoriser le portefeuille dans le temps (étape 5) sans y revenir. Un
@@ -878,11 +832,11 @@ def commande_cours(dossier_export: Path | None, actif_demande: str | None = None
     """
     try:
         rapport = _lire(_dossier(dossier_export))
-        configuration = config_actifs.charger()
+        configuration = _reglages(rapport, tiers=dossier_export is not None).configuration()
     except depot_export.ExportIntrouvable as erreur:
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
-    except ConfigurationInvalide as erreur:
+    except (ConfigurationInvalide, ParametresInvalides, CacheIllisible) as erreur:
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
 
@@ -892,29 +846,30 @@ def commande_cours(dossier_export: Path | None, actif_demande: str | None = None
         if actuelle is None or operation.date < actuelle:
             premiere_operation[operation.actif] = operation.date
 
-    if not configuration.declarations:
-        print(
-            f"Aucun actif n'est déclaré : lancez d'abord « {NOM} actifs », qui dit où "
-            "chercher le cours de chaque actif.",
-            file=sys.stderr,
-        )
-        return CODE_DECLARATION_ATTENDUE
-
-    if actif_demande is not None and actif_demande not in configuration.declarations:
-        print(
-            f"L'actif {actif_demande} n'est pas déclaré : ajoutez-le dans "
-            f"{config_actifs.chemin()}, ou lancez « {NOM} actifs ».",
-            file=sys.stderr,
-        )
-        return CODE_DECLARATION_ATTENDUE
-
-    a_remplir = sorted(
+    cotes = sorted(
         actif
-        for actif in configuration.actifs_declares
-        if actif_demande is None or actif == actif_demande
+        for actif, declaration in configuration.declarations.items()
+        if declaration.ticker is not None
     )
+    if not cotes:
+        print(
+            "Aucune cotation n'a été trouvée pour vos actifs : aucun cours n'est à récupérer. "
+            f"« {NOM} actifs » dit pourquoi.",
+            file=sys.stderr,
+        )
+        return CODE_DECLARATION_ATTENDUE
 
-    fournisseur = _fournisseur_de_cours()
+    if actif_demande is not None and actif_demande not in cotes:
+        print(
+            f"L'actif {actif_demande} n'a pas de cotation : « {NOM} actifs » dit pourquoi.",
+            file=sys.stderr,
+        )
+        return CODE_DECLARATION_ATTENDUE
+
+    a_remplir = [actif for actif in cotes if actif_demande is None or actif == actif_demande]
+
+    # L'export d'un tiers : aucun cours n'est demandé (règle 2 de CLAUDE.md).
+    fournisseur = _fournisseur_de_cours(configuration, hors_ligne=dossier_export is not None)
     cache = Cache()
     aujourd_hui = Date.today()
     total_nouveaux = 0
@@ -1024,7 +979,9 @@ def commande_composition(dossier_export: Path | None, hors_ligne: bool = False) 
     try:
         rapport = _lire(_dossier(dossier_export))
         portefeuille = Portefeuille.construire(rapport.operations)
-        fournisseur = _fournisseur_de_compositions(hors_ligne)
+        hors_ligne = hors_ligne or dossier_export is not None  # règle 2
+        reglages = _reglages(rapport, hors_ligne, tiers=dossier_export is not None)
+        fournisseur = _fournisseur_de_compositions(reglages.configuration(), hors_ligne)
         referentiels = _referentiels()
     except depot_export.ExportIntrouvable as erreur:
         print(erreur, file=sys.stderr)
@@ -1115,6 +1072,34 @@ def commande_oublier_composition(actif: str | None, tout: bool) -> int:
     return CODE_SUCCES
 
 
+def commande_oublier_reglages(actif: str | None, tout: bool) -> int:
+    """Efface ce qui a été trouvé en ligne, pour le rechercher au prochain lancement.
+
+    Une cotation trouvée ne se recherche jamais d'elle-même : ses cours sont gardés pour
+    toujours avec elle (D-50). C'est donc ici qu'on la fait rechercher, si l'on doute d'elle. Les
+    corrections d'`actifs.toml` ne sont pas touchées.
+    """
+    if actif is None and not tout:
+        print(
+            "Précisez ce qu'il faut oublier : « --actif <ISIN> » pour un seul actif, ou "
+            "« --tout » pour tout ce qui a été trouvé.",
+            file=sys.stderr,
+        )
+        return CODE_ECHEC
+    try:
+        oublies = CacheDesReglages().oublier(actif)
+    except CacheIllisible as erreur:
+        print(erreur, file=sys.stderr)
+        return CODE_ECHEC
+    if not oublies:
+        cible = f"l'actif {actif}" if actif else "aucun actif"
+        print(f"Rien à oublier : rien n'a été trouvé en ligne pour {cible}.")
+        return CODE_SUCCES
+    print(f"{len(oublies)} actif(s) oublié(s) : {', '.join(oublies)}")
+    print(f"Lancez « {NOM} actifs » pour les rechercher de nouveau.")
+    return CODE_SUCCES
+
+
 def _a_venir(commande: str, etape: str) -> int:
     print(f"La commande « {commande} » sera disponible à l'{etape}.", file=sys.stderr)
     return CODE_ECHEC
@@ -1141,7 +1126,7 @@ def construire_analyseur() -> argparse.ArgumentParser:
     for nom, aide in (
         ("lire", "rapport de lecture, sans rien écrire"),
         ("exporter-pivot", "écrire les opérations en CSV"),
-        ("actifs", "dire où chercher le cours de chaque actif"),
+        ("actifs", "ce que Pastory a trouvé seul pour chaque actif, avec sa source"),
         ("cours", "récupérer les cours de marché et les mettre en cache"),
         ("composition", "ce qu'il y a à l'intérieur de chaque actif détenu"),
         ("positions", "quantités, capital investi et prix de revient"),
@@ -1177,7 +1162,8 @@ def construire_analyseur() -> argparse.ArgumentParser:
             sous_analyseur.add_argument(
                 "--hors-ligne",
                 action="store_true",
-                help="n'utiliser que les cours déjà en cache, sans aucun appel réseau",
+                help="n'utiliser que ce qui est déjà en mémoire (cours, réglages, "
+                "compositions), sans aucun appel réseau",
             )
         if nom == "cours":
             sous_analyseur.add_argument(
@@ -1209,6 +1195,17 @@ def construire_analyseur() -> argparse.ArgumentParser:
     )
     oublier_composition.add_argument(
         "--tout", action="store_true", help="oublier les compositions de tous les actifs"
+    )
+
+    oublier_reglages = commandes.add_parser(
+        "oublier-reglages",
+        help="effacer ce qui a été trouvé en ligne (cotation, TER), pour le rechercher",
+    )
+    oublier_reglages.add_argument(
+        "--actif", default=None, metavar="ISIN", help="n'oublier que les réglages de cet actif"
+    )
+    oublier_reglages.add_argument(
+        "--tout", action="store_true", help="oublier les réglages de tous les actifs"
     )
 
     commandes.add_parser("ouvrir", help="ouvrir le tableau de bord (étape 9)")
@@ -1276,6 +1273,8 @@ def main(arguments: list[str] | None = None) -> int:
             return commande_oublier_cours(options.actif, options.tout)
         case "oublier-composition":
             return commande_oublier_composition(options.actif, options.tout)
+        case "oublier-reglages":
+            return commande_oublier_reglages(options.actif, options.tout)
         case "ouvrir":
             return _a_venir("ouvrir", "étape 9 (réalisation de l'interface)")
         case _:

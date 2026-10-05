@@ -5,7 +5,7 @@ Deux principes, qui expliquent presque tout le fichier :
 1. **un cours porte son origine.** Sa place de cotation, sa source, le jour qu'il décrit et le
    jour où il a été récupéré. Sans cela, un cache définitif (D-50) deviendrait un cache
    opaque, et le propriétaire ne pourrait pas confronter un chiffre à son application ;
-2. **on refuse plutôt que d'estimer.** Actif non déclaré, devise inattendue, aucun cours à la
+2. **on refuse plutôt que d'estimer.** Actif sans cotation, devise inattendue, aucun cours à la
    date demandée : la réponse est `None` **avec un motif lisible**, jamais une valeur par
    défaut (D-45). Un chiffre crédible et faux est pire qu'un trou signalé.
 
@@ -44,6 +44,13 @@ MARGE_APRES = timedelta(days=3)
 
 UN_JOUR = timedelta(days=1)
 
+CATEGORIE_SANS_COTATION = "aucune cotation trouvée"
+MOTIF_SANS_COTATION = (
+    "aucune cotation en euros n'a été trouvée pour cet actif : il n'est pas valorisé, et il "
+    "est signalé plutôt qu'estimé"
+)
+"""Le motif par défaut, quand la configuration ne dit pas pourquoi (D-45, D-80)."""
+
 JOURS_SANS_COTATION_TOLERES = 5
 """Durée à partir de laquelle une période sans aucun cours devient suspecte.
 
@@ -72,7 +79,7 @@ class Cours:
 
     ticker: str | None = None
     """Le ticker interrogé. Gardé pour que le cache dise sur quoi le cours a été pris : un
-    ticker corrigé dans `actifs.toml` doit se voir."""
+    ticker qui change doit se voir."""
 
 
 @dataclass(frozen=True)
@@ -81,7 +88,7 @@ class Refus:
 
     actif: str
     categorie: str
-    """Nom court, pour regrouper : « actif non déclaré », « cours indisponible »…"""
+    """Nom court, pour regrouper : « aucune cotation trouvée », « cours indisponible »…"""
 
     motif: str
     """Phrase en français, qui dit quoi faire quand il y a quelque chose à faire."""
@@ -105,7 +112,7 @@ class SourceInjoignable(ErreurDeSource):
 
 
 class TickerInconnu(ErreurDeSource):
-    """La source ne connaît pas ce ticker : presque toujours une faute dans `actifs.toml`."""
+    """La source ne connaît pas ce ticker : il ne cote plus, ou il a été mal écrit."""
 
     categorie = "ticker inconnu"
 
@@ -151,6 +158,8 @@ class CacheDeCours(Protocol):
     """Ce que le fournisseur attend d'un cache. Voir `cache.py` pour la mise en œuvre."""
 
     def lire(self, actif: str) -> dict[Date, Cours]: ...
+
+    def oublier(self, actif: str | None = None) -> list[str]: ...
 
     def ecrire(self, actif: str, cours: Iterable[Cours]) -> int: ...
 
@@ -203,12 +212,11 @@ class FournisseurDeCours:
     def cours(self, actif: str, date: Date) -> Cours | None:
         """Le cours d'un actif à une date, ou `None` avec un refus enregistré."""
         declaration = self.configuration.declaration(actif)
-        if declaration is None:
+        if declaration is None or declaration.ticker is None:
             self._refuser(
                 actif,
-                "actif non déclaré",
-                "aucun ticker déclaré pour cet actif : lancez « pastory actifs » pour "
-                "dire où chercher son cours",
+                CATEGORIE_SANS_COTATION,
+                self.configuration.sans_cotation.get(actif, MOTIF_SANS_COTATION),
             )
             return None
 
@@ -263,7 +271,12 @@ class FournisseurDeCours:
           tombée en panne sur cet actif : on n'insiste pas.
         """
         declaration = self.configuration.declaration(actif)
-        if declaration is None or self.source is None or actif in self._en_panne:
+        if (
+            declaration is None
+            or declaration.ticker is None
+            or self.source is None
+            or actif in self._en_panne
+        ):
             return 0
 
         # La séance du jour n'est pas close : la source ne la rend pas, et le cache ne doit pas
@@ -295,8 +308,8 @@ class FournisseurDeCours:
                     actif,
                     "cours indisponible",
                     f"la source n'a renvoyé aucun cours entre le {debut.isoformat()} et le "
-                    f"{fin.isoformat()} pour « {declaration.ticker} » : vérifiez ce ticker "
-                    "dans « actifs.toml »",
+                    f"{fin.isoformat()} pour « {declaration.ticker} » : ce ticker ne cote "
+                    "plus, ou ne désigne pas cet actif",
                 )
             return 0
 
@@ -321,8 +334,32 @@ class FournisseurDeCours:
     # --- Interne ------------------------------------------------------------------------
 
     def _serie(self, actif: str) -> dict[Date, Cours]:
+        """Les cours gardés de l'actif, **pris sur sa cotation actuelle** seulement.
+
+        Une cotation peut changer : corrigée par l'utilisateur, ou recherchée de nouveau
+        (`pastory oublier-reglages`). Le cache étant tenu par actif, il garderait alors des cours
+        de l'ancienne place à côté de ceux de la nouvelle — une série qui en mêle deux, et des
+        écarts de quelques pour cent qui ne seraient ni des gains ni des pertes. Ces cours-là ne
+        sont jamais employés ; en ligne, ils sont oubliés, et la série est reprise à la source
+        (D-50, D-85). Un cours sans ticker (gardé avant qu'on l'enregistre) est présumé juste.
+        """
         if actif not in self._series:
-            self._series[actif] = self.cache.lire(actif)
+            serie = self.cache.lire(actif)
+            declaration = self.configuration.declaration(actif)
+            ticker = declaration.ticker if declaration is not None else None
+            if ticker and any(
+                cours.ticker and cours.ticker != ticker for cours in serie.values()
+            ):
+                if self.hors_ligne:
+                    serie = {
+                        jour: cours
+                        for jour, cours in serie.items()
+                        if not cours.ticker or cours.ticker == ticker
+                    }
+                else:
+                    self.cache.oublier(actif)
+                    serie = {}
+            self._series[actif] = serie
         return self._series[actif]
 
     def _dernier_jour_cote(self, actif: str, date: Date) -> Cours | None:

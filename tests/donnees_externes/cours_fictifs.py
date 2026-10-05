@@ -41,6 +41,7 @@ def cours(
     *,
     place: str = PLACE,
     devise: str = "EUR",
+    ticker: str | None = TICKER,
 ) -> Cours:
     return Cours(
         actif=actif,
@@ -50,7 +51,7 @@ def cours(
         place=place,
         source="Source de test",
         recupere_le=AUJOURD_HUI,
-        ticker=TICKER,
+        ticker=ticker,
     )
 
 
@@ -96,6 +97,10 @@ class CacheEnMemoire:
 
     def lire(self, actif: str) -> dict[Date, Cours]:
         return dict(self.series.get(actif, {}))
+
+    def oublier(self, actif: str | None = None) -> list[str]:
+        concernes = [actif] if actif is not None else list(self.series)
+        return [un for un in concernes if self.series.pop(un, None) is not None]
 
     def ecrire(self, actif: str, cours: Iterable[Cours]) -> int:
         serie = self.series.setdefault(actif, {})

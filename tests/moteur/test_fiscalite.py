@@ -6,6 +6,7 @@ sont ceux de 2026 : impôt sur le revenu 12,8 %, prélèvements sociaux 18,6 %, 
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 
@@ -354,14 +355,28 @@ def test_les_plus_values_realisees_d_une_ligne_soldee_comptent_dans_le_gain_du_p
 
 
 def test_sans_date_de_premier_versement_l_impot_du_pea_n_est_pas_calcule():
-    """D-59 : l'ancienneté décide du taux, et elle ne se devine pas (D-40)."""
+    """D-59 : l'ancienneté décide du taux ; sans date trouvée ni corrigée, rien n'est calculé."""
     impot = fiscalite.impot_pea(
         [cession_pea()], portefeuille_pea().positions, date(2026, 9, 27), regles()
     )
 
     assert impot.impot is None
     assert not impot.calculable
-    assert "fiscalite.toml" in impot.motif
+    assert "date d'ouverture du PEA inconnue" in impot.motif
+    assert "fiscalite.toml" not in impot.motif
+
+
+def test_l_origine_de_la_date_et_sa_reserve_se_voient():
+    """D-80 : une valeur trouvée se montre avec sa source, là où elle sert."""
+    impot = fiscalite.impot_pea(
+        [cession_pea()],
+        portefeuille_pea().positions,
+        date(2026, 9, 27),
+        regles(date(2024, 3, 15), origine="trouvée dans l'export", reserve="réserve de test"),
+    )
+
+    assert "2024-03-15, trouvée dans l'export" in impot.regle
+    assert "la date d'ouverture du PEA : réserve de test" in impot.hypotheses
 
 
 def test_un_gain_de_plan_negatif_ne_donne_aucun_impot():
@@ -697,3 +712,18 @@ def test_une_petite_crypto_montre_pourquoi_sa_plus_value_devient_negative():
     assert impot.base_avant_plancher == Decimal("-0.25")
     # Une moins-value ne donne aucun impôt, et le seuil de 305 € s'applique de toute façon.
     assert impot.base == Decimal("0.00")
+
+
+def test_un_retrait_trouve_dans_les_exports_remplace_l_hypothese_qu_il_contredit():
+    """D-87 : l'hypothèse « aucun retrait passé » est vérifiée ; contredite, elle est remplacée
+    par ce que montrent les exports, au lieu d'être répétée comme si de rien n'était."""
+    alerte = "aucun retrait - CONTREDIT par vos exports : sortie le 2025-06-01"
+    impot = fiscalite.impot_pea(
+        [cession_pea()],
+        portefeuille_pea().positions,
+        date(2026, 9, 27),
+        replace(regles(date(2019, 3, 1)), pea_alerte=alerte),
+    )
+
+    assert alerte in impot.hypotheses
+    assert fiscalite.HYPOTHESE_SANS_RETRAIT not in impot.hypotheses

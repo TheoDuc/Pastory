@@ -233,8 +233,8 @@ def _ligne(
     if taux is None:
         return Exclue(
             position,
-            "type d'actif non déclaré, donc spread de vente non estimable : complétez "
-            "« type » dans actifs.toml (« pastory actifs » le propose)",
+            "type d'actif inconnu, donc spread de vente non estimable : la banque ne le "
+            "donne pas de façon univoque (« pastory actifs » dit pourquoi)",
         )
     return LigneValeurReelle(
         position=position,

@@ -178,7 +178,7 @@ class TestSerieNormale:
 class TestGardeFous:
     def test_une_cotation_dans_une_autre_monnaie_est_refusee(self):
         # Le cas vérifié : l'ETF répond en euros à Xetra, en dollars à Londres. Rien n'est
-        # converti (D-48), et le message dit quoi corriger.
+        # converti (D-48), et le message dit que le cours n'est pas utilisé.
         texte = reponse([horodatage(2026, 3, 4)], [146.91], devise="USD", place="LSE")
 
         with pytest.raises(DeviseInattendue) as erreur:
@@ -186,7 +186,7 @@ class TestGardeFous:
 
         assert "USD" in str(erreur.value)
         assert "EUR" in str(erreur.value)
-        assert "actifs.toml" in str(erreur.value)
+        assert "n'est pas utilisé" in str(erreur.value)
 
     def test_une_devise_absente_est_refusee(self):
         texte = reponse([horodatage(2026, 3, 4)], [100.0], devise="")
@@ -268,7 +268,7 @@ class TestSeanceEnCours:
 
         assert [un_cours.date for un_cours in serie] == [hier]
 
-    def test_un_ticker_inconnu_dit_ou_le_corriger(self):
+    def test_un_ticker_inconnu_est_nomme(self):
         texte = json.dumps(
             {
                 "chart": {
@@ -281,7 +281,7 @@ class TestSeanceEnCours:
             }
         )
 
-        with pytest.raises(TickerInconnu, match="actifs.toml"):
+        with pytest.raises(TickerInconnu, match="AAAA.DE"):
             source(texte).serie(ACTIF, EN_EUROS, DEBUT, FIN)
 
     def test_une_reponse_qui_n_est_pas_du_json_evoque_l_antivirus(self):
@@ -377,55 +377,50 @@ class TestRecherche:
 
         return Yahoo(ouvrir=ouvrir)
 
-    def test_une_proposition_porte_la_devise_venue_de_la_serie(self):
-        # La recherche ne dit pas la devise : c'est le second appel qui la donne, et c'est lui
-        # qui rend le piège visible dans le fichier de correspondance.
+    def test_tous_les_resultats_sont_rendus_sans_rien_decider(self):
+        # La recherche par ISIN renvoie d'abord Londres en dollars : c'est le contrôle par le
+        # prix payé qui choisit, pas l'ordre des résultats (pastory/reglages/recherche).
         recherche = json.dumps(
             {
                 "quotes": [
-                    {
-                        "symbol": "AAAA.DE",
-                        "exchange": "GER",
-                        "exchDisp": "XETRA",
-                        "longname": "ETF Exemple",
-                    }
+                    {"symbol": "BBBB.L", "exchDisp": "London", "shortname": "ETF"},
+                    {"symbol": "AAAA.DE", "exchDisp": "XETRA", "longname": "ETF Exemple"},
+                    {"exchDisp": "sans symbole"},
                 ]
             }
         )
-        yahoo = self._yahoo(
-            {"recherche": recherche, "serie": reponse([horodatage(2026, 3, 4)], [100.0])}
-        )
+        yahoo = self._yahoo({"recherche": recherche, "serie": "{}"})
 
-        proposition = yahoo.chercher(ACTIF)
+        candidats = yahoo.candidats(ACTIF)
 
-        assert proposition.ticker == "AAAA.DE"
-        assert proposition.devise == "EUR"
-        assert proposition.place == "XETRA"
-        assert proposition.nom == "ETF Exemple"
-        assert proposition.douteuse is False
+        assert [candidat.ticker for candidat in candidats] == ["BBBB.L", "AAAA.DE"]
+        assert candidats[1].place == "XETRA"
+        assert candidats[1].nom == "ETF Exemple"
 
-    def test_une_proposition_en_dollars_est_marquee_douteuse(self):
-        recherche = json.dumps(
-            {"quotes": [{"symbol": "BBBB.L", "exchDisp": "London", "shortname": "ETF"}]}
-        )
-        yahoo = self._yahoo(
-            {
-                "recherche": recherche,
-                "serie": reponse([horodatage(2026, 3, 4)], [146.91], devise="USD", place="LSE"),
-            }
-        )
-
-        proposition = yahoo.chercher(ACTIF)
-
-        assert proposition.devise == "USD"
-        assert proposition.douteuse is True
-
-    def test_aucun_resultat_ne_donne_aucune_proposition(self):
+    def test_aucun_resultat_ne_donne_aucun_candidat(self):
         yahoo = self._yahoo({"recherche": json.dumps({"quotes": []}), "serie": "{}"})
 
-        assert yahoo.chercher(ACTIF) is None
+        assert yahoo.candidats(ACTIF) == []
 
-    def test_une_recherche_en_panne_ne_propose_rien(self):
+    def test_une_recherche_en_panne_se_dit_en_panne(self):
+        # Relecture de l'étape 8 quater : « la source n'a pas répondu » n'est pas « la source ne
+        # connaît rien ». Confondus, une coupure du réseau aurait été gardée une semaine comme
+        # « aucune cotation ».
         yahoo = Yahoo(ouvrir=lambda adresse: "<html>rien</html>")
 
-        assert yahoo.chercher(ACTIF) is None
+        with pytest.raises(SourceInjoignable):
+            yahoo.candidats(ACTIF)
+
+
+class TestSerieBrute:
+    """La série d'une cotation de référence, dans sa devise : elle ne sert qu'à un contrôle."""
+
+    def test_la_devise_est_rendue_telle_que_la_source_l_ecrit(self):
+        # « GBp » (pence) et « GBP » (livres) diffèrent d'un facteur cent : mettre la devise en
+        # majuscules ferait passer l'un pour l'autre.
+        texte = reponse([horodatage(2026, 3, 4)], [8500.0], devise="GBp", place="LSE")
+
+        devise, jours = Yahoo(ouvrir=lambda adresse: texte).serie_brute("BBBB.L", DEBUT, FIN)
+
+        assert devise == "GBp"
+        assert jours == [(Date(2026, 3, 4), Decimal("8500"))]

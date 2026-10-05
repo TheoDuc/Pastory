@@ -526,8 +526,8 @@ def _couts_estimes(lignes: list[str], titre: Titre, detail: DetailDesCouts) -> N
     if total.actifs_sans_type:
         lignes += _enveloppe(
             "PARTIEL : aucun spread n'est estimé pour "
-            f"{', '.join(total.actifs_sans_type)} - leur « type » n'est pas déclaré dans "
-            "actifs.toml. Lancez « pastory actifs », qui le propose.",
+            f"{', '.join(total.actifs_sans_type)} - leur type (ETF, action, crypto) n'est "
+            "pas connu. « pastory actifs » dit pourquoi.",
             "  ",
             "    ",
         )
@@ -535,8 +535,7 @@ def _couts_estimes(lignes: list[str], titre: Titre, detail: DetailDesCouts) -> N
     lignes.append("")
     lignes.append("  LES FRAIS COURANTS DES ETF (TER), prélevés dans la valeur du fonds")
     if not detail.frais_courants:
-        lignes.append("  Aucun ETF déclaré : rien à estimer. Le « type » de chaque actif se")
-        lignes.append("  déclare dans actifs.toml (« pastory actifs » le propose).")
+        lignes.append("  Aucun ETF parmi les actifs valorisés : rien à estimer.")
     else:
         lignes.append(f"  {'actif':<14} {'valeur':>14} {'TER':>8} {'par an':>12}")
         for frais in detail.frais_courants:
@@ -559,7 +558,27 @@ def _couts_estimes(lignes: list[str], titre: Titre, detail: DetailDesCouts) -> N
         )
         lignes.append("")
         lignes.append("  C'est un coût de détention : il court chaque année, sans être prélevé")
-        lignes.append("  sur votre compte. Le TER vient de votre déclaration dans actifs.toml.")
+        lignes.append("  sur votre compte.")
+        _sources_des_ter(lignes, estimes)
+
+
+def _sources_des_ter(lignes: list[str], estimes: list) -> None:
+    """D'où vient chaque TER, regroupé par source : une valeur trouvée se montre avec sa
+    source et sa date là où elle sert (D-80, règle 1)."""
+    par_source: dict[str, list[str]] = {}
+    for frais in estimes:
+        parametre = frais.estimation.parametre
+        source = parametre.source
+        if parametre.verifie_le is not None:
+            source += f", au {parametre.verifie_le.isoformat()}"
+        par_source.setdefault(source, []).append(frais.actif)
+    if not par_source:
+        return
+    lignes.append("  D'où viennent les TER :")
+    for source, actifs in par_source.items():
+        # Un même ETF peut être détenu dans deux poches : il n'est cité qu'une fois.
+        cites = ", ".join(dict.fromkeys(actifs))
+        lignes += _enveloppe(f"{source} : {cites}", "    - ", "      ")
 
 
 # --- La valeur réelle : si on vendait tout aujourd'hui (D-23) ---------------------------
@@ -970,7 +989,7 @@ def _lecture_de_la_repartition(lignes: list[str], diversification: Diversificati
             "Aucune composition pour : "
             + ", ".join(diversification.pays.actifs_non_couverts)
             + ". Ces actifs sortent des répartitions, leur montant est affiché à part, et rien "
-            "n'est estimé à leur place. Vous pouvez les déclarer à la main dans actifs.toml.",
+            "n'est estimé à leur place.",
             "    - ",
             "      ",
         )

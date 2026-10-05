@@ -7,8 +7,8 @@ commencer.
 > **À mettre à jour par l'instance qui termine une étape**, avant la fusion dans `main`. La
 > dernière section dit comment.
 >
-> Dernière mise à jour : **2026-10-05**, fin de l'étape 8 ter : l'export officiel est la porte
-> d'entrée, et pytr est retiré.
+> Dernière mise à jour : **2026-10-05**, fin de l'étape 8 quater : les réglages se trouvent
+> seuls, et `actifs.toml` n'est plus qu'un fichier de corrections.
 
 ---
 
@@ -16,81 +16,84 @@ commencer.
 
 ```
 Lis CLAUDE.md puis docs/feuille-de-route.md, et docs/prompt-session-suivante.md.
-On attaque l'étape 8 quater : des réglages qui se proposent seuls.
+On attaque l'étape 9 : la réalisation de l'interface.
 ```
 
 ---
 
 ## Où en est le projet
 
-- **Étapes 0 à 8 ter terminées.** Le moteur est complet, l'interface est **conçue**, et les
-  opérations viennent de l'**export officiel** de Trade Republic, déposé par l'utilisateur dans
-  `Pastory/exports` ([D-79](decisions.md), [D-80](decisions.md)). **pytr est retiré**
-  ([D-81](decisions.md)) : plus de connexion, plus de `comptes.toml`, plus de rapprochement.
+- **Étapes 0 à 8 quater terminées.** Le moteur est complet, l'interface est **conçue**, les
+  opérations viennent de l'**export officiel** de Trade Republic ([D-79](decisions.md)), et
+  **tous les réglages se trouvent seuls** ([D-80](decisions.md), D-85 à D-92) : cotation, type,
+  TER, contenu d'un fonds, source de secours, date d'ouverture du PEA — chacun avec sa source,
+  sa date et son contrôle, ou le motif de son absence.
 - **La vision du propriétaire, à garder en tête ([D-80](decisions.md))** : l'utilisateur **dépose
-  l'export, et c'est tout**. Le reste est trouvé automatiquement, contrôlé, et affiché avec sa
-  source ; ce qui ne se trouve pas de façon fiable est un trou expliqué, jamais une question.
-- **Prochaine : étape 8 quater**, des réglages qui se proposent seuls. Puis l'étape 9, l'interface.
-- **Questions ouvertes** : **Q-54** seulement (actions gratuites puis « migration », chez l'ami
-  du propriétaire). Le mécanisme est presque élucidé (2026-10-05) : la fraction est payée en
-  espèces le jour même, par une ligne `CASH / MANUAL` sans ISIN. **Reste au propriétaire à
-  choisir le traitement** (options a, b, c).
+  l'export, et c'est tout**. Une correction est possible, jamais nécessaire.
+- **Prochaine : étape 9**, l'interface.
+- **Questions ouvertes** : **Q-54** (actions gratuites puis « migration » : le propriétaire doit
+  choisir le traitement, options a, b, c) et **Q-60** (le contenu du monétaire, des multi-actifs,
+  de l'immobilier). Aucune ne bloque l'étape 9.
 
 **Ce qui existe déjà :**
 
 | Où | Quoi |
 |---|---|
-| [export-officiel.md](export-officiel.md) | **Le relevé de l'export officiel** : colonnes, types vus (§4.1) et connus ailleurs (§4.2), montants (§5), et la comparaison avec pytr |
-| `pastory/adaptateurs/trade_republic/` | L'adaptateur : `fichier` → `depot` → `classement` → `lecture` → `rapport` ([architecture.md §5.2](architecture.md)) |
-| `data/` et un dossier `data_*/` | Les exports officiels du propriétaire (46 lignes, six semaines) et de son ami (149 lignes, un an). Le second est **à un tiers** : structure seulement (règle 2) |
-| `scripts/inventaire_structure.py` | Le relevé structurel d'un export, sans aucune valeur : à relancer sur tout nouveau fichier |
-| [verification/etape-8-ter.md](verification/etape-8-ter.md) | Le cahier de l'étape, et la preuve par comparaison |
-| [decisions.md](decisions.md) | D-01 à D-84 |
+| `pastory/reglages/` | **Ce qui se trouve seul** : `Origine`, `Trouvee`, `Trou`, `Reglage` ; l'assemblage correction > trouvé > trou ; la recherche contrôlée ; le cache ; le rapport de `pastory actifs` ([architecture.md §5.8](architecture.md)) |
+| [reglages-automatiques.md](reglages-automatiques.md) | Le comparatif des sources des réglages, leurs mesures et quinze pièges |
+| [verification/etape-8-quater.md](verification/etape-8-quater.md) | Le cahier de l'étape |
+| [export-officiel.md](export-officiel.md) | Le relevé de l'export officiel |
+| `data/` et un dossier `data_*/` | Les exports officiels du propriétaire et de son ami. Le second est **à un tiers** : structure seulement (règle 2) |
+| [decisions.md](decisions.md) | D-01 à D-92 |
 
 ---
 
-## Ce que l'étape 8 quater doit savoir
+## Ce que l'étape 9 doit savoir de l'étape 8 quater
 
-### Ce que l'étape 8 ter lui laisse en main
+### Ce qu'elle lui laisse en main
 
-- **Le type de chaque actif est lu** : `Rapport.classes_par_actif` donne, par actif, les valeurs
-  d'`asset_class` vues (`FUND`, `STOCK`, `CRYPTO`). [D-82](decisions.md) dit que c'est une donnée
-  de la banque ; **reste à l'appliquer** aux estimations (spread, TER attendu ou non), là où
-  `parametres/couts.py` lit aujourd'hui `Declaration.type`.
-- **La crypto a un vrai code** : `symbol` vaut `BTC`, `ETH`… (fictifs). Le ticker `BTC-EUR` se
-  propose tout seul, à contrôler par la devise ([D-48](decisions.md)). `pastory actifs` en
-  affiche déjà la forme, sans l'appliquer.
-- **Une déclaration orpheline** : la crypto du propriétaire est déclarée dans `actifs.toml` sous
-  l'ancien code pytr (`XF…`). Elle ne correspond plus à aucun actif, et rien ne le dit. L'étape
-  doit le dire — et, idéalement, rendre la redéclaration inutile.
-- **La date d'ouverture du PEA** se lit dans l'export : le premier `TRANSFER_IN` sur `PEA`. Une
-  ligne d'espèces : seul son **type et sa date** sont gardés à la lecture (`fichier.py` efface le
-  reste), ce qui suffit ici.
+- **Le contenu des écrans de correction existe** : pour chaque actif et chaque réglage, un
+  `Reglage` dit la valeur retenue, sa source, sa date, ce qui a été vérifié, ce qu'il faut savoir,
+  ou le motif de son absence ; et, si l'utilisateur a corrigé, ce que la source donnait.
+  `pastory actifs` (`pastory/reglages/rapport.py`) en est la version texte : l'écran la reprend.
+- **Ce que l'écran doit permettre de corriger** : ticker et devise, type, TER, contenu, spread,
+  répartition, refus du secours (`secours = "aucun"`), date du PEA. Le fichier reste le format de
+  stockage ; **l'application ne l'a jamais réécrit jusqu'ici** ([D-92](decisions.md)), et l'écran
+  sera le premier à le faire : garder les commentaires, c'est le sujet annoncé par D-78.
+- **Une correction de ticker** est sans danger pour les cours : ceux d'une autre cotation ne
+  sont jamais employés, et sont repris à la source ([architecture-notes §7 bis](architecture-notes.md)).
+- **Avec `--export` (l'export d'un tiers), aucun appel réseau** n'est fait, ni recherche, ni
+  cours, ni composition (règle 2). C'est voulu.
+- **Les trous se disent là où ils se voient** : `positions` annonce déjà en une ligne les réglages
+  introuvables ; le bloc « D'où viennent les TER » nomme la source de chaque taux ; la date du PEA
+  porte son origine et sa réserve dans la règle de l'impôt ; un retrait trouvé remplace
+  l'hypothèse « aucun retrait » ([D-87](decisions.md)).
 
-### La chose à ne pas rater de cette étape
+### Les pièges de l'étape 8 quater, à connaître
 
-**Une valeur trouvée n'est appliquée qu'après un contrôle, et toujours montrée avec sa source.**
-C'est la règle 2 de [D-80](decisions.md), et la seule garantie que l'automatisme ne fabrique pas
-de faux chiffres. Les raisons des anciennes validations restent vraies : la liste de Xetra a des
-TER en retard, une recherche par ISIN peut renvoyer des dollars.
+- **Un contenu « actions » trouvé ne s'applique pas** : il ferait passer le fonds avant sa
+  composition. Ne pas « corriger » cela sans relire [D-89](decisions.md).
+- **Une panne n'est jamais gardée en mémoire** comme un trou ; un test le garde. La liste de Xetra
+  écrit son lien de deux façons selon le serveur ([reglages-automatiques.md §2.3](reglages-automatiques.md)).
+- **Les tests coupent désormais six sources** par des fixtures automatiques de `tests/test_cli.py`
+  (cotations, TER de l'émetteur, Xetra, classe d'extraETF, registre de l'ESMA, compositions). Un
+  test qui veut une recherche branche une source factice (`brancher_les_cotations`).
+- **`actifs.toml` du propriétaire** contient encore l'ancien code pytr de sa crypto (signalé comme
+  orphelin) et des valeurs désormais trouvées seules. Sa configuration est toujours dans l'ancien
+  dossier `DashBoardTradeRepublic` : le cahier lui demande de la déplacer et de l'alléger.
+- **La date d'ouverture du PEA** se lit dans l'ordre des **horodatages** : une clôture et une
+  réouverture tombent le même jour, et la sortie qui clôt un plan n'est pas un retrait du suivant.
 
-### Les pièges de l'étape 8 ter, à connaître
+### Les pièges de l'étape 8 ter, toujours vrais
 
 - **Le brut des dividendes néerlandais est faux dans l'export**, sans marque ([D-84](decisions.md)).
-  C'est une limite **affichée**, pas un réglage : ne pas tenter de la « corriger » par une table de
-  taux sans une décision nouvelle.
+  C'est une limite **affichée**, pas un réglage.
 - **Les tests de la ligne de commande ajoutent deux titres reçus à la lecture**
-  (`export_ligne_de_commande.titres_recus()`), parce que l'export n'en produit pas encore
-  ([architecture-notes §3 bis](architecture-notes.md)). Un test qui compte les opérations voit 8
-  là où l'adaptateur en produit 6 ; la fixture `lecture_pure` retire l'ajout.
-- **Le Saveback** est affiché comme non traité. Le prochain export du propriétaire dira si les
-  parts arrivent par un `BUY` séparé (ce qu'affirment d'autres logiciels).
-- **La configuration du propriétaire est restée dans l'ancien dossier** `DashBoardTradeRepublic`
-  (le renommage D-74 ne l'a pas déplacée). La photo « avant / après » de l'étape a été prise avec
-  `PASTORY_DOSSIER` pointé dessus. Le cahier lui demande de la déplacer.
+  (`export_ligne_de_commande.titres_recus()`) ; la fixture `lecture_pure` retire l'ajout.
+- **Le Saveback** est affiché comme non traité, en attendant un export plus récent du
+  propriétaire.
 
-## Pour plus tard : ce que l'étape 9 devra savoir
-
+## Ce que l'étape 9 doit savoir, de l'étape 8 et du contrat d'interface
 
 ### La chose à ne pas rater de cette étape
 
@@ -100,17 +103,18 @@ en voyant arriver un quatrième réglage à écrire à la main, et sa raison por
 qui fait peur fait douter de l'application entière**, or ce projet ne tient que sur la confiance
 dans ses chiffres.
 
-Concrètement : le rôle des comptes, le ticker et la devise d'un actif, son type, son TER, son
-`contenu` et sa source de secours ont **tous** un écran. Le fichier TOML reste le format de
-stockage. **L'étape n'est pas terminée tant qu'un réglage n'existe qu'en fichier.**
+Concrètement : le ticker et la devise d'un actif, son type, son TER, son `contenu`, sa source de
+secours et la date du PEA ont **tous** un écran — un écran de **correction**, facultatif, puisque
+tout est désormais trouvé seul ([D-80](decisions.md), [D-92](decisions.md)). Le fichier TOML
+reste le format de stockage. **L'étape n'est pas terminée tant qu'une correction n'existe qu'en
+fichier.**
 
 Deux points de méthode qui vont avec :
 
-- **l'application propose, l'utilisateur décide.** Ce que D-70, D-71 et D-77 interdisent, c'est de
-  basculer en silence — pas de demander en un clic. Le cas d'école est la source de secours :
-  l'application sait déjà quels fonds sont non couverts, et sait reconnaître un fonds Amundi
-  puisque la source répond « aucun produit » pour les autres émetteurs. Elle peut donc proposer, et
-  il n'y a rien à taper ;
+- **l'application trouve, applique et montre ; l'utilisateur peut corriger** ([D-80](decisions.md)
+  remplace « l'application propose, l'utilisateur décide » de D-78). Ce qui protège d'une valeur
+  fausse, ce sont les contrôles et la visibilité de la source, pas un clic de validation. Le
+  [§6 du contrat](conception-interface.md) est à réécrire en conséquence, en premier ;
 - **un écran qui écrit dans le fichier doit le relire et le réécrire sans perdre ses
   commentaires.** Ce sont eux qui rendent le fichier compréhensible à la main. C'est faisable et ce
   n'est pas gratuit : un sujet, pas un détail.
@@ -269,7 +273,12 @@ dossier temporaire de la session, pas dans le dépôt : les réécrire au besoin
 - Pour travailler sur un export sans le copier dans le projet :
   `uv run pastory lire --export <dossier>` (idem pour `positions`). Sur l'export d'un tiers,
   pointer `PASTORY_DOSSIER` vers un dossier vide, pour ne pas mélanger sa lecture avec la
-  configuration du propriétaire.
+  configuration du propriétaire. **Attention** : avec `--export`, aucune recherche de réglage
+  n'est faite (règle 2) — c'est voulu, et le rapport le dit.
+- **Pour essayer sur les vraies données du propriétaire sans rien écrire chez lui** : copier son
+  export (et, au besoin, sa configuration) dans un dossier du scratchpad, et pointer
+  `PASTORY_DOSSIER` dessus. C'est ainsi qu'ont été mesurés les résultats de l'étape 8 quater, et
+  que la panne intermittente de la liste de Xetra a été trouvée.
 - Le propriétaire **ne code pas** : il vérifie les chiffres. Tout calcul doit être refaisable à la
   main, et les options techniques lui sont présentées avec leurs avantages et inconvénients. Il
   tranche vite, et **il tranche parfois contre la recommandation avec de bonnes raisons** : c'est
