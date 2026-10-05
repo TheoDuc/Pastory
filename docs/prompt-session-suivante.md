@@ -32,7 +32,9 @@ On attaque l'étape 8 quater : des réglages qui se proposent seuls.
   source ; ce qui ne se trouve pas de façon fiable est un trou expliqué, jamais une question.
 - **Prochaine : étape 8 quater**, des réglages qui se proposent seuls. Puis l'étape 9, l'interface.
 - **Questions ouvertes** : **Q-54** seulement (actions gratuites puis « migration », chez l'ami
-  du propriétaire — on attend ce que montre son application).
+  du propriétaire). Le mécanisme est presque élucidé (2026-10-05) : la fraction est payée en
+  espèces le jour même, par une ligne `CASH / MANUAL` sans ISIN. **Reste au propriétaire à
+  choisir le traitement** (options a, b, c).
 
 **Ce qui existe déjà :**
 

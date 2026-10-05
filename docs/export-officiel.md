@@ -215,7 +215,7 @@ lisait dans le détail de l'événement.
 | Point | Pourquoi c'est important | Comment le lever |
 |---|---|---|
 | **Saveback** : où sont les parts achetées ? | la ligne n'a ni quantité ni prix ; 📄 les parts arriveraient par un `BUY` séparé du même montant, environ un jour après — le Saveback serait alors un simple crédit d'espèces | le prochain export du propriétaire : son Saveback était la dernière ligne du fichier |
-| **Actions gratuites, puis « migration »** | sur le seul cas vu, elles s'annulent exactement | [Q-54](questions-ouvertes.md) |
+| **Actions gratuites, puis « migration »** | sur le seul cas vu, elles s'annulent exactement, et la fraction est payée le jour même par un `CASH / MANUAL` sans ISIN, aujourd'hui ignoré | [Q-54](questions-ouvertes.md) : choisir le traitement ; un second cas, en compte-titres ordinaire |
 | **Les autres pays de dividende** | la retenue néerlandaise est perdue ; la suisse, l'allemande, l'espagnole ? | des dividendes de ces pays, comparés à leur relevé PDF |
 | **Les types du §4.2** | parts qui entrent ou sortent | un export qui en contient |
 | **Un export partiel** | une période qui ne commence pas à l'ouverture du compte donne une histoire incomplète ([D-45](decisions.md)) | rien dans le fichier ne le dit : Pastory affiche la période couverte, et signale un trou entre deux fichiers |

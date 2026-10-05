@@ -14,32 +14,79 @@ pas une décision.**
 ### Q-54 · Actions gratuites puis « migration » : que s'est-il passé ?
 *Ouverte le 2026-10-05, en lisant l'export officiel d'un second utilisateur.*
 
-**Le constat.** Sur une même action française détenue en PEA, l'export contient, dans l'ordre :
-deux achats, un dividende, puis une ligne `CORPORATE_ACTION / BONUS_ISSUE` qui ajoute des
-**fractions** d'action (une pour dix détenues, sans prix ni montant), puis, **30 jours plus tard**,
-une ligne `DELIVERY / MIGRATION` qui retire **exactement** la même quantité (quantité négative,
-un prix, aucun montant). Aucune autre ligne ce jour-là, aucun autre actif, aucun crédit d'espèces.
+*Enquête du 2026-10-05 : le mécanisme est presque élucidé (ci-dessous) ; reste à choisir le
+traitement.*
 
-**Ce qu'on sait :** `BONUS_ISSUE` désigne bien des actions gratuites (deux sources, dont un projet
-français). `MIGRATION` est décrit par un seul importeur comme un « changement technique d'ISIN »,
-sans preuve ; Portfolio Performance n'importe aucune ligne `DELIVERY`.
+**Le cas.** Une grande société française attribue **une action gratuite pour dix détenues**, une
+opération courante chez les épargnants français. L'ami du propriétaire en détenait **moins de
+dix**, sur son **PEA** : il n'avait donc droit qu'à une **fraction** d'action. L'export contient,
+pour cette opération, **trois lignes** (et non deux, comme on l'avait d'abord cru) :
 
-**Pourquoi c'est important :** traiter l'un sans l'autre fausse la quantité. Traiter
-`BONUS_ISSUE` seul ajoute des parts qui ne sont plus là ; traiter `MIGRATION` demande un type
-« titres sortis » que le format pivot n'a pas. Les droits d'attribution fractionnaires ont pu être
-vendus, convertis ou transférés vers un autre ISIN : chacune de ces explications donne un calcul
-différent.
+| Jour | Ligne | Ce qu'elle porte |
+|---|---|---|
+| J | `CORPORATE_ACTION / BONUS_ISSUE` | + la fraction (exactement un dixième des parts détenues), sans prix ni montant |
+| J | `CASH / MANUAL`, sur le PEA | un crédit d'espèces en euros, **sans ISIN** ; sa description parle de « fraction » et de « corporate action » |
+| J + 30 | `DELIVERY / MIGRATION` | − la même fraction, avec un prix, sans montant |
 
-**En attendant :** les deux lignes sont **affichées comme non traitées**, avec cette explication.
-Sur le seul cas vu, elles s'annulent : la quantité affichée est donc la bonne.
+Exemple fictif : 7 actions détenues → `BONUS_ISSUE` de 0,7 ; `MANUAL` de 112,00 € (0,7 × 160 €) ;
+30 jours plus tard, `MIGRATION` de −0,7 au prix de 164 €.
 
-**Ce qu'il faut pour trancher :** demander à ton ami ce que l'application Trade Republic montre
-pour cette action à ces deux dates (actions gratuites reçues ? vendues ? un nouvel actif ?). Selon
-la réponse : (a) les deux restent non traités tant qu'ils s'annulent, et un cas où ils ne
-s'annulent pas est signalé ; (b) `BONUS_ISSUE` devient des titres reçus ([D-15](decisions.md)), et
-`MIGRATION` demande un nouveau type au format pivot ; (c) autre chose, selon ce qu'il voit.
+**Ce qui est établi** (vérifié sur l'export, sans en lire les valeurs) :
+- les actions entières sont toutes restées : seule la fraction est repartie ;
+- le crédit d'espèces divisé par la fraction donne un prix dans la fourchette du cours de
+  l'action. Il est proche (entre 1 et 5 %) de quantité × prix de la `MIGRATION`, sans être égal :
+  ce prix-là est celui du jour J + 30 ;
+- c'est la seule ligne `MANUAL` de tout l'export ;
+- **sur le PEA, toutes les autres quantités sont entières**, y compris les achats mensuels d'un
+  ETF par plan d'épargne, alors que le compte-titres ordinaire en a des dizaines de
+  fractionnaires. Trade Republic ne semble pas garder de fraction sur un PEA ;
+- **l'application ne montre que la réception des actions gratuites** (événement « actions
+  reçues », daté J + 3). Le crédit d'espèces et la sortie des parts n'y apparaissent pas. Le
+  titulaire du compte croyait donc **avoir perdu de l'argent**.
 
-**Recommandation :** aucune avant la réponse : c'est exactement le cas de la règle 7.
+**Ce qui reste supposé :**
+- que le crédit `MANUAL` paie bien cette fraction. Le lien tient à la date, au compte, à la
+  description et au montant cohérent, mais la ligne n'a pas d'ISIN ;
+- la raison du délai de 30 jours. Le Code de commerce (art. L.225-130 et R.225-130) prévoit que
+  les fractions d'une attribution gratuite ne sont pas livrées : les actions correspondantes sont
+  vendues, et le produit est versé aux ayants droit **au plus tard 30 jours** après l'inscription
+  des actions entières. Ici, Trade Republic aurait **avancé** l'argent le jour J, puis retiré les
+  droits à la vente, à J + 30 ;
+- ce qui se passe sur un **compte-titres ordinaire**, où Trade Republic garde des fractions, et
+  quand une partie de l'attribution tombe en actions entières (12 actions détenues → 1 action
+  gratuite + 0,2 indemnisé ?). On ne l'a jamais vu.
+
+Le titulaire n'a pas d'autre information : l'avis d'opération joint à l'événement dans
+l'application, ou le support de Trade Republic, pourrait confirmer le premier point.
+
+**Pourquoi c'est important :** la quantité est déjà juste, puisque `BONUS_ISSUE` et `MIGRATION`
+s'annulent. Mais le crédit d'espèces est ignoré (les espèces ne sont pas suivies, D-11). Or c'est
+la **valeur des actions gratuites**, que l'actionnaire a bien reçue : sans elle, la performance de
+la ligne est sous-estimée, et l'utilisateur ne voit nulle part l'argent qu'il a reçu.
+
+**En attendant :** les trois lignes sont **affichées** : `BONUS_ISSUE` et `MIGRATION` comme non
+traitées, avec une explication ; `MANUAL` est ignorée comme une ligne d'espèces.
+
+**Options :**
+- **(a) Rien de plus.** Les deux lignes de titres restent non traitées tant qu'elles s'annulent,
+  et un cas où elles ne s'annulent pas est signalé. La valeur reçue reste invisible.
+- **(b) Une vente.** `BONUS_ISSUE` devient des titres reçus (prix au cours du jour, [D-15](decisions.md)),
+  et le crédit `MANUAL` devient leur vente, ce qui dégage un gain réalisé. Il faut alors un type
+  « titres sortis sans montant » pour la `MIGRATION`, et décider de quel côté passent les 30 jours
+  d'écart.
+- **(c) Un revenu de l'actif.** Les deux lignes de titres s'annulent (quantité inchangée), et le
+  crédit `MANUAL` compte comme un revenu de la ligne, comme un dividende : « valeur de la fraction
+  d'action gratuite, versée en espèces ».
+
+Pour (b) comme pour (c), il faut **rattacher à l'action une ligne d'espèces sans ISIN**. On ne
+peut pas le faire par sa description (règle 4). Ce serait une **déduction affichée** (règle 6) :
+un crédit `MANUAL`, le même jour qu'un `BONUS_ISSUE`, sur le même compte, et le seul ce jour-là.
+Si l'appariement est ambigu, rien n'est rattaché, et le crédit est affiché.
+
+**Recommandation (pas une décision) :** (c). C'est le plus simple à vérifier à la main, ça ne
+crée pas de vente que l'utilisateur n'a pas passée, et ça rend visible l'argent qu'il croyait
+perdu. À trancher par le propriétaire. Un deuxième cas, idéalement sur un compte-titres
+ordinaire ou avec plus de dix actions, dirait si le schéma tient.
 
 ---
 
