@@ -532,6 +532,7 @@ interprétée** — un dividende négatif, une obligation, un compte enfant rest
 
 Sur les données du propriétaire, toutes les positions sont identiques avant et après, sauf la
 crypto : quelques centimes de capital investi, et son ticker à redéclarer sous son nouveau code.
+Le propriétaire a vérifié le 2026-10-05 que les quantités sont celles de l'application.
 
 **Claude :**
 - **Recherche d'abord** (agent de recherche) : aucune liste des types n'est publiée. Rassembler

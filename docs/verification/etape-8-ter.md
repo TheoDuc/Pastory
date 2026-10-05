@@ -199,6 +199,9 @@ attendues :
 4. **Le capital investi**, actif par actif, en face de la photo « avant » : seul celui de ta crypto
    doit avoir bougé, de quelques centimes.
 
+**Vérifié par le propriétaire le 2026-10-05 :** les quantités de chaque actif sont identiques à
+celles de l'application Trade Republic.
+
 ### 5.3 Ce que je ne peux pas vérifier à ta place
 
 - **Ton Saveback.** C'était la dernière ligne de ton export : on ne sait pas encore où vont les
