@@ -1558,3 +1558,11 @@ tr.sans-valeur td {
   max-height: 320px;
   overflow: auto;
 }
+
+/* Une bande sans rien à dire disparaît. `.bande` impose `display: flex`, qui l'emporte sur
+   l'attribut `hidden` du navigateur : sans cette règle, la rangée des filtres restait une
+   bande sombre vide sur la diversification, les frais et l'accueil. */
+.bande[hidden],
+.bande--etat:empty {
+  display: none;
+}

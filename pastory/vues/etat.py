@@ -43,7 +43,9 @@ def appliquer(etat: Etat, champ: str, valeur: str, poches_presentes: list[str]) 
     if champ != "depot":
         nouveau["message"] = None
     match champ:
-        case "onglet" if valeur == ACCUEIL or any(o.cle == valeur for o in ONGLETS):
+        # « aller » : un bouton du corps de page qui mène à un onglet. Il ne peut pas porter
+        # l'identifiant de l'onglet lui-même, qui est déjà dans la manchette.
+        case "onglet" | "aller" if valeur == ACCUEIL or any(o.cle == valeur for o in ONGLETS):
             nouveau["onglet"] = valeur
             nouveau["page"] = 0
         case "surveiller":

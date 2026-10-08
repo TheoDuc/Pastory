@@ -206,7 +206,9 @@ def _ce_que_la_lecture_a_trouve(base: assembleur.Construit) -> html.Section:
                 html.P(
                     html.Button(
                         "Voir la synthèse",
-                        id=choix("onglet", "synthese"),
+                        # Pas l'identifiant de l'onglet : deux éléments du même nom, et Dash perd
+                        # le clic sur l'un d'eux (l'onglet « Synthèse » ne répondait plus).
+                        id=choix("aller", "synthese"),
                         type="button",
                         className="bouton bouton--clair",
                         n_clicks=0,

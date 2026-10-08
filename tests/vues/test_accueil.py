@@ -59,9 +59,17 @@ class TestPremierLancement:
         assert filtres == [] and caches is True
         assert etat == []
 
-    def test_chaque_onglet_ramene_a_l_accueil(self):
-        corps = rendu(Chiffres(), onglet="diversification")[5]
+    def test_aucun_onglet_tant_qu_aucun_export_n_est_lu(self):
+        """Des onglets qui ramènent tous au dépôt feraient croire qu'il y a quelque chose
+        derrière (arbitrage du propriétaire, bloc 9.1)."""
+        onglets, _, _, _, _, corps = rendu(Chiffres(), onglet="diversification")
+        assert onglets == []
         assert "Déposez votre export ici" in texte(corps)
+
+    def test_les_onglets_apparaissent_des_le_premier_export(self, dossier_de_depot):
+        fictifs.deposer(dossier_de_depot)
+        onglets = rendu(Chiffres(hors_ligne=True), onglet=bandeau.ACCUEIL)[0]
+        assert "Synthèse" in texte(onglets)
 
     def test_l_absence_d_export_est_un_etat_et_non_une_panne(self):
         base = Chiffres().base()
@@ -231,3 +239,25 @@ def test_l_application_se_construit_et_sert_sa_page(dossier_personnel):
     assert client.get("/assets/pastory.css").status_code == 200
     assert client.get("/assets/dessin.js").status_code == 200
     assert client.get("/assets/polices/ibm-plex-sans-latin-400-normal.woff2").status_code == 200
+
+
+class TestIdentifiantsUniques:
+    """Dash ne sait pas gérer deux éléments du même nom : le clic sur l'un se perd. C'est ainsi
+    que l'onglet « Synthèse » ne répondait plus depuis l'accueil, dont le bouton « Voir la
+    synthèse » portait le même identifiant (relecture du propriétaire, bloc 9.1)."""
+
+    @pytest.mark.parametrize(
+        "onglet", [bandeau.ACCUEIL, *(o.cle for o in bandeau.ONGLETS)]
+    )
+    def test_chaque_identifiant_est_unique_dans_la_page(self, dossier_de_depot, onglet):
+        fictifs.deposer(dossier_de_depot)
+        page = list(rendu(Chiffres(hors_ligne=True), onglet=onglet))
+        tous = [repr(i) for i in identifiants(page)]
+        doubles = sorted({i for i in tous if tous.count(i) > 1})
+        assert not doubles, f"identifiants en double : {doubles}"
+
+    def test_voir_la_synthese_mene_a_la_synthese(self):
+        etat = etat_ecran.appliquer(
+            {**etat_ecran.initial(), "onglet": bandeau.ACCUEIL}, "aller", "synthese", []
+        )
+        assert etat["onglet"] == "synthese"

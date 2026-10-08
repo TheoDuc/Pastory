@@ -448,7 +448,7 @@ doit savoir lequel elle affiche, et un bloc qui n'en prévoit qu'un est incomple
 
 | Cas | Ce que l'écran dit |
 |---|---|
-| Aucune opération lue | Où récupérer un export dans l'application Trade Republic, et où le déposer : la zone de dépôt de l'accueil ([D-95](decisions.md)) |
+| Aucune opération lue | Où récupérer un export dans l'application Trade Republic, et où le déposer : la zone de dépôt de l'accueil ([D-95](decisions.md)). **Les onglets n'apparaissent pas** : ils ramèneraient tous au dépôt, et feraient croire qu'il y a quelque chose derrière. Ils viennent avec le premier export lu *(arbitrage du propriétaire, 2026-10-08)* |
 | Une seule ligne au portefeuille | Les chiffres, sans camembert : un anneau à une part ne dit rien |
 | Aucun cours connu sur la période | **Rien n'est tracé**, plutôt qu'une ligne à zéro — et la phrase le dit |
 | Aucun actif dans le filtre choisi | Que le filtre est en cause, et non les données |

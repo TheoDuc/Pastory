@@ -21,8 +21,9 @@ def rendre(chiffres: Chiffres, etat: dict) -> Rendu:
     onglet = etat.get("onglet", bandeau.ONGLETS[0].cle)
 
     if isinstance(base, Echec) or onglet == bandeau.ACCUEIL:
-        # Sans export, l'accueil est le seul écran : les onglets restent visibles, et chacun y
-        # ramène — il n'y a rien d'autre à montrer, et rien ne doit faire croire le contraire.
+        # Sans export lisible, l'accueil est le seul écran, et **les onglets n'apparaissent
+        # pas** : cinq onglets qui ramènent tous au dépôt feraient croire qu'il y a quelque chose
+        # derrière (arbitrage du propriétaire, bloc 9.1 ; conception §5.1).
         corps = accueil.ecran(base, chiffres.dossier(), chiffres.tiers)
         messages = _messages_du_depot(etat.get("message"))
         if messages is not None:
@@ -30,7 +31,7 @@ def rendre(chiffres: Chiffres, etat: dict) -> Rendu:
         etat_des_donnees = [] if isinstance(base, Echec) else _etat_de_l_export(base)
         compteur = None if isinstance(base, Echec) else len(surveiller.points(base))
         return (
-            bandeau.onglets(bandeau.ACCUEIL if isinstance(base, Echec) else onglet),
+            [] if isinstance(base, Echec) else bandeau.onglets(onglet),
             bandeau.compteur(compteur),
             [],
             True,
