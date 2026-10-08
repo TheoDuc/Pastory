@@ -46,6 +46,12 @@ TYPES = (("tous", "Tous"), ("etf", "ETF"), ("action", "Actions"), ("crypto", "Cr
 NOM_DE_POCHE = {Poche.PEA: "PEA", Poche.CTO: "CTO", Poche.CRYPTO: "Crypto"}
 
 
+def jeton(poche: Poche) -> html.Span:
+    """Le nom court d'une poche, précédé de sa pastille de couleur (D-96). Le texte reste à
+    l'encre : la couleur dit l'identité, elle ne porte jamais le mot."""
+    return html.Span(NOM_DE_POCHE[poche], className=f"jeton jeton--{poche.value.lower()}")
+
+
 def onglet(cle: str) -> Onglet | None:
     return next((o for o in ONGLETS if o.cle == cle), None)
 

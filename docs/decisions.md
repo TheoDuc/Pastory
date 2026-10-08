@@ -1662,3 +1662,24 @@ un fichier à la main reste possible.
 retrouver un dossier caché est exactement la mise en route qui ressemble à du dépannage. La
 seule chose que l'utilisateur ait à faire doit se faire dans l'application.
 **Écarte :** montrer seulement le chemin du dossier et un bouton « relire ».
+
+### D-96 · 2026-10-08 · Chaque poche a sa couleur, la même partout · Validée
+**Décision :** les trois poches reçoivent trois **teintes distinctes**, et non plus trois clartés
+d'un même bleu : PEA **bleu** (`#4167ad`), CTO **bleu-vert canard** (`#14938d`), crypto **prune**
+(`#76386a`). C'est **leur couleur** partout où elles apparaissent : l'anneau de la synthèse, la
+pastille de leur nom (`jeton`), et tout écran à venir. Aucune n'est la sauge, la terracotta ni
+l'ocre, réservées au gain, à la perte et à l'estimé. Le texte reste à l'encre : la couleur dit
+l'identité, jamais le mot.
+**Raison :** le propriétaire, en voyant l'anneau : les poches doivent être « plus distinguées »,
+leur couleur doit « persister » et « évoquer la poche », en restant dans la direction
+artistique. Le validateur du skill dataviz a donné raison à l'œil : les trois bleus d'avant
+**échouaient**, trop peu saturés (ils se lisaient comme des gris) et le plus foncé hors de la
+bande de clarté. La palette retenue a été **calculée**, pas choisie à l'œil : parmi les teintes
+qui évoquent chaque poche, la plus sobre qui passe tous les contrôles sur le fond des blocs —
+séparation sous vision daltonienne 11,0 (cible 8), vision normale 15,3 (plancher 15), contraste
+d'au moins 3:1.
+**Écarte :** un bleu et un violet de même clarté (indiscernables pour un daltonien : écart de 1 à
+3) ; des teintes vives, hors de l'esprit papier et encre ; la couleur du texte de la poche, qui
+ferait dépendre la lecture de la couleur.
+**Limite connue :** sur le fond de page (`--papier`), le bleu-vert est à 2,95:1, juste sous le
+seuil ; il n'y est jamais seul — le nom de la poche l'accompagne toujours.

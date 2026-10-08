@@ -27,14 +27,15 @@ from pastory.moteur.rendements import Rendements
 from pastory.moteur.valorisation import PointEvolution, PositionValorisee
 from pastory.pivot.operation import Poche
 from pastory.vues import format as f
-from pastory.vues.bandeau import NOM_DE_POCHE
+from pastory.vues.bandeau import NOM_DE_POCHE, jeton
 from pastory.vues.briques import aide, bloc, choix, dessin, mot, pied_avec_mot, tuile
 from pastory.vues.chiffres import Chiffres, Vue
 
-COULEUR_DE_POCHE = {Poche.PEA: "#1b4a63", Poche.CTO: "#37738c", Poche.CRYPTO: "#6fa0b4"}
+COULEUR_DE_POCHE = {Poche.PEA: "#4167ad", Poche.CTO: "#14938d", Poche.CRYPTO: "#76386a"}
 """Les couleurs des poches, **en clair** : elles vont dans un attribut SVG, où `var()` n'est pas
 interprété. Ce sont celles de `--poche-1` à `--poche-3`, et un test le vérifie. Une couleur suit
-sa poche, jamais son rang : décocher une poche ne repeint pas les autres."""
+sa poche, jamais son rang : décocher une poche ne repeint pas les autres ; et c'est la couleur de
+la poche partout où elle apparaît (D-96)."""
 
 NOM_DE_TYPE = {TypeActif.ETF: "ETF", TypeActif.ACTION: "Action", TypeActif.CRYPTO: "Crypto"}
 
@@ -428,7 +429,7 @@ def _carte(
         [
             html.Div(
                 [
-                    html.Span(NOM_DE_POCHE[p.poche], className="jeton"),
+                    jeton(p.poche),
                     html.Span(_type(vue, p.actif), className="carte__type"),
                 ],
                 className="carte__haut",

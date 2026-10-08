@@ -77,8 +77,21 @@ class TestLesFiltres:
 
     def test_les_cartes_ne_montrent_que_les_poches_choisies(self, chiffres):
         page = corps(chiffres, poches=["PEA"])
-        cartes = [n for n in noeuds(page) if getattr(n, "className", "") == "jeton"]
+        cartes = [n for n in noeuds(page) if "jeton" in (getattr(n, "className", "") or "")]
         assert {texte(c) for c in cartes} == {"PEA"}
+
+    def test_chaque_poche_porte_sa_couleur_sur_son_jeton(self, chiffres):
+        """La couleur d'une poche est la sienne partout où elle apparaît (D-96)."""
+        jetons = {
+            texte(n): n.className
+            for n in noeuds(corps(chiffres))
+            if "jeton" in (getattr(n, "className", "") or "")
+        }
+        assert jetons == {
+            "PEA": "jeton jeton--pea",
+            "CTO": "jeton jeton--cto",
+            "Crypto": "jeton jeton--crypto",
+        }
 
 
 class TestLaCourbe:
