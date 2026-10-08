@@ -144,6 +144,28 @@ class TestLOrdreDesEtages:
         assert source.appels == [ETF]
         assert cache.ecritures == [ETF]
 
+    def test_un_fonds_servi_par_le_secours_est_rafraichi_par_le_secours(self):
+        """Le cas des données du propriétaire : un fonds Amundi, que la source principale
+        n'ouvre pas. Le rafraîchissement doit passer par le secours, sinon la règle de pays ne
+        revient jamais."""
+        cache = CacheFictif({ETF: composition(source="depuis le cache", regle="")})
+
+        class Secours:
+            def composition(self, actif):
+                return composition(actif, source="secours", regle="pays de l'indice")
+
+        fournisseur = FournisseurDeCompositions(
+            cache=cache,
+            source_etf=SourceEtfFictive({}),
+            actifs=config(**{ETF: etf_declare()}),
+            secours={"amundi": Secours()},
+        )
+
+        trouvee = fournisseur.composition(ETF)
+
+        assert trouvee.regle_de_pays == "pays de l'indice"
+        assert fournisseur.refus == []
+
     def test_si_la_source_ne_repond_pas_l_ancienne_est_gardee_sans_refus(self):
         cache = CacheFictif({ETF: composition(source="depuis le cache", regle="")})
         source = SourceEtfFictive({})

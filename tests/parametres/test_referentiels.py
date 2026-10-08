@@ -214,3 +214,18 @@ class TestCeQuiEstRefuse:
 
         with pytest.raises(ParametresInvalides, match="TOML"):
             ref.charger_secteurs(fichier)
+
+
+def test_chaque_classe_actions_d_une_source_est_connue_du_referentiel():
+    """Défaut trouvé à l'étape 9 sur les données du propriétaire. La source de secours déclare
+    ses classes « actions » (`amundi.CLASSES_ACTIONS`) en supposant le référentiel au courant ;
+    il ne l'était pas. Un fonds servi par elle était alors compté **deux fois** dans les pays :
+    par ses pays, et comme « hors actions » sous un code non reconnu. Ce test lie les deux."""
+    from pastory.donnees_externes import amundi
+    from pastory.parametres.referentiels import charger_tout
+
+    referentiels = charger_tout()
+    for code in amundi.CLASSES_ACTIONS:
+        classe = referentiels.classe(code)
+        assert classe is not None, f"« {code} » est inconnu de classes_actifs.toml"
+        assert classe.actions, f"« {code} » n'est pas rangé avec les actions"
