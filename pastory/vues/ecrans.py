@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dash import html
 
-from pastory.vues import accueil, bandeau, surveiller
+from pastory.vues import accueil, bandeau, surveiller, synthese
 from pastory.vues.briques import bloc, mot
 from pastory.vues.chiffres import Chiffres, Echec, Vue
 from pastory.vues.surveiller import Point
@@ -59,6 +59,8 @@ def rendre(chiffres: Chiffres, etat: dict) -> Rendu:
 
 
 def _corps(onglet: str, vue: Vue, points: list[Point], chiffres: Chiffres, etat: dict):
+    if onglet == "synthese":
+        return synthese.ecran(vue, chiffres, int(etat.get("page", 0)))
     return html.Div(
         bloc(
             "Écran en cours de réalisation",

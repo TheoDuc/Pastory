@@ -353,7 +353,7 @@
       pointInvesti.setAttribute("cy", y(p.i));
 
       infobulle.innerHTML = "";
-      infobulle.append(
+      const lignes = [
         el("b", { class: "infobulle__date", texte: p.d }),
         el("span", { class: "infobulle__ligne" }, [
           el("i", { style: "border-top-color: var(--courbe-brut)" }),
@@ -368,8 +368,12 @@
         el("span", { class: "infobulle__ligne infobulle__ecart" }, [
           el("span", { texte: "Écart" }),
           el("b", { class: p.ce || null, texte: p.te }),
-        ])
-      );
+        ]),
+        // Un jour où un actif n'a pas de cours : la valeur est celle des seuls actifs cotés.
+        p.tp ? el("span", { class: "infobulle__ligne reference", texte: p.tp }) : null,
+      ];
+      // `append(null)` écrirait le mot « null » : seules les lignes présentes sont posées.
+      for (const ligne of lignes) if (ligne) infobulle.append(ligne);
       infobulle.hidden = false;
       placerLInfobulle(infobulle, boite, evenement);
     }

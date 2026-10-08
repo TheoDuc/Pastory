@@ -1566,3 +1566,8 @@ tr.sans-valeur td {
 .bande--etat:empty {
   display: none;
 }
+
+/* Sous la courbe : les jours où la valeur ne porte que sur les actifs cotés. */
+.courbe__partiels {
+  margin: 8px 0 0;
+}

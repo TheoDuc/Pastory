@@ -205,15 +205,16 @@ class Chiffres:
         return Portefeuille.construire(operations).au(base.periode.fin)
 
     def evolution(self, vue: Vue) -> list[valorisation_moteur.PointEvolution]:
-        """La valeur jour par jour, de la première opération à la fin, pour les poches de la
-        vue. Calculée une fois par choix de poches : la période ne fait que la couper."""
+        """La valeur jour par jour, de la veille de la première opération à la fin, pour les
+        poches de la vue. Calculée une fois par choix de poches : la période ne fait que la
+        couper. La veille vaut zéro : la courbe part de rien, et le premier versement se voit."""
         with self._verrou:
             if vue.poches not in self._evolutions:
                 premier = premier_jour(vue.portefeuille)
                 self._evolutions[vue.poches] = (
                     valorisation_moteur.evolution(
                         vue.portefeuille,
-                        premier,
+                        premier - timedelta(days=1),
                         vue.construit.periode.fin,
                         vue.construit.fournisseur,
                     )

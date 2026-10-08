@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
 
 from dash.development.base_component import Component
@@ -36,7 +37,9 @@ def texte(composant) -> str:
             lire(getattr(element, "children", None))
 
     lire(composant)
-    return " ".join(" ".join(morceaux).split())
+    # Seules les espaces ordinaires sont normalisées : l'espace insécable d'un montant fait partie
+    # de ce qu'on vérifie (conception §3.2).
+    return re.sub(r"[ \t\r\n]+", " ", " ".join(morceaux)).strip()
 
 
 def classes(composant) -> set[str]:

@@ -200,7 +200,15 @@ AIDES: dict[str, Aide] = {
         "classe, et il <b>sort</b> des pays et des secteurs — là où ces notions ne veulent rien "
         "dire pour lui.",
     ),
-    # --- Ajoutées à l'étape 9 : l'accueil -------------------------------------------------
+    # --- Ajoutées à l'étape 9 ------------------------------------------------------------
+    "histoireIncomplete": Aide(
+        "Histoire incomplète",
+        "Il manque des opérations avant celles que nous avons lues : la <b>quantité</b> est "
+        "juste, mais le prix de revient et le gain de cette ligne ne le sont pas forcément. "
+        "C'est souvent un export qui ne remonte pas à l'ouverture du compte, ou des titres "
+        "reçus d'un type que l'application ne sait pas encore lire. La ligne en cause est "
+        "dans « à surveiller ».",
+    ),
     "periodeCouverte": Aide(
         "La période couverte",
         "Vous choisissez les dates de l'export dans l'application Trade Republic. Si elles ne "
