@@ -22,7 +22,6 @@ que les ranger et les écrire.
 
 from __future__ import annotations
 
-import colorsys
 from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
@@ -69,6 +68,9 @@ TERRES_DE_ZONE = {
 }
 """Ce que le planisphère allume pour chaque zone. Un repère qui **situe**, il ne délimite pas :
 la bulle « ? » des zones le dit, et ce sont les montants qui font foi (conception §3.2)."""
+
+RESUME_DES_RESTES = {"zones": "Sans pays", "pays": "Sans pays", "secteurs": "Sans secteur"}
+"""Le nom de la ligne qui résume ce qui n'entre pas dans la répartition, quand elle est repliée."""
 
 PREMIERS_POSTES = 15
 """Combien de postes le classement montre avant « afficher les autres »."""
@@ -120,17 +122,28 @@ def ecran(vue: Vue, rubrique: str = "classes", deplie: bool = False) -> html.Div
         return html.Div(page)
 
     titre, note, cle_aide, lignes, restes, base = _rubrique(diversification, rubrique)
-    page.append(
-        html.Div(
-            [
-                bloc(
-                    titre, _classement(lignes, restes, deplie), note=note, cle_aide=cle_aide
-                ),
-                _bloc_anneau(lignes, restes, base),
-            ],
-            className="rangee rangee--trois-quarts rangee--apres",
-        )
+    # Les restes des pays et des secteurs tiennent sur une ligne, dépliable : c'est l'arbitrage
+    # du propriétaire (étape 9). Le montant reste visible, et rien n'est ramené à 100 % (D-69).
+    # Les classes d'actifs, elles, gardent leur détail : c'est leur sujet.
+    resume_des_restes = None if rubrique == "classes" else RESUME_DES_RESTES[rubrique]
+    classement = bloc(
+        titre,
+        _classement(lignes, restes, deplie, resume_des_restes),
+        note=note,
+        cle_aide=cle_aide,
     )
+    if rubrique in ("classes", "zones"):
+        rangee = html.Div(
+            # Moitié-moitié : quelques postes seulement, et chaque carré doit avoir la place
+            # d'écrire son nom à côté de sa part.
+            [classement, _bloc_carres(lignes, restes, base)],
+            className="rangee rangee--deux rangee--apres",
+        )
+    else:
+        # Des dizaines de pays ou onze secteurs : un dessin de plus serait illisible, et le
+        # classement dit déjà tout (arbitrage du propriétaire, étape 9).
+        rangee = html.Div(classement, className="rangee rangee--large rangee--apres")
+    page.append(rangee)
     page.append(
         html.Div(
             bloc_replie(
@@ -284,7 +297,12 @@ def _note_des_regles(d: Diversification) -> str:
 # --- Le classement ---------------------------------------------------------------------
 
 
-def _classement(lignes: list[Ligne], restes: list[Ligne], deplie: bool = True) -> html.Div:
+def _classement(
+    lignes: list[Ligne],
+    restes: list[Ligne],
+    deplie: bool = True,
+    resume_des_restes: str | None = None,
+) -> html.Div:
     """Le classement. Replié, il ne montre que les `PREMIERS_POSTES` premiers postes, et un
     bouton dit combien il en reste et ce qu'ils pèsent : une liste de soixante pays noie ceux
     qui comptent. Les restes — ce qui n'entre pas dans la répartition — sont **toujours**
@@ -334,10 +352,23 @@ def _classement(lignes: list[Ligne], restes: list[Ligne], deplie: bool = True) -
                 className="classement__coupure",
             )
         )
-        enfants += [
+        detail = [
             _ligne_mesuree(ligne, maxi)
             for ligne in sorted(restes, key=lambda ligne: ligne.montant, reverse=True)
         ]
+        if resume_des_restes is None or len(restes) < 2:
+            enfants += detail
+        else:
+            total = sum((ligne.montant for ligne in restes), ZERO)
+            part = sum((ligne.part or ZERO for ligne in restes), ZERO)
+            resume = Ligne(resume_des_restes, total, part, ("picto", ""), absent=True)
+            enfants.append(
+                html.Details(
+                    [html.Summary(_ligne_mesuree(resume, maxi), className="restes__titre"),
+                     *detail],
+                    className="restes",
+                )
+            )
     return html.Div(enfants, className="classement")
 
 
@@ -381,59 +412,131 @@ def _ligne_mesuree(ligne: Ligne, maxi: Decimal) -> html.Div:
     )
 
 
-# --- L'anneau --------------------------------------------------------------------------
+# --- Les carrés découpés ----------------------------------------------------------------
+
+LARGEUR_DES_CARRES = 100.0
+HAUTEUR_DES_CARRES = 46.0
+"""Les proportions du dessin. Le calcul se fait dans ce repère, et les rectangles sont posés en
+pour cent de la boîte : le dessin suit la largeur de l'écran sans rien recalculer."""
+
+LARGEUR_POUR_UN_NOM, HAUTEUR_POUR_UN_NOM = 14.0, 9.0
+LARGEUR_POUR_UNE_PART, HAUTEUR_POUR_UNE_PART = 9.0, 5.5
+"""Dans le repère du dessin (100 × 46). En deçà, un carré n'a pas la place d'écrire son nom,
+puis sa part, sans les couper n'importe où : il les donne au survol, et le classement à gauche
+les donne toujours. C'est la **largeur** qui compte, pas la surface : une colonne étroite et
+haute coupait « Europe développée » en « Europ / e dévelo / ppée »."""
 
 
-def teinte(rang: int, combien: int) -> str:
-    """Une teinte d'une rampe d'un seul bleu, du foncé au clair, écrite **en clair** : elle va
-    dans un attribut SVG, où `var()` n'est pas interprété. La formule est celle de la maquette
-    (`teinte`), pour que les deux montrent les mêmes couleurs."""
-    clarte = 26 + (rang / max(1, combien - 1)) * 40
-    rouge, vert, bleu = colorsys.hls_to_rgb(197 / 360, clarte / 100, 0.58)
-    return "#" + "".join(f"{round(c * 255):02x}" for c in (rouge, vert, bleu))
+def disposer(valeurs: list[float], largeur: float, hauteur: float) -> list[tuple[float, ...]]:
+    """Découpe un rectangle en carrés de surfaces proportionnelles aux `valeurs`, rangées de la
+    plus grande à la plus petite : la méthode « squarified » (Bruls, Huizing et van Wijk, 2000),
+    qui rend des carrés aussi proches que possible de carrés vrais, donc lisibles.
+
+    Ce n'est que de la géométrie : les montants et les parts affichés viennent du moteur. Rend
+    `(x, y, largeur, hauteur)` pour chaque valeur, dans l'ordre donné."""
+    total = sum(valeurs)
+    if total <= 0:
+        return [(0.0, 0.0, 0.0, 0.0) for _ in valeurs]
+    aires = [v * largeur * hauteur / total for v in valeurs]
+    rects: list[tuple[float, ...]] = []
+    x, y, w, h = 0.0, 0.0, largeur, hauteur
+
+    def pire(rangee: list[float], cote: float) -> float:
+        s = sum(rangee)
+        return max(max(cote * cote * r / (s * s), (s * s) / (cote * cote * r)) for r in rangee)
+
+    restantes = [a for a in aires]
+    while restantes:
+        cote = min(w, h)
+        rangee = [restantes[0]]
+        i = 1
+        while i < len(restantes) and pire(rangee + [restantes[i]], cote) <= pire(rangee, cote):
+            rangee.append(restantes[i])
+            i += 1
+        s = sum(rangee)
+        if w >= h:
+            colonne = s / h
+            yy = y
+            for aire in rangee:
+                rects.append((x, yy, colonne, aire / colonne))
+                yy += aire / colonne
+            x += colonne
+            w -= colonne
+        else:
+            ligne = s / w
+            xx = x
+            for aire in rangee:
+                rects.append((xx, y, aire / ligne, ligne))
+                xx += aire / ligne
+            y += ligne
+            h -= ligne
+        restantes = restantes[i:]
+    return rects
 
 
-def _bloc_anneau(lignes: list[Ligne], restes: list[Ligne], base: Decimal) -> html.Section:
-    rangs = sorted(ligne.rang for ligne in lignes)
-    postes = [
-        {
-            "montant": float(ligne.montant),
-            "couleur": teinte(rangs.index(ligne.rang), len(rangs)),
-        }
-        for ligne in sorted(lignes, key=lambda ligne: ligne.montant, reverse=True)
-    ]
-    if len(restes) > 2:
-        # Au-delà de deux, les restes sont regroupés en une seule part hachurée : une quinzaine
-        # d'arcs d'une même teinte serait illisible. Rien n'est masqué — le classement les
-        # détaille un par un.
-        absents = [{"montant": float(sum(r.montant for r in restes)), "absent": True}]
-    else:
-        absents = [{"montant": float(r.montant), "absent": True} for r in restes]
-    parts = postes + absents
+def _bloc_carres(lignes: list[Ligne], restes: list[Ligne], base: Decimal) -> html.Section:
+    """La répartition vue en surfaces : chaque carré est proportionnel à son montant, et porte
+    son nom et sa part quand il a la place. Ce qui n'entre pas dans la répartition est hachuré,
+    à sa vraie taille : le dessin ne se referme jamais sur les seuls postes (D-69).
+
+    Une seule teinte pour tous les postes : c'est le nom écrit dans le carré qui l'identifie,
+    pas une couleur à retrouver dans une légende."""
+    parts = sorted(
+        [ligne for ligne in lignes if ligne.montant > 0],
+        key=lambda ligne: ligne.montant,
+        reverse=True,
+    ) + sorted([r for r in restes if r.montant > 0], key=lambda r: r.montant, reverse=True)
     note = f"base {f.montant(base)}"
     if len(parts) < 2:
-        # Un anneau à une seule part ne dit rien (conception §5.1).
+        # Un seul carré ne dit rien que le classement ne dise (conception §5.1).
         return bloc(
-            "Vu en anneau",
-            html.P("Une seule part : le classement suffit, un anneau n'ajouterait rien.",
-                   className="vide"),
+            "Vu en surfaces",
+            html.P(
+                "Une seule part : le classement suffit, un dessin n'ajouterait rien.",
+                className="vide",
+            ),
             note=note,
         )
+    rects = disposer(
+        [float(ligne.montant) for ligne in parts], LARGEUR_DES_CARRES, HAUTEUR_DES_CARRES
+    )
+    carres = []
+    for ligne, (x, y, w, h) in zip(parts, rects, strict=True):
+        texte: list = []
+        if w >= LARGEUR_POUR_UN_NOM and h >= HAUTEUR_POUR_UN_NOM:
+            texte.append(html.Span(ligne.libelle, className="carre__nom"))
+        if w >= LARGEUR_POUR_UNE_PART and h >= HAUTEUR_POUR_UNE_PART:
+            texte.append(html.Span(f.pour_cent(ligne.part), className="carre__part nb"))
+        classes = "carre" + (" carre--absent" if ligne.absent else "")
+        if not texte:
+            # Sans texte, pas de marge intérieure : plus large que lui, elle forçait le carré à
+            # déborder de la boîte.
+            classes += " carre--muet"
+        carres.append(
+            html.Div(
+                texte,
+                className=classes,
+                title=f"{ligne.libelle} : {f.montant(ligne.montant)}, {f.pour_cent(ligne.part)}",
+                style={
+                    "left": f"{x / LARGEUR_DES_CARRES * 100:.3f}%",
+                    "top": f"{y / HAUTEUR_DES_CARRES * 100:.3f}%",
+                    "width": f"{w / LARGEUR_DES_CARRES * 100:.3f}%",
+                    "height": f"{h / HAUTEUR_DES_CARRES * 100:.3f}%",
+                },
+            )
+        )
     return bloc(
-        "Vu en anneau",
+        "Vu en surfaces",
         html.Div(
             [
-                dessin(
-                    "anneau",
-                    {"taille": 170, "centre": f.montant_entier(base), "sous": "au total",
-                     "parts": parts},
-                ),
+                html.Div(carres, className="carres"),
                 html.P(
-                    "Les montants et les parts sont dans le classement, à gauche.",
-                    className="reference anneau__renvoi",
+                    "Chaque surface est proportionnelle au montant ; les hachures sont ce qui "
+                    "n'entre pas dans la répartition. Les montants exacts sont dans le "
+                    "classement, à gauche.",
+                    className="reference carres__renvoi",
                 ),
-            ],
-            className="anneau-bloc anneau-bloc--colonne",
+            ]
         ),
         note=note,
     )

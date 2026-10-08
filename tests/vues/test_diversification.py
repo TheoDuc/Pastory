@@ -83,12 +83,12 @@ class TestRienNEstRamenéACent:
         assert "Non attribué par les fonds" in page
         assert f.montant(r.non_attribue) in page
 
-    def test_l_anneau_hache_ce_qui_manque_au_lieu_de_le_cacher(self, chiffres):
-        (anneau,) = dessins(corps(chiffres, "pays"), "anneau")
-        parts = donnees(anneau)["parts"]
-        assert any(p.get("absent") for p in parts)
-        base = float(chiffres.base().diversification.pays.base)
-        assert sum(p["montant"] for p in parts) == pytest.approx(base, abs=0.05)
+    def test_les_carres_hachent_ce_qui_manque_au_lieu_de_le_cacher(self, chiffres):
+        page = corps(chiffres, "zones")
+        carres = [n for n in noeuds(page) if "carre" in (getattr(n, "className", "") or "").split()]
+        assert any("carre--absent" in c.className for c in carres)
+        surface = sum(float(c.style["width"][:-1]) * float(c.style["height"][:-1]) for c in carres)
+        assert surface == pytest.approx(100 * 100, rel=1e-3)
 
     def test_hors_actions_est_detaille_classe_par_classe(self, chiffres):
         """De l'or n'est pas de la dette : chaque classe sortie des pays a sa ligne (D-71)."""
@@ -171,10 +171,65 @@ class TestNonCouvert:
         assert "Non couvert — Action Exemple SA" in page
 
 
-class TestCouleurs:
-    def test_une_couleur_suit_son_poste_et_non_son_rang(self):
-        assert diversification.teinte(0, 3) != diversification.teinte(2, 3)
-        assert diversification.teinte(0, 4) == "#1c5369"  # hslEnHex(197, 58, 26), la maquette
+class TestLesCarres:
+    def test_les_surfaces_sont_proportionnelles_aux_montants(self):
+        valeurs = [50.0, 25.0, 15.0, 10.0]
+        rects = diversification.disposer(valeurs, 100.0, 62.0)
+        aires = [w * h for _, _, w, h in rects]
+        for valeur, aire in zip(valeurs, aires, strict=True):
+            assert aire / (100 * 62) == pytest.approx(valeur / 100)
+
+    def test_ils_tiennent_dans_la_boite_sans_se_chevaucher(self):
+        rects = diversification.disposer([40.0, 30.0, 12.0, 9.0, 5.0, 4.0], 100.0, 62.0)
+        for x, y, w, h in rects:
+            assert x >= -1e-9 and x + w <= 100 + 1e-9
+            assert y >= -1e-9 and y + h <= 62 + 1e-9
+        for i, (x1, y1, w1, h1) in enumerate(rects):
+            for x2, y2, w2, h2 in rects[i + 1 :]:
+                largeur = min(x1 + w1, x2 + w2) - max(x1, x2)
+                hauteur = min(y1 + h1, y2 + h2) - max(y1, y2)
+                assert largeur <= 1e-9 or hauteur <= 1e-9
+
+    @pytest.mark.parametrize("rubrique", ["classes", "zones"])
+    def test_classes_et_zones_ont_leurs_carres(self, chiffres, rubrique):
+        page = corps(chiffres, rubrique)
+        assert "Vu en surfaces" in texte(page)
+        assert dessins(page, "anneau") == []
+
+    @pytest.mark.parametrize("rubrique", ["pays", "secteurs"])
+    def test_pays_et_secteurs_n_ont_aucun_dessin(self, chiffres, rubrique):
+        """Des dizaines de pays : un dessin de plus serait illisible (arbitrage du
+        propriétaire, étape 9)."""
+        page = corps(chiffres, rubrique)
+        assert "Vu en surfaces" not in texte(page)
+        assert dessins(page, "anneau") == []
+
+    def test_un_carre_porte_son_nom_et_sa_part(self, chiffres):
+        page = texte(corps(chiffres, "zones"))
+        assert "Amérique du Nord" in page
+
+
+class TestLesRestesReplies:
+    """Arbitrage du propriétaire : ce qui n'a pas de pays ou de secteur tient sur une ligne,
+    dépliable, et reste visible à sa vraie taille (D-69)."""
+
+    def test_une_seule_ligne_qui_dit_le_total(self, chiffres):
+        r = chiffres.base().diversification.secteurs
+        total = r.non_attribue + r.hors_perimetre + r.hors_classification + r.non_couvert
+        page = corps(chiffres, "secteurs")
+        replis = [n for n in noeuds(page) if getattr(n, "className", "") == "restes"]
+        assert len(replis) == 1
+        assert "Sans secteur" in texte(replis[0].children[0])
+        assert f.montant(total) in texte(replis[0].children[0])
+
+    def test_le_detail_est_dans_le_repli(self, chiffres):
+        page = corps(chiffres, "pays")
+        repli = next(n for n in noeuds(page) if getattr(n, "className", "") == "restes")
+        assert "Actifs numériques" in texte(repli)
+
+    def test_les_classes_d_actifs_gardent_leur_detail(self, chiffres):
+        page = corps(chiffres, "classes")
+        assert not [n for n in noeuds(page) if getattr(n, "className", "") == "restes"]
 
 
 def test_sans_aucun_cours_il_n_y_a_rien_a_repartir(dossier_personnel):

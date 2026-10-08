@@ -1602,12 +1602,6 @@ tr.sans-valeur td {
   background: var(--poche-3);
 }
 
-/* Sous l'anneau de la diversification : il ne fait pas foi, le classement si. */
-.anneau__renvoi {
-  text-align: center;
-  margin: 10px 0 0;
-}
-
 /* Un drapeau en image (assets/drapeaux, D-31) : recadré dans le créneau des repères, avec le
    même filet que les drapeaux dessinés. */
 img.fanion {
@@ -1646,4 +1640,94 @@ img.fanion {
 
 .repli:not([open]) > .repli__titre {
   margin-bottom: 0;
+}
+
+/* La répartition vue en surfaces (étape 9, à la place de l'anneau) : des carrés découpés,
+   proportionnels aux montants, séparés par un filet de papier. Une seule teinte : le nom écrit
+   dans le carré l'identifie. Ce qui manque est hachuré, comme partout ailleurs. */
+.carres {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 100 / 46;
+}
+
+.carre {
+  position: absolute;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 1px;
+  padding: 6px 7px;
+  border: 2px solid var(--surface);
+  border-radius: 4px;
+  background: var(--carre);
+  color: var(--surface);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.carre__nom {
+  font-weight: 600;
+  /* On coupe en syllabes, jamais au milieu d'un mot : « Europe dévelop-pée ». */
+  hyphens: auto;
+  overflow-wrap: break-word;
+}
+
+.carre--muet {
+  padding: 0;
+  border-width: 1px;
+}
+
+.carre__part {
+  opacity: 0.85;
+}
+
+.carre--absent {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--papier) 0 3px,
+    var(--absent) 3px 5px
+  );
+  color: var(--encre);
+}
+
+.carre--absent .carre__nom,
+.carre--absent .carre__part {
+  background: var(--surface);
+  align-self: flex-start;
+  padding: 0 3px;
+  border-radius: 2px;
+}
+
+.carres__renvoi {
+  margin: 10px 0 0;
+}
+
+:root {
+  --carre: #2a6886; /* une seule teinte pour les postes : contraste 5,22:1 avec le texte clair (mesuré) */
+}
+
+/* Les restes d'une répartition, résumés en une ligne qui se déplie (étape 9). */
+.restes > .restes__titre {
+  list-style: none;
+  cursor: pointer;
+}
+
+.restes > .restes__titre::-webkit-details-marker {
+  display: none;
+}
+
+.restes > .restes__titre .rang__texte::after {
+  content: " ▸";
+  color: var(--encre-douce);
+  font-style: normal;
+}
+
+.restes[open] > .restes__titre .rang__texte::after {
+  content: " ▾";
+}
+
+.restes > .rang {
+  padding-left: 14px;
 }
