@@ -31,7 +31,15 @@ from dash import html
 from pastory.moteur.diversification import Diversification, Poste, Repartition
 from pastory.vues import actifs as actifs_vue
 from pastory.vues import format as f
-from pastory.vues.briques import aide, bloc, bloc_replie, choix, dessin, ligne_de_liste
+from pastory.vues.briques import (
+    aide,
+    bloc,
+    bloc_replie,
+    choix,
+    dessin,
+    ligne_de_liste,
+    tuile,
+)
 from pastory.vues.chiffres import Vue
 
 RUBRIQUES = (
@@ -95,8 +103,9 @@ class Ligne:
     cle_aide: str | None = None
     absent: bool = False
     rang: int = 0
-    """La place canonique du poste : c'est elle qui choisit sa couleur, jamais son rang de
-    taille — une couleur suit son poste (conception §3.2)."""
+    """La place canonique du poste, pour un ordre stable entre deux affichages."""
+    sous_lignes: tuple[Ligne, ...] = ()
+    """Ce que la ligne regroupe — les pays d'une zone — montré quand on la déplie."""
 
 
 def ecran(vue: Vue, rubrique: str = "classes", deplie: bool = False) -> html.Div:
@@ -132,18 +141,13 @@ def ecran(vue: Vue, rubrique: str = "classes", deplie: bool = False) -> html.Div
         note=note,
         cle_aide=cle_aide,
     )
-    if rubrique in ("classes", "zones"):
-        rangee = html.Div(
-            # Moitié-moitié : quelques postes seulement, et chaque carré doit avoir la place
-            # d'écrire son nom à côté de sa part.
-            [classement, _bloc_carres(lignes, restes, base)],
-            className="rangee rangee--deux rangee--apres",
-        )
-    else:
-        # Des dizaines de pays ou onze secteurs : un dessin de plus serait illisible, et le
-        # classement dit déjà tout (arbitrage du propriétaire, étape 9).
-        rangee = html.Div(classement, className="rangee rangee--large rangee--apres")
-    page.append(rangee)
+    # Les quatre rubriques s'affichent de la même façon : les chiffres clés, puis le classement
+    # en pleine largeur. Ni anneau ni carrés — essayés, et écartés par le propriétaire : avec
+    # des dizaines de pays ils sont illisibles, et le classement dit déjà tout.
+    page.append(
+        html.Div(_chiffres_cles(diversification, rubrique, lignes, restes), className="tuiles")
+    )
+    page.append(html.Div(classement, className="rangee rangee--large rangee--apres"))
     page.append(
         html.Div(
             bloc_replie(
@@ -185,8 +189,11 @@ def _rubrique(d: Diversification, rubrique: str):
         r = d.classes
         lignes = [
             Ligne(
-                _libelle(p), p.montant, r.pour_cent(p.montant),
-                ("picto", PICTO_DE_CLASSE.get(p.code, "")), rang=p.rang or 50,
+                _libelle(p),
+                p.montant,
+                r.pour_cent(p.montant),
+                ("picto", PICTO_DE_CLASSE.get(p.code, "")),
+                rang=p.rang or 50,
             )
             for p in r.postes
         ]
@@ -194,34 +201,63 @@ def _rubrique(d: Diversification, rubrique: str):
             # Une crypto **est** une classe d'actifs : elle compte ici, et nulle part ailleurs.
             lignes.append(
                 Ligne(
-                    LIBELLE_NUMERIQUES, r.hors_classification, r.pour_cent(r.hors_classification),
-                    ("picto", "numeriques"), cle_aide="numeriques", rang=99,
+                    LIBELLE_NUMERIQUES,
+                    r.hors_classification,
+                    r.pour_cent(r.hors_classification),
+                    ("picto", "numeriques"),
+                    cle_aide="numeriques",
+                    rang=99,
                 )
             )
         return (
-            "Par classe d'actifs", f"base {f.montant(r.base)}", "pasCent", lignes,
-            _restes(r, classes=True), r.base,
+            "Par classe d'actifs",
+            f"base {f.montant(r.base)}",
+            "pasCent",
+            lignes,
+            _restes(r, classes=True),
+            r.base,
         )
     if rubrique == "zones":
         r = d.pays
         lignes = [
             Ligne(
-                zone.libelle, montant, r.pour_cent(montant),
-                ("planisphere", TERRES_DE_ZONE.get(zone.cle, [])), rang=zone.rang,
+                zone.libelle,
+                montant,
+                r.pour_cent(montant),
+                ("planisphere", TERRES_DE_ZONE.get(zone.cle, [])),
+                rang=zone.rang,
+                sous_lignes=tuple(
+                    Ligne(
+                        _libelle(p),
+                        p.montant,
+                        r.pour_cent(p.montant),
+                        ("drapeau", p.code),
+                        cle_aide=None if p.reconnu else "codeNonReconnu",
+                    )
+                    for p in postes
+                ),
             )
-            for zone, montant, _ in r.par_zone()
+            for zone, montant, postes in r.par_zone()
         ]
         return (
-            "Par zone d'investisseur", "convention datée et sourcée", "zones", lignes,
-            _restes(r), r.base,
+            "Par zone d'investisseur",
+            "convention datée et sourcée",
+            "zones",
+            lignes,
+            _restes(r),
+            r.base,
         )
     if rubrique == "pays":
         r = d.pays
         codes = sorted(p.code for p in r.postes)
         lignes = [
             Ligne(
-                _libelle(p), p.montant, r.pour_cent(p.montant), ("drapeau", p.code),
-                cle_aide=None if p.reconnu else "codeNonReconnu", rang=codes.index(p.code),
+                _libelle(p),
+                p.montant,
+                r.pour_cent(p.montant),
+                ("drapeau", p.code),
+                cle_aide=None if p.reconnu else "codeNonReconnu",
+                rang=codes.index(p.code),
             )
             for p in r.postes
         ]
@@ -256,30 +292,45 @@ def _restes(r: Repartition, classes: bool = False) -> list[Ligne]:
             if p.montant > ZERO:
                 restes.append(
                     Ligne(
-                        _libelle(p), p.montant, r.pour_cent(p.montant),
-                        ("picto", PICTO_DE_CLASSE.get(p.code, "")), "horsActions", absent=True,
+                        _libelle(p),
+                        p.montant,
+                        r.pour_cent(p.montant),
+                        ("picto", PICTO_DE_CLASSE.get(p.code, "")),
+                        "horsActions",
+                        absent=True,
                     )
                 )
         if r.hors_classification > ZERO:
             restes.append(
                 Ligne(
-                    LIBELLE_NUMERIQUES, r.hors_classification,
-                    r.pour_cent(r.hors_classification), ("picto", "numeriques"), "numeriques",
+                    LIBELLE_NUMERIQUES,
+                    r.hors_classification,
+                    r.pour_cent(r.hors_classification),
+                    ("picto", "numeriques"),
+                    "numeriques",
                     absent=True,
                 )
             )
     if r.non_attribue > ZERO:
         restes.append(
             Ligne(
-                LIBELLE_NON_ATTRIBUE, r.non_attribue, r.pour_cent(r.non_attribue),
-                ("picto", ""), "nonAttribue", absent=True,
+                LIBELLE_NON_ATTRIBUE,
+                r.non_attribue,
+                r.pour_cent(r.non_attribue),
+                ("picto", ""),
+                "nonAttribue",
+                absent=True,
             )
         )
     if r.non_couvert > ZERO:
         restes.append(
             Ligne(
-                LIBELLE_NON_COUVERT, r.non_couvert, r.pour_cent(r.non_couvert), ("picto", ""),
-                "nonCouvert", absent=True,
+                LIBELLE_NON_COUVERT,
+                r.non_couvert,
+                r.pour_cent(r.non_couvert),
+                ("picto", ""),
+                "nonCouvert",
+                absent=True,
             )
         )
     return restes
@@ -315,7 +366,7 @@ def _classement(
         # Cacher une seule ligne derrière un bouton coûterait plus qu'elle.
         caches = []
     visibles = triees[: len(triees) - len(caches)]
-    enfants = [_ligne_mesuree(ligne, maxi) for ligne in visibles]
+    enfants = [_ligne_ou_groupe(ligne, maxi) for ligne in visibles]
     if caches:
         part_cachee = sum((ligne.part or ZERO for ligne in caches), ZERO)
         enfants.append(
@@ -362,14 +413,28 @@ def _classement(
             total = sum((ligne.montant for ligne in restes), ZERO)
             part = sum((ligne.part or ZERO for ligne in restes), ZERO)
             resume = Ligne(resume_des_restes, total, part, ("picto", ""), absent=True)
-            enfants.append(
-                html.Details(
-                    [html.Summary(_ligne_mesuree(resume, maxi), className="restes__titre"),
-                     *detail],
-                    className="restes",
-                )
-            )
+            enfants.append(_deroulant(resume, detail, maxi))
     return html.Div(enfants, className="classement")
+
+
+def _ligne_ou_groupe(ligne: Ligne, maxi: Decimal):
+    """Une ligne simple, ou, si elle regroupe d'autres lignes, une ligne qui se déplie."""
+    if not ligne.sous_lignes:
+        return _ligne_mesuree(ligne, maxi)
+    detail = [
+        _ligne_mesuree(sous, maxi)
+        for sous in sorted(ligne.sous_lignes, key=lambda s: s.montant, reverse=True)
+    ]
+    return _deroulant(ligne, detail, maxi)
+
+
+def _deroulant(ligne: Ligne, detail: list, maxi: Decimal) -> html.Details:
+    """Une ligne de classement qui se déplie d'un clic : une zone vers ses pays, « Sans pays »
+    vers ce qu'elle réunit. Toutes les barres restent rapportées à la même base (D-69)."""
+    return html.Details(
+        [html.Summary(_ligne_mesuree(ligne, maxi), className="deroulant__titre"), *detail],
+        className="deroulant",
+    )
 
 
 def _repere(nature: str, donnees: object):
@@ -412,134 +477,99 @@ def _ligne_mesuree(ligne: Ligne, maxi: Decimal) -> html.Div:
     )
 
 
-# --- Les carrés découpés ----------------------------------------------------------------
-
-LARGEUR_DES_CARRES = 100.0
-HAUTEUR_DES_CARRES = 46.0
-"""Les proportions du dessin. Le calcul se fait dans ce repère, et les rectangles sont posés en
-pour cent de la boîte : le dessin suit la largeur de l'écran sans rien recalculer."""
-
-LARGEUR_POUR_UN_NOM, HAUTEUR_POUR_UN_NOM = 14.0, 9.0
-LARGEUR_POUR_UNE_PART, HAUTEUR_POUR_UNE_PART = 9.0, 5.5
-"""Dans le repère du dessin (100 × 46). En deçà, un carré n'a pas la place d'écrire son nom,
-puis sa part, sans les couper n'importe où : il les donne au survol, et le classement à gauche
-les donne toujours. C'est la **largeur** qui compte, pas la surface : une colonne étroite et
-haute coupait « Europe développée » en « Europ / e dévelo / ppée »."""
+# --- Les chiffres clés -------------------------------------------------------------------
 
 
-def disposer(valeurs: list[float], largeur: float, hauteur: float) -> list[tuple[float, ...]]:
-    """Découpe un rectangle en carrés de surfaces proportionnelles aux `valeurs`, rangées de la
-    plus grande à la plus petite : la méthode « squarified » (Bruls, Huizing et van Wijk, 2000),
-    qui rend des carrés aussi proches que possible de carrés vrais, donc lisibles.
+def _chiffres_cles(d: Diversification, rubrique: str, lignes: list[Ligne], restes: list[Ligne]):
+    """Trois ou quatre chiffres en tête de la rubrique : ce qu'on regarde d'abord. Tous sont
+    rapportés à la valeur totale, comme le classement dessous (`Repartition.pour_cent`)."""
+    r = d.classes if rubrique == "classes" else (d.secteurs if rubrique == "secteurs" else d.pays)
 
-    Ce n'est que de la géométrie : les montants et les parts affichés viennent du moteur. Rend
-    `(x, y, largeur, hauteur)` pour chaque valeur, dans l'ordre donné."""
-    total = sum(valeurs)
-    if total <= 0:
-        return [(0.0, 0.0, 0.0, 0.0) for _ in valeurs]
-    aires = [v * largeur * hauteur / total for v in valeurs]
-    rects: list[tuple[float, ...]] = []
-    x, y, w, h = 0.0, 0.0, largeur, hauteur
+    def part(montant: Decimal) -> str:
+        return f.pour_cent(r.pour_cent(montant))
 
-    def pire(rangee: list[float], cote: float) -> float:
-        s = sum(rangee)
-        return max(max(cote * cote * r / (s * s), (s * s) / (cote * cote * r)) for r in rangee)
-
-    restantes = [a for a in aires]
-    while restantes:
-        cote = min(w, h)
-        rangee = [restantes[0]]
-        i = 1
-        while i < len(restantes) and pire(rangee + [restantes[i]], cote) <= pire(rangee, cote):
-            rangee.append(restantes[i])
-            i += 1
-        s = sum(rangee)
-        if w >= h:
-            colonne = s / h
-            yy = y
-            for aire in rangee:
-                rects.append((x, yy, colonne, aire / colonne))
-                yy += aire / colonne
-            x += colonne
-            w -= colonne
-        else:
-            ligne = s / w
-            xx = x
-            for aire in rangee:
-                rects.append((xx, y, aire / ligne, ligne))
-                xx += aire / ligne
-            y += ligne
-            h -= ligne
-        restantes = restantes[i:]
-    return rects
-
-
-def _bloc_carres(lignes: list[Ligne], restes: list[Ligne], base: Decimal) -> html.Section:
-    """La répartition vue en surfaces : chaque carré est proportionnel à son montant, et porte
-    son nom et sa part quand il a la place. Ce qui n'entre pas dans la répartition est hachuré,
-    à sa vraie taille : le dessin ne se referme jamais sur les seuls postes (D-69).
-
-    Une seule teinte pour tous les postes : c'est le nom écrit dans le carré qui l'identifie,
-    pas une couleur à retrouver dans une légende."""
-    parts = sorted(
-        [ligne for ligne in lignes if ligne.montant > 0],
-        key=lambda ligne: ligne.montant,
-        reverse=True,
-    ) + sorted([r for r in restes if r.montant > 0], key=lambda r: r.montant, reverse=True)
-    note = f"base {f.montant(base)}"
-    if len(parts) < 2:
-        # Un seul carré ne dit rien que le classement ne dise (conception §5.1).
-        return bloc(
-            "Vu en surfaces",
-            html.P(
-                "Une seule part : le classement suffit, un dessin n'ajouterait rien.",
-                className="vide",
-            ),
-            note=note,
-        )
-    rects = disposer(
-        [float(ligne.montant) for ligne in parts], LARGEUR_DES_CARRES, HAUTEUR_DES_CARRES
-    )
-    carres = []
-    for ligne, (x, y, w, h) in zip(parts, rects, strict=True):
-        texte: list = []
-        if w >= LARGEUR_POUR_UN_NOM and h >= HAUTEUR_POUR_UN_NOM:
-            texte.append(html.Span(ligne.libelle, className="carre__nom"))
-        if w >= LARGEUR_POUR_UNE_PART and h >= HAUTEUR_POUR_UNE_PART:
-            texte.append(html.Span(f.pour_cent(ligne.part), className="carre__part nb"))
-        classes = "carre" + (" carre--absent" if ligne.absent else "")
-        if not texte:
-            # Sans texte, pas de marge intérieure : plus large que lui, elle forçait le carré à
-            # déborder de la boîte.
-            classes += " carre--muet"
-        carres.append(
-            html.Div(
-                texte,
-                className=classes,
-                title=f"{ligne.libelle} : {f.montant(ligne.montant)}, {f.pour_cent(ligne.part)}",
-                style={
-                    "left": f"{x / LARGEUR_DES_CARRES * 100:.3f}%",
-                    "top": f"{y / HAUTEUR_DES_CARRES * 100:.3f}%",
-                    "width": f"{w / LARGEUR_DES_CARRES * 100:.3f}%",
-                    "height": f"{h / HAUTEUR_DES_CARRES * 100:.3f}%",
-                },
+    triees = sorted(lignes, key=lambda ligne: ligne.montant, reverse=True)
+    total_restes = sum((ligne.montant for ligne in restes), ZERO)
+    tuiles: list = []
+    if rubrique == "classes":
+        actions = sum((p.montant for p in r.postes if p.code == "actions"), ZERO)
+        hors = sum((p.montant for p in r.postes if p.code != "actions"), ZERO)
+        tuiles.append(tuile("Part en actions", part(actions), petit=True, pied=f.montant(actions)))
+        tuiles.append(
+            tuile(
+                "Hors actions",
+                part(hors),
+                petit=True,
+                pied="obligations, matières premières, divers",
+                cle_aide="horsActions",
             )
         )
-    return bloc(
-        "Vu en surfaces",
-        html.Div(
-            [
-                html.Div(carres, className="carres"),
-                html.P(
-                    "Chaque surface est proportionnelle au montant ; les hachures sont ce qui "
-                    "n'entre pas dans la répartition. Les montants exacts sont dans le "
-                    "classement, à gauche.",
-                    className="reference carres__renvoi",
-                ),
-            ]
-        ),
-        note=note,
-    )
+        if r.hors_classification > ZERO:
+            tuiles.append(
+                tuile(
+                    "Actifs numériques",
+                    part(r.hors_classification),
+                    petit=True,
+                    pied=f.montant(r.hors_classification),
+                    cle_aide="numeriques",
+                )
+            )
+    else:
+        nom = {"zones": "Zone principale", "pays": "Premier pays", "secteurs": "Premier secteur"}
+        if triees:
+            tuiles.append(
+                tuile(
+                    nom[rubrique],
+                    f.pour_cent(triees[0].part),
+                    petit=True,
+                    pied=f"{triees[0].libelle} · {f.montant(triees[0].montant)}",
+                )
+            )
+        reconnus = [p for p in r.postes if p.reconnu]
+        if rubrique == "secteurs":
+            tuiles.append(
+                tuile(
+                    "Secteurs représentés",
+                    f"{len(reconnus)} sur 11",
+                    petit=True,
+                    pied="nomenclature Morningstar",
+                    cle_aide="secteurs",
+                )
+            )
+        else:
+            zones = len(d.pays.par_zone())
+            tuiles.append(
+                tuile(
+                    "Pays représentés",
+                    str(len(reconnus)),
+                    petit=True,
+                    pied=f"dans {zones} zone{'s' if zones > 1 else ''}",
+                )
+            )
+        if rubrique == "pays" and len(triees) > 10:
+            dix = sum((ligne.montant for ligne in triees[:10]), ZERO)
+            tuiles.append(tuile("Les dix premiers", part(dix), petit=True, pied=f.montant(dix)))
+    if total_restes > ZERO and rubrique != "classes":
+        tuiles.append(
+            tuile(
+                RESUME_DES_RESTES[rubrique],
+                part(total_restes),
+                petit=True,
+                pied=f.montant(total_restes),
+                cle_aide="pasCent",
+            )
+        )
+    elif r.non_couvert > ZERO:
+        tuiles.append(
+            tuile(
+                "Non couvert",
+                part(r.non_couvert),
+                petit=True,
+                pied=f.montant(r.non_couvert),
+                cle_aide="nonCouvert",
+            )
+        )
+    return tuiles
 
 
 # --- Ce qu'il faut savoir --------------------------------------------------------------
@@ -572,8 +602,10 @@ def _a_savoir(vue: Vue, d: Diversification) -> html.Ul:
     if synthetiques:
         lignes.append(
             ligne_de_liste(
-                ["Fonds synthétiques : on affiche l'indice suivi, pas le panier détenu ",
-                 *aide("synthetique")],
+                [
+                    "Fonds synthétiques : on affiche l'indice suivi, pas le panier détenu ",
+                    *aide("synthetique"),
+                ],
                 ", ".join(nom(a) for a in synthetiques),
                 "part",
             )
@@ -581,8 +613,10 @@ def _a_savoir(vue: Vue, d: Diversification) -> html.Ul:
     if d.declarees_a_la_main:
         lignes.append(
             ligne_de_liste(
-                ["Composition déclarée par vous, donc sans date d'arrêté ",
-                 *aide("declareeALaMain")],
+                [
+                    "Composition déclarée par vous, donc sans date d'arrêté ",
+                    *aide("declareeALaMain"),
+                ],
                 ", ".join(nom(a) for a in d.declarees_a_la_main),
                 "part",
             )
@@ -590,8 +624,10 @@ def _a_savoir(vue: Vue, d: Diversification) -> html.Ul:
     for actif in d.pays.actifs_non_couverts:
         lignes.append(
             ligne_de_liste(
-                [f"Non couvert — {nom(actif)} : {_motif_non_couvert(vue, actif)} ",
-                 *aide("nonCouvert")],
+                [
+                    f"Non couvert — {nom(actif)} : {_motif_non_couvert(vue, actif)} ",
+                    *aide("nonCouvert"),
+                ],
             )
         )
     sources = {o.actif: o.source for o in d.origines}
