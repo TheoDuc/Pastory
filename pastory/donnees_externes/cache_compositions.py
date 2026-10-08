@@ -45,7 +45,11 @@ COLONNES = (
     "document",
     "source",
     "recupere_le",
+    "regle_de_pays",
 )
+"""`regle_de_pays` n'existait pas avant l'étape 9 : relue depuis le cache, une composition perdait
+sa règle de pays, que D-72 exige de voir ligne par ligne. Un fichier d'avant se relit sans elle,
+et le fournisseur la redemande à la source dès qu'il est en ligne."""
 
 CARACTERES_INTERDITS = re.compile(r"[^A-Za-z0-9._-]")
 """Un identifiant d'actif vient d'un fichier écrit à la main : il ne doit pas pouvoir désigner un
@@ -123,6 +127,7 @@ class CacheDeCompositions:
             recupere_le=_jour(entete.get("recupere_le"), fichier, 2),
             replication=entete.get("replication") or None,
             document=entete.get("document") or None,
+            regle_de_pays=entete.get("regle_de_pays") or VIDE,
         )
 
     def actifs(self) -> list[str]:
@@ -178,6 +183,7 @@ def _lignes(composition: Composition):
         "document": composition.document or VIDE,
         "source": composition.source,
         "recupere_le": composition.recupere_le.isoformat(),
+        "regle_de_pays": composition.regle_de_pays,
     }
     for rubrique in Rubrique:
         for part in composition.parts(rubrique):
