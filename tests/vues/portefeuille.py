@@ -69,3 +69,48 @@ def coter(dossier_personnel: Path, sauf: tuple[str, ...] = ()) -> Chiffres:
             ],
         )
     return Chiffres(hors_ligne=True, aujourd_hui=lambda: AUJOURD_HUI)
+
+
+def composer(sans: tuple[str, ...] = ()) -> None:
+    """Des compositions dans le cache, comme si les sources les avaient données (valeurs
+    fictives). L'ETF est synthétique et porte un code de pays que le référentiel ignore ;
+    l'action est lue sous une autre règle de pays, par une autre source — deux origines qui
+    doivent se dire actif par actif (D-72). La crypto n'a pas de composition : elle n'en a
+    pas besoin, elle n'a ni pays ni secteur.
+
+    `sans` : les actifs laissés **sans composition**, pour l'état « non couvert »."""
+    from pastory.donnees_externes.cache_compositions import CacheDeCompositions
+    from pastory.donnees_externes.composition import Composition, Part
+
+    cache = CacheDeCompositions()
+    if fictifs.ACTIF_ETF not in sans:
+        cache.ecrire(
+            Composition(
+                actif=fictifs.ACTIF_ETF,
+                pays=(Part("US", Decimal("60")), Part("FR", Decimal("12")),
+                      Part("JP", Decimal("8")), Part("ZZ", Decimal("3"))),
+                secteurs=(Part("technology", Decimal("40")),
+                          Part("financial-services", Decimal("25"))),
+                classes=(Part("stock", Decimal("90")), Part("bond", Decimal("8"))),
+                arrete_le=Date(2026, 8, 31),
+                intitule_de_la_date="arrêté de la source de test",
+                source="Source des fonds",
+                recupere_le=AUJOURD_HUI,
+                replication="synthétique",
+                regle_de_pays="pays d'activité",
+            )
+        )
+    if fictifs.ACTIF_ACTION not in sans:
+        cache.ecrire(
+            Composition(
+                actif=fictifs.ACTIF_ACTION,
+                pays=(Part("FR", Decimal("100")),),
+                secteurs=(Part("industrials", Decimal("100")),),
+                classes=(Part("stock", Decimal("100")),),
+                arrete_le=Date(2026, 9, 15),
+                intitule_de_la_date="date de la fiche",
+                source="Source des sociétés",
+                recupere_le=AUJOURD_HUI,
+                regle_de_pays="siège social",
+            )
+        )

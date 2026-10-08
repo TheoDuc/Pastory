@@ -1601,3 +1601,9 @@ tr.sans-valeur td {
 .jeton--crypto::before {
   background: var(--poche-3);
 }
+
+/* Sous l'anneau de la diversification : il ne fait pas foi, le classement si. */
+.anneau__renvoi {
+  text-align: center;
+  margin: 10px 0 0;
+}

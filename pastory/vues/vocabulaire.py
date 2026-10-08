@@ -201,6 +201,17 @@ AIDES: dict[str, Aide] = {
         "dire pour lui.",
     ),
     # --- Ajoutées à l'étape 9 ------------------------------------------------------------
+    "codeNonReconnu": Aide(
+        "Code non reconnu",
+        "La source a renvoyé un code que nos référentiels ne nomment pas. Le montant est "
+        "<b>conservé et affiché tel quel</b>, sous son code, plutôt que d'être fondu dans "
+        "« autres ».",
+    ),
+    "declareeALaMain": Aide(
+        "Déclarée à la main",
+        "La composition de cet actif a été <b>saisie, pas récupérée</b> : elle ne porte donc "
+        "pas de date d'arrêté officielle, et ne se met pas à jour toute seule.",
+    ),
     "histoireIncomplete": Aide(
         "Histoire incomplète",
         "Il manque des opérations avant celles que nous avons lues : la <b>quantité</b> est "
