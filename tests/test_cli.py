@@ -13,7 +13,7 @@ from decimal import Decimal
 
 import pytest
 
-from pastory import cli, tableur
+from pastory import assembleur, cli, tableur
 from pastory.config import actifs as config_actifs
 from pastory.config import emplacements
 from pastory.config import fiscalite as config_fiscalite
@@ -46,7 +46,7 @@ def aucun_appel_a_xetra(monkeypatch):
     def refuser():
         raise ErreurDeSource("aucun appel réseau dans les tests")
 
-    monkeypatch.setattr(cli, "_liste_des_etf", refuser)
+    monkeypatch.setattr(assembleur, "liste_des_etf", refuser)
 
 
 @pytest.fixture(autouse=True)
@@ -62,12 +62,12 @@ def aucune_source_de_composition(monkeypatch):
     Le fournisseur est construit **hors ligne** : le cache local reste utilisable, mais aucune
     source n'est interrogée.
     """
-    vrai_fournisseur = cli._fournisseur_de_compositions
+    vrai_fournisseur = assembleur.fournisseur_de_compositions
 
     def sans_reseau(configuration, hors_ligne: bool = False):
         return vrai_fournisseur(configuration, hors_ligne=True)
 
-    monkeypatch.setattr(cli, "_fournisseur_de_compositions", sans_reseau)
+    monkeypatch.setattr(assembleur, "fournisseur_de_compositions", sans_reseau)
 
 
 class CotationsMuettes:
@@ -93,12 +93,12 @@ def aucune_recherche_de_reglages(monkeypatch):
     ligne la cotation et les frais courants de chaque actif. Les tests qui veulent une recherche
     branchent leur propre source avec `brancher_les_cotations`.
     """
-    monkeypatch.setattr(cli, "_source_des_cotations", CotationsMuettes)
+    monkeypatch.setattr(assembleur, "source_des_cotations", CotationsMuettes)
     # L'émetteur ne connaît pas les fonds fictifs : c'est le cas normal d'un ETF qu'il n'émet
     # pas. Le simuler « en panne » empêcherait tout TER d'être gardé en mémoire.
-    monkeypatch.setattr(cli, "_frais_courants_de_l_emetteur", lambda: EmetteurMuet())
-    monkeypatch.setattr(cli, "_classes_d_actifs", lambda: ClassesMuettes())
-    monkeypatch.setattr(cli, "_registre_cfi", lambda: ClassesMuettes())
+    monkeypatch.setattr(assembleur, "frais_courants_de_l_emetteur", lambda: EmetteurMuet())
+    monkeypatch.setattr(assembleur, "classes_d_actifs", lambda: ClassesMuettes())
+    monkeypatch.setattr(assembleur, "registre_cfi", lambda: ClassesMuettes())
 
 
 class EmetteurMuet:
@@ -143,7 +143,7 @@ class ListeFictive:
 
 def brancher_la_liste_des_etf(monkeypatch, contenu):
     """Remplace la liste des ETF par une liste écrite à la main."""
-    monkeypatch.setattr(cli, "_liste_des_etf", lambda: ListeFictive(contenu))
+    monkeypatch.setattr(assembleur, "liste_des_etf", lambda: ListeFictive(contenu))
 
 
 def lire_csv(fichier):
@@ -169,7 +169,7 @@ def avec_les_titres_recus(monkeypatch):
     Voir `export_ligne_de_commande.py`. Les tests de la lecture pure demandent la fixture
     `lecture_pure`, qui retire cet ajout.
     """
-    vraie_lecture = cli._lire
+    vraie_lecture = assembleur.lire
 
     def lecture_completee(dossier):
         rapport = vraie_lecture(dossier)
@@ -179,14 +179,14 @@ def avec_les_titres_recus(monkeypatch):
         )
         return rapport
 
-    monkeypatch.setattr(cli, "_lire", lecture_completee)
+    monkeypatch.setattr(assembleur, "lire", lecture_completee)
     return vraie_lecture
 
 
 @pytest.fixture
 def lecture_pure(monkeypatch, avec_les_titres_recus):
     """La lecture telle que l'adaptateur la fait, sans rien ajouter."""
-    monkeypatch.setattr(cli, "_lire", avec_les_titres_recus)
+    monkeypatch.setattr(assembleur, "lire", avec_les_titres_recus)
 
 
 @pytest.fixture
@@ -444,14 +444,14 @@ class TestPositions:
     ):
         # Un événement traité dont aucune opération n'est sortie est un trou franc dans les
         # totaux : rien d'autre que cette bannière ne le dirait.
-        lecture_reelle = cli.Lecteur.lire
+        lecture_reelle = assembleur.Lecteur.lire
 
         def lecture_avec_un_refus(self, depot):
             rapport = lecture_reelle(self, depot)
             rapport.operations_non_produites += 1
             return rapport
 
-        monkeypatch.setattr(cli.Lecteur, "lire", lecture_avec_un_refus)
+        monkeypatch.setattr(assembleur.Lecteur, "lire", lecture_avec_un_refus)
 
         cli.main(["positions"])
 
@@ -555,7 +555,7 @@ class FauxYahoo:
 
 def brancher(monkeypatch, faux):
     """Remplace la source Yahoo par une fausse, partout où le CLI la construit."""
-    monkeypatch.setattr(cli, "Yahoo", lambda *args, **kwargs: faux)
+    monkeypatch.setattr(assembleur, "Yahoo", lambda *args, **kwargs: faux)
 
 
 class CotationsFictives:
@@ -596,7 +596,7 @@ class CotationsFictives:
 
 def brancher_les_cotations(monkeypatch, faux):
     """Remplace la recherche des cotations par une fausse."""
-    monkeypatch.setattr(cli, "_source_des_cotations", lambda: faux)
+    monkeypatch.setattr(assembleur, "source_des_cotations", lambda: faux)
 
 
 class TestLesReglagesTrouves:
@@ -691,7 +691,7 @@ class TestLesReglagesTrouves:
         espion = CotationsFictives()
         brancher_les_cotations(monkeypatch, espion)
         demandes = []
-        monkeypatch.setattr(cli, "_liste_des_etf", lambda: demandes.append(1))
+        monkeypatch.setattr(assembleur, "liste_des_etf", lambda: demandes.append(1))
 
         assert cli.main(["actifs", "--export", str(export_ailleurs)]) == 0
 
@@ -888,7 +888,7 @@ class TestPositionsAvecCours:
                 raise AssertionError("aucun appel réseau ne doit partir en hors-ligne")
 
         declarer_les_actifs(fictifs.ACTIF_ACTION_B)
-        monkeypatch.setattr(cli, "Yahoo", YahooInterdit)
+        monkeypatch.setattr(assembleur, "Yahoo", YahooInterdit)
 
         assert cli.main(["positions", "--hors-ligne"]) == 0
         assert "serie" not in appels
@@ -1292,7 +1292,7 @@ class TestLeTerTrouve:
     def test_le_ter_de_l_emetteur_fait_foi(self, export, monkeypatch, capsys):
         brancher_la_liste_des_etf(monkeypatch, {fictifs.ACTIF_ETF: ("0.20", None, None)})
         monkeypatch.setattr(
-            cli, "_frais_courants_de_l_emetteur", lambda: FraisDeLEmetteur("0.12")
+            assembleur, "frais_courants_de_l_emetteur", lambda: FraisDeLEmetteur("0.12")
         )
 
         cli.main(["actifs"])
@@ -1303,7 +1303,9 @@ class TestLeTerTrouve:
 
     def test_une_liste_injoignable_laisse_un_trou_explique(self, export, monkeypatch, capsys):
         monkeypatch.setattr(
-            cli, "_liste_des_etf", lambda: (_ for _ in ()).throw(ErreurDeSource("injoignable"))
+            assembleur,
+            "liste_des_etf",
+            lambda: (_ for _ in ()).throw(ErreurDeSource("injoignable")),
         )
 
         assert cli.main(["actifs"]) == 0
@@ -1312,7 +1314,7 @@ class TestLeTerTrouve:
 
     def test_hors_ligne_aucune_liste_n_est_demandee(self, export, monkeypatch):
         demandes = []
-        monkeypatch.setattr(cli, "_liste_des_etf", lambda: demandes.append(1))
+        monkeypatch.setattr(assembleur, "liste_des_etf", lambda: demandes.append(1))
 
         assert cli.main(["actifs", "--hors-ligne"]) == 0
 
@@ -1535,8 +1537,8 @@ class TestLExportDUnTiers:
     @pytest.mark.parametrize("commande", ["positions", "exporter-pivot", "composition"])
     def test_rien_n_est_demande_en_ligne(self, commande, export_ailleurs, monkeypatch):
         en_ligne = []
-        vrai_cours = cli._fournisseur_de_cours
-        vraies_compositions = cli._fournisseur_de_compositions
+        vrai_cours = assembleur.fournisseur_de_cours
+        vraies_compositions = assembleur.fournisseur_de_compositions
 
         def cours(configuration, hors_ligne=False):
             en_ligne.append(("cours", hors_ligne))
@@ -1546,8 +1548,8 @@ class TestLExportDUnTiers:
             en_ligne.append(("compositions", hors_ligne))
             return vraies_compositions(configuration, hors_ligne=True)
 
-        monkeypatch.setattr(cli, "_fournisseur_de_cours", cours)
-        monkeypatch.setattr(cli, "_fournisseur_de_compositions", compositions)
+        monkeypatch.setattr(assembleur, "fournisseur_de_cours", cours)
+        monkeypatch.setattr(assembleur, "fournisseur_de_compositions", compositions)
 
         cli.main([commande, "--export", str(export_ailleurs)])
 
