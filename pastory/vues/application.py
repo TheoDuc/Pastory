@@ -32,6 +32,56 @@ from pastory.vues.reception import recevoir
 DOSSIER_DES_ASSETS = Path(__file__).parent / "assets"
 PORT_PAR_DEFAUT = 8050
 
+FILET_DE_CHARGEMENT = """
+<script>
+/* Le filet du chargement. Sur la machine du propriétaire, une connexion locale sur dix environ
+   est coupée pendant le téléchargement des fichiers de la page — mesuré à l'étape 9, avec le
+   serveur de Dash comme avec celui de Python : c'est l'environnement (un antivirus qui inspecte
+   le trafic local), pas l'application. Un seul fichier perdu, et la page restait vide.
+
+   Un fichier de script qui échoue fait recharger la page, deux fois au plus par minute ; au-delà,
+   ou si la page n'est toujours pas là au bout de vingt secondes, un message en français le dit,
+   avec un bouton pour réessayer. La page est « là » quand son bandeau existe. */
+(function () {
+  var CLE = "pastory-rechargements";
+  var MAXIMUM = 2;
+  function recents() {
+    try {
+      var liste = JSON.parse(sessionStorage.getItem(CLE) || "[]");
+      return liste.filter(function (quand) { return Date.now() - quand < 60000; });
+    } catch (e) { return [0, 0, 0]; }
+  }
+  function recharger() {
+    try { sessionStorage.setItem(CLE, JSON.stringify(recents().concat([Date.now()]))); }
+    catch (e) {}
+    window.location.reload();
+  }
+  function prevenir() {
+    if (document.querySelector(".entete") || document.getElementById("pastory-filet")) { return; }
+    var avis = document.createElement("div");
+    avis.id = "pastory-filet";
+    avis.style.cssText = "max-width:60ch;margin:60px auto;font:14px sans-serif;color:#665c51;" +
+      "text-align:center";
+    avis.innerHTML = "<p>La page n'a pas fini de se charger : une connexion a été coupée en " +
+      "route, souvent par un antivirus qui inspecte le trafic de l'ordinateur. Vos données ne " +
+      "sont pas en cause.</p><button type='button' style='font:14px sans-serif;" +
+      "padding:6px 14px;cursor:pointer'>Réessayer</button>";
+    avis.querySelector("button").onclick = function () {
+      try { sessionStorage.removeItem(CLE); } catch (e) {}
+      window.location.reload();
+    };
+    document.body.insertBefore(avis, document.body.firstChild);
+  }
+  window.addEventListener("error", function (evenement) {
+    var cible = evenement.target;
+    if (!cible || cible.tagName !== "SCRIPT") { return; }
+    if (recents().length < MAXIMUM) { recharger(); } else { prevenir(); }
+  }, true);
+  window.setTimeout(prevenir, 20000);
+})();
+</script>
+"""
+
 INDEX = """<!DOCTYPE html>
 <html lang="fr">
   <head>
@@ -39,6 +89,7 @@ INDEX = """<!DOCTYPE html>
     <title>{%title%}</title>
     {%favicon%}
     {%css%}
+""" + FILET_DE_CHARGEMENT + """
   </head>
   <body>
     {%app_entry%}

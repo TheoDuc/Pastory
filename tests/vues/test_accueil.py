@@ -241,6 +241,14 @@ def test_l_application_se_construit_et_sert_sa_page(dossier_personnel):
     assert client.get("/assets/polices/ibm-plex-sans-latin-400-normal.woff2").status_code == 200
 
 
+def test_la_page_porte_son_filet_contre_les_coupures(dossier_personnel):
+    """Une connexion locale sur dix environ est coupée sur la machine du propriétaire (mesuré à
+    l'étape 9) : sans ce filet, la page restait sur « Loading… »."""
+    page = creer(Chiffres(hors_ligne=True)).server.test_client().get("/").get_data(as_text=True)
+    assert "pastory-rechargements" in page
+    assert "Réessayer" in page
+
+
 class TestIdentifiantsUniques:
     """Dash ne sait pas gérer deux éléments du même nom : le clic sur l'un se perd. C'est ainsi
     que l'onglet « Synthèse » ne répondait plus depuis l'accueil, dont le bouton « Voir la
