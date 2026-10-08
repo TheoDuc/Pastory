@@ -614,7 +614,7 @@ données est un exercice séparé, fait par le propriétaire, guidé par un
 
 | À venir | Où | Ce qui ne changera pas |
 |---|---|---|
-| Interface Dash *(étapes 8 et 9)* | `vues/` | Les vues n'appellent que le moteur — jamais l'adaptateur ni une source externe |
+| Interface Dash *(étape 9, en cours)* | `vues/`, et `assembleur.py` qui sort de `cli.py` pour servir aux deux | Les vues n'appellent que le moteur et les réglages, par l'assembleur — jamais l'adaptateur ni une source externe. Python met en forme chaque chiffre ; un script repris des maquettes ne fait que dessiner ([D-93](decisions.md)). L'écran de correction écrit un champ, et rien d'autre ([D-94](decisions.md)) |
 | Monte-Carlo *(étape 12)* | Module indépendant, branché sur les résultats du moteur | Rien ne dépendra de lui ([D-27](decisions.md)) |
 
 Les deux branchements des cours sont **faits** : les **titres reçus sans prix**

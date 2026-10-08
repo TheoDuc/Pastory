@@ -1605,3 +1605,60 @@ sauf la date d'ouverture du PEA, que la première règle donnait une semaine tro
 ([D-86](#d-86)).
 **Écarte :** garder l'assistant en ligne de commande ; réécrire le fichier en y ajoutant les
 valeurs trouvées (il redeviendrait une configuration).
+**Précisée par [D-94](#d-94) (étape 9) :** « jamais réécrit » veut dire **jamais de lui-même**.
+L'écran de correction écrit ce que l'utilisateur y a saisi, et rien d'autre.
+
+---
+
+*Étape 9 (2026-10-08). La réalisation de l'interface : trois arbitrages du propriétaire, rendus au
+début de l'étape, avant toute ligne de code.*
+
+### D-93 · 2026-10-08 · Python construit la page ; un dessin repris de la maquette trace les graphiques · Validée
+**Décision :** l'interface Dash est construite **en Python** : chaque bloc, chaque texte, chaque
+chiffre **mis en forme** (`pastory/vues/format.py`, une fonction par unité, conception-interface
+§3.1). Les dessins — la courbe, les anneaux, les drapeaux, le planisphère, le logo — sont tracés
+par un fichier JavaScript **repris de `maquettes/maquette.js`** (`pastory/vues/assets/dessin.js`).
+Python pose les données d'un dessin dans un attribut `data-…` d'un élément vide, libellés déjà
+écrits ; le script les trace, place la boîte de lecture qui suit la souris et les bulles d'aide.
+**Il ne calcule rien et n'écrit aucun chiffre.**
+**Raison :** Dash ne sait pas produire d'éléments SVG, or tous les dessins des maquettes en sont.
+Les reprendre tels quels garde exactement ce que neuf passes de relecture ont arrêté — la boîte de
+lecture a été essayée dans trois arrangements (conception-interface §3.2). Et la mise en forme
+reste en Python, sous les tests, là où le piège des pour cent ([§3.1](conception-interface.md)) a
+déjà produit un « 6264,00 % ».
+**Écarte :** les graphiques Plotly fournis avec Dash, sans JavaScript écrit à la main — leur boîte
+de lecture n'est pas celle retenue, et un anneau Plotly fait toujours le tour complet : il faudrait
+le tromper par une part invisible pour ne pas renormaliser ([D-69](#d-69)) ; et la maquette entière
+en JavaScript comme affichage, alimentée par Python — moins de code nouveau, mais la mise en forme
+des chiffres sortirait des tests Python.
+**Contrepartie assumée :** du JavaScript dans l'application, que [D-31](#d-31) espérait éviter.
+Il est cantonné au dessin, et ce qui s'affiche en chiffres vient toujours de Python.
+
+### D-94 · 2026-10-08 · L'écran écrit une correction, et rien d'autre, en gardant le fichier intact · Validée
+**Décision :** l'écran de correction écrit dans `actifs.toml` (ou `fiscalite.toml` pour la date du
+PEA) **un seul champ d'un seul actif**, celui que l'utilisateur vient de saisir. Le fichier est
+relu et réécrit avec **tomlkit**, qui garde ses commentaires, son ordre et sa mise en page ; le
+résultat passe par la **même lecture** que d'habitude (`config/actifs.py`, `config/fiscalite.py`
+et leurs contrôles : devise, fourchette du TER…) **avant** de remplacer le fichier. Une saisie
+refusée n'écrit rien et dit pourquoi. « Revenir à la valeur trouvée » efface la correction, et
+rien d'autre.
+**Raison :** [D-78](#d-78), point 2 — l'édition à la main reste possible et n'est jamais écrasée,
+et les commentaires sont ce qui rend le fichier compréhensible à la main. Faire passer l'écriture
+par la lecture existante garantit qu'un écran ne peut pas écrire un fichier que l'application
+refuserait ensuite de lire.
+**Écarte :** un éditeur de TOML écrit pour le projet — sans dépendance, mais plus de code et plus
+de risques de casser un fichier écrit à la main ; et la réécriture complète du fichier depuis la
+configuration en mémoire, qui perdrait les commentaires.
+**Précise :** [D-92](#d-92) — l'application ne réécrit jamais ce fichier **d'elle-même** ; elle
+n'y ajoute jamais une valeur trouvée.
+
+### D-95 · 2026-10-08 · L'export se dépose dans l'application · Validée
+**Décision :** l'écran d'accueil porte une **zone de dépôt** : l'utilisateur y glisse l'export
+téléchargé dans l'application Trade Republic, Pastory le **copie dans le dossier de dépôt**
+([D-80](#d-80)) et relit tout. Un fichier qui n'est pas un export est **refusé et n'est pas
+copié**, avec la raison. L'écran montre aussi le dossier, avec un bouton pour l'ouvrir : y copier
+un fichier à la main reste possible.
+**Raison :** [D-78](#d-78) — un geste qui demande d'ouvrir un explorateur de fichiers et de
+retrouver un dossier caché est exactement la mise en route qui ressemble à du dépannage. La
+seule chose que l'utilisateur ait à faire doit se faire dans l'application.
+**Écarte :** montrer seulement le chemin du dossier et un bouton « relire ».
