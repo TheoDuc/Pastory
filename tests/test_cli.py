@@ -26,98 +26,6 @@ from tests.adaptateurs.trade_republic import export_fictif
 from tests.adaptateurs.trade_republic import export_ligne_de_commande as fictifs
 
 
-@pytest.fixture(autouse=True)
-def dossier_personnel(tmp_path, monkeypatch):
-    """Isole l'application du vrai dossier personnel, pour toute la durée du test."""
-    personnel = tmp_path / "personnel"
-    monkeypatch.setenv("PASTORY_DOSSIER", str(personnel))
-    return personnel
-
-
-@pytest.fixture(autouse=True)
-def aucun_appel_a_xetra(monkeypatch):
-    """Coupe la liste des ETF de Xetra par défaut : **aucun test ne sort de la machine**.
-
-    Même raison que la fixture précédente, et même forme : le garde-fou est automatique,
-    pour qu'un test écrit plus tard ne puisse pas appeler le service par simple oubli. Les
-    tests qui ont besoin d'une liste la fournissent avec `brancher_la_liste_des_etf`.
-    """
-
-    def refuser():
-        raise ErreurDeSource("aucun appel réseau dans les tests")
-
-    monkeypatch.setattr(assembleur, "liste_des_etf", refuser)
-
-
-@pytest.fixture(autouse=True)
-def aucune_source_de_composition(monkeypatch):
-    """Coupe les sources de composition : **aucun test ne sort de la machine** (étape 7).
-
-    Troisième garde-fou de la même famille, et posé pour la même raison que celui de Xetra : il a
-    été ajouté après avoir constaté que deux tests appelaient réellement Deutsche Börse. Ici, deux
-    services sont en jeu — celui des fonds et celui des sociétés — et un seul oubli suffirait à
-    faire sortir un test du poste. Les tests qui veulent une composition la fournissent
-    eux-mêmes.
-
-    Le fournisseur est construit **hors ligne** : le cache local reste utilisable, mais aucune
-    source n'est interrogée.
-    """
-    vrai_fournisseur = assembleur.fournisseur_de_compositions
-
-    def sans_reseau(configuration, hors_ligne: bool = False):
-        return vrai_fournisseur(configuration, hors_ligne=True)
-
-    monkeypatch.setattr(assembleur, "fournisseur_de_compositions", sans_reseau)
-
-
-class CotationsMuettes:
-    """La recherche des cotations, coupée : elle ne connaît rien, et ne sort pas de la machine."""
-
-    nom = "recherche de test"
-
-    def candidats(self, requete):
-        return []
-
-    def serie(self, actif, declaration, debut, fin):
-        raise ErreurDeSource("aucun appel réseau dans les tests")
-
-    def serie_brute(self, ticker, debut, fin):
-        raise ErreurDeSource("aucun appel réseau dans les tests")
-
-
-@pytest.fixture(autouse=True)
-def aucune_recherche_de_reglages(monkeypatch):
-    """Coupe la recherche des réglages (étape 8 quater) : **aucun test ne sort de la machine**.
-
-    Quatrième garde-fou de la famille. Sans lui, chaque test qui lit un export chercherait en
-    ligne la cotation et les frais courants de chaque actif. Les tests qui veulent une recherche
-    branchent leur propre source avec `brancher_les_cotations`.
-    """
-    monkeypatch.setattr(assembleur, "source_des_cotations", CotationsMuettes)
-    # L'émetteur ne connaît pas les fonds fictifs : c'est le cas normal d'un ETF qu'il n'émet
-    # pas. Le simuler « en panne » empêcherait tout TER d'être gardé en mémoire.
-    monkeypatch.setattr(assembleur, "frais_courants_de_l_emetteur", lambda: EmetteurMuet())
-    monkeypatch.setattr(assembleur, "classes_d_actifs", lambda: ClassesMuettes())
-    monkeypatch.setattr(assembleur, "registre_cfi", lambda: ClassesMuettes())
-
-
-class EmetteurMuet:
-    nom = "émetteur de test"
-
-    def frais_courants(self, actif):
-        return None
-
-
-class ClassesMuettes:
-    """extraETF et le registre de l'ESMA, coupés : ils ne savent rien du contenu d'un fonds."""
-
-    def classe_d_actifs(self, actif):
-        return None
-
-    def codes_cfi(self, actif):
-        return frozenset()
-
-
 class ListeFictive:
     """La liste des ETF réduite à un dictionnaire : `{actif: (ter, nom, politique)}`."""
 
@@ -219,9 +127,19 @@ class TestBases:
         assert "exports" in affichage
         assert "pas encore créé" in affichage
 
-    def test_une_commande_pas_encore_ecrite_dit_a_quelle_etape_elle_arrive(self, capsys):
-        assert cli.main(["ouvrir"]) == 1
-        assert "étape 9" in capsys.readouterr().err
+    def test_ouvrir_lance_l_application_avec_ses_options(self, monkeypatch, tmp_path):
+        from pastory.vues import application
+
+        lancements = []
+        monkeypatch.setattr(application, "lancer", lambda **options: lancements.append(options))
+
+        assert cli.main(["ouvrir", "--hors-ligne", "--port", "8123"]) == 0
+        assert cli.main(["ouvrir", "--export", str(tmp_path)]) == 0
+
+        assert lancements == [
+            {"hors_ligne": True, "dossier_export": None, "port": 8123},
+            {"hors_ligne": False, "dossier_export": tmp_path, "port": 8050},
+        ]
 
 
 class TestExportIntrouvable:

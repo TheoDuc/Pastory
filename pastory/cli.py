@@ -21,6 +21,7 @@ pastory composition         ce qu'il y a à l'intérieur de chaque actif détenu
 pastory oublier-cours       effacer des cours en cache, pour les reprendre à la source
 pastory oublier-composition effacer des compositions, pour les reprendre à la source
 pastory oublier-reglages    effacer ce qui a été trouvé en ligne, pour le rechercher
+pastory ouvrir              le tableau de bord, dans le navigateur
 ```
 
 `positions` et `exporter-positions` acceptent `--au AAAA-MM-JJ` (la fin de la période, et la
@@ -841,9 +842,16 @@ def commande_oublier_reglages(actif: str | None, tout: bool) -> int:
     return CODE_SUCCES
 
 
-def _a_venir(commande: str, etape: str) -> int:
-    print(f"La commande « {commande} » sera disponible à l'{etape}.", file=sys.stderr)
-    return CODE_ECHEC
+def commande_ouvrir(dossier_export: Path | None, hors_ligne: bool, port: int) -> int:
+    """Ouvre le tableau de bord dans le navigateur, jusqu'à Ctrl+C (étape 9, D-31).
+
+    L'import est fait ici, et non en tête : Dash est long à charger, et les autres commandes
+    n'en ont pas besoin.
+    """
+    from pastory.vues import application
+
+    application.lancer(hors_ligne=hors_ligne, dossier_export=dossier_export, port=port)
+    return CODE_SUCCES
 
 
 def construire_analyseur() -> argparse.ArgumentParser:
@@ -949,7 +957,24 @@ def construire_analyseur() -> argparse.ArgumentParser:
         "--tout", action="store_true", help="oublier les réglages de tous les actifs"
     )
 
-    commandes.add_parser("ouvrir", help="ouvrir le tableau de bord (étape 9)")
+    ouvrir = commandes.add_parser(
+        "ouvrir", help="ouvrir le tableau de bord dans le navigateur (tout commence ici)"
+    )
+    ouvrir.add_argument(
+        "--export",
+        type=Path,
+        default=None,
+        metavar="DOSSIER",
+        help="lire les exports de ce dossier, sans aucun appel réseau (l'export d'un tiers)",
+    )
+    ouvrir.add_argument(
+        "--hors-ligne",
+        action="store_true",
+        help="n'utiliser que ce qui est déjà en mémoire, sans aucun appel réseau",
+    )
+    ouvrir.add_argument(
+        "--port", type=int, default=8050, help="le port local de l'application (8050)"
+    )
     return analyseur
 
 
@@ -1017,7 +1042,7 @@ def main(arguments: list[str] | None = None) -> int:
         case "oublier-reglages":
             return commande_oublier_reglages(options.actif, options.tout)
         case "ouvrir":
-            return _a_venir("ouvrir", "étape 9 (réalisation de l'interface)")
+            return commande_ouvrir(options.export, options.hors_ligne, options.port)
         case _:
             analyseur.print_help()
             return CODE_SUCCES

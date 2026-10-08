@@ -19,8 +19,9 @@ choix dans [decisions.md](decisions.md) ; le détail du contrat entre couches da
 > **diversification**) et **données externes** sont écrites, ainsi que les **paramètres** datés et
 > sourcés, qui portent aussi les **référentiels**. Depuis l'étape 8 quater, une couche
 > **réglages** trouve seule ce que l'utilisateur déclarait à la main ([D-80](decisions.md)), et
-> `config/` ne porte plus que ses corrections. La couche **vues** existe comme dossier vide, avec
-> sa place déjà définie. Le §10 dit ce qui s'y branchera.
+> `config/` ne porte plus que ses corrections. **L'étape 9 est en cours** : l'assemblage est sorti
+> de `cli.py` dans `assembleur.py`, que la ligne de commande et l'interface (`vues/`) appellent
+> toutes les deux ; l'accueil et le bandeau existent, les écrans s'ajoutent bloc par bloc.
 
 ---
 
@@ -47,7 +48,7 @@ choix dans [decisions.md](decisions.md) ; le détail du contrat entre couches da
                            │        └──► RÉGLAGES  reglages/  (D-80)
                            │             banque + sources (contrôlées) + corrections
                            │             → la configuration effective, chaque valeur
-                           │             avec sa source ; cli.py la passe aux cours,
+                           │             avec sa source ; l'assembleur la passe aux cours,
                            │             aux coûts et aux compositions
                            ▼
    ┌───────────────────────────────────────────────────────────┐
@@ -60,7 +61,7 @@ choix dans [decisions.md](decisions.md) ; le détail du contrat entre couches da
                            │                      complète les prix manquants (D-15)
                            │                      et rend du pivot ; sert aussi de
                            │                      source de cours au moteur, **par
-                           │                      paramètre** (cli.py fait le lien)
+                           │                      paramètre** (l'assembleur fait le lien)
                            ▼  et rien d'autre
    ┌───────────────────────────────────────────────────────────┐
    │  MOTEUR  moteur/                                          │
@@ -76,7 +77,7 @@ choix dans [decisions.md](decisions.md) ; le détail du contrat entre couches da
                            │  positions, valeurs, rendements, coûts, signalements
                            ▼
    ┌───────────────────────────────────────────────────────────┐
-   │  SORTIES   cli.py (aujourd'hui) · vues/ (étape 9)         │
+   │  SORTIES   cli.py · vues/ (Dash), par assembleur.py        │
    │  rapports en français · CSV pour le tableur               │
    └───────────────────────────────────────────────────────────┘
 ```
@@ -99,7 +100,7 @@ L'interdiction compte autant que le rôle : c'est elle qui garantit qu'un défau
 | `donnees_externes/` | Aller chercher un cours, **la composition d'un actif**, les garder, et **compléter un prix manquant** | Ce qu'est une position, un prix de revient, une plus-value. Et ce qu'est un secteur « Technologie » : elle ne transporte que des **codes** |
 | `moteur/` | Rejouer les opérations, tenir le journal, agréger, **valoriser**, calculer gain, TRI et TWRR, puis les **coûts**, l'**impôt estimé**, la **valeur réelle** et la **répartition** | Le nom d'un champ Trade Republic, l'emplacement d'un fichier, **d'où viennent les cours, les taux et les compositions** — il dit seulement la forme qu'il en attend. Il ne sait pas ce qu'est un ETF : il demande un taux, ou une composition, pour un actif |
 | `parametres/` | Porter les taux fiscaux, les frais par ordre, les spreads par défaut, et les **référentiels** (secteurs, pays, zones, classes d'actifs), chacun avec sa date et sa source | Ce qu'on en fera. Ils sont **livrés avec l'application** et versionnés : rien de personnel |
-| `vues/` (étape 9) | Montrer, expliquer, laisser filtrer | Tout calcul — elle n'appelle que le moteur |
+| `vues/` (étape 9) | Montrer, expliquer, laisser filtrer ; recevoir l'export déposé ; écrire une correction | Tout calcul — les chiffres viennent de l'assembleur, et sont seulement **mis en forme** (`vues/format.py`). Le script de dessin ne fait que tracer ([D-93](decisions.md)) |
 
 Deux conséquences pratiques :
 
@@ -127,12 +128,14 @@ adaptateurs/  ──────► pivot/  ◄────── moteur/
                        │               │
                        └──► tableur.py ◄┘
 
-cli.py ──► tout ce qui précède
+cli.py ─┐
+        ├──► assembleur.py ──► tout ce qui précède
+vues/ ──┘
 ```
 
 `parametres/` lit `config/actifs.py`, `pivot/operation.py` et `reglages/`, pour croiser le barème
 avec les réglages de chaque actif et parler des mêmes poches que tout le monde. **Aucune flèche ne
-part de `moteur/`** : c'est lui qui déclare ce qu'il attend, et `cli.py` qui le lui donne.
+part de `moteur/`** : c'est lui qui déclare ce qu'il attend, et `assembleur.py` qui le lui donne.
 
 **`reglages/`** (étape 8 quater) lit `config/` (les corrections), `pivot/` (les prix payés, pour
 contrôler une cotation), `donnees_externes/` (les sources), `parametres/contenus` (la table de
@@ -143,8 +146,9 @@ le moteur ne sait pas lire un CSV de la banque.
 
 Ce qui en découle, et qui se vérifie en lisant les imports :
 
-- **rien n'importe `adaptateurs/` sauf `cli.py`.** Le moteur ignore l'existence de Trade
-  Republic ([D-26](decisions.md)) ;
+- **rien n'importe `adaptateurs/` sauf les sorties** : `assembleur.py`, `cli.py`, et l'accueil de
+  `vues/`, qui parle de l'export lui-même (le dossier de dépôt, la période couverte, un fichier
+  déposé à vérifier). Le moteur ignore l'existence de Trade Republic ([D-26](decisions.md)) ;
 - **`pivot/` n'importe ni l'adaptateur ni le moteur.** C'est un contrat : il ne dépend d'aucun
   de ses deux usagers, sinon il cesserait d'en être un ;
 - **`moteur/` n'importe que `pivot/`, `tableur.py` et lui-même.** C'est la propriété la plus
@@ -153,19 +157,19 @@ Ce qui en découle, et qui se vérifie en lisant les imports :
 - **`moteur/` n'importe ni `parametres/` ni `config/`**, exactement comme il n'importe pas
   `donnees_externes/` : il déclare des protocoles (`ParametresDeCouts` dans `moteur/couts.py`,
   `ReglesFiscales` dans `moteur/fiscalite.py`, et depuis l'étape 7 `SourceDeComposition` et
-  `Referentiels` dans `moteur/diversification.py`) et `cli.py` lui passe des objets qui les
+  `Referentiels` dans `moteur/diversification.py`) et `assembleur.py` lui passe des objets qui les
   satisfont. Un taux fiscal entre dans le moteur comme un cours : **par paramètre** ;
 - **la composition d'un actif suit exactement le même chemin**, et c'est la **quatrième** fois :
   le moteur déclare ce qu'il attend d'une source (`composition(actif)`) et de quoi nommer un code
   (`secteur`, `pays`, `zone_de`, `classe`), et `_fournisseur_de_compositions()` et
-  `_referentiels()`, dans `cli.py`, sont les **seuls** endroits qui nomment extraETF, GLEIF et les
-  fichiers TOML. Changer de source de composition ne toucherait donc que `cli.py` ;
+  `referentiels()`, dans `assembleur.py`, sont les **seuls** endroits qui nomment extraETF, GLEIF et
+  les fichiers TOML. Changer de source de composition ne toucherait donc que l'assembleur ;
 - **`moteur/` n'importe pas `donnees_externes/` non plus**, et c'est ce qui surprend le plus.
   Les cours y entrent de deux façons, et aucune n'est un import : les prix manquants
   **complètent des opérations pivot avant lui** (§5.7) ; et pour valoriser, le moteur
   **déclare ce qu'il attend** d'une source — un protocole d'une méthode, `cours(actif, date)`,
   dans `moteur/valorisation.py` — que le fournisseur de `donnees_externes/` satisfait sans le
-  savoir. C'est `cli.py` qui passe l'un à l'autre, et un test (`tests/moteur/test_valorisation.py`)
+  savoir. C'est `assembleur.py` qui passe l'un à l'autre, et un test (`tests/moteur/test_valorisation.py`)
   prouve que les deux s'emboîtent. Changer de source de cours ne toucherait donc toujours que
   `cli.py`.
 
@@ -185,7 +189,8 @@ nombres, et il vit à la racine pour qu'aucun export n'invente ses propres conve
 
 ```
 pastory/
-├── cli.py                     le seul point d'entrée, et le seul assembleur
+├── cli.py                     la ligne de commande : les messages et les fichiers écrits
+├── assembleur.py              le seul assembleur, pour la ligne de commande et l'interface
 ├── tableur.py                 comment on écrit un nombre (CSV et phrases)
 ├── config/
 │   ├── emplacements.py        où vivent les fichiers personnels (D-37)
@@ -251,7 +256,19 @@ pastory/
 │   ├── contenus.py            sa lecture
 │   ├── fiscalite.py           les règles fiscales, telles que le moteur les attend
 │   └── couts.py               le barème croisé avec les réglages de chaque actif
-└── vues/                      vide — l'interface Dash (étapes 8 et 9)
+└── vues/                      l'interface Dash (étape 9) : `pastory ouvrir`
+    ├── application.py         la page, les trois rappels (choisir, rendre, déposer), le lancement
+    ├── chiffres.py            l'assembleur appelé une fois, la période et les poches recalculées
+    ├── ecrans.py              quel écran pour quel état
+    ├── etat.py                ce que l'utilisateur a choisi : l'onglet, la période, les poches…
+    ├── format.py              une fonction par unité : montant, taux, pour cent (§3.1 du contrat)
+    ├── vocabulaire.py         les bulles « ? », mot pour mot ceux de la maquette
+    ├── briques.py             bloc, tuile, bulle, groupe de boutons, emplacement de dessin
+    ├── bandeau.py             la manchette, les filtres, l'état des données
+    ├── accueil.py             où trouver l'export, où le déposer, ce que la lecture a trouvé
+    ├── reception.py           un export déposé : vérifié sur place, rangé, jamais écrasé (D-95)
+    ├── surveiller.py          « à surveiller » : tout ce que chaque couche signale
+    └── assets/                pastory.css (la feuille de la maquette), les polices, dessin.js
 
 scripts/
 └── inventaire_structure.py    relevé structurel d'un export officiel, sans aucune valeur (D-05)
@@ -439,10 +456,14 @@ journal est la pièce à ouvrir pour vérifier un chiffre** sans lire une ligne 
 le dossier personnel, hors du dossier synchronisé, et n'entrent jamais dans git
 ([D-01](decisions.md), [D-37](decisions.md)).
 
-### 5.6 `cli.py` — le seul assembleur
+### 5.6 `assembleur.py` et `cli.py` — brancher, puis dire
 
-C'est le seul module qui connaisse toutes les couches, et c'est son rôle : il branche
-l'adaptateur sur le moteur. Aucune couche n'appelle l'autre d'elle-même.
+`assembleur.py` est le seul module qui connaisse toutes les couches, et c'est son rôle : il
+branche l'adaptateur sur le moteur. Aucune couche n'appelle l'autre d'elle-même. Il est sorti de
+`cli.py` à l'étape 9, sans changer une ligne de calcul, pour que la ligne de commande **et**
+l'interface l'appellent : un seul assemblage, donc les mêmes chiffres à l'écran et dans
+`pastory positions`. `cli.py` garde ce qui est propre à la ligne de commande : les messages, et
+les fichiers qu'elle écrit.
 
 | Commande | Ce qu'elle traverse | Écrit quelque chose ? |
 |---|---|---|
@@ -452,7 +473,7 @@ l'adaptateur sur le moteur. Aucune couche n'appelle l'autre d'elle-même.
 | `exporter-pivot` | adaptateur → `pivot` | les opérations en CSV |
 | `positions` | adaptateur → `pivot` → `donnees_externes` → `parametres` → moteur | **non** — un rapport à l'écran |
 | `exporter-positions` | idem | les douze CSV du moteur |
-| `ouvrir` | *(étape 9)* | — |
+| `ouvrir` | tout, par l'assembleur, puis `vues/` | **non**, sauf un export déposé dans l'accueil (rangé dans le dossier de dépôt) ; et, au bloc 9.5, une correction saisie à l'écran |
 
 Trois options traversent plusieurs commandes : `--export <dossier>` pour lire les exports d'un
 autre dossier que le dossier de dépôt — celui de quelqu'un d'autre, sans le copier dans le
@@ -467,14 +488,15 @@ complétion des prix manquants et à la valorisation : ses refus couvrent les de
 rendements, aux coûts et à la valeur réelle : deux valorisations du même jour pourraient différer
 d'un centime, et le rapport montrerait deux valeurs brutes.
 
-C'est aussi ici que les **réglages** sont assemblés, une fois par commande : `_reglages()` réunit
+C'est aussi dans l'assembleur que les **réglages** sont réunis, une fois par lecture : `reglages()` réunit
 ce que dit la banque, ce que trouvent les sources et les corrections, et rend la configuration
-effective que `_fournisseur_de_cours()`, `_parametres_des_couts()` et
-`_fournisseur_de_compositions()` reçoivent en paramètre. `_regles_fiscales()` y prend la date du
+effective que `fournisseur_de_cours()`, `parametres_des_couts()` et
+`fournisseur_de_compositions()` reçoivent en paramètre. `regles_fiscales()` y prend la date du
 PEA, son origine, sa réserve, et l'alerte d'un retrait ([D-87](decisions.md)).
-`_source_des_cotations()`, `_frais_courants_de_l_emetteur()`, `_liste_des_etf()`,
-`_classes_d_actifs()` et `_registre_cfi()` sont les seuls endroits qui nomment ces sources — et
-ceux que les tests remplacent, pour qu'aucun ne sorte de la machine.
+`source_des_cotations()`, `frais_courants_de_l_emetteur()`, `liste_des_etf()`,
+`classes_d_actifs()` et `registre_cfi()` sont les seuls endroits qui nomment ces sources — et
+ceux que les tests remplacent (`tests/garde_fous.py`, actifs pour toute la suite), pour qu'aucun
+ne sorte de la machine.
 
 ### 5.7 `donnees_externes/` — les cours, et ce qu'on refuse d'inventer
 
@@ -501,8 +523,6 @@ Quatre fichiers, et un principe qui les explique tous : **on refuse plutôt que 
   montant marqué `deduction`, les deux provenances que
   [format-pivot §4](format-pivot.md) avait prévues. **Le moteur n'a pas gagné une ligne** : il
   savait déjà traiter les deux cas.
-
-Ce qui reste vide : `vues/`, dont le §10 dit ce qui s'y branchera.
 
 ### 5.8 `reglages/` — ce qui se trouve seul, et d'où ça vient
 
@@ -602,6 +622,7 @@ précédente :
 | `tests/moteur/` | Opérations pivot fictives (`operations_fictives.py`) | Les calculs sont justes — **sans aucune banque** |
 | `tests/donnees_externes/` | Réponses écrites à la main, source factice (`cours_fictifs.py`) | Les pièges de la source sont attrapés — **sans aucun réseau** |
 | `tests/reglages/` | Ce que dit une banque fictive, des sources factices qui reproduisent les pièges mesurés | Chaque contrôle refuse ce qu'il doit, une correction l'emporte, une panne n'est pas gardée |
+| `tests/vues/` | Le même export fictif, lu hors ligne ; l'écran construit en Python, sans navigateur | Chaque écran dans ses états (vide, partiel…), chaque classe a sa règle CSS, aucune règle n'en écrase une autre |
 | `tests/test_cli.py` | Un export officiel fictif (`export_ligne_de_commande.py`), plus deux titres reçus ajoutés à la lecture, en le disant ([architecture-notes §3 bis](architecture-notes.md)) | Les commandes s'enchaînent, et les rapports s'affichent en cp1252 |
 
 **Aucune donnée réelle dans les tests** ([D-38](decisions.md)). La vérification sur vraies
@@ -621,11 +642,11 @@ Les deux branchements des cours sont **faits** : les **titres reçus sans prix**
 ([D-15](decisions.md)) reçoivent le cours de leur jour d'apparition (étape 4), et le moteur
 **valorise** et calcule les rendements en recevant la source de cours en paramètre (étape 5).
 L'étape 6 a suivi le même chemin pour les taux : deux protocoles déclarés dans le moteur, deux
-objets fournis par `cli.py`, et **aucun import nouveau** entre les couches.
+objets fournis par l'assembleur, et **aucun import nouveau** entre les couches.
 
 **L'étape 7 l'a suivi une quatrième fois**, et c'est devenu la manière de faire du projet : la
 composition d'un actif et les référentiels qui nomment ses codes entrent par deux protocoles de
-plus, déclarés dans `moteur/diversification.py`, et `cli.py` reste le seul assembleur. Le moteur ne
+plus, déclarés dans `moteur/diversification.py`, et l'assembleur reste le seul à brancher. Le moteur ne
 sait toujours ni ce qu'est un ETF, ni ce qu'est un secteur « Technologie » — il reçoit des codes et
 demande qu'on les lui nomme.
 
@@ -642,13 +663,13 @@ transparisé », « synthétique », « minoré » — sont du contenu d'interfa
 
 1. un dossier `adaptateurs/<banque>/`, qui produit des `Operation` ;
 2. ses propres tests, sur des exports fictifs ;
-3. une branche dans `cli.py` pour le choisir.
+3. une branche dans `assembleur.py` pour le choisir.
 
 Rien d'autre. Si l'ajout demande de toucher `moteur/`, c'est le signe que le pivot manque d'un
 champ : voir [format-pivot §8](format-pivot.md), qui dit comment le format évolue.
 
 **Ajouter ou remplacer une source de cours** : un module dans `donnees_externes/` qui suit le
-protocole `SourceDeCours` (une méthode, `serie`), et une ligne dans `cli._fournisseur_de_cours` —
+protocole `SourceDeCours` (une méthode, `serie`), et une ligne dans `assembleur.fournisseur_de_cours` —
 le seul endroit de l'application qui nomme Yahoo. Le cache, la correspondance ISIN → ticker et
 tout le reste sont déjà communs. Une source doit **lever** une `ErreurDeSource` plutôt que de
 rendre une valeur approchée : c'est ce qui garantit qu'un cours douteux devient un refus visible
