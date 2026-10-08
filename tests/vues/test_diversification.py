@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 
@@ -16,6 +17,8 @@ from tests.adaptateurs.trade_republic import export_ligne_de_commande as fictifs
 from tests.vues.outils import dessins, noeuds, texte
 from tests.vues.portefeuille import composer, coter
 
+RACINE = Path(__file__).parents[2]
+
 
 def corps(chiffres, rubrique="classes"):
     etat = {**etat_ecran.initial(), "onglet": "diversification", "rubrique": rubrique}
@@ -24,7 +27,8 @@ def corps(chiffres, rubrique="classes"):
 
 def rangs(page) -> list[str]:
     return [
-        texte(n) for n in noeuds(page)
+        texte(n)
+        for n in noeuds(page)
         if (getattr(n, "className", "") or "").split()[:1] == ["rang"]
     ]
 
@@ -43,7 +47,8 @@ def chiffres(dossier_personnel):
 class TestLesSousOnglets:
     def test_quatre_rubriques_dans_l_ordre_des_questions(self, chiffres):
         boutons = [
-            n for n in noeuds(corps(chiffres))
+            n
+            for n in noeuds(corps(chiffres))
             if isinstance(getattr(n, "id", None), dict) and n.id["choix"] == "rubrique"
         ]
         assert [texte(b) for b in boutons] == ["Actifs", "Zone géographique", "Pays", "Secteur"]
@@ -58,13 +63,13 @@ class TestRienNEstRamenéACent:
     @pytest.mark.parametrize("rubrique", ["classes", "zones", "pays", "secteurs"])
     def test_les_parts_sont_celles_du_moteur_sur_la_base(self, chiffres, rubrique):
         d = chiffres.base().diversification
-        repartition = d.classes if rubrique == "classes" else (
-            d.secteurs if rubrique == "secteurs" else d.pays
+        repartition = (
+            d.classes
+            if rubrique == "classes"
+            else (d.secteurs if rubrique == "secteurs" else d.pays)
         )
         page = texte(corps(chiffres, rubrique))
-        assert f"base {f.montant(repartition.base)}" in page or f.montant_entier(
-            repartition.base
-        )
+        assert f"base {f.montant(repartition.base)}" in page or f.montant_entier(repartition.base)
 
     def test_les_postes_seuls_ne_font_pas_cent(self, chiffres):
         r = chiffres.base().diversification.pays
@@ -105,8 +110,26 @@ class TestLesClasses:
 
 class TestLesRepères:
     def test_un_pays_porte_son_drapeau(self, chiffres):
-        codes = {donnees(d) for d in dessins(corps(chiffres, "pays"), "drapeau")}
-        assert {"US", "FR", "JP"} <= codes
+        images = {n.src for n in noeuds(corps(chiffres, "pays")) if type(n).__name__ == "Img"}
+        assert {f"/assets/drapeaux/{c}.svg" for c in ("us", "fr", "jp")} <= images
+
+    def test_un_code_sans_drapeau_garde_le_globe(self, chiffres):
+        """« ZZ » n'est pas un pays : il n'a pas de drapeau, et garde le globe dessiné."""
+        assert [donnees(d) for d in dessins(corps(chiffres, "pays"), "drapeau")] == ["ZZ"]
+
+    def test_chaque_pays_du_referentiel_a_son_drapeau(self):
+        """Demandé par le propriétaire : l'Espagne, l'Afrique du Sud… n'avaient qu'un globe."""
+        import re
+
+        zones = (RACINE / "pastory/parametres/zones.toml").read_text(encoding="utf-8")
+        codes = re.findall(r"^\[pays\.([A-Z]{2})\]", zones, flags=re.M)
+        assert len(codes) > 80
+        manquants = [
+            c
+            for c in codes
+            if not (diversification.DOSSIER_DES_DRAPEAUX / f"{c.lower()}.svg").exists()
+        ]
+        assert manquants == []
 
     def test_une_zone_allume_ses_terres(self, chiffres):
         terres = [donnees(d) for d in dessins(corps(chiffres, "zones"), "planisphere")]
@@ -189,3 +212,39 @@ def test_un_fonds_sans_secteurs_est_non_couvert_en_secteur_seulement(dossier_per
     assert "Non couvert en secteur seulement — ETF Exemple Monde (Acc)" in secteurs
     assert "Non attribué par les fonds" not in secteurs.split("Ce qu'il faut savoir")[0]
     assert "Chine" in pays
+
+
+class TestLesLongsClassements:
+    def test_au_dela_de_quinze_postes_un_bouton_dit_ce_qui_est_cache(self):
+        lignes = [
+            diversification.Ligne(f"Pays {i}", Decimal(100 - i), Decimal(20 - i) / 2, ("picto", ""))
+            for i in range(20)
+        ]
+        replie = texte(diversification._classement(lignes, [], deplie=False))
+        assert "Afficher les 5 autres" in replie
+        assert "Pays 14" in replie and "Pays 15" not in replie
+
+    def test_deplie_tout_est_montre_et_le_bouton_replie(self):
+        lignes = [
+            diversification.Ligne(f"Pays {i}", Decimal(100 - i), Decimal(1), ("picto", ""))
+            for i in range(20)
+        ]
+        deplie = texte(diversification._classement(lignes, [], deplie=True))
+        assert "Pays 19" in deplie
+        assert "N'afficher que les 15 premiers" in deplie
+
+    def test_les_restes_ne_sont_jamais_caches(self):
+        lignes = [
+            diversification.Ligne(f"Pays {i}", Decimal(100 - i), Decimal(1), ("picto", ""))
+            for i in range(20)
+        ]
+        reste = diversification.Ligne(
+            "Non couvert", Decimal(1), Decimal(1), ("picto", ""), absent=True
+        )
+        assert "Non couvert" in texte(diversification._classement(lignes, [reste], deplie=False))
+
+
+def test_ce_qu_il_faut_savoir_est_replie_par_defaut(chiffres):
+    repli = next(n for n in noeuds(corps(chiffres)) if type(n).__name__ == "Details")
+    assert not getattr(repli, "open", False)
+    assert "Ce qu'il faut savoir de ces chiffres" in texte(repli)

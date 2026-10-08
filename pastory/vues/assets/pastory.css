@@ -1607,3 +1607,43 @@ tr.sans-valeur td {
   text-align: center;
   margin: 10px 0 0;
 }
+
+/* Un drapeau en image (assets/drapeaux, D-31) : recadré dans le créneau des repères, avec le
+   même filet que les drapeaux dessinés. */
+img.fanion {
+  object-fit: cover;
+  box-shadow: 0 0 0 0.6px rgba(44, 39, 34, 0.3);
+}
+
+/* « Afficher les autres » sous un classement replié. */
+.classement__plus {
+  align-self: flex-start;
+  margin: 6px 0 2px;
+  font-size: 12.5px;
+}
+
+/* Un bloc fermé par défaut : son titre s'ouvre d'un clic. */
+.repli > .repli__titre {
+  cursor: pointer;
+  list-style: none;
+}
+
+.repli > .repli__titre::-webkit-details-marker {
+  display: none;
+}
+
+.repli > .repli__titre::before {
+  content: "▸";
+  color: var(--encre-douce);
+  font-size: 12px;
+  width: 12px;
+  flex: none;
+}
+
+.repli[open] > .repli__titre::before {
+  content: "▾";
+}
+
+.repli:not([open]) > .repli__titre {
+  margin-bottom: 0;
+}

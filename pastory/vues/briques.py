@@ -97,6 +97,28 @@ def bloc(
     )
 
 
+def bloc_replie(titre: str, contenu: Any, note: Any = None) -> html.Section:
+    """Un bloc fermé par défaut, qui s'ouvre d'un clic sur son titre : pour ce qui éclaire les
+    chiffres sans être un chiffre — les sources, les règles, les réserves. Il reste dans la
+    page, à sa place : rien n'est relégué ailleurs (conception §2)."""
+    return html.Section(
+        html.Details(
+            [
+                html.Summary(
+                    [
+                        html.H2(titre, className="bloc__titre"),
+                        html.Span(note, className="bloc__note") if note else None,
+                    ],
+                    className="bloc__entete repli__titre",
+                ),
+                contenu,
+            ],
+            className="repli",
+        ),
+        className="bloc",
+    )
+
+
 def mot(texte: str, variante: str | None = None, **attributs: Any) -> html.Span:
     """La marque courte posée à côté d'un chiffre : « Estimé », « Partiel », « Minorée »…"""
     classes = "mot" + (f" mot--{variante}" if variante else "")

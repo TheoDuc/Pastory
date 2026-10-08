@@ -31,6 +31,7 @@ def initial() -> Etat:
         "sens": -1,
         "rubrique": "classes",
         "page": 0,
+        "deplie": False,
         "ancre": None,
         "message": None,
         "version": 0,
@@ -66,6 +67,9 @@ def appliquer(etat: Etat, champ: str, valeur: str, poches_presentes: list[str]) 
                 nouveau["sens"] = 1 if valeur in COLONNES_TEXTE else -1
         case "rubrique":
             nouveau["rubrique"] = valeur
+            nouveau["deplie"] = False
+        case "deplier":
+            nouveau["deplie"] = not etat.get("deplie", False)
         case "page":
             nouveau["page"] = max(0, int(etat.get("page", 0)) + (1 if valeur == "suivant" else -1))
     return nouveau

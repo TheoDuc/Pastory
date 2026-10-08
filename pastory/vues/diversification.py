@@ -25,13 +25,14 @@ from __future__ import annotations
 import colorsys
 from dataclasses import dataclass
 from decimal import Decimal
+from pathlib import Path
 
 from dash import html
 
 from pastory.moteur.diversification import Diversification, Poste, Repartition
 from pastory.vues import actifs as actifs_vue
 from pastory.vues import format as f
-from pastory.vues.briques import aide, bloc, choix, dessin, ligne_de_liste
+from pastory.vues.briques import aide, bloc, bloc_replie, choix, dessin, ligne_de_liste
 from pastory.vues.chiffres import Vue
 
 RUBRIQUES = (
@@ -69,6 +70,11 @@ TERRES_DE_ZONE = {
 """Ce que le planisphère allume pour chaque zone. Un repère qui **situe**, il ne délimite pas :
 la bulle « ? » des zones le dit, et ce sont les montants qui font foi (conception §3.2)."""
 
+PREMIERS_POSTES = 15
+"""Combien de postes le classement montre avant « afficher les autres »."""
+
+DOSSIER_DES_DRAPEAUX = Path(__file__).parent / "assets" / "drapeaux"
+
 LIBELLE_NUMERIQUES = "Actifs numériques"
 LIBELLE_NON_ATTRIBUE = "Non attribué par les fonds"
 LIBELLE_NON_COUVERT = "Non couvert"
@@ -91,7 +97,7 @@ class Ligne:
     taille — une couleur suit son poste (conception §3.2)."""
 
 
-def ecran(vue: Vue, rubrique: str = "classes") -> html.Div:
+def ecran(vue: Vue, rubrique: str = "classes", deplie: bool = False) -> html.Div:
     rubrique = rubrique if any(cle == rubrique for cle, _ in RUBRIQUES) else "classes"
     page: list = [_sous_onglets(rubrique)]
     diversification = vue.construit.diversification
@@ -117,7 +123,9 @@ def ecran(vue: Vue, rubrique: str = "classes") -> html.Div:
     page.append(
         html.Div(
             [
-                bloc(titre, _classement(lignes, restes), note=note, cle_aide=cle_aide),
+                bloc(
+                    titre, _classement(lignes, restes, deplie), note=note, cle_aide=cle_aide
+                ),
                 _bloc_anneau(lignes, restes, base),
             ],
             className="rangee rangee--trois-quarts rangee--apres",
@@ -125,7 +133,11 @@ def ecran(vue: Vue, rubrique: str = "classes") -> html.Div:
     )
     page.append(
         html.Div(
-            bloc("Ce qu'il faut savoir de ces chiffres", _a_savoir(vue, diversification)),
+            bloc_replie(
+                "Ce qu'il faut savoir de ces chiffres",
+                _a_savoir(vue, diversification),
+                note="sources, règles de pays, fonds non couverts",
+            ),
             className="rangee rangee--large rangee--apres",
         )
     )
@@ -263,22 +275,50 @@ def _restes(r: Repartition, classes: bool = False) -> list[Ligne]:
 def _note_des_regles(d: Diversification) -> str:
     regles = sorted({o.regle_de_pays for o in d.origines if o.regle_de_pays})
     if not regles:
-        return "règle de pays : voir ci-dessous"
+        return "règle de pays : voir « ce qu'il faut savoir »"
     if len(regles) == 1:
         return f"règle : {regles[0]}"
-    return f"{len(regles)} règles de pays, dites actif par actif ci-dessous"
+    return f"{len(regles)} règles de pays : voir « ce qu'il faut savoir »"
 
 
 # --- Le classement ---------------------------------------------------------------------
 
 
-def _classement(lignes: list[Ligne], restes: list[Ligne]) -> html.Div:
+def _classement(lignes: list[Ligne], restes: list[Ligne], deplie: bool = True) -> html.Div:
+    """Le classement. Replié, il ne montre que les `PREMIERS_POSTES` premiers postes, et un
+    bouton dit combien il en reste et ce qu'ils pèsent : une liste de soixante pays noie ceux
+    qui comptent. Les restes — ce qui n'entre pas dans la répartition — sont **toujours**
+    montrés : c'est une information, pas un détail (D-69)."""
     parts = [ligne.part for ligne in lignes + restes if ligne.part is not None]
     maxi = max(parts) if parts else Decimal(1)
-    enfants = [
-        _ligne_mesuree(ligne, maxi)
-        for ligne in sorted(lignes, key=lambda ligne: ligne.montant, reverse=True)
-    ]
+    triees = sorted(lignes, key=lambda ligne: ligne.montant, reverse=True)
+    caches = [] if deplie else triees[PREMIERS_POSTES:]
+    if len(caches) < 2:
+        # Cacher une seule ligne derrière un bouton coûterait plus qu'elle.
+        caches = []
+    visibles = triees[: len(triees) - len(caches)]
+    enfants = [_ligne_mesuree(ligne, maxi) for ligne in visibles]
+    if caches:
+        part_cachee = sum((ligne.part or ZERO for ligne in caches), ZERO)
+        enfants.append(
+            html.Button(
+                f"Afficher les {len(caches)} autres ({f.pour_cent(part_cachee)} à eux tous)",
+                id=choix("deplier", "classement"),
+                type="button",
+                className="lien classement__plus",
+                n_clicks=0,
+            )
+        )
+    elif deplie and len(triees) > PREMIERS_POSTES + 1:
+        enfants.append(
+            html.Button(
+                f"N'afficher que les {PREMIERS_POSTES} premiers",
+                id=choix("deplier", "classement"),
+                type="button",
+                className="lien classement__plus",
+                n_clicks=0,
+            )
+        )
     if not lignes:
         enfants.append(
             html.P(
@@ -301,6 +341,16 @@ def _classement(lignes: list[Ligne], restes: list[Ligne]) -> html.Div:
     return html.Div(enfants, className="classement")
 
 
+def _repere(nature: str, donnees: object):
+    """Le repère d'une ligne. Un pays porte son drapeau, tiré de `assets/drapeaux` ; un code
+    sans drapeau garde le globe dessiné par le script — repéré, jamais confondu avec un autre."""
+    if nature == "drapeau" and isinstance(donnees, str):
+        nom = f"{donnees.lower()}.svg"
+        if (DOSSIER_DES_DRAPEAUX / nom).exists():
+            return html.Img(src=f"/assets/drapeaux/{nom}", className="fanion", alt="")
+    return dessin(nature, donnees)
+
+
 def _ligne_mesuree(ligne: Ligne, maxi: Decimal) -> html.Div:
     """Une ligne : le repère dans un créneau de largeur fixe (sans quoi les libellés d'une même
     liste ne commencent pas à la même abscisse), le libellé avec son texte entier au survol, la
@@ -311,7 +361,7 @@ def _ligne_mesuree(ligne: Ligne, maxi: Decimal) -> html.Div:
         [
             html.Span(
                 [
-                    html.Span(dessin(nature, donnees), className="rang__repere"),
+                    html.Span(_repere(nature, donnees), className="rang__repere"),
                     html.Span(ligne.libelle, className="rang__texte", title=ligne.libelle),
                     *aide(ligne.cle_aide),
                 ],

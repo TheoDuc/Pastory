@@ -62,7 +62,9 @@ def _corps(onglet: str, vue: Vue, points: list[Point], chiffres: Chiffres, etat:
     if onglet == "synthese":
         return synthese.ecran(vue, chiffres, int(etat.get("page", 0)))
     if onglet == "diversification":
-        return diversification.ecran(vue, etat.get("rubrique", "classes"))
+        return diversification.ecran(
+            vue, etat.get("rubrique", "classes"), bool(etat.get("deplie", False))
+        )
     if onglet == "actifs":
         return actifs.ecran(
             vue, etat.get("type", "tous"), etat.get("tri", "valeur"), int(etat.get("sens", -1))
