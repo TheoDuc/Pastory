@@ -300,6 +300,47 @@ class TestRemplir:
         assert fournisseur(source).remplir(ACTIF, LUNDI, VENDREDI) == 0
         assert source.appels == []
 
+    def test_une_date_lointaine_ne_cree_pas_de_trou(self):
+        """Défaut trouvé à l'étape 9, sur les données du propriétaire. Le cache s'arrêtait au
+        23 janvier ; un cours demandé au 6 mars faisait télécharger du 4 février (30 jours avant)
+        au 9 mars seulement. Restait un trou du 24 janvier au 3 février, que rien ne comblait."""
+        cache = CacheEnMemoire()
+        cache.ecrire(ACTIF, jours_ouvres(Date(2026, 1, 5), Date(2026, 1, 23)))
+        source = SourceFictive({ACTIF: jours_ouvres(Date(2026, 1, 1), Date(2026, 3, 31))})
+
+        assert fournisseur(source, cache=cache).cours(ACTIF, VENDREDI) is not None
+
+        _, debut, _ = source.appels[0]
+        assert debut == Date(2026, 1, 24)
+
+    def test_un_trou_deja_dans_le_cache_est_comble(self):
+        """L'autre moitié du même défaut : un cache troué jugeait toute date du trou « déjà
+        couverte », puisqu'il connaissait des cours avant et après. Rien n'était redemandé, et
+        le cours d'un jour d'achat manquait — le TWRR sur un mois devenait non calculable."""
+        cache = CacheEnMemoire()
+        cache.ecrire(
+            ACTIF,
+            jours_ouvres(Date(2026, 1, 5), Date(2026, 1, 23))
+            + jours_ouvres(Date(2026, 2, 16), Date(2026, 3, 6)),
+        )
+        source = SourceFictive({ACTIF: jours_ouvres(Date(2026, 1, 1), Date(2026, 3, 31))})
+        leur_fournisseur = fournisseur(source, cache=cache)
+
+        trouve = leur_fournisseur.cours(ACTIF, Date(2026, 2, 4))
+
+        assert trouve is not None and trouve.date == Date(2026, 2, 4)
+        assert leur_fournisseur.refus == []
+        _, debut, _ = source.appels[0]
+        assert debut == Date(2026, 1, 24)
+
+    def test_un_week_end_n_est_pas_un_trou(self):
+        cache = CacheEnMemoire()
+        cache.ecrire(ACTIF, jours_ouvres(Date(2026, 1, 5), Date(2026, 3, 6)))
+        source = SourceFictive()
+
+        assert fournisseur(source, cache=cache).remplir(ACTIF, Date(2026, 1, 5), VENDREDI) == 0
+        assert source.appels == []
+
     def test_la_periode_demandee_ne_depasse_jamais_aujourd_hui(self):
         # Demander l'avenir à une source de cours n'a pas de sens, et certaines répondent
         # alors n'importe quoi.
@@ -362,3 +403,16 @@ class TestUneCotationQuiChange:
         )
 
         assert leur_fournisseur.cours(ACTIF, VENDREDI).valeur == Decimal("100.00")
+
+
+def jours_ouvres(du: Date, au: Date) -> list:
+    """Un cours par jour du lundi au vendredi, comme une vraie place de cotation."""
+    from datetime import timedelta
+
+    jours = []
+    jour = du
+    while jour <= au:
+        if jour.weekday() < 5:
+            jours.append(cours(jour, "100.00"))
+        jour += timedelta(days=1)
+    return jours
