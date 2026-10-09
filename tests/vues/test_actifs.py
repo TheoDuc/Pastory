@@ -22,7 +22,7 @@ from tests.vues.portefeuille import coter
 
 
 def corps(chiffres, **etat):
-    return ecrans.rendre(chiffres, {**etat_ecran.initial(), "onglet": "actifs", **etat})[5]
+    return ecrans.rendre(chiffres, {**etat_ecran.initial(), "onglet": "actifs", **etat})[4]
 
 
 def lignes(page) -> list[str]:

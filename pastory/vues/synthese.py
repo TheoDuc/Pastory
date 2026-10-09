@@ -1,10 +1,12 @@
 """L'onglet « Synthèse » : combien ai-je gagné, et comment ça a évolué ? (conception §4.2)
 
-De haut en bas, comme la maquette (`ongletSynthese`) :
+De haut en bas :
 
-1. **cinq tuiles**, le gain d'abord (D-22) : gain, TRI, TWRR, puis la valeur des actifs et le
-   capital net investi, celui-ci portant la plus-value latente ;
-2. **la courbe** du capital brut et du capital net investi, et à côté **les poches** ;
+1. **la valeur des actifs**, en grand : le point d'entrée de la page (D-99) ; puis, en seconde
+   ligne, **quatre indicateurs** — le gain d'abord (D-22), le TRI, le TWRR, et le capital net
+   investi, celui-ci portant la plus-value latente ;
+2. **la courbe** du capital brut et du capital net investi, et à côté **les poches**, en barre
+   empilée (charte graphique §6) ;
 3. **les cartes d'actifs**, triées par variation : ce qui a le plus bougé, pas un doublon du
    tableau de l'onglet suivant.
 
@@ -25,17 +27,13 @@ from dash import html
 from pastory.config.actifs import TypeActif
 from pastory.moteur.rendements import Rendements
 from pastory.moteur.valorisation import PointEvolution, PositionValorisee
-from pastory.pivot.operation import Poche
 from pastory.vues import format as f
 from pastory.vues.bandeau import NOM_DE_POCHE, jeton
-from pastory.vues.briques import aide, bloc, choix, dessin, mot, pied_avec_mot, tuile
+from pastory.vues.briques import aide, bloc, choix, dessin, entree, mot, pied_avec_mot, tuile
 from pastory.vues.chiffres import Chiffres, Vue
 
-COULEUR_DE_POCHE = {Poche.PEA: "#4167ad", Poche.CTO: "#14938d", Poche.CRYPTO: "#76386a"}
-"""Les couleurs des poches, **en clair** : elles vont dans un attribut SVG, où `var()` n'est pas
-interprété. Ce sont celles de `--poche-1` à `--poche-3`, et un test le vérifie. Une couleur suit
-sa poche, jamais son rang : décocher une poche ne repeint pas les autres ; et c'est la couleur de
-la poche partout où elle apparaît (D-96)."""
+LIBELLES_DES_COURBES = {"brut": "Capital brut", "investi": "Capital net investi"}
+"""Les mots posés au bout des courbes, à la place d'une légende (charte graphique §6)."""
 
 NOM_DE_TYPE = {TypeActif.ETF: "ETF", TypeActif.ACTION: "Action", TypeActif.CRYPTO: "Crypto"}
 
@@ -47,7 +45,7 @@ CENT = Decimal("100")
 def ecran(vue: Vue, chiffres: Chiffres, page: int = 0) -> html.Div:
     return html.Div(
         [
-            html.Div(_tuiles(vue), className="tuiles"),
+            _sommaire(vue),
             html.Div(
                 [_bloc_courbe(vue, chiffres), _bloc_poches(vue)],
                 className="rangee rangee--apres",
@@ -57,7 +55,7 @@ def ecran(vue: Vue, chiffres: Chiffres, page: int = 0) -> html.Div:
     )
 
 
-# --- Les tuiles ------------------------------------------------------------------------
+# --- La valeur, puis les indicateurs ------------------------------------------------------
 
 
 def _ton(valeur: Decimal | None, classe: str) -> str:
@@ -66,7 +64,17 @@ def _ton(valeur: Decimal | None, classe: str) -> str:
     return "perte" if classe == "perte" else "gain"
 
 
-def _tuiles(vue: Vue) -> list:
+def _sommaire(vue: Vue) -> html.Div:
+    """La valeur des actifs en grand, puis les quatre indicateurs en seconde ligne (D-99). Les
+    chiffres, leurs pieds et leurs marques sont ceux d'avant : seule la place change."""
+    valeur, secondaires = _tuiles(vue)
+    return html.Div(
+        [valeur, html.Div(secondaires, className="tuiles tuiles--secondaires")],
+        className="sommaire",
+    )
+
+
+def _tuiles(vue: Vue) -> tuple[html.Div, list]:
     total = vue.synthese.total
     valorisation = vue.synthese.valorisation
     twrr = total.twrr
@@ -82,7 +90,9 @@ def _tuiles(vue: Vue) -> list:
     if total.tri is None:
         pied_tri: object = total.motif_tri or total.motif or "non calculable"
     elif total.peu_significatif:
-        pied_tri = pied_avec_mot("Peu fiable")
+        # La marque explique elle-même pourquoi : la période est trop courte pour un taux
+        # annualisé. Le « ? » de l'étiquette, lui, dit ce qu'est le TRI.
+        pied_tri = pied_avec_mot("Peu fiable", cle_aide="peuSignificatif")
     else:
         pied_tri = "annualisé"
 
@@ -113,7 +123,10 @@ def _tuiles(vue: Vue) -> list:
         ]
     )
 
-    return [
+    valeur_des_actifs = entree(
+        "Valeur des actifs", f.montant(valeur), cle_aide="valeur", pied=pied_valeur
+    )
+    return valeur_des_actifs, [
         tuile(
             "Gain",
             f.montant_signe(total.gain),
@@ -127,7 +140,7 @@ def _tuiles(vue: Vue) -> list:
             f.taux(total.tri),
             ton=_ton(total.tri, f.classe_du_taux(total.tri)),
             classe=f.classe_du_taux(total.tri),
-            cle_aide="peuSignificatif" if total.peu_significatif else "tri",
+            cle_aide="tri",
             pied=pied_tri,
         ),
         tuile(
@@ -135,11 +148,9 @@ def _tuiles(vue: Vue) -> list:
             f.taux(twrr.taux),
             ton=_ton(twrr.taux, f.classe_du_taux(twrr.taux)),
             classe=f.classe_du_taux(twrr.taux),
-            cle_aide="peuSignificatif" if total.peu_significatif else "twrr",
+            cle_aide="twrr",
             pied=pied_twrr,
         ),
-        tuile("Valeur des actifs", f.montant(valeur), petit=True, cle_aide="valeur",
-              pied=pied_valeur),
         tuile(
             "Capital net investi",
             f.montant(vue.portefeuille.total.capital_net_investi),
@@ -174,7 +185,7 @@ def _bloc_courbe(vue: Vue, chiffres: Chiffres) -> html.Section:
     )
     return bloc(
         "Évolution du capital",
-        html.Div([_courbe(points), _legende(), _partiels(points)]),
+        html.Div([_courbe(points), _explication(), _partiels(points)]),
         note=note,
     )
 
@@ -209,7 +220,7 @@ def _courbe(points: list[PointEvolution]) -> html.Div:
             className="cadre-graphique",
         )
     maxi = max(max(p.valeur, p.capital_net_investi) for p in points)
-    plafond = _plafond(float(maxi))
+    plafond = plafond_de_l_axe(float(maxi))
     donnees = {
         "hauteur": HAUTEUR_DE_LA_COURBE,
         "aria": (
@@ -222,11 +233,12 @@ def _courbe(points: list[PointEvolution]) -> html.Div:
             for i in range(5)
         ],
         "points": [_point(p) for p in points],
+        "libelles": LIBELLES_DES_COURBES,
     }
     return html.Div(dessin("courbe", donnees), className="cadre-graphique")
 
 
-def _plafond(maxi: float) -> float:
+def plafond_de_l_axe(maxi: float) -> float:
     """Le haut de l'axe : un nombre rond au-dessus du plus haut point, comme dans la maquette."""
     pas = 10 ** math.floor(math.log10(maxi or 1)) / 2
     return max(pas, math.ceil(maxi * 1.06 / pas) * pas)
@@ -248,26 +260,16 @@ def _point(p: PointEvolution) -> dict:
     return point
 
 
-def _legende() -> html.Ul:
-    return html.Ul(
+def _explication() -> html.P:
+    """Les courbes sont nommées à leur bout ; cette ligne dit ce que chacune représente."""
+    return html.P(
         [
-            html.Li(
-                [html.I(style={"borderTopColor": "var(--courbe-brut)"}),
-                 "Capital brut — ce que valent les actifs"]
-            ),
-            html.Li(
-                [
-                    html.I(
-                        style={
-                            "borderTopColor": "var(--courbe-investi)",
-                            "borderTopStyle": "dashed",
-                        }
-                    ),
-                    "Capital net investi — ce qui a été placé, net de frais",
-                ]
-            ),
+            html.I(className="trait trait--brut"),
+            " Capital brut : ce que valent les actifs. ",
+            html.I(className="trait trait--investi"),
+            " Capital net investi : ce qui a été placé, net de frais.",
         ],
-        className="legende",
+        className="graphique__explication",
     )
 
 
@@ -302,14 +304,14 @@ def _bloc_poches(vue: Vue) -> html.Section:
         return bloc(titre, html.P("Aucune poche valorisée : il n'y a rien à répartir.",
                                   className="vide"))
     total = sum((montant for _, montant in parts), Decimal(0))
-    # De la plus grosse à la plus petite : l'anneau part de midi avec la part principale, et la
-    # liste se lit dans le même ordre.
+    # De la plus grosse à la plus petite : la barre part de la gauche avec la part principale,
+    # et la liste se lit dans le même ordre.
     parts.sort(key=lambda part: part[1], reverse=True)
     liste = html.Ul(
         [
             html.Li(
                 [
-                    html.Span(className="puce", style={"background": COULEUR_DE_POCHE[poche]}),
+                    html.Span(className=f"puce puce--{poche.value.lower()}"),
                     html.Span(NOM_DE_POCHE[poche], className="liste-parts__nom"),
                     html.Span(f.montant(montant), className="nb"),
                     html.Span(f.pour_cent(montant / total * CENT), className="part nb"),
@@ -320,25 +322,25 @@ def _bloc_poches(vue: Vue) -> html.Section:
         className="liste-parts",
     )
     if len(parts) == 1:
-        # Un anneau à une seule part ne dit rien (conception §5.1) : la liste suffit.
+        # Une barre à une seule part ne dit rien (conception §5.1) : la liste suffit.
         return bloc(titre, liste)
-    anneau = dessin(
-        "anneau",
-        {
-            "taille": 156,
-            "centre": f.montant_entier(total),
-            "sous": "au total",
-            "parts": [
-                {"montant": float(montant), "couleur": COULEUR_DE_POCHE[poche]}
-                for poche, montant in parts
-            ],
-        },
+    # UNE BARRE EMPILÉE FINE, une poche par segment, dans la couleur de la poche (D-96). La
+    # largeur ne fait que PLACER le segment : la part écrite dessous fait foi. Aucun chiffre
+    # n'est posé sur la barre.
+    barre = html.Div(
+        [
+            html.Span(
+                className=f"empile__part empile__part--{poche.value.lower()}",
+                style={"flex": f"{float(montant / total):.6f} 1 0"},
+                title=NOM_DE_POCHE[poche],
+            )
+            for poche, montant in parts
+        ],
+        className="empile",
+        role="img",
+        **{"aria-label": "Répartition de la valeur des actifs par poche ; le détail suit."},
     )
-    return bloc(
-        titre,
-        html.Div([anneau, liste], className="anneau-bloc anneau-bloc--colonne"),
-        note=f"base {f.montant(total)}",
-    )
+    return bloc(titre, html.Div([barre, liste]), note=f"base {f.montant(total)}")
 
 
 # --- Les cartes d'actifs ---------------------------------------------------------------
@@ -390,7 +392,9 @@ def _cartes(vue: Vue, page: int) -> html.Section:
                 ],
                 className="bloc__entete",
             ),
-            html.Div(cartes, className="cartes")
+            # Le numéro de page permet à dessin.js de faire glisser les cartes dans le sens où
+            # l'on feuillette, et seulement quand la page change.
+            html.Div(cartes, className="cartes", **{"data-page": str(page)})
             if cartes
             else html.P("Aucun actif détenu dans les poches choisies.", className="vide"),
         ],

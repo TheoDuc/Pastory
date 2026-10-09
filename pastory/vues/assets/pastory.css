@@ -1,161 +1,27 @@
-/* Feuille de style des maquettes de l'étape 8 — troisième version.
+/* La feuille de style de Pastory — l'identité « livre relié » de l'étape 9 bis (D-98).
  *
- * ELLE EST LE LIVRABLE. À l'étape 9 elle devient `pastory/vues/assets/pastory.css`
- * telle quelle : seule la structure HTML sera retranscrite en composants Dash (D-31).
+ * LA RÈGLE : docs/charte-graphique.md. Un livre bien composé, pas un faux livre : la
+ * métaphore passe par la STRUCTURE et la TYPOGRAPHIE. Aucune texture, aucune ombre, aucun
+ * dégradé métallique, aucun relief. On sépare par l'espace et le filet fin, pas par la boîte.
  *
- * Style voulu par le propriétaire : crème et beige, papier, typographie soignée,
- * bordures fines gris très doux, vert sauge pour les gains, brique/terracotta pour les
- * pertes. Sobre, et surtout PAS le sombre moderne sur-utilisé.
+ * AUCUNE VALEUR ICI : chaque couleur, police, taille d'importance, espacement et durée vient
+ * de `theme.css`, par `var(--…)`. Un test le vérifie. Une couleur écrite en clair dans ce
+ * fichier est un défaut.
  *
- * CE QUI A CHANGÉ APRÈS SA DEUXIÈME RELECTURE :
- *  1. le bandeau du haut ne se confond plus avec la page : c'est un bandeau d'encre,
- *     comme la manchette d'un journal, et non une variante du même crème ;
- *  2. les bulles du bouton « ? » sont posées en position FIXE et ramenées dans l'écran :
- *     plus de texte coupé au bord de la page, plus de bulle loin de son bouton ;
- *  3. le bouton « ? » est collé au mot qu'il explique, et non repoussé au bord du bloc ;
- *  4. la grille du graphique est un trait plein, pour ne plus se confondre avec la
- *     courbe du capital investi, qui est en pointillé ;
- *  5. la synthèse montre les actifs en CARTES triées par variation, et non un doublon
- *     du tableau de l'onglet « Les actifs » ;
- *  6. la diversification se lit rubrique par rubrique, avec drapeaux et pictogrammes ;
- *  7. un tableau qui peut grandir n'est plus jamais posé à côté d'un bloc de hauteur
- *     fixe : c'est ce qui creusait des vides. Les rangées s'étirent à la même hauteur ;
- *  8. les réglages de la maquette sont descendus en pied de page.
- *
- * THÈME UNIQUE, ASSUMÉ. Pas de variante sombre : elle est explicitement écartée.
- * AUCUN APPEL RÉSEAU : les polices sont dans le dépôt (D-31).
- *
- * Les couleurs ne sont pas choisies à l'œil : la rampe des poches et la paire de
- * courbes ont passé le validateur de palette (bande de clarté, séparation sous vision
- * deutéranope et protanope, contraste sur le fond). Les couleurs de statut — sauge,
- * terracotta, ocre — sont vérifiées au contraste de texte (>= 4,5:1 sur le papier).
+ * L'HISTOIRE DE CETTE FEUILLE, ce qui ne doit pas se perdre en la réécrivant :
+ *  - le bandeau ne se confond pas avec la page : il est en brun reliure ;
+ *  - les bulles « ? » sont en position FIXE et ramenées dans l'écran (dessin.js) ;
+ *  - le « ? » est collé au mot qu'il explique ;
+ *  - la grille du graphique est un trait PLEIN : en pointillé, elle se confondait avec la
+ *    courbe du capital investi, elle-même en pointillé ;
+ *  - un tableau qui peut grandir n'est jamais posé à côté d'un bloc de hauteur fixe ;
+ *  - un SVG sans règle de taille remplit la page ;
+ *  - `.carte` est le nom des cartes d'actifs : le planisphère s'appelle `.planisphere`.
  */
 
 /* ============================================================================
-   LA TYPOGRAPHIE, EMBARQUÉE
-   IBM Plex, sous licence SIL Open Font 1.1 (voir polices/LICENCE-IBM-Plex.txt).
-   Ses chiffres sont à hauteur constante et à chasse fixe — ce qui manquait à la
-   première maquette, dont les chiffres montaient et descendaient comme des
-   minuscules et devenaient illisibles en colonne.
+   LA PAGE
    ========================================================================== */
-
-@font-face {
-  font-family: "Plex Sans";
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("polices/ibm-plex-sans-latin-400-normal.woff2") format("woff2");
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+2074,
-    U+20AC, U+2122, U+2191, U+2193, U+2212, U+FEFF, U+FFFD;
-}
-@font-face {
-  font-family: "Plex Sans";
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("polices/ibm-plex-sans-latin-ext-400-normal.woff2") format("woff2");
-  unicode-range: U+0100-02AF, U+0304-0308, U+1E00-1EFF, U+2020, U+20A0-20AB,
-    U+20AD-20CF, U+2113, U+A720-A7FF;
-}
-@font-face {
-  font-family: "Plex Sans";
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url("polices/ibm-plex-sans-latin-600-normal.woff2") format("woff2");
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+2074,
-    U+20AC, U+2122, U+2191, U+2193, U+2212, U+FEFF, U+FFFD;
-}
-@font-face {
-  font-family: "Plex Sans";
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url("polices/ibm-plex-sans-latin-ext-600-normal.woff2") format("woff2");
-  unicode-range: U+0100-02AF, U+0304-0308, U+1E00-1EFF, U+2020, U+20A0-20AB,
-    U+20AD-20CF, U+2113, U+A720-A7FF;
-}
-@font-face {
-  font-family: "Plex Serif";
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url("polices/ibm-plex-serif-latin-600-normal.woff2") format("woff2");
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+2074,
-    U+20AC, U+2122, U+2191, U+2193, U+2212, U+FEFF, U+FFFD;
-}
-@font-face {
-  font-family: "Plex Serif";
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url("polices/ibm-plex-serif-latin-ext-600-normal.woff2") format("woff2");
-  unicode-range: U+0100-02AF, U+0304-0308, U+1E00-1EFF, U+2020, U+20A0-20AB,
-    U+20AD-20CF, U+2113, U+A720-A7FF;
-}
-
-:root {
-  /* LE POINT LE PLUS IMPORTANT DE CE FICHIER.
-   *
-   * `only light` interdit au navigateur d'assombrir la page tout seul. Sans cette
-   * ligne, le mode sombre automatique de Chrome inverse les clartés : le fond crème
-   * devient noir, et — beaucoup plus grave — le bleu le plus FONCÉ s'affiche le plus
-   * CLAIR. Dans un anneau, les parts changent alors visiblement de couleur, et le
-   * lecteur croit à une erreur de calcul. Le propriétaire l'a constaté sur une capture,
-   * et c'était bien un défaut, mais pas celui qu'on croyait.
-   *
-   * L'application est en clair par choix (notes initiales), et elle doit le DIRE au
-   * navigateur, sans quoi ses couleurs ne veulent plus rien dire. Vaut aussi pour la
-   * sauge et la terracotta : un gain inversé vire au rouge. */
-  color-scheme: only light;
-
-  /* --- Le papier et l'encre --- */
-  --papier: #ece3d0;
-  --surface: #f3ecdd;
-  --surface-creuse: #e0d5bd;
-  --trait: #d2c7ae;
-  --trait-fort: #b3a68a;
-  --encre: #2c2722;
-  --encre-douce: #665c51;
-  --encre-tres-douce: #6f6559;
-
-  /* --- Le bandeau : une manchette d'encre, pour qu'il ne se confonde pas
-         avec la page. Les trois rangées vont du plus sombre au plus clair. --- */
-  --bandeau: #2e2922;
-  --bandeau-clair: #3f382f;
-  --bandeau-encre: #f4eee1;
-  --bandeau-douce: #b7ab98;
-  --bandeau-trait: #4d463b;
-  --sous-bandeau: #e2d8c2;
-
-  /* --- Les trois couleurs de statut. Elles ne servent JAMAIS de couleur de série. --- */
-  --gain: #456a4b; /* sauge      — 5,46:1 sur le papier */
-  --perte: #a34b2e; /* terracotta — 5,18:1 */
-  --reserve: #7d5f1b; /* ocre       — 5,29:1 : estimé, minoré, à surveiller */
-  --gain-clair: #8fbf98; /* les mêmes, lisibles sur le bandeau d'encre */
-  --perte-clair: #e09578;
-
-  /* --- Les séries des graphiques --- */
-  --courbe-brut: #1d6c93;
-  --courbe-investi: #665c51;
-  /* Les poches : trois teintes distinctes, qui sont LEUR couleur partout où elles
-     apparaissent (D-96). PEA bleu, CTO bleu-vert canard, crypto prune — aucune n'est la
-     sauge, la terracotta ni l'ocre, réservées aux statuts. Passées au validateur du skill
-     dataviz sur le fond des blocs : séparation daltonienne 11,0 (cible 8), vision normale
-     15,3 (plancher 15), contraste >= 3:1. Les trois bleus d'avant échouaient : trop peu
-     saturés, ils se lisaient comme des gris. */
-  --poche-1: #4167ad; /* PEA */
-  --poche-2: #14938d; /* CTO */
-  --poche-3: #76386a; /* crypto */
-  --absent: #ada08a; /* ce qui manque : non couvert, non attribué, hors actions */
-
-  --serif: "Plex Serif", Georgia, "Palatino Linotype", serif;
-  --sans: "Plex Sans", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
-
-  --rayon: 3px;
-  --ombre: 0 1px 2px rgba(80, 66, 44, 0.06);
-  --ecart: 10px; /* l'écart unique entre deux blocs de la grille */
-}
 
 * {
   box-sizing: border-box;
@@ -167,24 +33,30 @@ body {
 }
 
 body {
-  background: var(--papier);
-  color: var(--encre);
+  background: var(--fond-livre);
+  color: var(--texte);
   font-family: var(--sans);
-  font-size: 14px;
+  font-size: var(--taille-base);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  /* Une trame de papier très discrète, dessinée en CSS : aucune image distante. */
-  background-image: radial-gradient(
-    circle at 1px 1px,
-    rgba(96, 82, 62, 0.055) 1px,
-    transparent 0
-  );
-  background-size: 7px 7px;
+  /* Tous les chiffres à chasse fixe, y compris dans une phrase (charte §3.2). */
+  font-variant-numeric: var(--chiffres);
+}
+
+/* Un SVG ne peint rien par lui-même : ses traits ont leur classe. Sans cette règle, sa racine
+   garde le noir par défaut du navigateur, hors palette. */
+svg {
+  fill: currentColor;
+}
+
+/* Un lien vers une section de la page (« Aller à ») y glisse, sans à-coup. */
+html {
+  scroll-behavior: smooth;
 }
 
 /* Tout ce qui est un chiffre s'aligne et se compare. */
 .nb {
-  font-variant-numeric: tabular-nums lining-nums;
+  font-variant-numeric: var(--chiffres);
   font-feature-settings: "tnum", "lnum";
   white-space: nowrap;
 }
@@ -197,183 +69,272 @@ body {
   color: var(--perte);
 }
 
+:where(button, a, summary, [tabindex], th[role="button"]):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.entete button:focus-visible,
+.couverture button:focus-visible {
+  outline-color: var(--focus-sur-reliure);
+}
+
+/* Le filet de chargement d'`application.py`, quand la page n'a pas pu se charger. */
+.filet-de-chargement {
+  max-width: 60ch;
+  margin: 60px auto;
+  font-family: var(--sans);
+  color: var(--texte-secondaire);
+  text-align: center;
+}
+
 /* ============================================================================
-   LE BANDEAU : manchette, filtres, état des données
+   LA NAVIGATION, LES FILTRES, LE COLOPHON — trois bandes, du plus sombre au plus clair
    ========================================================================== */
 
 .entete {
   position: sticky;
   top: env(safe-area-inset-top, 0px);
   z-index: 40;
-  background: var(--bandeau);
-  box-shadow: 0 1px 0 var(--trait-fort), 0 6px 14px rgba(60, 50, 34, 0.07);
+  background: var(--reliure);
 }
 
+/* Une bande court sur toute la largeur ; son contenu s'aligne sur la colonne de la page. */
 .bande {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 7px 16px;
-  max-width: 1880px;
-  margin: 0 auto;
-  padding-inline: 20px;
+  gap: var(--espace-2) var(--espace-4);
   width: 100%;
+  padding-inline: max(var(--gouttiere), calc((100% - var(--largeur-page)) / 2));
 }
 
 .bande--titre {
-  padding-block: 9px;
-  color: var(--bandeau-encre);
+  min-height: var(--hauteur-navigation);
+  color: var(--sur-reliure);
+  position: relative;
+  z-index: 2;
 }
 
-/* Ces deux bandes portent un fond qui doit courir sur TOUTE la largeur de l'écran.
-   Elles renoncent donc au `max-width` et recréent la gouttière de la page avec un
-   padding calculé — c'est la seule façon d'avoir un fond pleine largeur et un
-   contenu aligné sur la colonne de texte. Une seule règle par bande, pour qu'aucune
-   autre ne vienne l'annuler par spécificité. */
+/* Le haut de la bande qui suit la navigation laisse la place du signet : le ruban descend
+   dans un vide, jamais sur un bouton ni sur un mot du colophon. */
 .bande--filtres {
-  max-width: none;
-  background: var(--bandeau-clair);
-  border-top: 1px solid var(--bandeau-trait);
-  color: var(--bandeau-douce);
-  padding-block: 7px;
-  padding-inline: max(20px, calc((100% - 1880px) / 2 + 20px));
+  background: var(--reliure-clair);
+  color: var(--sur-reliure-pale);
+  padding-block: calc(var(--signet-hauteur) + 3px) var(--espace-2);
+  column-gap: var(--espace-6);
 }
 
-.bande--etat {
-  max-width: none;
-  background: var(--sous-bandeau);
-  border-top: 1px solid var(--trait-fort);
-  padding-block: 5px;
-  padding-inline: max(20px, calc((100% - 1880px) / 2 + 20px));
-  font-size: 12px;
-  color: var(--encre-douce);
-  gap: 3px 14px;
+/* La bande garde sa hauteur sur tous les chapitres, filtres ou non : le livre a le même rythme
+   d'une page à l'autre. */
+.bande--filtres {
+  min-height: calc(var(--signet-hauteur) + 3px + var(--espace-2) + 30px);
 }
 
-.bande--etat b {
-  font-weight: 600;
-  color: var(--encre);
-}
-
-.marque {
+/* La phrase d'un sommaire sans choix (les Projections). */
+.bande__phrase {
   font-family: var(--serif);
-  font-size: 15.5px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
+  font-style: italic;
+  font-size: 15px;
+  color: var(--sur-reliure-pale);
+}
+
+/* Une section où mène un lien de la bande : elle s'arrête sous le bandeau, pas dessous. */
+.ancre-de-chapitre {
+  scroll-margin-top: calc(var(--hauteur-navigation) + 72px);
+}
+
+/* Un groupe de filtres : son étiquette et ses boutons, serrés ; les groupes, eux, respirent. */
+.filtre {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-3);
+}
+
+/* À droite des filtres, ce qu'ils ont retenu : la période en clair. */
+.filtres__note {
+  margin-left: auto;
+  font-style: italic;
+  font-family: var(--serif);
+  font-size: 15px;
+  color: var(--sur-reliure-pale);
+}
+
+/* Une bande sans rien à dire disparaît. `.bande` impose `display: flex`, qui l'emporte sur
+   l'attribut `hidden` : sans cette règle, la rangée des filtres restait une bande vide. */
+.bande[hidden] {
+  display: none;
+}
+
+/* Le nom, en tête de la navigation, est un bouton : il referme le livre sur sa couverture. */
+.marque {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--serif);
+  font-size: var(--taille-marque);
+  font-weight: 500;
+  letter-spacing: 0.02em;
   white-space: nowrap;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  color: var(--bandeau-encre);
+  gap: 9px;
+  color: var(--sur-reliure-or);
+  margin-right: var(--espace-3);
 }
 
-/* LE LOGO, TEMPORAIRE. Il a pris la place du point sauge qui précédait le mot.
-   Clair sur le bandeau d'encre : c'est lui qui porte maintenant la présence de la
-   manchette. Le trait reste en encre et non en sauge — la sauge veut dire « gain »
-   partout ailleurs, et un logo vert se lirait comme un état du portefeuille.
-   La règle de taille n'est pas cosmétique : un SVG sans dimension remplit la page. */
-.logo {
-  width: 21px;
-  height: 21px;
-  flex: none;
+.marque:hover {
+  color: var(--sur-reliure-actif);
+}
+
+/* LE BOUTON JOUR / NUIT : une lune le jour (passer à la lecture de nuit), un soleil la nuit.
+   Il vit sur la reliure, dans la navigation et dans le coin de la couverture. */
+.bascule-theme {
+  background: none;
+  border: 1px solid var(--reliure-filet);
+  border-radius: var(--rayon);
+  color: var(--sur-reliure-pale);
+  width: 30px;
+  height: 28px;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bascule-theme:hover {
+  color: var(--sur-reliure-actif);
+  border-color: var(--sur-reliure-or);
+}
+
+.bascule {
+  width: 16px;
+  height: 16px;
   display: block;
-}
-
-.logo__papier {
-  fill: var(--bandeau-encre);
-}
-
-.logo__trait {
   fill: none;
-  stroke: var(--bandeau);
-  stroke-width: 2.1;
+  stroke: currentColor;
+  stroke-width: 1.5;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-.logo__point {
-  fill: var(--bandeau);
+.bascule__soleil {
+  display: none;
+}
+
+:root[data-theme="sombre"] .bascule__soleil {
+  display: inline;
+}
+
+:root[data-theme="sombre"] .bascule__lune {
+  display: none;
+}
+
+/* LE LOGO : un livre fermé, en aplat d'or, le dos en creux, un signet qui dépasse (variante
+   « B · Signet », choisie par le propriétaire). Deux couleurs : l'or et la reliure. La règle
+   de taille n'est pas cosmétique : un SVG sans dimension remplit la page. */
+.logo {
+  fill: currentColor;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  display: block;
+}
+
+.logo__plat,
+.logo__signet {
+  fill: var(--sur-reliure-or);
+}
+
+.logo__dos {
+  fill: none;
+  stroke: var(--reliure);
+  stroke-width: 1.6;
 }
 
 .pousse {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--espace-2);
 }
 
-/* --- Les onglets, dans la manchette --- */
+/* --- Les onglets : les chapitres du livre --- */
 
 .onglets {
   display: flex;
-  gap: 2px;
   flex-wrap: wrap;
+  align-self: stretch;
+  gap: 2px;
 }
 
 .onglets button {
   font: inherit;
-  font-size: 13px;
-  color: var(--bandeau-douce);
+  font-size: var(--taille-texte);
+  color: var(--sur-reliure-pale);
   background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--rayon);
-  padding: 5px 12px 6px;
+  border: 0;
+  padding: 0 var(--espace-3);
   cursor: pointer;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  position: relative;
 }
 
 .onglets button:hover {
-  color: var(--bandeau-encre);
-  background: rgba(255, 255, 255, 0.07);
+  color: var(--sur-reliure);
+}
+
+/* Le numéro romain d'un chapitre, en or : seulement sur la reliure, où l'or se lit. */
+.entete .onglet__numero {
+  font-family: var(--serif);
+  font-size: 15px;
+  color: var(--sur-reliure-or);
+  letter-spacing: 0.04em;
+  font-variant-numeric: var(--chiffres);
 }
 
 .onglets button[aria-selected="true"] {
-  color: var(--encre);
+  color: var(--sur-reliure-actif);
   font-weight: 600;
-  background: var(--papier);
 }
 
-/* --- Les onglets secondaires, dans la page : le choix de ce qu'on regarde --- */
-
-.onglets--secondaires {
-  gap: 3px;
-  margin-bottom: var(--ecart);
-  border-bottom: 1px solid var(--trait-fort);
-  padding-bottom: 0;
+.onglets button[aria-selected="true"] .onglet__numero {
+  color: var(--sur-reliure-actif);
 }
 
-.onglets--secondaires button {
-  color: var(--encre-douce);
-  border-radius: var(--rayon) var(--rayon) 0 0;
-  border: 1px solid transparent;
-  border-bottom: 0;
-  margin-bottom: -1px;
-  padding: 6px 14px 7px;
+/* LE SIGNET : l'onglet actif n'est pas un bouton surligné, c'est un petit ruban d'or, plat,
+   qui descend sous la barre, la queue fendue. Aucune ombre, aucun dégradé. */
+.onglets button[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: var(--signet-largeur);
+  height: var(--signet-hauteur);
+  margin-left: calc(var(--signet-largeur) / -2);
+  background: var(--ornement);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 72%, 0 100%);
+  pointer-events: none;
 }
 
-.onglets--secondaires button:hover {
-  background: var(--surface-creuse);
-  color: var(--encre);
-}
-
-.onglets--secondaires button[aria-selected="true"] {
-  background: var(--surface);
-  border-color: var(--trait-fort);
-  color: var(--encre);
-  box-shadow: inset 0 2px 0 var(--encre);
-}
-
-/* --- Les groupes de filtres --- */
+/* --- Les groupes de filtres, sur la reliure claire --- */
 
 .groupe {
   display: inline-flex;
-  border: 1px solid var(--bandeau-trait);
+  border: 1px solid var(--reliure-filet);
   border-radius: var(--rayon);
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.05);
 }
 
 .groupe button {
   font: inherit;
-  font-size: 12.5px;
-  color: var(--bandeau-douce);
+  font-size: var(--taille-petite);
+  color: var(--sur-reliure-pale);
   background: transparent;
   border: 0;
   padding: 4px 11px 5px;
@@ -381,18 +342,31 @@ body {
   white-space: nowrap;
 }
 
-.groupe button + button {
-  border-left: 1px solid var(--bandeau-trait);
+.groupe button + button,
+.groupe a + a {
+  border-left: 1px solid var(--reliure-filet);
+}
+
+/* Un lien qui a l'allure d'un bouton de la bande (« Aller à » des Frais). */
+.groupe a {
+  font-size: var(--taille-petite);
+  color: var(--sur-reliure-pale);
+  padding: 4px 11px 5px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.groupe a:hover {
+  color: var(--sur-reliure);
 }
 
 .groupe button:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--bandeau-encre);
+  color: var(--sur-reliure);
 }
 
 .groupe button[aria-pressed="true"] {
-  background: var(--papier);
-  color: var(--encre);
+  background: var(--reliure);
+  color: var(--sur-reliure-actif);
   font-weight: 600;
 }
 
@@ -407,71 +381,102 @@ body {
   text-decoration: line-through;
 }
 
+.etiquette {
+  font-size: var(--petites-capitales-taille);
+  letter-spacing: var(--petites-capitales-espace);
+  text-transform: uppercase;
+  font-weight: 600;
+  color: inherit;
+}
+
+.page .etiquette {
+  color: var(--texte-secondaire);
+}
+
+/* --- Les boutons --- */
+
 .bouton {
   font: inherit;
-  font-size: 12.5px;
-  border: 1px solid var(--reserve);
+  font-size: var(--taille-petite);
+  border: 1px solid var(--contour);
   border-radius: var(--rayon);
   background: transparent;
-  padding: 4px 11px 5px;
+  color: var(--texte);
+  padding: 5px 12px 6px;
   cursor: pointer;
   white-space: nowrap;
 }
 
-.bouton--surveiller {
-  color: #e2c078;
-  border-color: #8a7038;
-  font-weight: 600;
+/* L'annexe, à droite de la navigation : discrète, parce que la page n'est pas aussi
+   importante que les chapitres (arbitrage du propriétaire, étape 9). */
+.bouton--discret {
+  color: var(--sur-reliure-pale);
+  border-color: var(--reliure-filet);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
 }
 
-.bouton--surveiller:hover {
-  background: rgba(226, 192, 120, 0.12);
+.bouton--discret .onglet__numero {
+  font-size: var(--taille-petite);
+  font-style: italic;
 }
 
-.etiquette {
-  font-size: 10.5px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  font-weight: 600;
+.bouton--discret:hover,
+.bouton--discret[aria-pressed="true"] {
+  color: var(--sur-reliure-actif);
+  border-color: var(--sur-reliure-or);
+}
+
+/* Un bouton sur la page claire. */
+.bouton--clair {
+  background: var(--fond-page);
+}
+
+.bouton--clair:hover {
+  background: var(--fond-secondaire);
+}
+
+/* Un bouton qui se lit comme un lien, dans une phrase. */
+.lien {
+  font: inherit;
   color: inherit;
-  opacity: 0.75;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--contour);
+  text-underline-offset: 2px;
 }
 
-.bande--etat .etiquette,
-.page .etiquette,
-.pied .etiquette {
-  color: var(--encre-tres-douce);
-  opacity: 1;
-}
-
-:where(button, a, summary, [tabindex], th[role="button"]):focus-visible {
-  outline: 2px solid var(--courbe-brut);
-  outline-offset: 1px;
+.lien:hover {
+  text-decoration-color: currentColor;
 }
 
 /* ============================================================================
-   LA GRILLE — c'est ici que se joue la densité
+   LA PAGE ET LA GRILLE
+   Les éléments sont des BOÎTES (D-102, retour du propriétaire) : un fond de page, un filet
+   pour frontière, posées sur le fond du livre. Jamais d'ombre ni de relief (charte §1).
    ========================================================================== */
 
 .page {
-  max-width: 1880px;
+  max-width: calc(var(--largeur-page) + 2 * var(--gouttiere));
   margin: 0 auto;
-  padding-inline: 20px;
-  padding-block: var(--ecart) 28px;
+  padding: 0 var(--gouttiere) var(--espace-5);
 }
 
 .tuiles {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(176px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: var(--ecart);
 }
 
 /* La rangée principale : le graphique large, une colonne compacte à droite.
-   `align-items: stretch` est essentiel — c'est lui qui empêche un bloc plus court
-   de laisser un vide à côté d'un bloc plus grand. */
+   `align-items: stretch` empêche un bloc plus court de laisser un vide à côté d'un plus grand. */
 .rangee {
   display: grid;
-  grid-template-columns: minmax(0, 2.2fr) minmax(290px, 1fr);
+  grid-template-columns: minmax(0, 2.1fr) minmax(280px, 1fr);
   gap: var(--ecart);
   align-items: stretch;
 }
@@ -485,201 +490,388 @@ body {
 }
 
 .rangee--deux {
-  grid-template-columns: repeat(auto-fit, minmax(430px, 1fr));
-}
-
-/* Trois quarts pour le classement chiffre, un quart pour l'anneau : le chiffre fait
-   foi, la forme accompagne. */
-.rangee--trois-quarts {
-  grid-template-columns: minmax(0, 3fr) minmax(230px, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
 }
 
 /* ============================================================================
-   LE BLOC : la brique de la grille
+   L'OUVERTURE D'UN CHAPITRE : son numéro romain (ornement d'or), son titre, et une phrase en
+   italique qui dit ce que montre la page — SUR UNE LIGNE, pour que la page reste aux chiffres
+   (retour du propriétaire : la synthèse doit tenir sur un écran). Le numéro est un ornement :
+   le titre le redit en encre, et lui est caché aux lecteurs d'écran.
+   ========================================================================== */
+
+.chapitre {
+  display: block;
+}
+
+.ouverture {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--espace-3);
+  padding: var(--espace-4) 0 var(--espace-4);
+}
+
+.ouverture__numero {
+  font-family: var(--serif);
+  font-size: var(--taille-numero-chapitre);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  color: var(--ornement);
+}
+
+.ouverture__titre {
+  font-family: var(--serif);
+  font-size: var(--taille-titre-chapitre);
+  font-weight: 500;
+  line-height: 1.1;
+  margin: 0;
+  color: var(--texte);
+}
+
+/* LE COLOPHON, à droite du titre du chapitre : d'où viennent les chiffres, et de quand ils
+   datent. Discret, en petites capitales ; une valeur partielle y reste toujours visible. */
+.colophon {
+  margin-left: auto;
+  text-align: right;
+  font-size: var(--petites-capitales-taille);
+  letter-spacing: var(--petites-capitales-espace);
+  text-transform: uppercase;
+  color: var(--texte-secondaire);
+  line-height: 1.7;
+}
+
+.colophon b {
+  font-weight: 600;
+  color: var(--texte);
+}
+
+/* Le bouton en toutes lettres qui ouvre une bulle : un lien discret, pas une pastille. */
+.aide.aide--texte {
+  width: auto;
+  height: auto;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  padding: 0;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--texte-secondaire);
+  text-decoration: underline;
+  text-decoration-color: var(--contour);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.aide.aide--texte:hover,
+.aide.aide--texte[aria-expanded="true"] {
+  background: none;
+  color: var(--texte);
+}
+
+.colophon__detail {
+  margin: var(--espace-1) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.colophon__detail li {
+  padding: 3px 0;
+  border-top: 1px solid var(--separateur);
+}
+
+.colophon__detail li:first-child {
+  border-top: 0;
+}
+
+.ouverture__introduction {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: var(--taille-intro);
+  line-height: 1.4;
+  color: var(--texte-secondaire);
+  margin: 0 0 0 var(--espace-2);
+}
+
+/* LE FLEURON : un filet et un losange plein, dessinés en CSS. Le liseré du losange prend la
+   couleur du fond sur lequel il est posé (`--fond-du-fleuron`), pour couper le filet net. */
+.fleuron {
+  --fond-du-fleuron: var(--fond-livre);
+  display: block;
+  position: relative;
+  width: 132px;
+  height: 11px;
+}
+
+/* Le fleuron d'un chapitre : entre son titre et sa page, sur toute la largeur — la seule
+   séparation ornée des pages ; à l'intérieur des boîtes, le filet suffit. */
+.fleuron--chapitre {
+  flex-basis: 100%;
+  width: 100%;
+  margin-top: var(--espace-3);
+}
+
+.fleuron::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 1px solid var(--ornement);
+}
+
+.fleuron::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  background: var(--ornement);
+  border: 3px solid var(--fond-du-fleuron);
+  box-sizing: content-box;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+/* ============================================================================
+   LE BLOC : une boîte — un fond de page, un filet, un titre en serif, son contenu.
    ========================================================================== */
 
 .bloc {
-  background: var(--surface);
-  border: 1px solid var(--trait);
-  border-radius: var(--rayon);
-  box-shadow: var(--ombre);
-  padding: 11px 14px 14px;
   min-width: 0;
   display: flex;
   flex-direction: column;
+  background: var(--fond-page);
+  border: 1px solid var(--bord-bloc);
+  border-radius: var(--rayon);
+  padding: var(--espace-3) var(--espace-4) var(--espace-4);
 }
 
 .bloc__entete {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 7px;
-  margin-bottom: 9px;
+  margin-bottom: var(--espace-3);
   flex: none;
 }
 
 .bloc__titre {
   font-family: var(--serif);
-  font-size: 13.5px;
-  font-weight: 600;
+  font-size: var(--taille-titre-bloc);
+  font-weight: 500;
+  line-height: 1.2;
   margin: 0;
-  letter-spacing: 0.01em;
 }
 
 .bloc__note {
-  font-size: 11.5px;
-  color: var(--encre-tres-douce);
+  font-size: var(--taille-mini);
+  color: var(--texte-secondaire);
   margin-left: auto;
   text-align: right;
   display: flex;
   align-items: center;
   gap: 5px;
   white-space: nowrap;
+  font-variant-numeric: var(--chiffres);
 }
 
-/* Un bloc dont le contenu est un tableau : le tableau touche les bords. */
+/* Un bloc dont le contenu est un tableau : le tableau touche les bords de la boîte. */
 .bloc--plein {
-  padding: 11px 0 0;
+  padding: var(--espace-3) 0 0;
   overflow: hidden;
 }
 
 .bloc--plein > .bloc__entete {
-  padding-inline: 14px;
+  padding-inline: var(--espace-4);
 }
 
 .bloc--plein > .cadre-tableau {
   flex: 1;
 }
 
-/* --- La tuile de chiffre clé --- */
+/* --- Les indicateurs : chacun sa boîte, sans barre de couleur (charte §5). --- */
 
 .tuile {
-  background: var(--surface);
-  border: 1px solid var(--trait);
+  background: var(--fond-page);
+  border: 1px solid var(--bord-bloc);
   border-radius: var(--rayon);
-  box-shadow: var(--ombre);
-  padding: 9px 12px 11px;
-  /* Un filet de couleur sur le bord haut : c'est ce qui distingue une tuile de
-     chiffre clé d'un bloc ordinaire, sans ajouter d'ornement. */
-  border-top: 2px solid var(--trait-fort);
+  padding: var(--espace-2) var(--espace-3) var(--espace-3);
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
-.tuile--gain {
-  border-top-color: var(--gain);
-}
-
-.tuile--perte {
-  border-top-color: var(--perte);
-}
-
-.tuile--neutre {
-  border-top-color: var(--courbe-brut);
-}
-
-/* Le « ? » est collé à l'étiquette, pas repoussé au bord de la tuile. */
+/* Le « ? » est collé à l'étiquette, pas repoussé au bord. */
 .tuile__haut {
   display: flex;
   align-items: center;
   gap: 5px;
+  color: var(--texte-secondaire);
 }
 
 .tuile__valeur {
-  font-size: 25px;
-  line-height: 1.1;
-  font-weight: 600;
+  font-family: var(--serif);
+  font-size: var(--taille-indicateur);
+  line-height: 1.15;
+  font-weight: 500;
   display: block;
-  margin-top: 3px;
-  letter-spacing: -0.015em;
-  font-variant-numeric: tabular-nums lining-nums;
+  margin-top: 2px;
+  font-variant-numeric: var(--chiffres);
+  font-feature-settings: "tnum", "lnum";
+  white-space: nowrap;
 }
 
+/* Un indicateur de second rang : la même taille, une graisse plus légère. */
 .tuile__valeur--petit {
-  font-size: 20px;
+  font-weight: 400;
 }
 
 .tuile__pied {
-  font-size: 11.5px;
-  color: var(--encre-douce);
+  font-size: var(--taille-mini);
+  color: var(--texte-secondaire);
   display: block;
   margin-top: 3px;
   min-height: 17px;
 }
 
+/* La couleur d'un indicateur est celle de son chiffre, que le signe double toujours. Ces
+   classes ne posent pas de barre : elles disent le ton, pour les tests et la lecture. */
+.tuile--gain,
+.tuile--perte,
+.tuile--neutre {
+  color: inherit;
+}
+
+/* --- LE POINT D'ENTRÉE de la synthèse : la valeur des actifs (D-99), la plus grande boîte de la
+   première rangée, son chiffre nettement plus grand que les quatre autres. --- */
+
+.sommaire {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.45fr) minmax(0, 4fr);
+  gap: var(--ecart);
+}
+
+.entree {
+  background: var(--fond-page);
+  border: 1px solid var(--bord-bloc);
+  border-radius: var(--rayon);
+  padding: var(--espace-2) var(--espace-4) var(--espace-3);
+}
+
+.entree__haut {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--texte-secondaire);
+}
+
+.entree__valeur {
+  display: block;
+  font-family: var(--serif);
+  font-size: var(--taille-entree);
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  margin-top: 2px;
+}
+
+.entree__pied {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--taille-mini);
+  color: var(--texte-secondaire);
+}
+
+.tuiles--secondaires {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 /* ============================================================================
    LE BOUTON « ? » ET SA BULLE
-   La bulle est en position FIXE, posée à la racine du document : aucun conteneur
-   ne peut la rogner, et le script la ramène toujours dans l'écran.
+   La bulle est en position FIXE, posée à la racine du document : aucun conteneur ne peut
+   la rogner, et le script la ramène toujours dans l'écran. Un filet la détache, pas une ombre.
    ========================================================================== */
 
 .aide {
   font: inherit;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1;
   width: 15px;
   height: 15px;
   flex: none;
   border-radius: 50%;
-  border: 1px solid var(--trait-fort);
-  background: var(--papier);
-  color: var(--encre-douce);
+  border: 1px solid var(--contour);
+  background: var(--fond-page);
+  color: var(--texte-secondaire);
   cursor: help;
   padding: 0;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .aide:hover,
 .aide[aria-expanded="true"] {
-  background: var(--encre);
-  border-color: var(--encre);
-  color: var(--papier);
+  background: var(--texte);
+  border-color: var(--texte);
+  color: var(--fond-page);
 }
 
 .bulle {
   position: fixed;
   z-index: 200;
   width: min(340px, calc(100vw - 20px));
-  background: var(--papier);
-  border: 1px solid var(--trait-fort);
-  border-left: 3px solid var(--reserve);
+  background: var(--fond-page);
+  border: 1px solid var(--texte-secondaire);
   border-radius: var(--rayon);
-  box-shadow: 0 8px 24px rgba(60, 50, 34, 0.2);
   padding: 11px 13px;
-  font-size: 12.5px;
+  font-size: var(--taille-petite);
   line-height: 1.5;
-  color: var(--encre-douce);
+  color: var(--texte-secondaire);
   text-align: left;
   font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .bulle b {
-  color: var(--encre);
+  color: var(--texte);
 }
 
 .bulle__titre {
   display: block;
   font-family: var(--serif);
-  font-size: 12.5px;
-  color: var(--encre);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--texte);
   margin-bottom: 3px;
 }
 
-/* La marque textuelle courte, quand il faut la poser à côté d'un chiffre. */
+/* La marque textuelle courte, posée à côté d'un chiffre. */
 .mot {
-  font-size: 10px;
-  letter-spacing: 0.04em;
+  font-size: var(--petites-capitales-taille);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   font-weight: 600;
   color: var(--reserve);
   border: 1px solid currentColor;
-  border-radius: 2px;
+  border-radius: var(--rayon);
   padding: 0 4px 1px;
   white-space: nowrap;
   display: inline-block;
 }
 
 .mot--absent {
-  color: var(--encre-douce);
+  color: var(--texte-secondaire);
+}
+
+/* Une marque qui s'explique au survol : le curseur le dit. */
+.mot--explique {
+  cursor: help;
 }
 
 /* Un « ? » qui suit une marque encadrée a besoin d'air : collés, les deux se lisent
@@ -689,13 +881,12 @@ body {
   margin-left: 7px;
 }
 
-/* Et dans une ligne de liste, la marque se détache du texte qui la précède. */
 .liste-parts__nom > .mot {
   margin-left: 4px;
 }
 
 /* ============================================================================
-   LES CARTES D'ACTIFS
+   LES CARTES D'ACTIFS — sans cadre : un filet vertical les sépare.
    ========================================================================== */
 
 .cartes {
@@ -704,53 +895,110 @@ body {
   gap: var(--ecart);
 }
 
+/* Une carte : une petite boîte dans la boîte, sans barre de couleur. */
 .carte {
-  border: 1px solid var(--trait);
-  border-left: 3px solid var(--trait-fort);
+  padding: var(--espace-2) var(--espace-3) var(--espace-2);
+  border: 1px solid var(--bord-bloc);
   border-radius: var(--rayon);
-  background: var(--papier);
-  padding: 8px 11px 10px;
   min-width: 0;
   display: flex;
   flex-direction: column;
 }
 
-.carte--gain {
-  border-left-color: var(--gain);
+/* Les cartes changent de page en glissant, très vite, dans le sens où l'on feuillette : la
+   classe est posée par dessin.js, seulement quand la page des cartes change. */
+@keyframes cartes-suivantes {
+  from {
+    opacity: 0.2;
+    transform: translateX(var(--glissement-cartes));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
+@keyframes cartes-precedentes {
+  from {
+    opacity: 0.2;
+    transform: translateX(calc(-1 * var(--glissement-cartes)));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.cartes--suivantes {
+  animation: cartes-suivantes var(--duree-cartes) var(--courbe-animation);
+}
+
+.cartes--precedentes {
+  animation: cartes-precedentes var(--duree-cartes) var(--courbe-animation);
+}
+
+.carte--gain,
 .carte--perte {
-  border-left-color: var(--perte);
+  color: inherit;
 }
 
 .carte__haut {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: 3px;
+  margin-bottom: 4px;
 }
 
 .jeton {
-  font-size: 10px;
-  letter-spacing: 0.06em;
+  font-size: var(--petites-capitales-taille);
+  letter-spacing: var(--petites-capitales-espace);
   text-transform: uppercase;
   font-weight: 600;
-  background: var(--surface-creuse);
-  border-radius: 2px;
-  padding: 1px 5px 2px;
-  color: var(--encre-douce);
+  color: var(--texte-secondaire);
+  white-space: nowrap;
+}
+
+/* La pastille de la poche, devant son nom (D-96) : sa couleur, partout la même. Le texte
+   reste à l'encre : la couleur dit l'identité, elle ne porte jamais le mot. */
+.jeton::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 1px;
+  margin-right: 5px;
+  vertical-align: 0;
+  background: var(--contour);
+}
+
+.jeton--pea::before,
+.puce--pea,
+.empile__part--pea {
+  background: var(--poche-1);
+}
+
+.jeton--cto::before,
+.puce--cto,
+.empile__part--cto {
+  background: var(--poche-2);
+}
+
+.jeton--crypto::before,
+.puce--crypto,
+.empile__part--crypto {
+  background: var(--poche-3);
 }
 
 .carte__type {
-  font-size: 11px;
-  color: var(--encre-tres-douce);
+  font-size: var(--taille-mini);
+  color: var(--texte-secondaire);
   margin-left: auto;
 }
 
-/* Le nom tient sur deux lignes puis s'arrête : jamais tronqué en plein mot sans
-   que le nom entier reste accessible au survol. */
+/* Le nom tient sur deux lignes puis s'arrête : jamais tronqué sans que le nom entier reste
+   accessible au survol. */
 .carte__nom {
-  font-size: 12.5px;
+  font-size: var(--taille-petite);
   font-weight: 600;
   line-height: 1.3;
   display: -webkit-box;
@@ -761,16 +1009,16 @@ body {
 }
 
 .carte__taux {
-  font-size: 21px;
-  font-weight: 600;
+  font-family: var(--serif);
+  font-size: var(--taille-indicateur);
+  font-weight: 500;
   line-height: 1.15;
-  letter-spacing: -0.015em;
   margin-top: 4px;
 }
 
 .carte__precision {
   font-size: 10.5px;
-  color: var(--encre-tres-douce);
+  color: var(--texte-secondaire);
   min-height: 15px;
 }
 
@@ -780,18 +1028,18 @@ body {
   gap: 1px 8px;
   margin: 7px 0 0;
   padding-top: 6px;
-  border-top: 1px solid var(--trait);
-  font-size: 11.5px;
+  border-top: 1px solid var(--separateur);
+  font-size: var(--taille-mini);
 }
 
 .carte__chiffres dt {
-  color: var(--encre-tres-douce);
+  color: var(--texte-secondaire);
 }
 
 .carte__chiffres dd {
   margin: 0;
   text-align: right;
-  font-variant-numeric: tabular-nums lining-nums;
+  font-variant-numeric: var(--chiffres);
 }
 
 .fleche {
@@ -800,17 +1048,17 @@ body {
   line-height: 1;
   width: 21px;
   height: 21px;
-  border: 1px solid var(--trait-fort);
+  border: 1px solid var(--contour);
   border-radius: var(--rayon);
-  background: var(--papier);
-  color: var(--encre-douce);
+  background: var(--fond-page);
+  color: var(--texte-secondaire);
   cursor: pointer;
   padding: 0;
 }
 
 .fleche:hover:not(:disabled) {
-  background: var(--surface-creuse);
-  color: var(--encre);
+  background: var(--fond-secondaire);
+  color: var(--texte);
 }
 
 .fleche:disabled {
@@ -819,7 +1067,7 @@ body {
 }
 
 /* ============================================================================
-   LES TABLEAUX
+   LES TABLEAUX — des filets horizontaux, rien d'autre.
    ========================================================================== */
 
 .cadre-tableau {
@@ -830,20 +1078,20 @@ body {
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--taille-texte);
 }
 
 thead th {
   text-align: left;
-  font-size: 10.5px;
-  letter-spacing: 0.07em;
+  font-size: var(--petites-capitales-taille);
+  letter-spacing: var(--petites-capitales-espace);
   text-transform: uppercase;
-  color: var(--encre-tres-douce);
+  color: var(--texte-secondaire);
   font-weight: 600;
   padding: 7px 9px;
-  border-bottom: 1px solid var(--trait-fort);
+  border-bottom: 1px solid var(--texte-secondaire);
   white-space: nowrap;
-  background: var(--surface);
+  background: var(--fond-page);
   position: sticky;
   top: 0;
   z-index: 2;
@@ -855,28 +1103,27 @@ th.triable {
 }
 
 th.triable:hover {
-  color: var(--encre);
-  background: var(--surface-creuse);
+  color: var(--texte);
 }
 
 th.triable[aria-sort]:not([aria-sort="none"]) {
-  color: var(--encre);
+  color: var(--texte);
 }
 
 .fleche-tri {
   font-size: 8px;
   margin-left: 3px;
-  color: var(--courbe-brut);
+  color: var(--texte);
 }
 
 tbody td {
   padding: 7px 9px;
-  border-bottom: 1px solid var(--trait);
+  border-bottom: 1px solid var(--separateur);
   vertical-align: top;
 }
 
 tbody tr:hover td {
-  background: var(--surface-creuse);
+  background: var(--fond-secondaire);
 }
 
 th.num,
@@ -885,18 +1132,19 @@ td.num {
 }
 
 td.num {
-  font-variant-numeric: tabular-nums lining-nums;
+  font-variant-numeric: var(--chiffres);
   font-feature-settings: "tnum", "lnum";
   white-space: nowrap;
 }
 
 tfoot td {
   padding: 8px 9px;
-  border-top: 1px solid var(--trait-fort);
+  border-top: 1px solid var(--texte-secondaire);
   font-weight: 600;
-  background: var(--surface);
+  background: var(--fond-page);
   position: sticky;
   bottom: 0;
+  font-variant-numeric: var(--chiffres);
 }
 
 /* Le nom d'un actif ne se coupe jamais en silence : il passe à la ligne.
@@ -908,16 +1156,17 @@ tfoot td {
 }
 
 .actif__code {
-  font-size: 11px;
-  color: var(--encre-tres-douce);
+  font-size: var(--taille-mini);
+  color: var(--texte-secondaire);
 }
 
 tr.sans-valeur td {
-  background: var(--surface-creuse);
+  background: var(--fond-secondaire);
 }
 
 /* ============================================================================
-   LE GRAPHIQUE
+   LE GRAPHIQUE — le gabarit unique du thème (`--graphique-*`). Les traits sont colorés par
+   CLASSE : un attribut SVG n'interprète pas `var()`, une propriété CSS si.
    ========================================================================== */
 
 .cadre-graphique {
@@ -934,182 +1183,176 @@ tr.sans-valeur td {
 
 .graphique text {
   font-family: var(--sans);
-  font-size: 10.5px;
-  fill: var(--encre-douce);
-  font-variant-numeric: tabular-nums lining-nums;
+  font-size: var(--graphique-taille-axe);
+  fill: var(--graphique-axe);
+  font-variant-numeric: var(--chiffres);
 }
 
-/* La grille est un trait PLEIN très pâle. En pointillé, elle se confondait avec la
-   courbe du capital net investi, qui est elle-même en pointillé. */
+/* Une grille horizontale très pâle, en trait PLEIN : en pointillé, elle se confondait avec la
+   courbe du capital net investi, elle-même en pointillé. Aucune grille verticale. */
 .graphique .grille {
-  stroke: var(--trait);
+  stroke: var(--graphique-grille);
   stroke-width: 1;
 }
 
 .serie {
   fill: none;
-  stroke-width: 2;
   stroke-linejoin: round;
   stroke-linecap: round;
 }
 
 .serie--brut {
-  stroke: var(--courbe-brut);
+  stroke: var(--graphique-principal);
+  stroke-width: var(--graphique-epaisseur);
 }
 
-/* Le capital net investi est une référence, pas une série concurrente : trait
-   pointillé, en escalier. Il se distingue par la FORME autant que par la couleur. */
+/* Le capital net investi est une référence, pas une série concurrente : trait fin pointillé,
+   en escalier. Il se distingue par la FORME autant que par la couleur. */
 .serie--investi {
-  stroke: var(--courbe-investi);
-  stroke-dasharray: 6 4;
+  stroke: var(--graphique-secondaire);
+  stroke-width: var(--graphique-epaisseur-secondaire);
+  stroke-dasharray: var(--graphique-pointilles);
+  stroke-linecap: butt;
 }
 
-.aire-brut {
-  fill: var(--courbe-brut);
-  opacity: 0.08;
-  stroke: none;
+/* Les libellés au bout des courbes, à la place d'une légende. */
+.graphique .graphique__libelle {
+  font-size: var(--graphique-taille-libelle);
+  font-weight: 600;
+  dominant-baseline: middle;
+}
+
+.graphique .graphique__libelle--brut {
+  fill: var(--graphique-principal);
+}
+
+.graphique .graphique__libelle--investi {
+  fill: var(--texte-mise-en-valeur);
+}
+
+/* Un point posé sur une courbe : un liseré de papier le détache du trait. */
+.point {
+  stroke: var(--graphique-anneau-point);
+  stroke-width: 2;
+}
+
+.point--brut {
+  fill: var(--graphique-principal);
+}
+
+.point--investi {
+  fill: var(--graphique-secondaire);
 }
 
 .viseur {
-  stroke: var(--encre);
+  stroke: var(--graphique-viseur);
   stroke-width: 1;
   stroke-dasharray: 3 3;
 }
 
-/* LA BOÎTE DE LECTURE DU GRAPHIQUE. Elle SUIT la souris, sur le graphique.
-   C'est l'arbitrage du propriétaire, contre la recommandation, et sa raison est bonne :
-   descendre les yeux hors du graphique pour lire un chiffre casse la lecture, et on
-   regarde une courbe pour la suivre. Elle a d'abord été un bandeau posé sous la courbe,
-   qui ne recouvrait rien — les deux raisons sont gardées au §3.2 de
-   docs/conception-interface.md, pour que l'étape 9 ne refasse pas le tour.
-
-   `pointer-events: none` n'est pas un détail de confort : sans lui, la boîte intercepte
-   le `mousemove` dès qu'elle passe sous le curseur, et la lecture se fige.
-   Le décalage et la bascule près des bords sont dans `maquette.js`. */
+/* LA BOÎTE DE LECTURE DU GRAPHIQUE. Elle SUIT la souris, sur le graphique : l'arbitrage du
+   propriétaire, gardé avec ses raisons au §3.2 de docs/conception-interface.md — ne pas
+   recommencer le tour. `pointer-events: none` n'est pas un détail : sans lui, la boîte
+   intercepte le `mousemove` dès qu'elle passe sous le curseur, et la lecture se fige. */
 .infobulle {
   position: absolute;
   z-index: 20;
   left: 0;
   top: 0;
   pointer-events: none;
-  background: var(--papier);
-  border: 1px solid var(--trait-fort);
+  background: var(--fond-page);
+  border: 1px solid var(--texte-secondaire);
   border-radius: var(--rayon);
-  box-shadow: 0 4px 14px rgba(70, 58, 40, 0.22);
   padding: 8px 11px;
-  font-size: 12.5px;
+  font-size: var(--taille-petite);
   min-width: 208px;
 }
 
 .infobulle__date {
   font-family: var(--serif);
-  font-size: 13.5px;
-  font-weight: 600;
-  color: var(--encre);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--texte);
   display: block;
   margin-bottom: 5px;
   padding-bottom: 4px;
-  border-bottom: 1px solid var(--trait-fort);
+  border-bottom: 1px solid var(--separateur);
 }
 
 .infobulle__ligne {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  color: var(--encre-douce);
+  color: var(--texte-secondaire);
 }
 
 .infobulle__ecart {
   margin-top: 4px;
   padding-top: 4px;
-  border-top: 1px solid var(--trait);
+  border-top: 1px solid var(--separateur);
 }
 
 .infobulle__ligne b {
   margin-left: auto;
-  font-size: 13px;
-  color: var(--encre);
-  font-variant-numeric: tabular-nums lining-nums;
+  font-size: var(--taille-texte);
+  color: var(--texte);
+  font-variant-numeric: var(--chiffres);
   font-weight: 600;
 }
 
-.infobulle__ligne i {
+/* Le petit trait qui rappelle la courbe, dans la boîte de lecture. */
+.trait {
+  display: inline-block;
+  vertical-align: middle;
   width: 14px;
   height: 0;
   border-top-width: 2px;
   border-top-style: solid;
   flex: none;
+  align-self: center;
 }
 
-/* La legende est centree sous le graphique : c'est la place demandee par le
-   proprietaire, et elle equilibre le bloc au lieu de le tirer vers la gauche. */
-.legende {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 4px 20px;
-  font-size: 11.5px;
-  color: var(--encre-douce);
-  margin: 9px 0 0;
-  padding: 0;
-  list-style: none;
+.trait--brut {
+  border-top-color: var(--graphique-principal);
 }
 
-.legende li {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.trait--investi {
+  border-top-color: var(--graphique-secondaire);
+  border-top-style: dashed;
 }
 
-.legende i {
-  width: 18px;
-  height: 0;
-  border-top-width: 2px;
-  border-top-style: solid;
-  flex: none;
+/* Sous la courbe, une ligne dit ce que chaque courbe représente. */
+.graphique__explication {
+  margin: var(--espace-3) 0 0;
+  font-size: var(--taille-mini);
+  color: var(--texte-secondaire);
+}
+
+.courbe__partiels {
+  margin: var(--espace-2) 0 0;
 }
 
 /* ============================================================================
-   L'ANNEAU ET LES LISTES DE PARTS
+   LA RÉPARTITION PAR POCHE : une barre empilée fine, puis les chiffres alignés.
    ========================================================================== */
 
-.anneau-bloc {
+.empile {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px 18px;
-  align-items: center;
-  flex: 1;
+  gap: 2px;
+  height: var(--graphique-barre-fine);
+  margin: var(--espace-2) 0 var(--espace-4);
 }
 
-.anneau-bloc--colonne {
-  flex-direction: column;
-  align-items: stretch;
+.empile__part {
+  min-width: 2px;
+  border-radius: 1px;
 }
-
-.anneau {
-  flex: none;
-  margin: 0 auto;
-  display: block;
-}
-
-.anneau__centre {
-  font-size: 15px;
-  font-weight: 600;
-  fill: var(--encre);
-  font-variant-numeric: tabular-nums lining-nums;
-}
-
-.anneau__sous {
-  font-size: 10px;
-  fill: var(--encre-tres-douce);
-}
-
 
 .liste-parts {
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 12.5px;
+  font-size: var(--taille-petite);
   flex: 1;
   min-width: 190px;
 }
@@ -1118,8 +1361,8 @@ tr.sans-valeur td {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  padding: 4px 0;
-  border-top: 1px solid var(--trait);
+  padding: 5px 0;
+  border-top: 1px solid var(--separateur);
 }
 
 .liste-parts li:first-child {
@@ -1130,8 +1373,13 @@ tr.sans-valeur td {
   min-width: 0;
 }
 
+/* Un « ? » qui suit un libellé de liste n'y est jamais collé. */
+.liste-parts__nom > .aide {
+  margin-left: 4px;
+}
+
 .liste-parts__total {
-  border-top: 1px solid var(--trait-fort) !important;
+  border-top: 1px solid var(--texte-secondaire) !important;
   font-weight: 600;
   margin-top: 2px;
 }
@@ -1148,12 +1396,12 @@ tr.sans-valeur td {
 .puce--absent {
   background-image: repeating-linear-gradient(
     135deg,
-    var(--absent),
-    var(--absent) 2px,
+    var(--graphique-hachure),
+    var(--graphique-hachure) 2px,
     transparent 2px,
     transparent 4px
   );
-  border: 1px solid var(--absent);
+  border: 1px solid var(--graphique-hachure);
 }
 
 .liste-parts .nb {
@@ -1161,13 +1409,13 @@ tr.sans-valeur td {
 }
 
 .liste-parts .part {
-  color: var(--encre-douce);
+  color: var(--texte-secondaire);
   min-width: 56px;
   text-align: right;
 }
 
 /* ============================================================================
-   LE CLASSEMENT — les répartitions, mesurées sur une base commune
+   LE CLASSEMENT — les répartitions, mesurées sur une base commune (D-69)
    ========================================================================== */
 
 .classement {
@@ -1180,10 +1428,10 @@ tr.sans-valeur td {
   display: grid;
   grid-template-columns: minmax(186px, 1.5fr) minmax(90px, 3fr) auto auto;
   align-items: center;
-  gap: 10px;
-  padding: 5px 0;
-  border-top: 1px solid var(--trait);
-  font-size: 12.5px;
+  gap: 12px;
+  padding: 6px 0;
+  border-top: 1px solid var(--separateur);
+  font-size: var(--taille-petite);
 }
 
 .rang:first-child {
@@ -1195,12 +1443,11 @@ tr.sans-valeur td {
   align-items: center;
   gap: 7px;
   min-width: 0;
-  color: var(--encre-douce);
+  color: var(--texte-secondaire);
 }
 
-/* Le créneau du repère. Sa largeur est celle du plus large des trois — le planisphère —
-   pour que le bord gauche des libellés soit droit d'un bout à l'autre d'une liste, y
-   compris entre les postes et le bloc « ce qui n'entre pas dans cette répartition ». */
+/* Le créneau du repère : la largeur du plus large des trois, le planisphère, pour que le bord
+   gauche des libellés soit droit d'un bout à l'autre d'une liste. */
 .rang__repere {
   width: 32px;
   flex: none;
@@ -1213,18 +1460,16 @@ tr.sans-valeur td {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--encre);
+  color: var(--texte);
 }
 
 .rang--absent .rang__texte {
-  color: var(--encre-douce);
+  color: var(--texte-secondaire);
   font-style: italic;
 }
 
-/* Un SVG sans dimension prend sa taille intrinseque, qui est ENORME. Ces deux regles
-   ne sont donc pas cosmetiques : sans elles, chaque drapeau et chaque pictogramme
-   remplit la page. Le defaut est arrive en supprimant une classe voisine inutilisee,
-   qui a emporte tout le bloc avec elle. */
+/* Un SVG sans dimension prend sa taille intrinsèque, qui est ÉNORME. Ces règles ne sont pas
+   cosmétiques : sans elles, chaque drapeau et chaque pictogramme remplit la page. */
 .fanion {
   width: 20px;
   height: 14px;
@@ -1233,19 +1478,30 @@ tr.sans-valeur td {
   display: block;
 }
 
+/* Un drapeau en image (assets/drapeaux, D-31) : recadré dans le créneau des repères, avec un
+   filet fin. Les drapeaux gardent leurs couleurs : ce sont des images (charte §9). */
+img.fanion {
+  object-fit: cover;
+  outline: 1px solid var(--separateur);
+  outline-offset: -1px;
+}
+
+/* Le globe des pays sans drapeau. */
+.globe {
+  fill: none;
+  stroke: var(--graphique-axe);
+}
+
 .picto {
   width: 17px;
   height: 17px;
   flex: none;
-  color: var(--encre-tres-douce);
+  color: var(--texte-secondaire);
   display: block;
 }
 
-/* Le planisphère des zones, à la place du globe que TOUTES portaient. Il est un peu
-   plus large qu'un drapeau : à 20 px, l'Europe et le Japon ne se distinguent plus.
-   La règle de taille ci-dessus vaut pour lui aussi.
-   Il ne s'appelle PAS « carte » : ce nom est déjà celui des cartes d'actifs de la
-   synthèse, et une deuxième règle `.carte` en écraserait la largeur et la hauteur. */
+/* Le planisphère des zones. Il ne s'appelle PAS « carte » : ce nom est déjà celui des cartes
+   d'actifs, et une deuxième règle `.carte` en écraserait la largeur et la hauteur. */
 .planisphere {
   width: 32px;
   height: 20.9px;
@@ -1253,41 +1509,40 @@ tr.sans-valeur td {
   display: block;
 }
 
-/* Les terres qui ne sont pas dans la zone de la ligne : présentes, pour que la forme
-   allumée se situe, et assez pâles pour ne pas se lire comme une part. */
 .planisphere__terre {
-  fill: var(--trait-fort);
+  fill: var(--graphique-terre);
 }
 
 .planisphere__zone {
-  fill: var(--encre);
+  fill: var(--graphique-zone);
 }
 
 .rang__piste {
-  height: 12px;
-  background: var(--surface-creuse);
+  height: 10px;
+  background: var(--graphique-piste);
   border-radius: 1px;
   overflow: hidden;
 }
 
 .rang__barre {
   height: 100%;
-  background: var(--courbe-brut);
+  background: var(--graphique-barre);
   border-radius: 1px;
   display: block;
 }
 
-/* Ce qui n'est PAS attribué se dessine en hachures : on le voit sans le confondre
-   avec un poste réel, et la couleur ne porte pas seule l'information. */
+/* Ce qui n'est PAS attribué se dessine en hachures : on le voit sans le confondre avec un
+   poste réel, et la couleur ne porte pas seule l'information. */
 .rang__barre--absent {
   background: repeating-linear-gradient(
     135deg,
-    var(--absent),
-    var(--absent) 3px,
+    var(--graphique-hachure),
+    var(--graphique-hachure) 3px,
     transparent 3px,
     transparent 6px
   );
-  box-shadow: inset 0 0 0 1px var(--absent);
+  outline: 1px solid var(--graphique-hachure);
+  outline-offset: -1px;
 }
 
 .rang__montant,
@@ -1297,7 +1552,7 @@ tr.sans-valeur td {
 }
 
 .rang__part {
-  color: var(--encre-douce);
+  color: var(--texte-secondaire);
   min-width: 56px;
 }
 
@@ -1307,16 +1562,48 @@ tr.sans-valeur td {
   gap: 7px;
   margin: 8px 0 2px;
   padding-top: 8px;
-  border-top: 1px solid var(--trait-fort);
-  font-size: 10.5px;
-  letter-spacing: 0.08em;
+  border-top: 1px solid var(--texte-secondaire);
+  font-size: var(--petites-capitales-taille);
+  letter-spacing: var(--petites-capitales-espace);
   text-transform: uppercase;
   font-weight: 600;
-  color: var(--encre-tres-douce);
+  color: var(--texte-secondaire);
+}
+
+/* « Afficher les autres » sous un classement replié. */
+.classement__plus {
+  align-self: flex-start;
+  margin: 6px 0 2px;
+  font-size: var(--taille-petite);
+}
+
+/* Une ligne de classement qui se déplie : une zone vers ses pays, « Sans pays » vers ce
+   qu'elle réunit (étape 9). */
+.deroulant > .deroulant__titre {
+  list-style: none;
+  cursor: pointer;
+}
+
+.deroulant > .deroulant__titre::-webkit-details-marker {
+  display: none;
+}
+
+.deroulant > .deroulant__titre .rang__texte::after {
+  content: " ▸";
+  color: var(--texte-secondaire);
+  font-style: normal;
+}
+
+.deroulant[open] > .deroulant__titre .rang__texte::after {
+  content: " ▾";
+}
+
+.deroulant > .rang {
+  padding-left: 14px;
 }
 
 /* ============================================================================
-   « À SURVEILLER »
+   « À SURVEILLER », LE TEXTE COURANT, LES REPLIS
    ========================================================================== */
 
 .surveiller ul {
@@ -1327,9 +1614,9 @@ tr.sans-valeur td {
 
 .surveiller li {
   padding: 7px 0;
-  border-top: 1px solid var(--trait);
-  font-size: 12.5px;
-  color: var(--encre-douce);
+  border-top: 1px solid var(--separateur);
+  font-size: var(--taille-petite);
+  color: var(--texte-secondaire);
 }
 
 .surveiller li:first-child {
@@ -1339,281 +1626,28 @@ tr.sans-valeur td {
 .surveiller b {
   color: var(--reserve);
   display: block;
-  font-size: 10.5px;
-  letter-spacing: 0.07em;
+  font-size: var(--petites-capitales-taille);
+  letter-spacing: var(--petites-capitales-espace);
   text-transform: uppercase;
 }
 
 .reference {
-  font-size: 11px;
-  color: var(--encre-tres-douce);
+  font-size: var(--taille-mini);
+  color: var(--texte-secondaire);
 }
 
-/* ============================================================================
-   LE TEXTE COURANT — rare, et jamais dans le chemin d'un chiffre
-   ========================================================================== */
-
 .chapeau {
-  margin: 0 0 var(--ecart);
-  color: var(--encre-douce);
-  font-size: 12.5px;
+  margin: 0 0 var(--espace-3);
+  color: var(--texte-secondaire);
+  font-size: var(--taille-texte);
   max-width: 92ch;
 }
 
 .vide {
-  color: var(--encre-douce);
-  font-size: 12.5px;
+  color: var(--texte-secondaire);
+  font-size: var(--taille-petite);
   padding: 10px 0;
   margin: 0;
-}
-
-/* ============================================================================
-   LE PIED : les réglages de la MAQUETTE, hors de l'application
-   ========================================================================== */
-
-.pied {
-  border-top: 1px solid var(--trait-fort);
-  background: var(--sous-bandeau);
-  padding-block: 8px;
-  font-size: 12px;
-  color: var(--encre-douce);
-}
-
-.pied .groupe {
-  border-color: var(--trait-fort);
-  background: var(--papier);
-}
-
-.pied .groupe button {
-  color: var(--encre-douce);
-}
-
-.pied .groupe button:hover:not(:disabled) {
-  background: var(--surface-creuse);
-  color: var(--encre);
-}
-
-.pied .groupe button[aria-pressed="true"] {
-  background: var(--encre);
-  color: var(--papier);
-}
-
-.pied .groupe button + button {
-  border-left-color: var(--trait);
-}
-
-/* ============================================================================
-   PETITS ÉCRANS — la grille se replie, rien ne disparaît
-   ========================================================================== */
-
-@media (max-width: 1400px) {
-  .cartes {
-    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  }
-}
-
-@media (max-width: 1080px) {
-  .rangee {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-@media (max-width: 620px) {
-  .rang {
-    grid-template-columns: 1fr auto auto;
-  }
-  .rang__piste {
-    grid-column: 1 / -1;
-    order: 3;
-  }
-  .tuile__valeur {
-    font-size: 22px;
-  }
-  .actif__nom {
-    max-width: 22ch;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation: none !important;
-    transition: none !important;
-  }
-}
-
-/* ============================================================================
-   ÉTAPE 9 — CE QUE L'APPLICATION AJOUTE À LA MAQUETTE
-   Tout ce qui précède est la feuille de la maquette, reprise telle quelle (D-31).
-   Ce qui suit n'existait pas dans la maquette : l'accueil et le dépôt de l'export
-   (D-95), les fiches de correction (conception §6), et les emplacements que le
-   script de dessin remplit (D-93). Les couleurs passent par les variables.
-   ========================================================================== */
-
-/* Un emplacement de dessin ne doit pas peser dans la mise en page : le SVG que le
-   script y pose se comporte comme s'il était l'enfant direct du conteneur. */
-.dessin {
-  display: contents;
-}
-
-/* Un bouton qui se lit comme un lien, dans une phrase. */
-.lien {
-  font: inherit;
-  color: var(--courbe-brut);
-  background: none;
-  border: 0;
-  padding: 0;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.lien:hover {
-  color: var(--encre);
-}
-
-/* Un bouton sur la page claire, et non sur le bandeau d'encre. */
-.bouton--clair {
-  color: var(--encre);
-  border-color: var(--trait-fort);
-  background: var(--papier);
-}
-
-.bouton--clair:hover {
-  background: var(--surface-creuse);
-}
-
-/* --- L'accueil ------------------------------------------------------------- */
-
-.etapes {
-  margin: 0 0 var(--ecart);
-  padding-left: 22px;
-  font-size: 13px;
-  max-width: 92ch;
-}
-
-.etapes li {
-  padding: 2px 0;
-}
-
-.depot {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 92px;
-  padding: 18px;
-  border: 1.5px dashed var(--trait-fort);
-  border-radius: var(--rayon);
-  background: var(--papier);
-  text-align: center;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.depot:hover {
-  border-color: var(--courbe-brut);
-  background: var(--surface);
-}
-
-.depot__message:empty {
-  display: none;
-}
-
-.depot__dossier {
-  margin: 10px 0 0;
-}
-
-.depot__dossier code,
-.chapeau code {
-  font-size: 11.5px;
-  word-break: break-all;
-}
-
-.depot__retours {
-  margin: 0 0 var(--ecart);
-  padding: 9px 13px;
-  list-style: none;
-  border: 1px solid var(--trait-fort);
-  border-left: 3px solid var(--reserve);
-  border-radius: var(--rayon);
-  background: var(--surface);
-  font-size: 12.5px;
-}
-
-.depot__retour + .depot__retour {
-  margin-top: 4px;
-}
-
-.depot__suite {
-  margin: 10px 0 0;
-}
-
-/* --- Le chargement, et le filet de sécurité d'un écran --------------------- */
-
-.chargement {
-  max-width: 60ch;
-  margin: 40px auto;
-  color: var(--encre-douce);
-  font-size: 13px;
-  text-align: center;
-}
-
-.trace {
-  white-space: pre-wrap;
-  font-size: 11px;
-  color: var(--perte);
-  max-height: 320px;
-  overflow: auto;
-}
-
-/* Une bande sans rien à dire disparaît. `.bande` impose `display: flex`, qui l'emporte sur
-   l'attribut `hidden` du navigateur : sans cette règle, la rangée des filtres restait une
-   bande sombre vide sur la diversification, les frais et l'accueil. */
-.bande[hidden],
-.bande--etat:empty {
-  display: none;
-}
-
-/* Sous la courbe : les jours où la valeur ne porte que sur les actifs cotés. */
-.courbe__partiels {
-  margin: 8px 0 0;
-}
-
-/* La pastille de la poche, devant son nom (D-96) : la même couleur que dans l'anneau. */
-.jeton::before {
-  content: "";
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  border-radius: 1px;
-  margin-right: 5px;
-  vertical-align: 0;
-  background: var(--trait-fort);
-}
-
-.jeton--pea::before {
-  background: var(--poche-1);
-}
-
-.jeton--cto::before {
-  background: var(--poche-2);
-}
-
-.jeton--crypto::before {
-  background: var(--poche-3);
-}
-
-/* Un drapeau en image (assets/drapeaux, D-31) : recadré dans le créneau des repères, avec le
-   même filet que les drapeaux dessinés. */
-img.fanion {
-  object-fit: cover;
-  box-shadow: 0 0 0 0.6px rgba(44, 39, 34, 0.3);
-}
-
-/* « Afficher les autres » sous un classement replié. */
-.classement__plus {
-  align-self: flex-start;
-  margin: 6px 0 2px;
-  font-size: 12.5px;
 }
 
 /* Un bloc fermé par défaut : son titre s'ouvre d'un clic. */
@@ -1628,7 +1662,7 @@ img.fanion {
 
 .repli > .repli__titre::before {
   content: "▸";
-  color: var(--encre-douce);
+  color: var(--texte-secondaire);
   font-size: 12px;
   width: 12px;
   flex: none;
@@ -1642,53 +1676,8 @@ img.fanion {
   margin-bottom: 0;
 }
 
-/* Une ligne de classement qui se déplie : une zone vers ses pays, « Sans pays » vers
-   ce qu'elle réunit (étape 9). */
-.deroulant > .deroulant__titre {
-  list-style: none;
-  cursor: pointer;
-}
-
-.deroulant > .deroulant__titre::-webkit-details-marker {
-  display: none;
-}
-
-.deroulant > .deroulant__titre .rang__texte::after {
-  content: " ▸";
-  color: var(--encre-douce);
-  font-style: normal;
-}
-
-.deroulant[open] > .deroulant__titre .rang__texte::after {
-  content: " ▾";
-}
-
-.deroulant > .rang {
-  padding-left: 14px;
-}
-
-/* Le nom d'une poche ne se coupe jamais sous sa pastille. */
-.jeton {
-  white-space: nowrap;
-}
-
-/* Un « ? » qui suit un libellé de liste n'y est jamais collé. */
-.liste-parts__nom > .aide {
-  margin-left: 4px;
-}
-
-/* Le lien vers le « Détail des calculs », à droite de la manchette : discret, parce que la page
-   n'est pas aussi importante que les onglets (arbitrage du propriétaire, étape 9). */
-.bouton--discret {
-  color: var(--bandeau-douce);
-  border-color: var(--bandeau-trait);
-  font-weight: 400;
-}
-
-.bouton--discret:hover,
-.bouton--discret[aria-pressed="true"] {
-  color: var(--bandeau-encre);
-  background: var(--bandeau-clair);
+.dessin {
+  display: contents;
 }
 
 /* Le détail des calculs : l'explication sous un calcul, l'origine d'un réglage. */
@@ -1699,4 +1688,608 @@ img.fanion {
 .detail__origine {
   text-align: right;
   max-width: 65%;
+}
+
+/* --- Le chargement, et le filet de sécurité d'un écran --- */
+
+.chargement {
+  max-width: 60ch;
+  margin: var(--espace-6) auto;
+  color: var(--texte-secondaire);
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 17px;
+  text-align: center;
+}
+
+.trace {
+  white-space: pre-wrap;
+  font-size: var(--taille-mini);
+  color: var(--perte);
+  max-height: 320px;
+  overflow: auto;
+}
+
+/* ============================================================================
+   LA COUVERTURE — l'accueil et le dépôt. Brun reliure, le logo et le nom en or, un filet et
+   un fleuron, puis l'étiquette de papier qui porte le dépôt. Sous la couverture, la page de
+   garde : les fichiers lus, et ce que la lecture a trouvé.
+   ========================================================================== */
+
+.livre--couverture .entete {
+  display: none;
+}
+
+.accueil {
+  display: block;
+}
+
+/* Le bouton qui déclenche l'ouverture du livre (dessin.js) : sa forme est `.bouton--ouvrir`. */
+.ouvrir-le-livre {
+  cursor: pointer;
+}
+
+.livre--couverture .page {
+  max-width: none;
+  padding: 0;
+}
+
+.couverture {
+  position: relative;
+  background: var(--reliure);
+  color: var(--sur-reliure);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--espace-6) var(--gouttiere);
+}
+
+.couverture__outils {
+  position: absolute;
+  top: var(--espace-4);
+  right: var(--gouttiere);
+}
+
+.couverture__interieur {
+  width: min(600px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.couverture .logo {
+  width: 88px;
+  height: 88px;
+}
+
+.couverture__titre {
+  font-family: var(--serif);
+  font-size: var(--taille-titre-couverture);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  color: var(--sur-reliure-or);
+  margin: var(--espace-4) 0 var(--espace-3);
+}
+
+.couverture .fleuron {
+  --fond-du-fleuron: var(--reliure);
+  margin-bottom: var(--espace-5);
+}
+
+/* L'étiquette de titre, en papier : un aplat, pas une texture. */
+.cartouche {
+  width: 100%;
+  background: var(--fond-page);
+  color: var(--texte);
+  border-radius: var(--rayon);
+  padding: var(--espace-5) var(--espace-5) var(--espace-4);
+  text-align: left;
+  outline: 1px solid var(--sur-reliure-or);
+  outline-offset: 5px;
+}
+
+.cartouche__titre {
+  font-family: var(--serif);
+  font-size: 23px;
+  font-weight: 500;
+  line-height: 1.2;
+  margin: 0 0 var(--espace-2);
+}
+
+.cartouche__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-3);
+  margin-top: var(--espace-4);
+}
+
+.cartouche .liste-parts {
+  margin: var(--espace-2) 0 0;
+}
+
+.cartouche__alerte {
+  margin: 0 0 var(--espace-3);
+  padding: var(--espace-2) var(--espace-3);
+  border: 1px solid var(--reserve);
+  border-radius: var(--rayon);
+  font-size: var(--taille-petite);
+}
+
+/* « Ouvrir le livre » : le seul bouton plein de l'application, en reliure et or. */
+.bouton--ouvrir {
+  font-family: var(--serif);
+  font-size: 19px;
+  letter-spacing: 0.03em;
+  background: var(--reliure);
+  border-color: var(--reliure);
+  color: var(--sur-reliure-actif);
+  padding: 10px 18px 11px;
+  width: 100%;
+}
+
+.bouton--ouvrir:hover {
+  background: var(--reliure-clair);
+}
+
+.etapes {
+  margin: 0 0 var(--espace-4);
+  padding-left: 22px;
+  font-size: var(--taille-texte);
+}
+
+.etapes li {
+  padding: 2px 0;
+}
+
+.depot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 78px;
+  padding: var(--espace-3);
+  border: 1px dashed var(--contour);
+  border-radius: var(--rayon);
+  background: var(--fond-page);
+  text-align: center;
+  cursor: pointer;
+  font-size: var(--taille-base);
+}
+
+.depot:hover {
+  border-color: var(--texte);
+  background: var(--fond-secondaire);
+}
+
+.depot__message:empty {
+  display: none;
+}
+
+.depot__dossier {
+  margin: var(--espace-3) 0 0;
+}
+
+.depot__dossier code,
+.chapeau code {
+  font-size: var(--taille-mini);
+  word-break: break-all;
+}
+
+.depot__retours {
+  margin: 0 0 var(--espace-4);
+  padding: 9px 13px;
+  list-style: none;
+  border: 1px solid var(--reserve);
+  border-radius: var(--rayon);
+  background: var(--fond-page);
+  font-size: var(--taille-petite);
+}
+
+.depot__retour + .depot__retour {
+  margin-top: 4px;
+}
+
+/* LE VOLET de l'étiquette : le détail de la lecture, replié pour que la couverture tienne sur
+   un écran. Les alertes, elles, ne sont jamais dedans. */
+.volet {
+  margin-top: var(--espace-3);
+  border-top: 1px solid var(--separateur);
+  padding-top: var(--espace-2);
+}
+
+.volet__titre {
+  cursor: pointer;
+  list-style: none;
+  font-size: var(--taille-petite);
+  color: var(--texte-secondaire);
+}
+
+.volet__titre::-webkit-details-marker {
+  display: none;
+}
+
+.volet__titre::before {
+  content: "▸ ";
+}
+
+.volet[open] > .volet__titre::before {
+  content: "▾ ";
+}
+
+.volet__titre:hover {
+  color: var(--texte);
+}
+
+.volet__corps {
+  max-height: 32vh;
+  overflow: auto;
+  margin-top: var(--espace-2);
+}
+
+.volet__sous-titre {
+  font-family: var(--serif);
+  font-size: 17px;
+  font-weight: 500;
+  margin: var(--espace-3) 0 var(--espace-1);
+}
+
+/* ============================================================================
+   LE CHAPITRE V : LA PRÉDICTION DE L'ÉVOLUTION (D-105)
+   ========================================================================== */
+
+/* LE MONTANT ATTEINT, en une bande : le grand chiffre à gauche, les niveaux à côté. */
+.projection__resultat {
+  display: grid;
+  grid-template-columns: minmax(300px, 1.15fr) minmax(0, 2fr);
+  gap: var(--espace-4);
+  align-items: center;
+}
+
+.projection__phrase {
+  margin: var(--espace-2) 0 0;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 15px;
+  color: var(--texte-secondaire);
+}
+
+.projection__phrase b {
+  font-family: var(--sans);
+  font-style: normal;
+  font-size: var(--taille-petite);
+  color: var(--texte);
+}
+
+.niveaux {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  gap: var(--espace-2);
+}
+
+.niveau {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--espace-1) var(--espace-2);
+  border-left: 1px solid var(--separateur);
+  font-size: var(--taille-texte);
+}
+
+.niveau__nom {
+  font-size: var(--petites-capitales-taille);
+  letter-spacing: var(--petites-capitales-espace);
+  text-transform: uppercase;
+  color: var(--texte-secondaire);
+}
+
+/* Les repères (la valeur sans aléa, ce qui a été versé) : à part des niveaux, en retrait. */
+.niveau--repere {
+  border-left-style: dashed;
+}
+
+/* LES HYPOTHÈSES, sur une ligne : quatre champs et le choix de lecture. */
+.champs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: var(--espace-3) var(--espace-4);
+  align-items: start;
+}
+
+.champ {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.champ__etiquette {
+  font-size: var(--petites-capitales-taille);
+  letter-spacing: var(--petites-capitales-espace);
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--texte-secondaire);
+}
+
+.champ__ligne {
+  display: flex;
+  align-items: baseline;
+  gap: var(--espace-2);
+}
+
+/* Le champ de Dash (un conteneur et son <input>) : ses couleurs viennent du thème. Ni les
+   boutons « − / + » de Dash ni les flèches du navigateur : un montant se tape. */
+.champ__saisie {
+  width: 9em;
+}
+
+.champ__saisie .dash-input-stepper {
+  display: none;
+}
+
+.champ__saisie .dash-input-element {
+  width: 100%;
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: var(--taille-base);
+  font-variant-numeric: var(--chiffres);
+  color: var(--texte);
+  text-align: right;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.champ__saisie .dash-input-element::-webkit-inner-spin-button,
+.champ__saisie .dash-input-element::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.champ__unite {
+  color: var(--texte-secondaire);
+}
+
+.champ__aide {
+  font-size: var(--taille-mini);
+  color: var(--texte-secondaire);
+}
+
+/* LE CHOIX DE LECTURE : « une courbe | 10 000 simulations », deux boutons accolés, comme les
+   filtres de la bande, mais sur la page. Les pastilles radio de Dash sont cachées : le bouton
+   enfoncé est en encre, l'autre en papier. */
+.choix-de-lecture {
+  display: inline-flex;
+  border: 1px solid var(--contour);
+  border-radius: var(--rayon);
+  overflow: hidden;
+  align-self: flex-start;
+}
+
+.choix-de-lecture .dash-options-list-option {
+  padding: 5px 11px 6px;
+  font-size: var(--taille-petite);
+  color: var(--texte-secondaire);
+  background: var(--fond-page);
+  white-space: nowrap;
+}
+
+.choix-de-lecture .dash-options-list-option + .dash-options-list-option {
+  border-left: 1px solid var(--contour);
+}
+
+.choix-de-lecture .dash-options-list-option:hover {
+  color: var(--texte);
+}
+
+/* Le bouton choisi, en encre. Dash recolore le texte d'une option qui a le focus : la règle
+   doit l'emporter aussi dans ce cas, sans quoi le texte disparaît, encre sur encre. */
+.choix-de-lecture .dash-options-list-option[aria-selected="true"],
+.choix-de-lecture .dash-options-list-option[aria-selected="true"]:focus-within {
+  background: var(--texte);
+  color: var(--fond-page);
+  font-weight: 600;
+}
+
+.choix-de-lecture .dash-options-list-option-wrapper {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Ce que ce calcul suppose : les hypothèses, en clair. */
+.suppose {
+  margin: 0;
+  padding-left: 18px;
+  font-size: var(--taille-texte);
+  color: var(--texte-secondaire);
+  max-width: 92ch;
+}
+
+.suppose li {
+  padding: 3px 0;
+}
+
+/* Les courbes de la projection, sur le gabarit du thème : des lignes seules. */
+.serie--verse {
+  stroke: var(--graphique-secondaire);
+  stroke-width: var(--graphique-epaisseur-secondaire);
+  stroke-dasharray: var(--graphique-pointilles);
+  stroke-linecap: butt;
+}
+
+.serie--simple,
+.serie--mediane {
+  stroke: var(--graphique-principal);
+  stroke-width: var(--graphique-epaisseur);
+}
+
+.serie--quartile {
+  stroke: var(--graphique-eventail);
+  stroke-width: 1.3px;
+}
+
+.serie--extreme {
+  stroke: var(--graphique-eventail);
+  stroke-width: 1px;
+  stroke-dasharray: 2 3;
+}
+
+.graphique .graphique__libelle--verse {
+  fill: var(--texte-mise-en-valeur);
+}
+
+.graphique .graphique__libelle--simple,
+.graphique .graphique__libelle--mediane {
+  fill: var(--graphique-principal);
+}
+
+.graphique .graphique__libelle--quartile,
+.graphique .graphique__libelle--extreme {
+  fill: var(--graphique-eventail);
+  font-weight: 400;
+}
+
+/* ============================================================================
+   LES ANIMATIONS (charte §7). Elles accompagnent les données, elles ne les retardent
+   jamais et ne bloquent aucun clic.
+   ========================================================================== */
+
+/* Un changement de chapitre : un léger glissement horizontal et un fondu. La classe est posée
+   par dessin.js, seulement quand le nom du chapitre change : un filtre ne bouge rien. */
+@keyframes feuilleter {
+  from {
+    opacity: 0.25;
+    transform: translateX(var(--glissement-chapitre));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.chapitre--anime {
+  animation: feuilleter var(--duree-chapitre) var(--courbe-animation);
+}
+
+/* L'ouverture du livre, une fois par session : le voile brun de la couverture, posé par
+   dessin.js au clic sur « Ouvrir le livre », s'efface vers la gauche et découvre la page. */
+@keyframes ouvrir-le-livre {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes effacer {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.voile-d-ouverture {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: var(--reliure);
+  border-right: 2px solid var(--ornement);
+  pointer-events: none;
+  animation: ouvrir-le-livre var(--duree-ouverture) var(--courbe-animation) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .cartes--suivantes,
+  .cartes--precedentes {
+    animation: effacer var(--duree-fondu) linear reverse;
+  }
+
+  .chapitre--anime {
+    animation: effacer var(--duree-fondu) linear reverse;
+  }
+
+  .voile-d-ouverture {
+    animation: effacer var(--duree-fondu) linear forwards;
+  }
+}
+
+/* ============================================================================
+   ÉCRANS PLUS ÉTROITS — la grille se replie, rien ne disparaît
+   ========================================================================== */
+
+@media (max-width: 1260px) {
+  .cartes {
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  }
+}
+
+@media (max-width: 1080px) {
+  .rangee,
+  .projection__resultat,
+  .sommaire {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Un écran peu haut — un portable, une fois la barre du navigateur déduite : la couverture se
+   resserre pour tenir sans défiler. */
+@media (max-height: 820px) {
+  .couverture {
+    padding-block: var(--espace-4);
+  }
+  .couverture .logo {
+    width: 56px;
+    height: 56px;
+  }
+  .couverture__titre {
+    font-size: 48px;
+    margin: var(--espace-2) 0;
+  }
+  .couverture .fleuron {
+    margin-bottom: var(--espace-4);
+  }
+  .cartouche {
+    padding: var(--espace-4) var(--espace-5) var(--espace-3);
+  }
+  .cartouche__actions {
+    margin-top: var(--espace-3);
+  }
+  .depot {
+    min-height: 60px;
+    padding: var(--espace-2);
+  }
+}
+
+@media (max-width: 760px) {
+  .page {
+    padding-inline: var(--gouttiere-etroite);
+  }
+  .bande {
+    padding-inline: var(--gouttiere-etroite);
+  }
+  .tuiles--secondaires {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .rang {
+    grid-template-columns: 1fr auto auto;
+  }
+  .rang__piste {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+  .actif__nom {
+    max-width: 22ch;
+  }
 }

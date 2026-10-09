@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Pastory — variantes du logo</title>
+<style>
+  /* Une page de comparaison, hors de l'application : ses deux couleurs sont celles du thème
+     (brun reliure, or vieilli), écrites en clair parce que la page vit seule. */
+  @font-face { font-family: "EB Garamond"; font-weight: 500;
+    src: url("../../pastory/vues/assets/polices/eb-garamond-latin-500-normal.woff2") format("woff2"); }
+  body { margin: 0; background: #2B2118; color: #B8955A; font: 14px "Segoe UI", sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+  h1 { font: 500 30px "EB Garamond", serif; letter-spacing: .02em; margin: 0 0 6px; }
+  p { color: #BFAF95; margin: 0 0 28px; max-width: 70ch; }
+  .variante { display: grid; grid-template-columns: 210px 1fr; gap: 24px; align-items: center;
+    padding: 26px 0; border-top: 1px solid #3A2C20; }
+  .variante h2 { font: 500 22px "EB Garamond", serif; margin: 0 0 4px; }
+  .variante small { color: #BFAF95; display: block; line-height: 1.45; }
+  .tailles { display: flex; align-items: flex-end; gap: 28px; }
+  .tailles figure { margin: 0; text-align: center; }
+  .tailles figcaption { color: #BFAF95; font-size: 11px; margin-top: 6px; }
+  .barre { display: flex; align-items: center; gap: 9px; font: 500 21px "EB Garamond", serif;
+    padding: 10px 14px; background: #2B2118; border: 1px solid #3A2C20; }
+  .onglet { display: flex; align-items: center; gap: 6px; background: #F4ECDD; color: #2A211A;
+    padding: 4px 9px 4px 6px; font-size: 12px; border-radius: 3px; }
+  svg { display: block; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Le logo de Pastory : trois variantes</h1>
+  <p>Un livre fermé, or vieilli sur brun reliure, deux couleurs, sans dégradé ni ombre, et un seul
+  détail d'ancienneté. Chaque variante à 16 px (le favicon), 32, 64 et 160 px, puis dans la
+  navigation et dans un onglet de navigateur.</p>
+  <p><b>Retenue par le propriétaire (étape 9 bis, 2026-10-09) : B · « Signet »</b>, la plus lisible
+  à 16 px, et dont le signet rappelle celui de la navigation (D-98).</p>
+
+  <svg width="0" height="0" style="position:absolute">
+    <defs>
+      <!-- A. FILET : un livre de face, le dos marqué, un filet d'encadrement sur le plat. -->
+      <symbol id="a" viewBox="0 0 32 32">
+        <rect x="7" y="3.5" width="18" height="25" rx="1.6" fill="none" stroke="#B8955A" stroke-width="2.2"/>
+        <path d="M11 3.5v25" stroke="#B8955A" stroke-width="2"/>
+        <rect x="14" y="7.5" width="7.5" height="17" fill="none" stroke="#B8955A" stroke-width="1.3"/>
+      </symbol>
+      <!-- B. SIGNET : un livre plein, de face, le dos en creux, un signet à queue fendue. -->
+      <symbol id="b" viewBox="0 0 32 32">
+        <rect x="7" y="3" width="18" height="22.5" rx="1.6" fill="#B8955A"/>
+        <path d="M11.2 3v22.5" stroke="#2B2118" stroke-width="1.6"/>
+        <path d="M17.5 25.5h4v5.5l-2-1.9-2 1.9z" fill="#B8955A"/>
+      </symbol>
+      <!-- C. TROIS QUARTS : le dos et le plat, un filet sur le dos. -->
+      <symbol id="c" viewBox="0 0 32 32">
+        <path d="M12 5.5 L26 4 V25.5 L12 28 Z" fill="none" stroke="#B8955A" stroke-width="2.1" stroke-linejoin="round"/>
+        <path d="M12 5.5 L6.5 3.8 V26 L12 28" fill="none" stroke="#B8955A" stroke-width="2.1" stroke-linejoin="round"/>
+        <path d="M6.5 9.2 L12 10.6 M6.5 21 L12 22.4" stroke="#B8955A" stroke-width="1.4"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <section class="variante">
+    <div><h2>A · « Filet »</h2><small>De face. Le dos est marqué d'un trait, le plat porte un
+      filet d'encadrement, comme un livre relié à l'ancienne.</small></div>
+    <div class="tailles">
+      <figure><svg width="16" height="16"><use href="#a"/></svg><figcaption>16</figcaption></figure>
+      <figure><svg width="32" height="32"><use href="#a"/></svg><figcaption>32</figcaption></figure>
+      <figure><svg width="64" height="64"><use href="#a"/></svg><figcaption>64</figcaption></figure>
+      <figure><svg width="160" height="160"><use href="#a"/></svg><figcaption>160</figcaption></figure>
+      <figure><div class="barre"><svg width="24" height="24"><use href="#a"/></svg>Pastory</div><figcaption>navigation</figcaption></figure>
+      <figure><div class="onglet"><svg width="16" height="16" style="background:#2B2118;border-radius:2px"><use href="#a"/></svg>Pastory</div><figcaption>onglet</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="variante">
+    <div><h2>B · « Signet »</h2><small>De face, en aplat d'or. Le dos est un trait en creux ;
+      un signet à queue fendue dépasse en bas. La plus lisible en petit.</small></div>
+    <div class="tailles">
+      <figure><svg width="16" height="16"><use href="#b"/></svg><figcaption>16</figcaption></figure>
+      <figure><svg width="32" height="32"><use href="#b"/></svg><figcaption>32</figcaption></figure>
+      <figure><svg width="64" height="64"><use href="#b"/></svg><figcaption>64</figcaption></figure>
+      <figure><svg width="160" height="160"><use href="#b"/></svg><figcaption>160</figcaption></figure>
+      <figure><div class="barre"><svg width="24" height="24"><use href="#b"/></svg>Pastory</div><figcaption>navigation</figcaption></figure>
+      <figure><div class="onglet"><svg width="16" height="16" style="background:#2B2118;border-radius:2px"><use href="#b"/></svg>Pastory</div><figcaption>onglet</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="variante">
+    <div><h2>C · « Trois quarts »</h2><small>Légèrement de biais : on voit le dos et le plat.
+      Deux filets sur le dos. La plus « livre ancien », la moins nette à 16 px.</small></div>
+    <div class="tailles">
+      <figure><svg width="16" height="16"><use href="#c"/></svg><figcaption>16</figcaption></figure>
+      <figure><svg width="32" height="32"><use href="#c"/></svg><figcaption>32</figcaption></figure>
+      <figure><svg width="64" height="64"><use href="#c"/></svg><figcaption>64</figcaption></figure>
+      <figure><svg width="160" height="160"><use href="#c"/></svg><figcaption>160</figcaption></figure>
+      <figure><div class="barre"><svg width="24" height="24"><use href="#c"/></svg>Pastory</div><figcaption>navigation</figcaption></figure>
+      <figure><div class="onglet"><svg width="16" height="16" style="background:#2B2118;border-radius:2px"><use href="#c"/></svg>Pastory</div><figcaption>onglet</figcaption></figure>
+    </div>
+  </section>
+</main>
+</body>
+</html>

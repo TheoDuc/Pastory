@@ -22,8 +22,9 @@ sont des nombres, triés du plus grand au plus petit."""
 
 
 def initial() -> Etat:
+    # Chaque session s'ouvre sur la couverture : c'est d'elle que le livre s'ouvre (D-98).
     return {
-        "onglet": ONGLETS[0].cle,
+        "onglet": ACCUEIL,
         "periode": PERIODE_PAR_DEFAUT,
         "poches": None,
         "type": "tous",

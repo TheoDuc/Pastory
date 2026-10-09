@@ -644,7 +644,7 @@ les actifs, la diversification, les frais et taxes, et le détail des calculs, d
 discrète ouverte depuis la droite de la manchette (il remplace le compteur « À surveiller »).
 Restent 9.5 (les écrans de correction) et 9.6 (cahier, revue, documents).
 
-## Étape 9 bis · Une identité propre, et la prédiction de l'évolution ⏳
+## Étape 9 bis · Une identité propre, et la prédiction de l'évolution ✅
 **But :** passer d'une interface qui marche à une interface qu'on reconnaît, et ajouter la
 section « Prédiction de l'évolution » ([D-97](decisions.md)). L'étape vient **après** la 9 :
 elle reprend des écrans finis, elle ne les remplace pas.
@@ -674,8 +674,72 @@ elle reprend des écrans finis, elle ne les remplace pas.
 **Toi :** choisir une piste d'identité ; trancher [Q-61](questions-ouvertes.md) ; refaire le cas
 sans aléa à la calculatrice.
 
-## Étape 10 · Installation pour d'autres utilisateurs ⏳
-**But :** qu'un investisseur non développeur l'installe en quelques étapes.
+**Avancement (2026-10-09) : l'identité visuelle est faite** ([D-98](decisions.md),
+[D-99](decisions.md)). Le propriétaire a fixé une direction précise plutôt que de choisir entre
+des pistes : **un livre ancien relié**. La [charte graphique](charte-graphique.md) fait référence ;
+toutes les valeurs vivent dans `pastory/vues/assets/theme.css`. La couverture remplace l'accueil,
+les onglets deviennent des chapitres numérotés (le V attend la prédiction), la valeur des actifs
+ouvre la synthèse, l'anneau des poches devient une barre empilée, le logo est choisi (un livre
+fermé et son signet). Après une première relecture du propriétaire : le nom « Pastory » ramène à
+la couverture, qui tient désormais sans défiler, l'ouverture du livre se rejoue à chaque fois, et
+une **lecture de nuit** suit le réglage du système ([D-100](decisions.md), [D-101](decisions.md)) ;
+puis les éléments redeviennent des boîtes, la synthèse tient sur un écran ([D-102](decisions.md)),
+et la troisième bande du bandeau disparaît : le colophon rejoint le titre de chaque chapitre, sous
+lequel un fleuron sépare la page ([D-103](decisions.md)).
+**Aucun chiffre n'a changé** : les 6 786 nombres relevés écran par écran sur
+les données du propriétaire sont ceux d'avant, aux seules données de l'anneau retiré près.
+**Fait ensuite (2026-10-09) : la prédiction de l'évolution**, au chapitre V. Q-61 tranchée par
+le propriétaire ([D-105](decisions.md)) : le taux est celui de la médiane, des rendements
+log-normaux mois par mois, une volatilité égale à deux fois le taux (sans valeur historique), un
+taux nominal, une graine fixe. Le calcul vit dans `pastory/projection.py`, indépendant du moteur ;
+le cas sans aléa se refait à la calculatrice ([cahier](verification/etape-9-bis.md)) : 1 000 €,
+5 %, 10 ans, 100 €/mois donnent 17 065,21 €.
+
+**Toi :** refaire ce cas à la calculatrice, et choisir « 10 000 simulations » pour comparer au
+tableau du cahier.
+
+**Validée par le propriétaire le 2026-10-09**, après une relecture `/code-review` dont les neuf
+remarques sont traitées (bornes hautes des montants, valeur de départ partielle signalée, aide du
+TWRR, courbe partant de la date de la valeur, ancres simples pour les Frais, tirages gardés en
+mémoire, dessin allégé au-delà de 20 ans, champ vide sans valeur connue). Le logo de l'onglet est
+désormais aussi un `favicon.ico`, que le navigateur ne peut plus confondre avec celui de Dash.
+
+## Étape 10 · Installation pour d'autres utilisateurs 🔜
+**But :** qu'un investisseur non développeur l'installe en quelques étapes, et qu'il **lance
+Pastory comme un logiciel**, sans jamais ouvrir de terminal.
+
+**Ce que le propriétaire a demandé (2026-10-09) :**
+- **plus de commande à taper** pour lancer l'application : idéalement un **raccourci sur le
+  bureau** qui l'ouvre « comme un logiciel classique » ;
+- **un jeu de données de démonstration** : un export CSV fictif, au format officiel, pour montrer
+  Pastory sans révéler son portefeuille ;
+- **le ménage** : effacer du dépôt et de la machine les fichiers et dossiers devenus inutiles
+  (anciennes données, restes de pytr…).
+
+**Recommandation pour le lancement (à trancher en début d'étape) :**
+- un **raccourci Pastory** (bureau et menu Démarrer), avec le logo (`assets/favicon.ico`), créé une
+  fois pour toutes par l'installation ;
+- il démarre Pastory **sans fenêtre noire** et ouvre l'application dans **une fenêtre à part, sans
+  barre d'adresse** (le mode « application » d'Edge ou de Chrome) : elle a son icône dans la barre
+  des tâches, comme un logiciel ;
+- **fermer la fenêtre arrête Pastory** : la page donne régulièrement signe de vie au serveur, qui
+  s'arrête seul quand elle se tait ; relancer le raccourci quand Pastory tourne déjà ramène la
+  fenêtre existante ;
+- **écarté a priori** : un `.exe` empaqueté (PyInstaller) — lourd, et les antivirus déjà rencontrés
+  sur cette machine (Norton, Avast) signalent souvent ces fichiers comme suspects ; une fenêtre
+  native (pywebview) — une dépendance de plus pour peu de gain sur le mode application ;
+- **à prévoir** pour l'utilisateur type ([D-62](decisions.md)) : l'équivalent sur Mac.
+
+**Le jeu de démonstration (à concevoir) :** un export fictif, au format officiel, qui couvre ce
+que le propriétaire ne détient pas (actions en direct, dividendes, ventes, plusieurs poches) ; ouvert
+dans un dossier **à part**, pour ne jamais se mêler aux vrais exports, et repérable à l'écran
+(« données de démonstration »). Le générateur des tests (`tests/adaptateurs/trade_republic/
+export_fictif.py`) en est le point de départ.
+
+**Le ménage (liste à valider, rien n'est effacé sans accord) :** les dossiers de données locales
+de l'époque pytr (`data/`, l'ancien dossier `DashBoardTradeRepublic` dans `AppData`), les
+maquettes de l'étape 8 que l'application a remplacées (`maquettes/`, hors `maquettes/logo/`), et
+les documents purement historiques à archiver plutôt qu'à garder en tête du dépôt.
 
 **Claude :**
 - Écrit le guide d'installation (README), dont **comment obtenir l'export** dans l'application

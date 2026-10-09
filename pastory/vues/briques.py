@@ -46,8 +46,7 @@ def aide(cle: str | None) -> list:
     """
     if cle is None or cle not in AIDES:
         return []
-    texte = AIDES[cle]
-    ident = _identifiant("bulle")
+    ident, contenu = _bulle(cle)
     return [
         html.Button(
             "?",
@@ -56,17 +55,46 @@ def aide(cle: str | None) -> list:
             **{
                 "aria-expanded": "false",
                 "aria-controls": ident,
-                "aria-label": f"Qu'est-ce que « {texte.titre} » ?",
+                "aria-label": f"Qu'est-ce que « {AIDES[cle].titre} » ?",
             },
         ),
+        contenu,
+    ]
+
+
+def bulle_a_contenu(libelle: str, titre: str, contenu: Any) -> list:
+    """Un bouton en toutes lettres qui ouvre une bulle au contenu calculé (et non tiré du
+    vocabulaire) : le même mécanisme que le « ? », pour un détail qu'on ne montre qu'à la
+    demande."""
+    ident = _identifiant("bulle")
+    return [
+        html.Button(
+            libelle,
+            className="aide aide--texte",
+            type="button",
+            **{"aria-expanded": "false", "aria-controls": ident},
+        ),
         html.Div(
-            [html.B(texte.titre, className="bulle__titre"), html.Span(riche(texte.texte))],
+            [html.B(titre, className="bulle__titre"), contenu],
             id=ident,
             className="bulle",
             role="note",
             hidden=True,
         ),
     ]
+
+
+def _bulle(cle: str) -> tuple[str, html.Div]:
+    """La bulle d'une aide, cachée, et son identifiant."""
+    texte = AIDES[cle]
+    ident = _identifiant("bulle")
+    return ident, html.Div(
+        [html.B(texte.titre, className="bulle__titre"), html.Span(riche(texte.texte))],
+        id=ident,
+        className="bulle",
+        role="note",
+        hidden=True,
+    )
 
 
 def entete(titre: str, cle_aide: str | None = None, note: Any = None) -> html.Div:
@@ -125,8 +153,38 @@ def mot(texte: str, variante: str | None = None, **attributs: Any) -> html.Span:
     return html.Span(texte, className=classes, **attributs)
 
 
-def pied_avec_mot(marque: str, texte: str | None = None, variante: str | None = None) -> list:
-    return [mot(marque, variante), f" {texte}" if texte else None]
+def mot_explique(texte: str, cle_aide: str, variante: str | None = None) -> list:
+    """Une marque qui dit elle-même pourquoi elle est là : au survol (ou au clic, ou au clavier),
+    elle ouvre la bulle de son explication. Une marque comme « Peu fiable », sans explication à
+    portée de souris, inquiète sans rien apprendre (retour du propriétaire, étape 9 bis)."""
+    if cle_aide not in AIDES:
+        return [mot(texte, variante)]
+    ident, contenu = _bulle(cle_aide)
+    classes = "mot mot--explique" + (f" mot--{variante}" if variante else "")
+    return [
+        html.Span(
+            texte,
+            className=classes,
+            tabIndex=0,
+            role="button",
+            **{
+                "aria-expanded": "false",
+                "aria-controls": ident,
+                "aria-label": f"{texte} : {AIDES[cle_aide].titre.lower()}",
+            },
+        ),
+        contenu,
+    ]
+
+
+def pied_avec_mot(
+    marque: str,
+    texte: str | None = None,
+    variante: str | None = None,
+    cle_aide: str | None = None,
+) -> list:
+    marque_posee = mot_explique(marque, cle_aide, variante) if cle_aide else [mot(marque, variante)]
+    return [*marque_posee, f" {texte}" if texte else None]
 
 
 def tuile(
@@ -139,7 +197,8 @@ def tuile(
     cle_aide: str | None = None,
     pied: Any = None,
 ) -> html.Div:
-    """Une tuile de chiffre clé. Le `ton` colore le bord ; la `classe` colore le chiffre."""
+    """Une tuile de chiffre clé, sans cadre (charte graphique §5). La `classe` colore le
+    chiffre, dont le signe double toujours la couleur ; le `ton` le dit, sans rien peindre."""
     classes_valeur = "tuile__valeur" + (" tuile__valeur--petit" if petit else "")
     if classe:
         classes_valeur += f" {classe}"
@@ -153,6 +212,48 @@ def tuile(
             html.Span(pied, className="tuile__pied"),
         ],
         className=f"tuile tuile--{ton}",
+    )
+
+
+def entree(
+    etiquette: str, valeur: str, *, cle_aide: str | None = None, pied: Any = None
+) -> html.Div:
+    """LE point d'entrée d'une page : un chiffre nettement plus grand que tout le reste, en
+    serif (charte graphique §3.2). Une page n'en a qu'un."""
+    return html.Div(
+        [
+            html.Div(
+                [html.Span(etiquette, className="etiquette"), *aide(cle_aide)],
+                className="entree__haut",
+            ),
+            html.Span(valeur, className="entree__valeur nb"),
+            html.Span(pied, className="entree__pied"),
+        ],
+        className="entree",
+    )
+
+
+def fleuron() -> html.Span:
+    """Un filet et un losange, dessinés en CSS : l'ornement de la couverture."""
+    return html.Span(className="fleuron", **{"aria-hidden": "true"})
+
+
+def ouverture(numero: str, titre: str, introduction: str, note: Any = None) -> html.Header:
+    """L'ouverture d'un chapitre : son numéro en grand (un ornement d'or, caché aux lecteurs
+    d'écran puisque le titre le redit), son titre, et la phrase qui dit ce que montre la page
+    (charte graphique §4.2)."""
+    return html.Header(
+        [
+            html.Span(numero, className="ouverture__numero", **{"aria-hidden": "true"}),
+            html.H1(titre, className="ouverture__titre"),
+            html.P(introduction, className="ouverture__introduction"),
+            # À droite : d'où viennent les chiffres, et de quand ils datent (le colophon).
+            note,
+            # Puis le fleuron qui sépare le titre du chapitre de sa page, sur toute la largeur
+            # (retour du propriétaire, étape 9 bis).
+            html.Span(className="fleuron fleuron--chapitre", **{"aria-hidden": "true"}),
+        ],
+        className="ouverture",
     )
 
 

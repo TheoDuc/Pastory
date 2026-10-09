@@ -552,3 +552,62 @@ détenues en direct, et **affiche cette différence** ([D-66](decisions.md)).
 Ce n'est pas une imprécision de nos sources : un émetteur écrit lui-même que son exposition
 géographique se rapporte « principalement » au domicile de l'émetteur, « mais, dans certains cas,
 elle peut refléter le lieu où l'émetteur réalise l'essentiel de son activité ».
+
+## 9. Prédiction de l'évolution
+
+Une **hypothèse sur l'avenir**, jamais une prévision ni un conseil ([D-105](decisions.md)). Elle
+ne lit du portefeuille qu'une chose, sa **valeur de départ** (la valeur des actifs, modifiable) ;
+rien d'autre n'en dépend ([D-27](decisions.md)). Tous les montants sont **nominaux** : en euros de
+l'époque, **avant impôt, frais et inflation**.
+
+### Les entrées
+- **valeur de départ** `V₀` : par défaut la valeur des actifs du portefeuille, modifiable ;
+- **taux annuel** `t` : de 0 % à 30 % ;
+- **durée** : de 1 à 50 ans, soit `n` mois ;
+- **versement mensuel** `v` : versé en **fin de mois**, à partir du premier mois.
+
+### Sans aléa : des intérêts composés, mois par mois
+Le taux mensuel équivalent est `g = (1 + t)^(1/12)` : douze mois à `g` font une année à `t`.
+Chaque mois :
+
+    V ← V × g + v
+
+Forme fermée, pour refaire le calcul à la calculatrice :
+
+    Vₙ = V₀ × gⁿ + v × (gⁿ − 1) / (g − 1)        (si t = 0 : Vₙ = V₀ + n × v)
+
+Ce qui a été **versé** est `V₀ + n × v` ; ce que le taux **a ajouté** est la différence avec
+`Vₙ`.
+
+### Avec aléa : 10 000 chemins tirés au hasard
+Chaque mois, le rendement est tiré au hasard selon une **loi log-normale**, indépendamment des
+autres mois :
+
+    V ← V × exp(μ + σₘ × Z) + v
+
+- `Z` est tiré selon une loi normale centrée réduite (moyenne 0, écart type 1) ;
+- `μ = ln(1 + t) / 12` : avec ce choix, **la médiane** de la croissance vaut le taux saisi — le
+  taux est celui du chemin « du milieu », pas de la moyenne (une année à −20 % puis une à +20 % ne
+  ramènent pas au départ : 0,8 × 1,2 = 0,96) ;
+- `σₘ = σ / √12`, et **la volatilité annuelle σ vaut deux fois le taux** : `σ = 2 × t`. Aucune
+  valeur historique : la dispersion ne dépend que du taux visé, parce qu'un rendement élevé ne
+  s'obtient qu'en acceptant plus de variations (4 % donne σ = 8 % ; 15 % donne σ = 30 %).
+
+On tire **10 000 chemins**, et pour chaque mois on lit les **quantiles** 10 %, 25 %, 50 % (la
+médiane), 75 % et 90 % : 10 % des chemins finissent sous le premier, 10 % au-dessus du dernier.
+« Dans 8 cas sur 10 » se lit donc entre le quantile 10 % et le quantile 90 %. (D'abord 5 % et
+95 %, jugés trop rares pour être parlants : [D-105](decisions.md).)
+
+Le hasard est tiré avec une **graine fixe** : les mêmes entrées redonnent toujours les mêmes
+courbes, au centime près.
+
+**Sans versement**, la médiane tombe sur la courbe sans aléa (aux fluctuations du tirage près).
+**Avec des versements**, elle n'y tombe que presque : chaque versement grandit sur une durée
+différente, et la médiane d'une somme n'est pas exactement la somme des médianes.
+
+### Ce que l'hypothèse ne dit pas
+- la loi log-normale **sous-estime les krachs** : une chute comme celle de 2008 y est plus rare
+  que dans la réalité ;
+- les mois sont **indépendants** : ni tendance, ni cycle ;
+- le taux et sa volatilité restent **constants** sur toute la durée ;
+- c'est une **hypothèse**, pas une prévision ni un conseil.

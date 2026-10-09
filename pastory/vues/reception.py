@@ -22,6 +22,7 @@ from datetime import date as Date
 from pathlib import Path
 
 from pastory.adaptateurs.trade_republic import fichier
+from pastory.adaptateurs.trade_republic.depot import CHEMIN_DANS_L_APPLICATION
 from pastory.adaptateurs.trade_republic.fichier import FichierNonReconnu
 from pastory.vues import format as f
 
@@ -52,11 +53,13 @@ def recevoir(nom: str, contenu: str, dossier: Path) -> Reception:
         lignes = fichier.lire(provisoire)
     except FichierNonReconnu as raison:
         provisoire.unlink(missing_ok=True)
+        # La phrase de tête dit, sans jargon, ce qui ne va pas et où trouver le bon fichier ;
+        # la raison précise de la lecture vient ensuite, pour qui veut comprendre.
         return Reception(
             False,
-            f"« {nom} » n'est pas un export des transactions : {raison}. Rien n'a été copié. "
-            "L'export s'obtient dans l'application Trade Republic, sous Profil, Relevés, "
-            "Export des transactions.",
+            f"« {nom} » ne ressemble pas à un export des transactions de Trade Republic : rien "
+            "n'a été copié. Le bon fichier s'obtient dans l'application Trade Republic "
+            f"({CHEMIN_DANS_L_APPLICATION.replace(' > ', ' → ')}). Ce qui ne va pas : {raison}.",
         )
 
     cible = _destination(dossier, nom, octets)

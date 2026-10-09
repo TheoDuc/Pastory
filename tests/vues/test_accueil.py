@@ -1,4 +1,5 @@
-"""L'accueil, le dépôt d'un export, et l'état de l'écran (étape 9, bloc 9.1)."""
+"""La couverture (l'accueil), le dépôt d'un export, et l'état de l'écran (étape 9, bloc 9.1 ;
+étape 9 bis pour la couverture)."""
 
 from __future__ import annotations
 
@@ -40,7 +41,7 @@ class TestPremierLancement:
     """Aucun export : l'accueil est le seul écran, et il dit quoi faire (conception §5.1)."""
 
     def test_l_accueil_dit_ou_trouver_l_export_et_ou_le_deposer(self, dossier_de_depot):
-        onglets, compteur, _, filtres_caches, etat, corps = rendu(Chiffres())
+        onglets, compteur, _, filtres_caches, corps, _ = rendu(Chiffres())
 
         lu = texte(corps)
         assert "Profil → Relevés → Export des transactions" in lu
@@ -50,19 +51,18 @@ class TestPremierLancement:
         assert "depot" in identifiants(corps)
 
     def test_ce_n_est_pas_une_erreur(self, dossier_de_depot):
-        lu = texte(rendu(Chiffres())[5]).replace(str(dossier_de_depot), "")
+        lu = texte(rendu(Chiffres())[4]).replace(str(dossier_de_depot), "")
         assert "erreur" not in lu.lower()
 
     def test_aucun_compteur_ni_filtre_ni_etat_tant_que_rien_n_est_lu(self):
-        _, compteur, filtres, caches, etat, _ = rendu(Chiffres())
+        _, compteur, filtres, caches, _, _ = rendu(Chiffres())
         assert compteur == []
         assert filtres == [] and caches is True
-        assert etat == []
 
     def test_aucun_onglet_tant_qu_aucun_export_n_est_lu(self):
         """Des onglets qui ramènent tous au dépôt feraient croire qu'il y a quelque chose
         derrière (arbitrage du propriétaire, bloc 9.1)."""
-        onglets, _, _, _, _, corps = rendu(Chiffres(), onglet="diversification")
+        onglets, _, _, _, corps, _ = rendu(Chiffres(), onglet="diversification")
         assert onglets == []
         assert "Déposez votre export ici" in texte(corps)
 
@@ -84,12 +84,12 @@ class TestApresLeDepot:
         return Chiffres(hors_ligne=True)
 
     def test_la_periode_couverte_est_dite(self, chiffres):
-        lu = texte(rendu(chiffres, onglet=bandeau.ACCUEIL)[5])
+        lu = texte(rendu(chiffres, onglet=bandeau.ACCUEIL)[4])
         assert "Période couverte" in lu
         assert "Vos exports" in lu
 
     def test_un_type_inconnu_est_affiche_jamais_ignore(self, chiffres):
-        lu = texte(rendu(chiffres, onglet=bandeau.ACCUEIL)[5])
+        lu = texte(rendu(chiffres, onglet=bandeau.ACCUEIL)[4])
         assert "Type inconnu" in lu
         assert fictifs.TYPE_INCONNU in lu
 
@@ -100,12 +100,28 @@ class TestApresLeDepot:
         assert "Détail des calculs" in texte(lien)
         assert "À surveiller" not in texte(lien)
 
-    def test_l_etat_des_donnees_dit_la_periode_de_l_export(self, chiffres):
-        assert "Export du 02/01/2026 au 01/08/2026" in texte(rendu(chiffres)[4])
+    def test_le_colophon_dit_la_periode_de_l_export(self, chiffres):
+        """Dans la bulle « d'où viennent ces chiffres », à droite du titre du chapitre."""
+        corps = rendu(chiffres, onglet="synthese")[4]
+        assert "Export du 02/01/2026 au 01/08/2026" in texte(corps)
+        assert "d'où viennent ces chiffres" in texte(corps)
+
+    def test_la_periode_retenue_est_dans_la_bande_des_filtres(self, chiffres):
+        """Ce que les filtres ont retenu se lit à côté d'eux, et non plus dans une 3e bande."""
+        import re
+
+        filtres = texte(rendu(chiffres, onglet="synthese")[2])
+        assert re.search(r"Du \d\d/\d\d/\d{4} au \d\d/\d\d/\d{4} · ", filtres)
+
+    def test_un_chapitre_sans_filtre_a_son_sommaire(self, chiffres):
+        """D-104 : la bande garde sa place ; elle porte des choix, jamais un faux filtre."""
+        filtres, caches = rendu(chiffres, onglet="projections")[2:4]
+        assert not caches
+        assert "jamais une prévision" in texte(filtres)
 
     def test_sans_aucun_cours_la_date_des_cours_n_est_pas_inventee(self, chiffres):
         """Hors ligne, aucun cours n'est connu : dire « arrêtés au » aujourd'hui serait faux."""
-        etat = texte(rendu(chiffres)[4])
+        etat = texte(rendu(chiffres, onglet="synthese")[4])
         assert "Cours arrêtés au" not in etat
         assert "aucun cours connu" in etat
 
@@ -117,8 +133,22 @@ class TestApresLeDepot:
 
     @pytest.mark.parametrize("onglet", ["diversification", "frais"])
     def test_diversification_et_frais_n_ont_aucun_filtre(self, chiffres, onglet):
-        filtres, caches = rendu(chiffres, onglet=onglet)[2:4]
-        assert filtres == [] and caches is True
+        """Une répartition est la photo d'un tout : rien n'y est filtré. Leur bande ne porte que
+        leur sommaire — la rubrique, les sections —, jamais la période, le type ou les poches."""
+        bande = texte(rendu(chiffres, onglet=onglet)[2])
+        for filtre in ("Période", "Type d'actif", "Poches"):
+            assert filtre not in bande
+        assert ("Rubrique" if onglet == "diversification" else "Aller à") in bande
+
+    def test_aller_a_une_section_des_frais(self, chiffres):
+        """De simples ancres : le navigateur défile, rien n'est recalculé."""
+        from tests.vues.outils import noeuds
+
+        corps, bande = rendu(chiffres, onglet="frais")[4], rendu(chiffres, onglet="frais")[2]
+        cibles = {"frais-preleve", "frais-detention", "frais-sortie"}
+        assert cibles <= set(identifiants(corps))
+        liens = {getattr(n, "href", None) for n in noeuds(bande)}
+        assert {f"#{c}" for c in cibles} <= liens
 
     def test_une_poche_absente_ne_se_coche_pas(self, chiffres):
         filtres = rendu(chiffres, onglet="synthese")[2]
@@ -130,6 +160,114 @@ class TestApresLeDepot:
         presentes = {p.value for p in Chiffres(hors_ligne=True).vue("tout").poches_presentes}
         for valeur, bouton in boutons.items():
             assert bool(getattr(bouton, "disabled", False)) is (valeur not in presentes)
+
+
+class TestLaCouverture:
+    """Le livre s'ouvre sur sa couverture, à chaque session (D-98, charte graphique §4.1)."""
+
+    @pytest.fixture
+    def chiffres(self, dossier_de_depot):
+        fictifs.deposer(dossier_de_depot)
+        return Chiffres(hors_ligne=True)
+
+    def test_la_session_commence_sur_la_couverture(self):
+        assert etat_ecran.initial()["onglet"] == bandeau.ACCUEIL
+
+    def test_la_couverture_ferme_le_livre_les_pages_l_ouvrent(self, chiffres):
+        assert rendu(chiffres)[5] == ecrans.CLASSE_DE_LA_COUVERTURE
+        assert rendu(chiffres, onglet="synthese")[5] == ecrans.CLASSE_DES_PAGES
+        assert rendu(Chiffres())[5] == ecrans.CLASSE_DE_LA_COUVERTURE
+
+    def test_avec_des_donnees_on_ouvre_le_livre_ou_on_depose_plus_recent(self, chiffres):
+        corps = rendu(chiffres)[4]
+        lu = texte(corps)
+        assert "Ouvrir le livre" in lu
+        assert "Déposer un export plus récent" in lu
+        assert "depot" in identifiants(corps)
+        assert {"choix": "aller", "valeur": "synthese"} in identifiants(corps)
+
+    def test_la_periode_et_la_derniere_operation_sont_dites(self, chiffres):
+        lu = texte(rendu(chiffres)[4])
+        assert "Période couverte" in lu
+        assert "du 02/01/2026 au 01/08/2026" in lu
+        assert "Dernière opération lue le 01/08/2026" in lu
+
+    def test_un_type_inconnu_est_signale_des_la_couverture(self, chiffres):
+        lu = texte(rendu(chiffres)[4])
+        assert lu.index("Type inconnu") < lu.index("Ouvrir le livre")
+
+    def test_le_nom_ramene_a_la_couverture(self):
+        """Retour du propriétaire (étape 9 bis) : le lien « vos exports » était trop discret."""
+        marque = bandeau.marque()
+        assert marque.id == {"choix": "aller", "valeur": bandeau.ACCUEIL}
+        etat = etat_ecran.appliquer(
+            {**etat_ecran.initial(), "onglet": "frais"}, "aller", bandeau.ACCUEIL, []
+        )
+        assert etat["onglet"] == bandeau.ACCUEIL
+
+    def test_le_detail_est_replie_mais_les_alertes_jamais(self, chiffres):
+        """La couverture tient sur un écran : le détail de la lecture est dans un volet. Une
+        alerte — ici un type inconnu — reste hors du volet (règle 5)."""
+        from tests.vues.outils import noeuds
+
+        corps = rendu(chiffres)[4]
+        (volet,) = [n for n in noeuds(corps) if getattr(n, "className", "") == "volet"]
+        assert "Vos exports" in texte(volet)
+        assert fictifs.TYPE_INCONNU in texte(volet)
+        dans_le_volet = {id(n) for n in noeuds(volet)}
+        alertes = [
+            n for n in noeuds(corps) if getattr(n, "className", "") == "cartouche__alerte"
+        ]
+        assert alertes
+        assert not any(id(a) in dans_le_volet for a in alertes)
+        assert "Type inconnu" in texte(alertes[0])
+
+    def test_rien_n_est_pose_sous_la_couverture(self, chiffres):
+        """L'écran est la couverture, et elle seule : plus de page de garde à faire défiler."""
+        assert rendu(chiffres)[4].children.className == "couverture"
+
+    def test_un_identifiant_n_apparait_qu_une_fois(self, chiffres):
+        """Dash refuse deux éléments du même nom : « Ouvrir le livre » et l'ancien bouton
+        « Voir la synthèse » portaient le même."""
+        for corps in (rendu(chiffres)[4], rendu(Chiffres())[4]):
+            ids = [str(i) for i in identifiants(corps)]
+            assert len(ids) == len(set(ids))
+
+
+class TestLesChapitres:
+    """Chaque chapitre s'ouvre sur son numéro, son titre et sa phrase (charte graphique §4.2)."""
+
+    @pytest.fixture
+    def chiffres(self, dossier_de_depot):
+        fictifs.deposer(dossier_de_depot)
+        return Chiffres(hors_ligne=True)
+
+    @pytest.mark.parametrize(
+        ("onglet", "numero", "titre"),
+        [
+            ("synthese", "I", "Synthèse"),
+            ("actifs", "II", "Les actifs"),
+            ("diversification", "III", "Diversification"),
+            ("frais", "IV", "Frais et taxes"),
+            ("projections", "V", "Projections"),
+            ("detail", "Annexe", "Détail des calculs"),
+        ],
+    )
+    def test_l_ouverture_du_chapitre(self, chiffres, onglet, numero, titre):
+        corps = rendu(chiffres, onglet=onglet)[4]
+        assert texte(corps).startswith(f"{numero} {titre} ")
+        # Le nom du chapitre : dessin.js ne joue la transition que s'il change.
+        assert getattr(corps, "data-chapitre") == onglet
+
+    def test_un_filtre_ne_change_pas_le_nom_du_chapitre(self, chiffres):
+        corps = rendu(chiffres, onglet="synthese", periode="1m")[4]
+        assert getattr(corps, "data-chapitre") == "synthese"
+
+
+    def test_les_chapitres_portent_leur_numero_dans_la_navigation(self, chiffres):
+        onglets = texte(rendu(chiffres, onglet="synthese")[0])
+        assert onglets == "I Synthèse II Les actifs III Diversification IV Frais et taxes " \
+            "V Projections"
 
 
 def _boutons(composant):
@@ -153,8 +291,12 @@ class TestReception:
         reception = recevoir("courses.csv", pas_un_export, dossier_de_depot)
 
         assert not reception.accepte
-        assert "n'est pas un export" in reception.message
-        assert "Rien n'a été copié" in reception.message
+        # La phrase de tête dit, sans jargon, ce qui ne va pas et où trouver le bon fichier.
+        assert reception.message.startswith(
+            "« courses.csv » ne ressemble pas à un export des transactions de Trade Republic"
+        )
+        assert "rien n'a été copié" in reception.message
+        assert "Profil → Relevés → Export des transactions" in reception.message
         assert list(dossier_de_depot.iterdir()) == []
 
     def test_rien_n_est_jamais_ecrase(self, dossier_de_depot, un_export):

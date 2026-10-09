@@ -8,8 +8,9 @@ commencer.
 > dernière section dit comment.
 >
 > Dernière mise à jour : **2026-10-09**, au milieu de l'étape 9 (blocs 9.0 à 9.4 faits et
-> fusionnés dans `main`). La section « Où en est l'étape 9 » ci-dessous prime sur le reste du
-> fichier, qui date de la fin de l'étape 8 quater et sera réécrit au bloc 9.6.
+> fusionnés dans `main`), puis après l'identité visuelle de l'étape 9 bis (branche
+> `etape-9-bis`). La section « Où en est l'étape 9 » ci-dessous prime sur le reste du fichier, qui
+> date de la fin de l'étape 8 quater et sera réécrit au bloc 9.6.
 
 ---
 
@@ -17,7 +18,8 @@ commencer.
 
 ```
 Lis CLAUDE.md puis docs/feuille-de-route.md, et docs/prompt-session-suivante.md.
-On attaque l'étape 9 bis : l'identité visuelle et la prédiction de l'évolution.
+On attaque l'étape 10 : l'installation — un raccourci qui lance Pastory comme un logiciel, un jeu
+de démonstration, et le ménage du dépôt.
 ```
 
 ---
@@ -31,15 +33,19 @@ ouverte par un bouton à droite de la manchette (il remplace le compteur « À s
 le bloc est en bas de cette page). Décisions D-93 à D-97. Le contrat d'écran
 ([conception-interface.md](conception-interface.md) §4) décrit ce qui est à l'écran.
 
+**Fait ensuite, sur la branche `etape-9-bis` (2026-10-09) : l'identité visuelle** — le livre
+relié ([D-98](decisions.md), [D-99](decisions.md)). **Toute modification d'interface suit
+[charte-graphique.md](charte-graphique.md)**, et ne pose aucune couleur hors de
+`pastory/vues/assets/theme.css` (des tests le vérifient, contrastes compris). **Il y a deux thèmes**,
+jour et nuit ([D-100](decisions.md)) : la nuit ne redéfinit que les rôles, donc une couleur
+nouvelle se déclare comme un rôle, dans les deux, et se vérifie dans les deux. Le choix du fond est
+réglé par la charte (aucune texture) : `maquettes/apercus-fond/` est supprimé.
+
 **Reste :**
-- **l'étape 9 bis**, que le propriétaire veut attaquer en premier
-  ([feuille-de-route.md](feuille-de-route.md)) :
-  - l'identité visuelle, en maquettes comparables d'abord ;
-  - la prédiction de l'évolution (Monte-Carlo, D-97). **Rien n'est codé avant que Q-61 soit
-    tranchée** : les hypothèses, avec la recommandation écrite.
-- **Le choix du fond** : trois pistes (A, B, C) sont dans `maquettes/apercus-fond/`, non
-  versionné. Le propriétaire n'a pas encore choisi ; à reprendre dans la 9 bis, puis supprimer
-  le dossier.
+- **l'étape 9 bis est finie et fusionnée** (2026-10-09) : l'identité, la lecture de nuit, la
+  prédiction de l'évolution (chapitre V, D-105). Le propriétaire a choisi d'enchaîner sur
+  **l'étape 10** ([feuille-de-route.md](feuille-de-route.md) : ses trois demandes et la
+  recommandation pour le lanceur y sont écrites) ;
 - **9.5** : les écrans de correction (tomlkit, D-94 ; le §6 du contrat est déjà réécrit).
 - **9.6** : le cahier `docs/verification/etape-9.md`, `/code-review`, et la réécriture de ce
   fichier.
@@ -56,6 +62,16 @@ le bloc est en bas de cette page). Décisions D-93 à D-97. Le contrat d'écran
   pour le bitcoin. Pastory ne l'invente pas. Et depuis le 2026-10-09, un jour cherché **après**
   la fin du cache fait redemander la suite (`FournisseurDeCours._completer_la_fin`) : avant, les
   cours restaient figés au dernier `pastory cours`.
+- **Dash recrée le contenu à chaque rappel**, filtre compris, quelle que soit la `key` React
+  (mesuré à la 9 bis). Ce qui doit survivre à un filtre (la transition de chapitre) est décidé
+  côté navigateur, dans `dessin.js`, par comparaison d'un attribut (`data-chapitre`).
+- **Une modification Python demande de relancer le serveur** ; une modification de CSS ou de JS,
+  seulement de recharger la page. Une vérification faite sur l'ancien serveur ment.
+- **Les nombres d'avant et d'après** : la 9 bis a relevé chaque nombre de chaque écran (27 états)
+  par `ecrans.rendre`, avant et après, et comparé les multiensembles. À refaire pour toute
+  modification d'interface. Les captures et l'audit de la charte passent par un petit client du
+  protocole DevTools en Python standard (aucune bibliothèque websocket n'est installée) : scripts
+  dans le dossier temporaire de la session, à réécrire au besoin.
 - **Vérifier à l'écran** : lancer sur une **copie** du dossier Pastory, jamais sur le vrai :
   `PASTORY_DOSSIER=<copie> .venv/Scripts/python.exe -c "from pastory.vues import application;
   application.lancer(hors_ligne=True, port=8085, navigateur=False)"`, puis une capture par Edge
@@ -251,10 +267,9 @@ dossier temporaire de la session, pas dans le dépôt : les réécrire au besoin
 
 ## À savoir pour travailler sur cette machine
 
-- **Le logo est temporaire**, et dessiné en SVG dans `maquette.js` (`logo()`) : une page, et dessus
-  une valeur qui monte. Il est **clair sur le bandeau d'encre**, et son trait est en **encre, pas en
-  sauge** — la sauge veut dire « gain » partout ailleurs, et un logo vert se lirait comme un état du
-  portefeuille. La manchette a donc perdu la note de couleur que portait le point sauge.
+- **Le logo est choisi** (étape 9 bis, variante « B · Signet » de `maquettes/logo/`) : un livre
+  fermé en aplat d'or, le dos en creux, un signet qui dépasse. Il est dessiné dans `dessin.js`
+  (`logo()`, coloré par le thème) et dans `assets/favicon.svg`.
 - **L'application s'appelle Pastory** ([D-74](decisions.md)), et plus « DashBoard Trade
   Republic ». Le paquet est `pastory/`, la commande est `uv run pastory …`, le dossier personnel
   de l'utilisateur est `Pastory`. **Le nom « Trade Republic » ne subsiste que là où il désigne la

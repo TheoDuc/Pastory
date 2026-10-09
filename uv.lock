@@ -510,6 +510,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "dash" },
+    { name = "numpy" },
     { name = "pandas" },
 ]
 
@@ -522,6 +523,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "dash", specifier = ">=3.0" },
+    { name = "numpy", specifier = ">=2.0" },
     { name = "pandas", specifier = ">=2.2" },
 ]
 

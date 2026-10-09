@@ -41,13 +41,21 @@ def ecran(vue: Vue) -> html.Div:
     return html.Div(
         [
             html.Div(_tuiles(detail, valeur), className="tuiles"),
-            html.Div(_preleve(detail), className="rangee rangee--large rangee--apres"),
+            # Les trois niveaux portent un identifiant : la bande y mène d'un clic.
             html.Div(
-                _detention(vue, detail, valeur), className="rangee rangee--large rangee--apres"
+                _preleve(detail),
+                id="frais-preleve",
+                className="rangee rangee--large rangee--apres ancre-de-chapitre",
+            ),
+            html.Div(
+                _detention(vue, detail, valeur),
+                id="frais-detention",
+                className="rangee rangee--large rangee--apres ancre-de-chapitre",
             ),
             html.Div(
                 [_par_poche(valeur), _si_vous_vendiez(valeur)],
-                className="rangee rangee--apres",
+                id="frais-sortie",
+                className="rangee rangee--apres ancre-de-chapitre",
             ),
             html.Div(
                 _d_ou_viennent_les_taux(detail, valeur),

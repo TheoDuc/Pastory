@@ -1,7 +1,12 @@
 """Quel écran montrer, et avec quels chiffres : le seul endroit qui relie l'état aux écrans.
 
-Il rend les six morceaux de la page — les onglets, le compteur, les filtres (et s'ils sont
-cachés), l'état des données, le corps — à partir de l'état choisi à l'écran et des chiffres.
+Il rend les six morceaux de la page — les onglets, le bouton de l'annexe, les filtres (et
+s'ils sont cachés), le corps, et la classe de la page, qui dit si le livre est fermé (la
+couverture) ou ouvert — à partir de l'état choisi à l'écran et des chiffres.
+
+Chaque chapitre s'ouvre sur son numéro, son titre, sa phrase d'introduction et son colophon
+(d'où viennent les chiffres), puis un fleuron (charte graphique §4.2, §4.4), posés ici une
+fois pour toutes plutôt que dans chaque écran.
 """
 
 from __future__ import annotations
@@ -12,17 +17,22 @@ from pastory.vues import (
     accueil,
     actifs,
     bandeau,
+    colophon,
     detail,
     diversification,
     frais,
+    projections,
     surveiller,
     synthese,
 )
-from pastory.vues.briques import bloc, mot
+from pastory.vues.briques import bloc, mot, ouverture
 from pastory.vues.chiffres import Chiffres, Echec, Vue
 from pastory.vues.surveiller import Point
 
-Rendu = tuple[list, list, list, bool, list, object]
+Rendu = tuple[list, list, list, bool, object, str]
+
+CLASSE_DE_LA_COUVERTURE = "livre livre--couverture"
+CLASSE_DES_PAGES = "livre"
 
 
 def rendre(chiffres: Chiffres, etat: dict) -> Rendu:
@@ -30,21 +40,19 @@ def rendre(chiffres: Chiffres, etat: dict) -> Rendu:
     onglet = etat.get("onglet", bandeau.ONGLETS[0].cle)
 
     if isinstance(base, Echec) or onglet == bandeau.ACCUEIL:
-        # Sans export lisible, l'accueil est le seul écran, et **les onglets n'apparaissent
-        # pas** : cinq onglets qui ramènent tous au dépôt feraient croire qu'il y a quelque chose
-        # derrière (arbitrage du propriétaire, bloc 9.1 ; conception §5.1).
-        corps = accueil.ecran(base, chiffres.dossier(), chiffres.tiers)
-        messages = _messages_du_depot(etat.get("message"))
-        if messages is not None:
-            corps.children.insert(0, messages)
-        etat_des_donnees = [] if isinstance(base, Echec) else _etat_de_l_export(base)
+        # La couverture : la navigation et le colophon sont masqués (le livre est fermé), et
+        # sans export lisible elle est le seul écran — cinq onglets qui ramènent tous au dépôt
+        # feraient croire qu'il y a quelque chose derrière (conception §5.1).
+        corps = accueil.ecran(
+            base, chiffres.dossier(), chiffres.tiers, _messages_du_depot(etat.get("message"))
+        )
         return (
             [] if isinstance(base, Echec) else bandeau.onglets(onglet),
             [] if isinstance(base, Echec) else bandeau.lien_vers_le_detail(onglet),
             [],
             True,
-            etat_des_donnees,
             corps,
+            CLASSE_DE_LA_COUVERTURE,
         )
 
     vue = chiffres.vue(etat.get("periode", "tout"), etat.get("poches"))
@@ -52,18 +60,34 @@ def rendre(chiffres: Chiffres, etat: dict) -> Rendu:
         return rendre(chiffres, {**etat, "onglet": bandeau.ACCUEIL})
 
     points = surveiller.points(base)
+    lu = _colophon(vue, onglet)
     filtres = bandeau.filtres(
         onglet, etat.get("periode", "tout"), etat.get("type", "tous"), vue.poches_presentes,
-        vue.poches,
+        vue.poches, colophon.note_des_filtres(lu),
     )
+    if not filtres:
+        # Un chapitre sans filtre a son sommaire à la place (D-104) : jamais un faux filtre.
+        filtres = bandeau.sommaire(onglet, etat.get("rubrique", "classes"))
     return (
         bandeau.onglets(onglet),
         bandeau.lien_vers_le_detail(onglet),
         filtres,
         not filtres,
-        _etat_des_donnees(vue, onglet),
-        _corps(onglet, vue, points, chiffres, etat),
+        _chapitre(onglet, _corps(onglet, vue, points, chiffres, etat), colophon.note(lu)),
+        CLASSE_DES_PAGES,
     )
+
+
+def _chapitre(onglet: str, corps, note=None) -> html.Div:
+    """Le chapitre : son ouverture, puis son contenu.
+
+    Il porte son nom (`data-chapitre`) : `dessin.js` ne joue la transition que si ce nom change
+    — à chaque changement de chapitre, et à lui seul ; un filtre ne bouge rien (charte
+    graphique §7). Une clé React n'y suffirait pas : Dash recrée le contenu à chaque rappel,
+    quelle que soit la clé (mesuré dans le navigateur à l'étape 9 bis)."""
+    o = bandeau.onglet(onglet)
+    tete = [ouverture(o.numero, o.nom, o.introduction, note)] if o is not None else []
+    return html.Div([*tete, corps], className="chapitre", **{"data-chapitre": onglet})
 
 
 def _corps(onglet: str, vue: Vue, points: list[Point], chiffres: Chiffres, etat: dict):
@@ -81,6 +105,8 @@ def _corps(onglet: str, vue: Vue, points: list[Point], chiffres: Chiffres, etat:
         return actifs.ecran(
             vue, etat.get("type", "tous"), etat.get("tri", "valeur"), int(etat.get("sens", -1))
         )
+    if onglet == "projections":
+        return projections.ecran(vue)
     return html.Div(
         bloc(
             "Écran en cours de réalisation",
@@ -94,14 +120,9 @@ def _corps(onglet: str, vue: Vue, points: list[Point], chiffres: Chiffres, etat:
     )
 
 
-def _etat_de_l_export(base) -> list:
-    depot = base.rapport.depot
-    return bandeau.etat_des_donnees(export_du=depot.premier_jour, export_au=depot.dernier_jour)
-
-
-def _etat_des_donnees(vue: Vue, onglet: str) -> list:
-    """L'état des données dit **ce sur quoi portent les chiffres de cet onglet** : la période
-    et les poches seulement là où elles agissent."""
+def _colophon(vue: Vue, onglet: str) -> colophon.Colophon:
+    """Le colophon dit **ce sur quoi portent les chiffres de cet onglet** : la période et les
+    poches seulement là où elles agissent."""
     base = vue.construit
     depot = base.rapport.depot
     o = bandeau.onglet(onglet)
@@ -115,7 +136,7 @@ def _etat_des_donnees(vue: Vue, onglet: str) -> list:
         else None
     )
     avec_periode = o is not None and o.periode and total.origine is not None
-    return bandeau.etat_des_donnees(
+    return colophon.lire(
         export_du=depot.premier_jour,
         export_au=depot.dernier_jour,
         cours_au=_dernier_cours(valorisation),
@@ -147,20 +168,17 @@ def _nom(position) -> str:
 def _messages_du_depot(messages: list[dict] | None):
     if not messages:
         return None
-    return html.Div(
-        html.Ul(
-            [
-                html.Li(
-                    [
-                        mot("Déposé") if m["accepte"] else mot("Refusé", "absent"),
-                        " " + m["texte"],
-                    ],
-                    className="depot__retour",
-                )
-                for m in messages
-            ],
-            className="depot__retours",
-        ),
-        className="rangee rangee--large",
+    return html.Ul(
+        [
+            html.Li(
+                [
+                    mot("Déposé") if m["accepte"] else mot("Refusé", "absent"),
+                    " " + m["texte"],
+                ],
+                className="depot__retour",
+            )
+            for m in messages
+        ],
+        className="depot__retours",
         role="status",
     )
