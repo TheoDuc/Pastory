@@ -22,7 +22,7 @@ RACINE = Path(__file__).parents[2]
 
 def corps(chiffres, rubrique="classes"):
     etat = {**etat_ecran.initial(), "onglet": "diversification", "rubrique": rubrique}
-    return ecrans.rendre(chiffres, etat)[5]
+    return ecrans.rendre(chiffres, etat)[4]
 
 
 def rangs(page) -> list[str]:
@@ -46,9 +46,12 @@ def chiffres(dossier_personnel):
 
 class TestLesSousOnglets:
     def test_quatre_rubriques_dans_l_ordre_des_questions(self, chiffres):
+        """Elles sont dans la bande, sous la navigation (D-104)."""
+        from pastory.vues import bandeau
+
         boutons = [
             n
-            for n in noeuds(corps(chiffres))
+            for n in noeuds(bandeau.sommaire("diversification", "classes"))
             if isinstance(getattr(n, "id", None), dict) and n.id["choix"] == "rubrique"
         ]
         assert [texte(b) for b in boutons] == ["Actifs", "Zone géographique", "Pays", "Secteur"]

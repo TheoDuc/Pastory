@@ -14,7 +14,7 @@ from tests.vues.portefeuille import coter
 
 
 def corps(chiffres):
-    return ecrans.rendre(chiffres, {**etat_ecran.initial(), "onglet": "frais"})[5]
+    return ecrans.rendre(chiffres, {**etat_ecran.initial(), "onglet": "frais"})[4]
 
 
 @pytest.fixture

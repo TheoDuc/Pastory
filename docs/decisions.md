@@ -190,6 +190,8 @@ L'interface pourra signaler que TRI et TWRR sont peu significatifs sur une court
 **Raison :** Q-24.
 **Écarte :** le pourcentage « gain total / capital net investi » retenu en Q-06. **Contradiction
 résolue :** « gain relatif… combien j'ai gagné en euros » → montant en €.
+**Amendée par [D-99](#d-99) (2026-10-09) :** à l'écran, la **valeur des actifs** devient le point
+d'entrée de la synthèse ; le gain reste le premier des trois chiffres clés, en seconde ligne.
 
 ### D-23 · 2026-09-17 · Deux lectures : synthèse brute et valeur réelle · Validée
 **Décision :**
@@ -1683,6 +1685,9 @@ d'au moins 3:1.
 ferait dépendre la lecture de la couleur.
 **Limite connue :** sur le fond de page (`--papier`), le bleu-vert est à 2,95:1, juste sous le
 seuil ; il n'y est jamais seul — le nom de la poche l'accompagne toujours.
+**Amendée par [D-98](#d-98) (2026-10-09) :** le principe demeure — une couleur par poche, la même
+partout, jamais seule à porter le nom —, mais les trois teintes deviennent **trois bruns
+d'encre**, et l'anneau une barre empilée.
 
 ### D-97 · 2026-10-09 · La prédiction de l'évolution rejoint l'étape 9 bis · Validée
 **Décision :** la simulation Monte-Carlo de [D-27](#d-27), prévue à l'étape 12, devient une
@@ -1696,3 +1701,155 @@ et elle ne lit du portefeuille que sa valeur de départ.
 veut utiliser, pas d'une étape lointaine après la publication.
 **Reste à trancher :** la loi des rendements et le lien entre le taux et la dispersion
 ([Q-61](questions-ouvertes.md)). Rien n'est codé avant.
+
+### D-98 · 2026-10-09 · L'identité de Pastory : un livre ancien relié · Validée
+**Décision :** l'interface prend la direction artistique d'un **livre ancien relié, à la dorure
+discrète** — reliure brun profond (navigation, couverture), pages en papier crème (contenu), or en
+touches rares. La métaphore passe par la **structure et la typographie**, jamais par l'imitation
+de matières : ni texture, ni ombre, ni dégradé métallique, ni relief. Tout est fixé par la
+[charte graphique](charte-graphique.md), qui fait référence, et toutes les valeurs vivent dans
+un seul fichier de thème (`pastory/vues/assets/theme.css`). Concrètement :
+- l'accueil devient la **couverture**, et chaque session s'ouvre sur elle ; on en sort par
+  « Ouvrir le livre » (une animation, rejouée à chaque ouverture depuis [D-101](#d-101)) ;
+- les onglets deviennent des **chapitres numérotés** (I à IV, V pour les projections à venir),
+  chacun ouvert par son numéro, son titre et une phrase ; le détail des calculs devient l'**annexe** ;
+- l'onglet actif est marqué d'un **signet** ; la bande d'état devient le **colophon**, sans rien
+  perdre de ses informations ;
+- les blocs perdent leurs cadres, les indicateurs leurs barres de couleur ; on sépare par
+  l'espace et le filet ;
+- EB Garamond (titres, grand chiffre) et IBM Plex Sans (données) ; chiffres à chasse fixe partout ;
+- la palette du propriétaire, plus six variantes **mesurées** pour le texte (la sauge et l'ocre de
+  la consigne échouent au niveau AA des WCAG sur le papier) ;
+- les poches en **trois bruns d'encre** (amende [D-96](#d-96)), validés en rampe par le
+  validateur du skill dataviz ; l'anneau devient une **barre empilée fine** ;
+- le logo : un livre fermé en aplat d'or, un signet qui dépasse (variante B, choisie parmi trois).
+**Raison :** le propriétaire, à l'ouverture de l'étape 9 bis : l'application s'appelle *Past +
+Story*, elle raconte l'histoire d'un patrimoine ; l'interface de l'étape 9 était propre mais sans
+caractère. Pour les poches, arbitrage rendu en séance : la sauge et l'ocre, proposées dans la
+consigne, ont déjà un sens partout ailleurs (gain, estimé), et une poche sauge se lirait comme un
+état. Les trois bruns passent le plancher de vision normale que les trois bleus d'avant D-96
+manquaient (écarts 19,4 et 17,9, plancher 15).
+**Écarte :** deux ou trois pistes concurrentes en maquette, prévues par la feuille de route — la
+consigne du propriétaire fixait une direction précise ; les trois fonds essayés à la fin de
+l'étape 9 (`maquettes/apercus-fond/`, papier épais, registre, vergé), que la règle « aucune
+texture » écarte ; un mode sombre (finalement admis par [D-100](#d-100), dans la même identité).
+**Limite connue :** une rampe de bruns n'a pas la saturation d'une palette catégorielle : une
+poche n'est donc **jamais** désignée par sa seule couleur, son nom est toujours écrit à côté.
+
+### D-99 · 2026-10-09 · La valeur des actifs est le point d'entrée de la synthèse · Validée
+**Décision :** la synthèse s'ouvre sur **la valeur des actifs**, en grand, en serif : le seul
+point d'entrée de la page. En seconde ligne, plus petits et sans cadre : le **gain** (toujours le
+premier des trois chiffres clés de [D-22](#d-22)), le **TRI** — avec son signalement « Peu fiable »,
+conservé à l'identique —, le **TWRR** et le **capital net investi**. Aucun chiffre ne change : seule
+leur place change.
+**Raison :** la consigne d'identité du propriétaire (étape 9 bis) : chaque page a un point d'entrée
+nettement plus grand que le reste, et sur la synthèse c'est la valeur du portefeuille. Arbitrage
+rendu en séance, la contradiction avec D-22 lui ayant été soumise.
+**Écarte :** garder le gain en grand ; mettre valeur et gain côte à côte (deux points d'entrée,
+donc aucun).
+
+### D-100 · 2026-10-09 · Une lecture de nuit, dans la même identité · Validée
+**Décision :** Pastory a un **mode sombre**, la « lecture de nuit » : le même livre, lu à la lampe.
+Les pages deviennent un brun très profond, un cran plus clair que la reliure ; l'encre devient
+crème ; l'or ne change pas. Il **suit le réglage clair / sombre du système**, et un **bouton
+jour / nuit** (navigation, coin de la couverture) permet de choisir ; le choix est retenu par le
+navigateur. Techniquement, la nuit ne redéfinit que les **rôles** du thème : la feuille et les
+graphiques suivent d'eux-mêmes, et toute couleur nouvelle se déclare dans les deux thèmes. Chaque
+couleur de nuit est mesurée ([charte](charte-graphique.md) §2.8) et un test recalcule les contrastes
+des deux thèmes.
+**Raison :** le propriétaire, après discussion avec un ami : un mode sombre serait apprécié, **à condition de garder la direction artistique**. Ce qui était écarté
+(notes initiales, D-98), c'était le « style moderne sombre » générique, pas l'obscurité elle-même.
+**Écarte :** des pages gris anthracite, avec le brun réservé à la reliure (plus courant, moins
+« livre ») ; un mode sombre sans bouton, ou sans suivi du système ; le mode sombre automatique du
+navigateur, toujours refusé en clair (`color-scheme: only light`) parce qu'il inverse les clartés.
+
+### D-101 · 2026-10-09 · La couverture tient sur un écran, et le livre s'y referme par son nom · Validée
+**Décision :** trois retouches de la couverture, demandées par le propriétaire en la voyant :
+- **le nom « Pastory »**, en tête de la navigation, ramène à la couverture (le lien « vos exports »
+  du colophon reste) ;
+- **la couverture tient sans défiler** : le détail de la lecture passe dans un volet replié de
+  l'étiquette ; **les alertes restent hors du volet**, toujours visibles (règle 5) ;
+- **l'ouverture du livre se rejoue à chaque ouverture**, et non plus une fois par session.
+**Raison :** « vos exports » était trop discret pour revenir à l'accueil ; le bas de l'écran (la
+page de garde) obligeait à défiler pour des informations utiles mais secondaires ; et l'ouverture
+est le geste qui donne son sens à la couverture.
+**Écarte :** déplacer le détail de la lecture dans l'annexe (on le cherche là où l'on dépose
+l'export) ; une étiquette qui se retourne (une manipulation de plus).
+
+### D-102 · 2026-10-09 · Des boîtes, et une synthèse qui tient sur un écran · Validée
+**Décision :** retouches de la synthèse et des pages, demandées par le propriétaire en les voyant :
+- **les éléments redeviennent des boîtes** : fond de page, bordure d'un filet, posées sur un fond
+  de livre un ton plus sombre. Elles remplacent les filets seuls de [D-98](#d-98) ; ni ombre ni
+  relief pour autant ;
+- **la synthèse tient sur un écran** : l'ouverture des chapitres tient sur une ligne (numéro,
+  titre, phrase), et la valeur des actifs devient la plus grande boîte de la première rangée, à
+  côté des quatre indicateurs, au lieu d'occuper une ligne à elle seule ([D-99](#d-99) tient : elle
+  reste le point d'entrée) ;
+- **« Peu fiable » s'explique sur la marque elle-même**, au survol : la période est trop courte
+  pour se fier au TRI. Le « ? » de l'étiquette dit désormais ce qu'est le TRI ;
+- **les cartes d'actifs glissent** d'une page à l'autre, très vite, dans le sens de la lecture ;
+- **de nuit, la bande des filtres** passe à `#3A2C20`, nettement distincte du colophon.
+**Raison :** le propriétaire : la synthèse avait perdu sa qualité d'écran unique ; le titre et la
+valeur prenaient trop de place ; les boîtes donnaient « une vraie frontière bien marquée » ; et
+« Peu fiable » sans explication à portée de souris n'apprenait rien.
+**Écarte :** garder une ouverture de chapitre en grand sur la synthèse seule (deux styles
+d'ouverture dans un même livre) ; une bulle native du navigateur (`title`), lente à paraître et
+impossible à mettre en forme.
+**Limite connue :** sur un portable en 768 px de haut, la synthèse défile encore d'une centaine de
+pixels.
+
+### D-103 · 2026-10-09 · Plus de troisième bande : le colophon rejoint le titre du chapitre · Validée
+**Décision :** la bande « état des données » disparaît. Ses informations sont **rangées là où
+elles ont un sens**, sans qu'aucune soit supprimée :
+- la **période retenue** par les filtres va à droite de la bande des filtres ;
+- à droite du titre de chaque chapitre, **la date des cours** — la seule information utile d'un
+  coup d'œil — et une **valeur partielle** s'il y en a une ;
+- la **source, l'export, les compositions et le nombre de positions** s'ouvrent dans une bulle,
+  par un lien discret « d'où viennent ces chiffres » ;
+- le lien « vos exports » disparaît : le nom « Pastory » ramène déjà à la couverture ([D-101](#d-101)).
+
+Avec elle : plus d'air entre les groupes de filtres, et **un fleuron de chapitre** — un filet d'or
+sur toute la largeur, le losange au centre — entre l'ouverture d'un chapitre et sa page.
+**Raison :** le propriétaire : la bande « fait beaucoup trop paramètre », un fourre-tout de
+petites informations et un lien, à l'opposé de l'aspect aéré du reste ; et sa couleur était trop
+proche de celle de la page. Trois pistes ont été essayées à l'écran sur ses données ; il a retenu
+celle-ci. Pour le losange, il a préféré le chapitre aux séparations internes d'un bloc.
+**Écarte :** deux lignes de colophon à droite du titre (tout visible, mais encore dense) ; un vrai
+colophon en pied de chapitre (le plus « livre », mais il sortait de l'écran sur la synthèse) ; un
+losange entre le graphique des poches et leurs valeurs (un ornement répété partout ne sépare plus
+rien).
+
+### D-104 · 2026-10-09 · Un chapitre sans filtre a son sommaire dans la bande · Validée
+**Décision :** la bande sous la navigation existe sur **tous** les chapitres, à la même hauteur.
+Là où il n'y a pas de filtre, elle porte **le sommaire du chapitre** : les quatre rubriques de la
+Diversification (qui quittent la page), des liens vers les trois niveaux des Frais et taxes (la
+page défile jusqu'à la section), et pour les Projections une phrase : « une hypothèse sur
+l'avenir, jamais une prévision ni un conseil ». La règle du contrat tient : **aucun faux filtre**,
+on y choisit ce qu'on regarde, rien n'est retiré.
+**Raison :** le propriétaire : sans bande, les chapitres III et IV paraissaient plus vides que
+I et II. Trois pistes essayées à l'écran ; il a retenu celle-ci.
+**Écarte :** une phrase qui explique l'absence de filtres (juste, mais elle ne sert à rien) ; un
+ornement centré (il doublait le fleuron du chapitre, juste en dessous) ; des filtres inactifs
+(un filtre qui n'agit sur rien fait douter du chiffre affiché).
+
+### D-105 · 2026-10-09 · Les hypothèses de la prédiction de l'évolution · Validée
+**Décision :** la prédiction du chapitre V ([D-97](#d-97)) repose sur cinq hypothèses, écrites au
+[glossaire](glossaire.md) §9 et **affichées à l'écran** :
+1. le taux saisi est celui de la **médiane** : la courbe du milieu retombe sur la courbe sans aléa,
+   et l'option « taux aléatoire » ajoute un éventail autour d'elle ;
+2. les rendements sont **log-normaux, tirés mois par mois, indépendants** ;
+3. **la volatilité annuelle vaut deux fois le taux** — aucune valeur historique ;
+4. le taux est **nominal**, avant impôt, frais et inflation ;
+5. le hasard a une **graine fixe** : 10 000 tirages, toujours les mêmes pour les mêmes entrées.
+Le calcul vit dans un module indépendant (`pastory/projection.py`), qui ne reçoit du portefeuille
+que la valeur de départ ([D-27](#d-27)).
+**Raison :** Q-61, tranchée par le propriétaire. Pour la dispersion, sa réponse : un taux faible
+va avec peu de variations, un taux élevé avec beaucoup, sans s'appuyer sur l'histoire d'un indice.
+**Écarte :** le taux comme moyenne (la courbe du milieu passerait sous la courbe simple, d'autant
+plus que le taux et la durée sont grands) ; rejouer l'histoire d'un indice ; des repères de classes
+d'actifs sourcés ; une volatilité saisie à la main ; une case d'inflation.
+**Limite connue :** la loi log-normale sous-estime les krachs, et l'écran le dit.
+**Précisée le même jour, à l'écran :** les extrêmes affichés sont les quantiles **10 % et 90 %**
+(« dans 8 cas sur 10 »), et non 5 % et 95 %, que le propriétaire a jugés peu pertinents ; la page
+se lit de haut en bas — le montant atteint, la courbe, puis les hypothèses — et tient sur un
+écran ; le « taux aléatoire » est un choix à deux boutons, « une courbe | 10 000 simulations ».

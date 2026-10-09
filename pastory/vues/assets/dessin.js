@@ -1,5 +1,5 @@
-/* Le dessin de Pastory : la courbe, les anneaux, les drapeaux, les pictogrammes, le
- * planisphère, le logo — et le placement des bulles « ? ».
+/* Le dessin de Pastory : la courbe, le globe des pays sans drapeau, les pictogrammes, le
+ * planisphère, le logo — le placement des bulles « ? », et l'ouverture du livre.
  *
  * REPRIS DE maquettes/maquette.js, et c'est voulu (D-93) : ces dessins ont passé neuf
  * relectures du propriétaire, dont trois arrangements de la boîte de lecture. On ne
@@ -17,18 +17,9 @@
 (function () {
   "use strict";
 
-  /* LA PALETTE, EN VALEURS LITTÉRALES — et c'est une nécessité, pas une négligence :
-   * `stroke="var(--poche-1)"` dans un ATTRIBUT SVG n'est pas interprété par Chrome ni
-   * Safari. Une couleur posée en attribut s'écrit en clair ; une couleur posée en CSS
-   * passe par la variable. Un test vérifie que ces valeurs concordent avec pastory.css. */
-  const COULEURS = {
-    papier: "#ece3d0",
-    surface: "#f3ecdd",
-    encreTresDouce: "#6f6559",
-    courbeBrut: "#1d6c93",
-    courbeInvesti: "#665c51",
-    absent: "#ada08a",
-  };
+  /* AUCUNE COULEUR ICI (charte graphique, étape 9 bis). `stroke="var(--…)"` dans un ATTRIBUT
+   * SVG n'est pas interprété par Chrome ni Safari ; une PROPRIÉTÉ CSS, si. Chaque trait porte
+   * donc une classe, et `pastory.css` le colore avec les jetons de `theme.css`. */
 
   const NS = "http://www.w3.org/2000/svg";
 
@@ -61,62 +52,23 @@
     return noeud;
   }
 
-  let compteurIds = 0;
-
   // ==========================================================================
-  // LES DRAPEAUX, LES PICTOGRAMMES, LE PLANISPHÈRE, LE LOGO
-  // Dessinés en SVG, dans le dépôt : les drapeaux en emoji ne s'affichent pas sous
-  // Windows, et une image distante est interdite (D-31). Ce sont des drapeaux
-  // SIMPLIFIÉS : ils servent à repérer une ligne, pas à représenter un pays.
+  // LE GLOBE, LES PICTOGRAMMES, LE PLANISPHÈRE, LE LOGO
+  // Un pays porte son drapeau en IMAGE (assets/drapeaux, posé par diversification.py) ;
+  // un code sans drapeau garde ce globe — repéré, jamais confondu avec un autre. La table
+  // des drapeaux dessinés est retirée à l'étape 9 bis : les onze pays qu'elle portait ont
+  // tous leur fichier, et elle était la dernière couleur écrite en clair de ce script.
   // ==========================================================================
 
-  const DRAPEAUX = {
-    US: [["#b22234", 0, 0, 20, 14], ["#ffffff", 0, 2, 20, 2], ["#ffffff", 0, 6, 20, 2],
-         ["#ffffff", 0, 10, 20, 2], ["#3c3b6e", 0, 0, 9, 8]],
-    FR: [["#002395", 0, 0, 6.67, 14], ["#ffffff", 6.67, 0, 6.66, 14],
-         ["#ed2939", 13.33, 0, 6.67, 14]],
-    DE: [["#000000", 0, 0, 20, 4.67], ["#dd0000", 0, 4.67, 20, 4.66],
-         ["#ffce00", 0, 9.33, 20, 4.67]],
-    NL: [["#ae1c28", 0, 0, 20, 4.67], ["#ffffff", 0, 4.67, 20, 4.66],
-         ["#21468b", 0, 9.33, 20, 4.67]],
-    JP: [["#ffffff", 0, 0, 20, 14]],
-    GB: [["#012169", 0, 0, 20, 14], ["#ffffff", 0, 5, 20, 4], ["#ffffff", 8, 0, 4, 14],
-         ["#c8102e", 0, 6, 20, 2], ["#c8102e", 9, 0, 2, 14]],
-    CH: [["#d52b1e", 0, 0, 20, 14], ["#ffffff", 8.2, 3, 3.6, 8], ["#ffffff", 6, 5.2, 8, 3.6]],
-    CA: [["#ff0000", 0, 0, 5, 14], ["#ffffff", 5, 0, 10, 14], ["#ff0000", 15, 0, 5, 14],
-         ["#ff0000", 9, 4.5, 2, 5]],
-    SE: [["#006aa7", 0, 0, 20, 14], ["#fecc00", 0, 5.5, 20, 3], ["#fecc00", 6, 0, 3, 14]],
-    AU: [["#00008b", 0, 0, 20, 14], ["#ffffff", 0, 0, 8.6, 6.6],
-         ["#00008b", 0.9, 0.9, 6.8, 4.8], ["#ffffff", 13.4, 8.4, 2, 2]],
-    TW: [["#fe0000", 0, 0, 20, 14], ["#000095", 0, 0, 10, 7],
-         ["#ffffff", 4, 2.4, 2.2, 2.2]],
-  };
-
-  /** Un drapeau simplifié, ou un globe quand le pays n'a pas de drapeau dessiné. */
-  function drapeau(code) {
-    if (!code || !DRAPEAUX[code]) {
-      return svgEl("svg", { class: "fanion", viewBox: "0 0 20 14", "aria-hidden": "true" }, [
-        svgEl("circle", {
-          cx: 10, cy: 7, r: 5.6, fill: "none",
-          stroke: COULEURS.encreTresDouce, "stroke-width": 1.2,
-        }),
-        svgEl("path", {
-          d: "M4.4 7h11.2M10 1.4c2.5 2.7 2.5 8.5 0 11.2M10 1.4c-2.5 2.7-2.5 8.5 0 11.2",
-          fill: "none", stroke: COULEURS.encreTresDouce, "stroke-width": 1,
-        }),
-      ]);
-    }
-    const parties = DRAPEAUX[code].map(function (r) {
-      return svgEl("rect", { fill: r[0], x: r[1], y: r[2], width: r[3], height: r[4] });
-    });
-    if (code === "JP") parties.push(svgEl("circle", { cx: 10, cy: 7, r: 4, fill: "#bc002d" }));
-    parties.push(
-      svgEl("rect", {
-        x: 0.3, y: 0.3, width: 19.4, height: 13.4, fill: "none",
-        stroke: "rgba(44,39,34,.3)", "stroke-width": 0.6,
-      })
-    );
-    return svgEl("svg", { class: "fanion", viewBox: "0 0 20 14", "aria-hidden": "true" }, parties);
+  function drapeau() {
+    return svgEl("svg", { class: "fanion", viewBox: "0 0 20 14", "aria-hidden": "true" }, [
+      svgEl("circle", { class: "globe", cx: 10, cy: 7, r: 5.6, "stroke-width": 1.2 }),
+      svgEl("path", {
+        class: "globe",
+        d: "M4.4 7h11.2M10 1.4c2.5 2.7 2.5 8.5 0 11.2M10 1.4c-2.5 2.7-2.5 8.5 0 11.2",
+        "stroke-width": 1,
+      }),
+    ]);
   }
 
   // Onze secteurs et quatre classes d'actifs : un pictogramme au trait par ligne.
@@ -209,14 +161,30 @@
     );
   }
 
-  /* LE LOGO, TEMPORAIRE : une page, et dessus une valeur qui monte. Clair sur le bandeau
-   * d'encre, et son trait en ENCRE, pas en sauge : la sauge veut dire « gain » partout
-   * ailleurs, et un logo vert se lirait comme un état du portefeuille. */
+  /* LE LOGO : un livre fermé, de face, en aplat d'or ; le dos est un trait en creux, et un
+   * signet à queue fendue dépasse en bas (variante « B · Signet », choisie par le
+   * propriétaire à l'étape 9 bis — maquettes/logo/). Deux couleurs, l'or et la reliure ; le
+   * même tracé que assets/favicon.svg. */
   function logo() {
-    return svgEl("svg", { class: "logo", viewBox: "0 0 20 20", "aria-hidden": "true" }, [
-      svgEl("rect", { class: "logo__papier", x: 1.5, y: 1.5, width: 17, height: 17, rx: 4.8 }),
-      svgEl("path", { class: "logo__trait", d: "M5.4 14 L8.2 10.8 L10.6 12.3 L14.3 7.4" }),
-      svgEl("circle", { class: "logo__point", cx: 14.3, cy: 7.4, r: 2 }),
+    return svgEl("svg", { class: "logo", viewBox: "0 0 32 32", "aria-hidden": "true" }, [
+      svgEl("rect", { class: "logo__plat", x: 7, y: 3, width: 18, height: 22.5, rx: 1.6 }),
+      svgEl("path", { class: "logo__dos", d: "M11.2 3v22.5" }),
+      svgEl("path", { class: "logo__signet", d: "M17.5 25.5h4v5.5l-2-1.9-2 1.9z" }),
+    ]);
+  }
+
+  /* LE BOUTON JOUR / NUIT : une lune et un soleil au trait ; la feuille de style n'en montre
+   * qu'un, selon le thème (la lune le jour, pour passer à la nuit). */
+  function bascule() {
+    return svgEl("svg", { class: "bascule", viewBox: "0 0 16 16", "aria-hidden": "true" }, [
+      svgEl("path", { class: "bascule__lune", d: "M12.6 10.4A5.4 5.4 0 015.6 3.4a5.4 5.4 0 107 7z" }),
+      svgEl("g", { class: "bascule__soleil" }, [
+        svgEl("circle", { cx: 8, cy: 8, r: 3 }),
+        svgEl("path", {
+          d: "M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1" +
+            "M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1",
+        }),
+      ]),
     ]);
   }
 
@@ -243,15 +211,18 @@
     infobulle.style.top = placerSurUnAxe(cy, hauteur, boite.height, ECART_INFOBULLE) + "px";
   }
 
-  /* `d` = {hauteur, aria, plafond, graduations: [{valeur, texte}],
+  /* `d` = {hauteur, aria, plafond, graduations: [{valeur, texte}], libelles: {brut, investi},
    *        points: [{d (date écrite), v (valeur), i (investi), tv, ti, te, ce}]}
    * `v` et `i` servent à PLACER les traits ; `tv`, `ti`, `te` sont les montants déjà
-   * écrits par Python, et `ce` la classe de signe de l'écart. */
+   * écrits par Python, `ce` la classe de signe de l'écart, et `libelles` les mots posés au
+   * bout des courbes. Le gabarit (couleurs, épaisseurs, pointillés) est dans le thème. */
   function courbe(d) {
     const points = d.points;
+    const libelles = d.libelles || {};
     const L = 1000;
     const H = d.hauteur || 250;
-    const mg = { g: 62, d: 14, h: 12, b: 24 };
+    // À droite, la place des libellés posés au bout des courbes (charte §6).
+    const mg = { g: 70, d: libelles.brut ? 150 : 14, h: 14, b: 28 };
     const larg = L - mg.g - mg.d;
     const haut = H - mg.h - mg.b;
     const plafond = d.plafond;
@@ -267,11 +238,11 @@
       class: "graphique", viewBox: "0 0 " + L + " " + H, role: "img", "aria-label": d.aria,
     });
 
-    // La grille est un trait PLEIN très pâle : en pointillé, elle se confondait avec la
-    // courbe du capital net investi, qui est elle-même en pointillé.
+    // Une grille HORIZONTALE très pâle, en trait plein : en pointillé, elle se confondait avec
+    // la courbe du capital net investi, elle-même en pointillé. Aucune grille verticale.
     for (const g of d.graduations) {
       svg.append(svgEl("line", { class: "grille", x1: mg.g, x2: L - mg.d, y1: y(g.valeur), y2: y(g.valeur) }));
-      const etiquette = svgEl("text", { x: mg.g - 8, y: y(g.valeur) + 3.5, "text-anchor": "end" });
+      const etiquette = svgEl("text", { x: mg.g - 10, y: y(g.valeur) + 4.5, "text-anchor": "end" });
       etiquette.textContent = g.texte;
       svg.append(etiquette);
     }
@@ -287,17 +258,11 @@
       svg.append(t);
     }
 
+    // Aucun remplissage sous ni entre les courbes (charte §6) : deux traits, c'est tout.
     let traceBrut = "";
     for (let i = 0; i < points.length; i++) {
       traceBrut += (i ? " L " : "M ") + x(i).toFixed(1) + " " + y(points[i].v).toFixed(1);
     }
-    svg.append(
-      svgEl("path", {
-        class: "aire-brut",
-        d: traceBrut + " L " + x(points.length - 1).toFixed(1) + " " + y(0) +
-          " L " + x(0).toFixed(1) + " " + y(0) + " Z",
-      })
-    );
 
     // Le capital net investi monte en escalier : il ne bouge qu'aux opérations.
     let traceInvesti = "";
@@ -314,19 +279,40 @@
 
     const dernier = points[points.length - 1];
     svg.append(
-      svgEl("circle", {
-        cx: x(points.length - 1), cy: y(dernier.v), r: 3.5,
-        fill: COULEURS.courbeBrut, stroke: COULEURS.surface, "stroke-width": 2,
-      })
+      svgEl("circle", { class: "point point--brut", cx: x(points.length - 1), cy: y(dernier.v), r: 3.5 })
     );
 
+    /* LES LIBELLÉS AU BOUT DES COURBES, à la place d'une légende. Quand les deux bouts sont
+     * proches, les libellés s'écartent l'un de l'autre autour de leur milieu, sans quitter
+     * le cadre : ils restent lisibles, et chacun reste du côté de sa courbe. */
+    if (libelles.brut && libelles.investi) {
+      const ECART_MINIMAL = 22;
+      let yBrut = y(dernier.v);
+      let yInvesti = y(dernier.i);
+      if (Math.abs(yBrut - yInvesti) < ECART_MINIMAL) {
+        const milieu = (yBrut + yInvesti) / 2;
+        const brutAuDessus = yBrut <= yInvesti;
+        yBrut = milieu + (brutAuDessus ? -1 : 1) * ECART_MINIMAL / 2;
+        yInvesti = milieu + (brutAuDessus ? 1 : -1) * ECART_MINIMAL / 2;
+      }
+      const borne = function (v) {
+        return Math.max(mg.h + 6, Math.min(mg.h + haut, v));
+      };
+      const xLibelle = L - mg.d + 12;
+      const tBrut = svgEl("text", {
+        class: "graphique__libelle graphique__libelle--brut", x: xLibelle, y: borne(yBrut),
+      });
+      tBrut.textContent = libelles.brut;
+      const tInvesti = svgEl("text", {
+        class: "graphique__libelle graphique__libelle--investi", x: xLibelle, y: borne(yInvesti),
+      });
+      tInvesti.textContent = libelles.investi;
+      svg.append(tBrut, tInvesti);
+    }
+
     const viseur = svgEl("line", { class: "viseur", y1: mg.h, y2: mg.h + haut });
-    const pointBrut = svgEl("circle", {
-      r: 4, fill: COULEURS.courbeBrut, stroke: COULEURS.surface, "stroke-width": 2,
-    });
-    const pointInvesti = svgEl("circle", {
-      r: 3.5, fill: COULEURS.courbeInvesti, stroke: COULEURS.surface, "stroke-width": 2,
-    });
+    const pointBrut = svgEl("circle", { class: "point point--brut", r: 4 });
+    const pointInvesti = svgEl("circle", { class: "point point--investi", r: 3.5 });
     const groupeSurvol = svgEl("g", {}, [viseur, pointBrut, pointInvesti]);
     groupeSurvol.style.display = "none";
     svg.append(groupeSurvol);
@@ -356,12 +342,12 @@
       const lignes = [
         el("b", { class: "infobulle__date", texte: p.d }),
         el("span", { class: "infobulle__ligne" }, [
-          el("i", { style: "border-top-color: var(--courbe-brut)" }),
+          el("i", { class: "trait trait--brut" }),
           el("span", { texte: "Capital brut" }),
           el("b", { texte: p.tv }),
         ]),
         el("span", { class: "infobulle__ligne" }, [
-          el("i", { style: "border-top-color: var(--courbe-investi); border-top-style: dashed" }),
+          el("i", { class: "trait trait--investi" }),
           el("span", { texte: "Capital net investi" }),
           el("b", { texte: p.ti }),
         ]),
@@ -394,93 +380,126 @@
   }
 
   // ==========================================================================
-  // L'ANNEAU
-  // En ARCS EXPLICITES, un chemin par part : on peut lire le code et savoir ce qui
-  // sera dessiné. Les parts « absent » sont hachurées : ce qui manque se voit, sans se
-  // confondre avec un poste réel. AUCUN CHIFFRE N'EST ÉCRIT SUR L'ANNEAU, hors le total
-  // au centre : le classement chiffré à côté fait foi.
-  // `d` = {taille, centre (texte), sous (texte), parts: [{montant, couleur, absent}]}
+  // LA PROJECTION (chapitre V, D-105) : le total versé, puis la courbe sans aléa ou les cinq
+  // quantiles des 10 000 chemins. Des LIGNES SEULES, aucun remplissage (charte §6) ; les
+  // libellés au bout des courbes ; la même boîte de lecture qui suit la souris.
+  // `d` = {hauteur, aria, plafond, graduations: [{valeur, texte}], axe: [{i, texte}],
+  //        series: [{classe, libelle, valeurs}], lecture: [{d, lignes: [[libellé, montant]]}]}
+  // Les montants de la lecture sont déjà écrits par Python.
   // ==========================================================================
 
-  function anneau(d) {
-    const parts = d.parts;
-    const taille = d.taille;
-    const total = parts.reduce(function (s, p) {
-      return s + p.montant;
-    }, 0);
-    if (total <= 0) return null;
+  function projection(d) {
+    const series = d.series;
+    const n = series[0].valeurs.length;
+    // Pleine largeur : 1 200 unités, pour que les textes gardent la taille de la synthèse.
+    const L = 1200;
+    const H = d.hauteur || 250;
+    const mg = { g: 78, d: 120, h: 14, b: 28 };
+    const larg = L - mg.g - mg.d;
+    const haut = H - mg.h - mg.b;
+    const x = function (i) {
+      return mg.g + (i / (n - 1)) * larg;
+    };
+    const y = function (v) {
+      return mg.h + haut - (v / d.plafond) * haut;
+    };
 
-    const epaisseur = Math.round(taille * 0.15);
-    const r = taille / 2 - epaisseur / 2 - 1;
-    const centre = taille / 2;
-    const ECART_DEGRES = 1.2;
+    const svg = svgEl("svg", {
+      class: "graphique", viewBox: "0 0 " + L + " " + H, role: "img", "aria-label": d.aria,
+    });
 
-    const idHachures = "hachures-" + ++compteurIds;
-    const motif = svgEl(
-      "pattern",
-      { id: idHachures, patternUnits: "userSpaceOnUse", width: 5, height: 5, patternTransform: "rotate(45)" },
-      [
-        svgEl("rect", { width: 5, height: 5, fill: COULEURS.papier }),
-        svgEl("line", { x1: 0, y1: 0, x2: 0, y2: 5, stroke: COULEURS.absent, "stroke-width": 2.6 }),
-      ]
-    );
-
-    const svg = svgEl(
-      "svg",
-      { viewBox: "0 0 " + taille + " " + taille, width: taille, height: taille, class: "anneau", "aria-hidden": "true" },
-      [svgEl("defs", {}, [motif])]
-    );
-
-    function point(angleDegres) {
-      const rad = ((angleDegres - 90) * Math.PI) / 180;
-      return [centre + r * Math.cos(rad), centre + r * Math.sin(rad)];
+    for (const g of d.graduations) {
+      svg.append(svgEl("line", { class: "grille", x1: mg.g, x2: L - mg.d, y1: y(g.valeur), y2: y(g.valeur) }));
+      const etiquette = svgEl("text", { x: mg.g - 10, y: y(g.valeur) + 4.5, "text-anchor": "end" });
+      etiquette.textContent = g.texte;
+      svg.append(etiquette);
+    }
+    for (const repere of d.axe) {
+      const t = svgEl("text", { x: x(repere.i), y: H - 6, "text-anchor": "middle" });
+      t.textContent = repere.texte;
+      svg.append(t);
     }
 
-    let angle = 0;
-    for (const part of parts) {
-      const ouverture = (part.montant / total) * 360;
-      const couleur = part.absent ? "url(#" + idHachures + ")" : part.couleur;
-      if (ouverture >= 359.9) {
-        svg.append(svgEl("circle", { cx: centre, cy: centre, r: r, fill: "none", stroke: couleur, "stroke-width": epaisseur }));
-      } else if (ouverture > ECART_DEGRES) {
-        const debutArc = angle + ECART_DEGRES / 2;
-        const finArc = angle + ouverture - ECART_DEGRES / 2;
-        const p1 = point(debutArc);
-        const p2 = point(finArc);
-        svg.append(
-          svgEl("path", {
-            d: "M " + p1[0].toFixed(2) + " " + p1[1].toFixed(2) + " A " + r + " " + r + " 0 " +
-              (finArc - debutArc > 180 ? 1 : 0) + " 1 " + p2[0].toFixed(2) + " " + p2[1].toFixed(2),
-            fill: "none", stroke: couleur, "stroke-width": epaisseur,
-          })
-        );
-      } else if (ouverture > 0) {
-        // Une part minuscule reste visible : un trait, plutôt que rien du tout.
-        const p1 = point(angle);
-        const p2 = point(angle + ouverture);
-        svg.append(
-          svgEl("path", {
-            d: "M " + p1[0].toFixed(2) + " " + p1[1].toFixed(2) + " L " + p2[0].toFixed(2) + " " + p2[1].toFixed(2),
-            fill: "none", stroke: part.absent ? COULEURS.absent : part.couleur,
-            "stroke-width": epaisseur, "stroke-linecap": "butt",
-          })
+    for (const serie of series) {
+      let trace = "";
+      for (let i = 0; i < n; i++) {
+        trace += (i ? " L " : "M ") + x(i).toFixed(1) + " " + y(serie.valeurs[i]).toFixed(1);
+      }
+      // La classe se compose de celle de la série : « serie--mediane », « serie--verse »…
+      const classeDeLaSerie = ["serie", "serie--" + serie.classe].join(" ");
+      svg.append(svgEl("path", { class: classeDeLaSerie, d: trace }));
+    }
+
+    /* Les libellés au bout des courbes, écartés d'au moins 20 unités, du haut vers le bas, sans
+     * quitter le cadre. */
+    const ECART_MINIMAL = 20;
+    const bouts = series
+      .map(function (serie) {
+        return { serie: serie, y: y(serie.valeurs[n - 1]) };
+      })
+      .sort(function (a, b) {
+        return a.y - b.y;
+      });
+    for (let k = 1; k < bouts.length; k++) {
+      if (bouts[k].y - bouts[k - 1].y < ECART_MINIMAL) bouts[k].y = bouts[k - 1].y + ECART_MINIMAL;
+    }
+    const debordement = bouts.length ? bouts[bouts.length - 1].y - (mg.h + haut) : 0;
+    if (debordement > 0) for (const b of bouts) b.y -= debordement;
+    for (const b of bouts) {
+      const classeDuLibelle = ["graphique__libelle", "graphique__libelle--" + b.serie.classe];
+      const t = svgEl("text", { class: classeDuLibelle.join(" "), x: L - mg.d + 10, y: b.y });
+      t.textContent = b.serie.libelle;
+      svg.append(t);
+    }
+
+    const viseur = svgEl("line", { class: "viseur", y1: mg.h, y2: mg.h + haut });
+    const groupeSurvol = svgEl("g", {}, [viseur]);
+    groupeSurvol.style.display = "none";
+    svg.append(groupeSurvol);
+    const infobulle = el("div", { class: "infobulle" });
+    infobulle.hidden = true;
+
+    function montrer(evenement) {
+      const boite = svg.getBoundingClientRect();
+      const relatif = ((evenement.clientX - boite.left) / boite.width) * L;
+      let i = Math.round(((relatif - mg.g) / larg) * (n - 1));
+      i = Math.max(0, Math.min(n - 1, i));
+      const p = d.lecture[i];
+      groupeSurvol.style.display = "";
+      viseur.setAttribute("x1", x(i));
+      viseur.setAttribute("x2", x(i));
+      infobulle.innerHTML = "";
+      infobulle.append(el("b", { class: "infobulle__date", texte: p.d }));
+      for (const ligne of p.lignes) {
+        infobulle.append(
+          el("span", { class: "infobulle__ligne" }, [
+            el("span", { texte: ligne[0] }),
+            el("b", { texte: ligne[1] }),
+          ])
         );
       }
-      angle += ouverture;
+      infobulle.hidden = false;
+      placerLInfobulle(infobulle, boite, evenement);
     }
 
-    if (d.centre) {
-      const t1 = svgEl("text", { x: centre, y: centre + 1, "text-anchor": "middle", class: "anneau__centre" });
-      t1.textContent = d.centre;
-      const t2 = svgEl("text", { x: centre, y: centre + 15, "text-anchor": "middle", class: "anneau__sous" });
-      t2.textContent = d.sous || "au total";
-      svg.append(t1, t2);
+    function cacher() {
+      groupeSurvol.style.display = "none";
+      infobulle.hidden = true;
     }
-    return svg;
+
+    svg.addEventListener("mousemove", montrer);
+    svg.addEventListener("mouseleave", cacher);
+    svg.addEventListener("touchmove", function (e) {
+      if (e.touches.length) montrer(e.touches[0]);
+    });
+    svg.addEventListener("touchend", cacher);
+    return [svg, infobulle];
   }
 
   // ==========================================================================
-  // LE BRANCHEMENT : chaque `[data-dessin]` est tracé, et retracé si ses données changent
+  // LE BRANCHEMENT : chaque `[data-dessin]` est tracé, et retracé si ses données changent.
+  // L'anneau a disparu à l'étape 9 bis : la répartition par poche est une barre empilée,
+  // posée en HTML par synthese.py (charte §6).
   // ==========================================================================
 
   const DESSINS = {
@@ -491,7 +510,8 @@
     picto: icone,
     planisphere: planisphere,
     courbe: courbe,
-    anneau: anneau,
+    projection: projection,
+    bascule: bascule,
   };
 
   function tracer(noeud) {
@@ -513,8 +533,57 @@
     for (const enfant of [].concat(resultat || [])) noeud.append(enfant);
   }
 
+  /* LE CHANGEMENT DE CHAPITRE (charte §7) : un léger glissement et un fondu, joués par la
+   * classe `chapitre--anime` — seulement quand le NOM du chapitre change. Dash recrée le
+   * contenu à chaque rappel, filtre compris : sans cette comparaison, chaque filtre rejouerait
+   * la transition. La classe est posée dans l'observateur, avant que la page ne soit peinte :
+   * aucun éclair. Revenir de la couverture compte comme un changement. */
+  let dernierChapitre = null;
+  let dernierePageDesCartes = null;
+
+  function jouerUneFois(element, classe) {
+    element.classList.add(classe);
+    // Jouée une fois : si Dash garde l'élément au prochain rappel, rien ne se rejoue.
+    element.addEventListener("animationend", function () {
+      element.classList.remove(classe);
+    }, { once: true });
+  }
+
+  function feuilleter() {
+    const chapitre = document.querySelector(".chapitre");
+    if (!chapitre) {
+      if (document.querySelector(".couverture")) dernierChapitre = "couverture";
+      dernierePageDesCartes = null;
+      return;
+    }
+    if (!chapitre.__vu) {
+      chapitre.__vu = true;
+      const nom = chapitre.getAttribute("data-chapitre");
+      if (dernierChapitre !== null && nom !== dernierChapitre) {
+        jouerUneFois(chapitre, "chapitre--anime");
+        dernierePageDesCartes = null;
+      }
+      dernierChapitre = nom;
+    }
+    /* LES CARTES D'ACTIFS, d'une page à l'autre : un glissement très court, dans le sens où
+     * l'on feuillette (charte §7). Seulement quand le numéro de page change. */
+    const cartes = document.querySelector(".cartes[data-page]");
+    if (!cartes) {
+      dernierePageDesCartes = null;
+      return;
+    }
+    if (cartes.__vu) return;
+    cartes.__vu = true;
+    const page = Number(cartes.getAttribute("data-page"));
+    if (dernierePageDesCartes !== null && page !== dernierePageDesCartes) {
+      jouerUneFois(cartes, page > dernierePageDesCartes ? "cartes--suivantes" : "cartes--precedentes");
+    }
+    dernierePageDesCartes = page;
+  }
+
   function toutTracer() {
     document.querySelectorAll("[data-dessin]").forEach(tracer);
+    feuilleter();
   }
 
   new MutationObserver(toutTracer).observe(document.documentElement, {
@@ -554,27 +623,152 @@
     bulleOuverte = null;
   }
 
+  /* Deux déclencheurs : le bouton « ? », qui s'ouvre au clic, et la MARQUE EXPLIQUÉE
+   * (« Peu fiable »…), qui s'ouvre aussi au survol et au clavier — une marque sans explication à
+   * portée de souris inquiète sans rien apprendre. Une bulle ouverte par un clic est
+   * « épinglée » : quitter la marque ne la ferme pas. */
+  const DECLENCHEURS = ".aide, .mot--explique";
+
+  function ouvrirLaBulle(bouton, epinglee) {
+    const bulle = document.getElementById(bouton.getAttribute("aria-controls"));
+    if (!bulle) return;
+    fermerLaBulle();
+    bulle.hidden = false;
+    bouton.setAttribute("aria-expanded", "true");
+    bulleOuverte = { bouton: bouton, bulle: bulle, epinglee: epinglee };
+    placerLaBulle(bouton, bulle);
+  }
+
   document.addEventListener("click", function (evenement) {
-    const bouton = evenement.target.closest && evenement.target.closest(".aide");
+    const bouton = evenement.target.closest && evenement.target.closest(DECLENCHEURS);
     if (!bouton) {
       // Un clic dans la bulle ouverte ne la ferme pas : on peut y sélectionner le texte.
       if (bulleOuverte && bulleOuverte.bulle.contains(evenement.target)) return;
       fermerLaBulle();
       return;
     }
-    const bulle = document.getElementById(bouton.getAttribute("aria-controls"));
-    if (!bulle) return;
-    const dejaOuverte = bulleOuverte && bulleOuverte.bouton === bouton;
-    fermerLaBulle();
-    if (dejaOuverte) return;
-    bulle.hidden = false;
-    bouton.setAttribute("aria-expanded", "true");
-    bulleOuverte = { bouton: bouton, bulle: bulle };
-    placerLaBulle(bouton, bulle);
+    const memeBouton = bulleOuverte && bulleOuverte.bouton === bouton;
+    if (memeBouton && bulleOuverte.epinglee) {
+      fermerLaBulle();
+      return;
+    }
+    if (memeBouton) {
+      bulleOuverte.epinglee = true; // ouverte au survol, le clic la garde
+      return;
+    }
+    ouvrirLaBulle(bouton, true);
+  });
+  document.addEventListener("mouseover", function (evenement) {
+    const marque = evenement.target.closest && evenement.target.closest(".mot--explique");
+    if (!marque || (bulleOuverte && bulleOuverte.bouton === marque)) return;
+    if (bulleOuverte && bulleOuverte.epinglee) return;
+    ouvrirLaBulle(marque, false);
+  });
+  document.addEventListener("mouseout", function (evenement) {
+    const marque = evenement.target.closest && evenement.target.closest(".mot--explique");
+    if (!marque || marque.contains(evenement.relatedTarget)) return;
+    if (bulleOuverte && bulleOuverte.bouton === marque && !bulleOuverte.epinglee) fermerLaBulle();
+  });
+  document.addEventListener("focusin", function (evenement) {
+    const marque = evenement.target.closest && evenement.target.closest(".mot--explique");
+    if (marque && !(bulleOuverte && bulleOuverte.bouton === marque)) ouvrirLaBulle(marque, false);
+  });
+  document.addEventListener("focusout", function (evenement) {
+    const marque = evenement.target.closest && evenement.target.closest(".mot--explique");
+    if (marque && bulleOuverte && bulleOuverte.bouton === marque && !bulleOuverte.epinglee) {
+      fermerLaBulle();
+    }
   });
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape") fermerLaBulle();
+    const marque = e.target.closest && e.target.closest(".mot--explique");
+    if (marque && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      ouvrirLaBulle(marque, true);
+    }
   });
   window.addEventListener("resize", fermerLaBulle);
   window.addEventListener("scroll", fermerLaBulle, true);
+
+  // ==========================================================================
+  // L'OUVERTURE DU LIVRE (charte §7)
+  // Un seul moment marquant, rejoué À CHAQUE ouverture (retour du propriétaire, étape 9 bis) :
+  // au clic sur « Ouvrir le livre », un voile brun — la couverture — est posé par-dessus la
+  // page et s'efface vers la gauche en moins de 800 ms. Le clic, lui, poursuit son chemin :
+  // Dash dessine le chapitre I DESSOUS, tout de suite. Le voile ne capte pas la souris et
+  // disparaît de lui-même : il ne retarde ni ne bloque rien. Avec `prefers-reduced-motion`, la
+  // feuille de style en fait un simple fondu.
+  // ==========================================================================
+
+  document.addEventListener("click", function (evenement) {
+    const bouton = evenement.target.closest && evenement.target.closest(".ouvrir-le-livre");
+    if (!bouton) return;
+    const voile = el("div", { class: "voile-d-ouverture", "aria-hidden": "true" });
+    document.body.append(voile);
+    voile.addEventListener("animationend", function () {
+      voile.remove();
+    });
+    // Le filet, si l'animation ne se termine pas (onglet masqué, animations coupées).
+    window.setTimeout(function () {
+      voile.remove();
+    }, 1500);
+  });
+
+  // ==========================================================================
+  // LA LECTURE DE NUIT (D-100, charte §2.8)
+  // Le thème est posé avant le premier affichage par application.py. Ici : le bouton jour /
+  // nuit, qui change le thème et retient le choix ; et, tant qu'aucun choix n'est fait, le
+  // réglage du système, suivi s'il change en cours de route. Aucun appel à Dash : rien ne se
+  // recalcule, seules les couleurs changent.
+  // ==========================================================================
+
+  const CLE_THEME = "pastory-theme";
+
+  function themeActuel() {
+    return document.documentElement.getAttribute("data-theme") === "sombre" ? "sombre" : "clair";
+  }
+
+  function decrireLesBascules() {
+    const nuit = themeActuel() === "sombre";
+    document.querySelectorAll(".bascule-theme").forEach(function (bouton) {
+      bouton.setAttribute("aria-pressed", nuit ? "true" : "false");
+      bouton.title = nuit ? "Passer à la lecture de jour" : "Passer à la lecture de nuit";
+    });
+  }
+
+  function poserLeTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    decrireLesBascules();
+  }
+
+  document.addEventListener("click", function (evenement) {
+    const bouton = evenement.target.closest && evenement.target.closest(".bascule-theme");
+    if (!bouton) return;
+    const theme = themeActuel() === "sombre" ? "clair" : "sombre";
+    try {
+      localStorage.setItem(CLE_THEME, theme);
+    } catch (e) {
+      // Sans stockage, le choix vaut pour cette page seulement : c'est sans conséquence.
+    }
+    poserLeTheme(theme);
+  });
+
+  if (window.matchMedia) {
+    const systeme = window.matchMedia("(prefers-color-scheme: dark)");
+    const suivre = function () {
+      let choix = null;
+      try {
+        choix = localStorage.getItem(CLE_THEME);
+      } catch (e) {
+        choix = null;
+      }
+      if (!choix) poserLeTheme(systeme.matches ? "sombre" : "clair");
+    };
+    if (systeme.addEventListener) systeme.addEventListener("change", suivre);
+  }
+
+  new MutationObserver(decrireLesBascules).observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+  });
 })();

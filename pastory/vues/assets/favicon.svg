@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- L'icône de Pastory : le logo « B · Signet » (docs/charte-graphique.md §8). Une image
+       autonome, où une variable CSS ne s'applique pas : ses deux couleurs sont écrites en
+       clair, et un test vérifie qu'elles sont --brun-reliure et --or-vieilli du thème. -->
+  <rect width="32" height="32" rx="4" fill="#2b2118"/>
+  <rect x="7" y="3" width="18" height="22.5" rx="1.6" fill="#b8955a"/>
+  <path d="M11.2 3v22.5" stroke="#2b2118" stroke-width="1.6"/>
+  <path d="M17.5 25.5h4v5.5l-2-1.9-2 1.9z" fill="#b8955a"/>
+</svg>

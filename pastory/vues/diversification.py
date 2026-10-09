@@ -109,8 +109,9 @@ class Ligne:
 
 
 def ecran(vue: Vue, rubrique: str = "classes", deplie: bool = False) -> html.Div:
+    """Les rubriques se choisissent dans la bande, sous la navigation (D-104)."""
     rubrique = rubrique if any(cle == rubrique for cle, _ in RUBRIQUES) else "classes"
-    page: list = [_sous_onglets(rubrique)]
+    page: list = []
     diversification = vue.construit.diversification
     valorisation = vue.construit.synthese.valorisation
     if diversification is None or not valorisation.valorisees:
@@ -159,25 +160,6 @@ def ecran(vue: Vue, rubrique: str = "classes", deplie: bool = False) -> html.Div
         )
     )
     return html.Div(page)
-
-
-def _sous_onglets(actuelle: str) -> html.Div:
-    """On **choisit** ce qu'on regarde : ce ne sont pas des filtres, rien n'est retiré."""
-    return html.Div(
-        [
-            html.Button(
-                nom,
-                id=choix("rubrique", cle),
-                type="button",
-                role="tab",
-                n_clicks=0,
-                **{"aria-selected": "true" if cle == actuelle else "false"},
-            )
-            for cle, nom in RUBRIQUES
-        ],
-        className="onglets onglets--secondaires",
-        role="tablist",
-    )
 
 
 # --- Les lignes de chaque rubrique ------------------------------------------------------

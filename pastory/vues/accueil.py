@@ -1,12 +1,21 @@
-"""L'accueil : où trouver l'export, où le déposer, et ce que la lecture en a tiré.
+"""La couverture du livre : où trouver l'export, où le déposer, et ce que la lecture en a tiré.
 
-C'est le premier écran d'un nouvel utilisateur (feuille de route, étape 9), et la seule chose
-qu'il ait à faire (D-80). Il dit donc, pour quelqu'un qui n'a jamais ouvert Pastory :
+C'est le premier écran de chaque session, et la seule chose qu'un nouvel utilisateur ait à
+faire (D-80). Fond brun reliure, le logo et le nom en or, un filet et un fleuron, puis une
+**étiquette** de papier qui porte le dépôt (charte graphique §4.1) :
 
-- **où trouver l'export** dans l'application Trade Republic, et quelle période choisir ;
-- **où le déposer** : ici même, dans la zone de dépôt (D-95). Le dossier est montré aussi ;
-- une fois le fichier lu, **la période couverte** et **ce qui n'a pas été compris** — un type
-  d'opération inconnu n'est jamais ignoré ni rangé au hasard (règle 5).
+- **sans données** : quel fichier déposer et où l'obtenir dans l'application Trade Republic, en
+  deux phrases, puis la zone de dépôt ;
+- **avec données** : la période couverte, la dernière opération lue, et deux actions : **ouvrir le
+  livre**, ou **déposer un export plus récent**. Un export récent s'ajoute aux précédents, et une
+  opération présente dans deux fichiers n'est comptée qu'une fois (D-80, D-95) : un export
+  complet plus récent vaut donc un remplacement.
+
+**La couverture tient sur un écran, sans défiler** (retour du propriétaire, étape 9 bis) : le
+détail de la lecture — fichiers lus, lignes, opérations, espèces, dossier — est dans un **volet
+replié** de l'étiquette. Mais **une alerte ne se replie jamais** : un type d'opération inconnu
+(règle 5), une période qu'aucun fichier ne couvre, un fichier ignoré restent visibles, au-dessus
+des actions.
 
 Un portefeuille vide n'est pas une erreur, et ce message ne doit pas en avoir l'air (§5.1).
 """
@@ -20,11 +29,15 @@ from dash import dcc, html
 from pastory import assembleur
 from pastory.adaptateurs.trade_republic.depot import CHEMIN_DANS_L_APPLICATION, NOM_PAR_DEFAUT
 from pastory.vues import format as f
-from pastory.vues.briques import aide, bloc, choix, ligne_de_liste, mot
+from pastory.vues.bandeau import bascule_du_theme
+from pastory.vues.briques import aide, choix, dessin, fleuron, ligne_de_liste, mot
 from pastory.vues.chiffres import Echec
 
+CHEMIN = CHEMIN_DANS_L_APPLICATION.replace(" > ", " → ")
+"""Le chemin des menus de l'application Trade Republic : une seule constante, dans l'adaptateur."""
+
 ETAPES = (
-    f"Dans l'application Trade Republic : {CHEMIN_DANS_L_APPLICATION.replace(' > ', ' → ')}.",
+    f"Dans l'application Trade Republic : {CHEMIN}.",
     "Choisissez « toutes les transactions », depuis l'ouverture du compte : un export qui "
     "commence plus tard donne une histoire incomplète.",
     f"Déposez ici le fichier obtenu (« {NOM_PAR_DEFAUT} »). Vous pouvez en déposer plusieurs : "
@@ -32,14 +45,16 @@ ETAPES = (
 )
 
 
-def zone_de_depot() -> html.Div:
+def zone_de_depot(titre: str = "Déposez votre export ici") -> html.Div:
     return html.Div(
         [
             dcc.Upload(
                 html.Div(
                     [
-                        html.B("Déposez votre export ici"),
-                        html.Span(" ou cliquez pour choisir le fichier", className="reference"),
+                        html.B(titre),
+                        html.Br(),
+                        html.Span("glissez le fichier ici, ou cliquez pour le choisir",
+                                  className="reference"),
                     ]
                 ),
                 id="depot",
@@ -52,12 +67,65 @@ def zone_de_depot() -> html.Div:
     )
 
 
-def _comment_faire(dossier: Path, tiers: bool) -> html.Section:
+def ecran(
+    base: assembleur.Construit | Echec,
+    dossier: Path,
+    tiers: bool = False,
+    messages: object = None,
+) -> html.Div:
+    """La couverture, dans l'un de ses trois états : vide, lu, ou empêché."""
+    return html.Div(
+        html.Section(
+            [
+                html.Div(bascule_du_theme(), className="couverture__outils"),
+                html.Div(
+                    [
+                        dessin("logo", None),
+                        html.H1("Pastory", className="couverture__titre"),
+                        fleuron(),
+                        html.Div(
+                            [messages, *_etiquette(base, dossier, tiers)], className="cartouche"
+                        ),
+                    ],
+                    className="couverture__interieur",
+                ),
+            ],
+            className="couverture",
+        ),
+        className="accueil",
+    )
+
+
+def _etiquette(base, dossier: Path, tiers: bool) -> list:
+    if isinstance(base, Echec):
+        contenu: list = []
+        if base.nature != "aucun-export":
+            contenu.append(_empeche(base))
+        return [*contenu, *_premier_depot(dossier, tiers)]
+    return _livre_lu(base, dossier, tiers)
+
+
+def _volet(titre: str, contenu: list) -> html.Details:
+    """Un volet replié dans l'étiquette : ce qui éclaire sans être nécessaire au premier coup
+    d'œil. Il s'ouvre sur place, sans rien appeler."""
+    return html.Details(
+        [
+            html.Summary(titre, className="volet__titre"),
+            html.Div(contenu, className="volet__corps"),
+        ],
+        className="volet",
+    )
+
+
+# --- Sans données -------------------------------------------------------------------------
+
+
+def _premier_depot(dossier: Path, tiers: bool) -> list:
     if tiers:
         # L'export d'un tiers est lu dans son propre dossier, sans rien copier dans le dossier
         # de dépôt de l'utilisateur : aucune zone de dépôt ici (règle 2 de CLAUDE.md).
-        return bloc(
-            "Les exports lus",
+        return [
+            html.H2("Les exports lus", className="cartouche__titre"),
             html.P(
                 [
                     "Cet écran lit les exports d'un autre dossier que le vôtre, sans aucun appel "
@@ -66,55 +134,42 @@ def _comment_faire(dossier: Path, tiers: bool) -> html.Section:
                 ],
                 className="chapeau",
             ),
-        )
-    return bloc(
-        "Déposer un export",
-        html.Div(
-            [
-                html.P(
-                    "Pastory lit l'export des transactions que Trade Republic fournit dans son "
-                    "application. C'est la seule chose à faire : tout le reste — les cours, les "
-                    "frais des fonds, leur composition — est trouvé seul, et chaque valeur dit "
-                    "d'où elle vient.",
-                    className="chapeau",
-                ),
-                html.Ol([html.Li(etape) for etape in ETAPES], className="etapes"),
-                zone_de_depot(),
-                html.P(
-                    [
-                        "Les exports sont rangés sur votre ordinateur, dans ",
-                        html.Code(str(dossier)),
-                        ". Rien ne sort de votre machine. ",
-                        html.Button(
-                            "Ouvrir le dossier",
-                            id="ouvrir-dossier",
-                            type="button",
-                            className="bouton bouton--clair",
-                            n_clicks=0,
-                        ),
-                    ],
-                    className="reference depot__dossier",
-                ),
-            ]
+        ]
+    return [
+        html.H2("Déposer un export", className="cartouche__titre"),
+        html.P(
+            "Pastory lit l'export des transactions, un fichier CSV que Trade Republic fournit "
+            f"dans son application ({CHEMIN}) : demandez « toutes les transactions », depuis "
+            "l'ouverture du compte, et déposez-le ici. C'est la seule chose à faire : le reste — "
+            "cours, frais des fonds, composition — est trouvé seul, et chaque valeur dit d'où "
+            "elle vient.",
+            className="chapeau",
         ),
+        zone_de_depot(),
+        _volet(
+            "Pas à pas, et où vos exports sont rangés",
+            [html.Ol([html.Li(etape) for etape in ETAPES], className="etapes"),
+             _ou_sont_les_exports(dossier)],
+        ),
+    ]
+
+
+def _ou_sont_les_exports(dossier: Path) -> html.P:
+    return html.P(
+        [
+            "Les exports sont rangés sur votre ordinateur, dans ",
+            html.Code(str(dossier)),
+            ". Rien ne sort de votre machine. ",
+            html.Button(
+                "Ouvrir le dossier",
+                id="ouvrir-dossier",
+                type="button",
+                className="bouton bouton--clair",
+                n_clicks=0,
+            ),
+        ],
+        className="reference depot__dossier",
     )
-
-
-def ecran(base: assembleur.Construit | Echec, dossier: Path, tiers: bool = False) -> html.Div:
-    """L'accueil, dans l'un de ses trois états : vide, lu, ou empêché."""
-    rangees: list = [html.Div([_comment_faire(dossier, tiers)], className="rangee rangee--large")]
-    if isinstance(base, Echec):
-        if base.nature != "aucun-export":
-            rangees.append(_empeche(base))
-        return html.Div(rangees)
-
-    rangees.append(
-        html.Div(
-            [_les_exports(base), _ce_que_la_lecture_a_trouve(base)],
-            className="rangee rangee--deux rangee--apres",
-        )
-    )
-    return html.Div(rangees)
 
 
 def _empeche(echec: Echec) -> html.Div:
@@ -126,12 +181,92 @@ def _empeche(echec: Echec) -> html.Div:
         else "La mémoire de Pastory est illisible"
     )
     return html.Div(
-        [bloc(titre, html.P(echec.message, className="chapeau"))],
-        className="rangee rangee--large rangee--apres",
+        [html.B(titre), html.Br(), echec.message], className="cartouche__alerte"
     )
 
 
-def _les_exports(base: assembleur.Construit) -> html.Section:
+# --- Avec données -------------------------------------------------------------------------
+
+
+def _livre_lu(base: assembleur.Construit, dossier: Path, tiers: bool) -> list:
+    depot = base.rapport.depot
+    lignes: list = []
+    if depot.premier_jour is not None:
+        lignes += [
+            ligne_de_liste(
+                ["Période couverte ", *aide("periodeCouverte")],
+                f"du {f.date_courte(depot.premier_jour)} au {f.date_courte(depot.dernier_jour)}",
+            ),
+            # L'export ne porte pas la date de sa création : on donne celle de sa dernière
+            # opération, et on le dit, plutôt que d'inventer une date.
+            ligne_de_liste(
+                "Dernière opération lue", f"le {f.date_courte(depot.dernier_jour)}"
+            ),
+        ]
+    detail: list = [
+        html.H3("Vos exports", className="volet__sous-titre"),
+        _les_exports(base),
+        html.H3("Ce que la lecture a trouvé", className="volet__sous-titre"),
+        _ce_que_la_lecture_a_trouve(base),
+    ]
+    if not tiers:
+        detail.append(_ou_sont_les_exports(dossier))
+    actions: list = [
+        html.Button(
+            "Ouvrir le livre",
+            # Pas l'identifiant de l'onglet : deux éléments du même nom, et Dash perd le clic
+            # sur l'un d'eux (l'onglet « Synthèse » ne répondait plus).
+            id=choix("aller", "synthese"),
+            type="button",
+            className="bouton bouton--ouvrir ouvrir-le-livre",
+            n_clicks=0,
+        )
+    ]
+    if not tiers:
+        actions.append(zone_de_depot("Déposer un export plus récent"))
+    nombre = len(depot.fichiers)
+    return [
+        html.H2("Votre livre", className="cartouche__titre"),
+        html.Ul(lignes, className="liste-parts"),
+        *_alertes(base),
+        _volet(
+            f"Détail de la lecture · {nombre} fichier{'s' if nombre > 1 else ''}, "
+            f"{len(base.rapport.operations)} opérations sur vos actifs",
+            detail,
+        ),
+        html.Div(actions, className="cartouche__actions"),
+    ]
+
+
+def _alertes(base: assembleur.Construit) -> list:
+    """Ce qui ne se replie jamais : ce que la lecture n'a pas compris, ce qui manque, ce qui a
+    été écarté. Visible dès la couverture, au-dessus des actions."""
+    depot = base.rapport.depot
+    alertes: list = []
+    inconnus = sum(base.rapport.types_inconnus.values())
+    if inconnus:
+        alertes.append(
+            [
+                mot("Type inconnu"),
+                f" {inconnus} ligne{'s' if inconnus > 1 else ''} d'un type d'opération que "
+                "Pastory ne connaît pas : elles ne sont pas comptées. Le détail de la lecture "
+                "les nomme.",
+            ]
+        )
+    for trou in depot.trous():
+        alertes.append(
+            [
+                mot("Trou"),
+                f" Aucun fichier ne couvre la période du {f.date_courte(trou.du)} au "
+                f"{f.date_courte(trou.au)} : des opérations peuvent y manquer.",
+            ]
+        )
+    for nom, raison in depot.fichiers_ignores:
+        alertes.append([mot("Ignoré", "absent"), f" {nom} : {raison}."])
+    return [html.P(alerte, className="cartouche__alerte") for alerte in alertes]
+
+
+def _les_exports(base: assembleur.Construit) -> html.Ul:
     depot = base.rapport.depot
     lignes: list = []
     for lu in depot.fichiers:
@@ -160,23 +295,10 @@ def _les_exports(base: assembleur.Construit) -> html.Section:
         )
     for nom, raison in depot.fichiers_ignores:
         lignes.append(ligne_de_liste([mot("Ignoré", "absent"), f" {nom} : {raison}."]))
-    if depot.premier_jour is not None:
-        lignes.append(
-            ligne_de_liste(
-                ["Période couverte ", *aide("periodeCouverte")],
-                f"du {f.date_courte(depot.premier_jour)} au {f.date_courte(depot.dernier_jour)}",
-                className="liste-parts__total",
-            )
-        )
-    nombre = len(depot.fichiers)
-    return bloc(
-        "Vos exports",
-        html.Ul(lignes, className="liste-parts"),
-        note=f"{nombre} fichier{'s' if nombre > 1 else ''}",
-    )
+    return html.Ul(lignes, className="liste-parts")
 
 
-def _ce_que_la_lecture_a_trouve(base: assembleur.Construit) -> html.Section:
+def _ce_que_la_lecture_a_trouve(base: assembleur.Construit) -> html.Ul:
     rapport = base.rapport
     lignes: list = [
         ligne_de_liste("Lignes lues", str(rapport.lignes_lues)),
@@ -198,23 +320,4 @@ def _ce_que_la_lecture_a_trouve(base: assembleur.Construit) -> html.Section:
         lignes.append(
             ligne_de_liste("Aucun type d'opération inconnu", None, className="liste-parts__total")
         )
-    return bloc(
-        "Ce que la lecture a trouvé",
-        html.Div(
-            [
-                html.Ul(lignes, className="liste-parts"),
-                html.P(
-                    html.Button(
-                        "Voir la synthèse",
-                        # Pas l'identifiant de l'onglet : deux éléments du même nom, et Dash perd
-                        # le clic sur l'un d'eux (l'onglet « Synthèse » ne répondait plus).
-                        id=choix("aller", "synthese"),
-                        type="button",
-                        className="bouton bouton--clair",
-                        n_clicks=0,
-                    ),
-                    className="depot__suite",
-                ),
-            ]
-        ),
-    )
+    return html.Ul(lignes, className="liste-parts")

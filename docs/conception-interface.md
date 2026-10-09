@@ -9,6 +9,12 @@
 > [D-94](decisions.md)). Avec les §4 (les écrans retenus) et §5 (leurs quatre états), **le
 > document est complet : l'étape 9 peut s'appuyer dessus.**
 >
+> **2026-10-09, étape 9 bis :** l'identité « livre relié » ([D-98](decisions.md)) change la
+> **forme** des écrans, pas ce qu'ils portent : la couverture, les chapitres numérotés, le signet,
+> le colophon (§4.1), et la valeur des actifs en tête de la synthèse ([D-99](decisions.md), §4.2).
+> Ce qui touche à l'apparence — couleurs, polices, graphiques, animations — est dans la
+> [charte graphique](charte-graphique.md), qui fait référence.
+>
 > Comme tout le dépôt, il n'utilise **aucune valeur réelle** ([D-03](decisions.md)). Les chiffres
 > qui l'illustrent sont inventés.
 
@@ -331,8 +337,8 @@ Le rapport texte a **une fonction de mise en forme par unité**, et c'est le mod
 
 ## 4. Les écrans retenus
 
-Quatre onglets et une page à part, arbitrés sur les maquettes de l'étape 8 puis à l'écran pendant
-l'étape 9. Les [maquettes](../maquettes/) en sont la version exécutable de l'étape 8 ; depuis
+Quatre chapitres, la place d'un cinquième, et une annexe, arbitrés sur les maquettes de l'étape 8
+puis à l'écran pendant les étapes 9 et 9 bis. Les [maquettes](../maquettes/) en sont la version exécutable de l'étape 8 ; depuis
 l'étape 9, **l'application fait foi** là où elles divergent (la diversification et le détail des
 calculs ont changé à l'écran, sur arbitrage du propriétaire).
 
@@ -340,43 +346,73 @@ L'ordre des onglets est celui des questions qu'on se pose, de la plus large à l
 combien j'ai gagné → sur quoi → où est mon argent → ce que ça coûte. **Comment c'est calculé**
 n'est pas un onglet : c'est une page qu'on ouvre quand on veut vérifier (§4.6).
 
-| # | Onglet | La question à laquelle il répond | Filtres actifs |
+| # | Chapitre | La question à laquelle il répond | Filtres actifs |
 |---|---|---|---|
-| 1 | **Synthèse** | Combien ai-je gagné, et comment ça a évolué ? | période, poches |
-| 2 | **Les actifs** | Sur quoi, actif par actif ? | type, poches |
-| 3 | **Diversification** | Où est mon argent ? | **aucun** |
-| 4 | **Frais et taxes** | Combien tout cela coûte ? | **aucun** |
-| — | **Détail des calculs** (page à part, §4.6) | Comment ces chiffres sont-ils obtenus ? | période, poches |
+| I | **Synthèse** | Combien ai-je gagné, et comment ça a évolué ? | période, poches |
+| II | **Les actifs** | Sur quoi, actif par actif ? | type, poches |
+| III | **Diversification** | Où est mon argent ? | **aucun** |
+| IV | **Frais et taxes** | Combien tout cela coûte ? | **aucun** |
+| V | **Projections** *(place réservée, [D-97](decisions.md))* | Que pourrait devenir le portefeuille ? | **aucun** |
+| Annexe | **Détail des calculs** (page à part, §4.6) | Comment ces chiffres sont-ils obtenus ? | période, poches |
 
 **Pourquoi la diversification et les frais n'ont aucun filtre**, et c'est une règle et non un
 oubli : une répartition est la **photo d'un tout**, et la valeur réelle est celle du portefeuille
 entier. Il n'y a rien à y filtrer, et **un filtre qui n'agit sur rien est pire qu'absent** — il
 fait douter du chiffre affiché.
 
+### 4.0 La couverture
+
+L'accueil est la **couverture** du livre ([D-98](decisions.md), charte §4.1), et **chaque session
+s'ouvre sur elle**. La navigation et le colophon y sont masqués. Une étiquette porte :
+
+- **sans export** : quel fichier déposer et où l'obtenir, puis la zone de dépôt (§5.1) ;
+- **avec un export** : la période couverte, la dernière opération lue (l'export ne porte pas sa
+  date de création), le nombre de fichiers, l'alerte s'il y a des types inconnus, puis **« Ouvrir le
+  livre »** et **« Déposer un export plus récent »** — qui s'ajoute aux précédents
+  ([D-95](decisions.md)).
+
+La couverture **tient sur un écran** ([D-101](decisions.md)) : les fichiers lus, ce que la
+lecture a trouvé et le dossier des exports sont dans un **volet replié** de l'étiquette ; les
+alertes (type inconnu, période non couverte, fichier ignoré) n'y sont jamais. Rien de l'accueil de
+l'étape 9 n'a disparu. On y revient par le **nom « Pastory »** en tête de la navigation, ou par le
+lien « vos exports » du colophon.
+
 ### 4.1 Le bandeau permanent
 
-Trois rangées, toujours visibles, de la plus sombre à la plus claire :
+Deux bandes, toujours visibles, de la plus sombre à la plus claire :
 
-1. **la manchette** : le logo et le nom, les quatre onglets, et à droite un bouton discret,
-   **« Détail des calculs »**, qui ouvre la page du même nom. Il remplace le compteur « à
-   surveiller » prévu à l'étape 8 : le bloc du même nom vit en bas de cette page. Sans export
-   déposé, la manchette n'a **ni onglets ni bouton** : seul l'accueil existe (§5.1) ;
-2. **les filtres** : période, type d'actif, poches. Chaque onglet n'affiche que ceux qui
+1. **la navigation**, en brun reliure : le logo et le nom (qui ramènent à la couverture), les
+   chapitres numérotés (I à V), l'actif marqué d'un **signet** d'or ; à droite, un bouton discret,
+   **« Annexe · Détail des calculs »**, qui ouvre la page du même nom, et le bouton **jour / nuit**
+   ([D-100](decisions.md)). Il remplace le compteur « à surveiller » prévu à l'étape 8 : le
+   bloc du même nom vit en bas de cette page. Sans export déposé, il n'y a **ni chapitres ni
+   bouton** : seule la couverture existe (§5.1) ;
+2. **les filtres** : période, type d'actif, poches. Chaque chapitre n'affiche que ceux qui
    **agissent sur lui** (voir le tableau ci-dessus) ;
-3. **l'état des données** : la date de l'export, celle des cours, et les arrêtés de composition.
-   C'est la ligne qui permet de dire « ces chiffres sont d'hier », et elle ne disparaît jamais.
+   À droite des filtres, la période qu'ils ont retenue, en clair.
+
+**Le colophon** (l'état des données) n'est plus une troisième bande ([D-103](decisions.md)) : il
+est à droite du titre de chaque chapitre. La date des cours s'y lit d'un coup d'œil, une valeur
+partielle aussi ; la source, la période de l'export, les arrêtés de composition et le nombre de
+positions s'ouvrent dans la bulle « d'où viennent ces chiffres ». Il ne disparaît jamais : c'est ce
+qui permet de dire « ces chiffres sont d'hier ».
+
+Chaque chapitre **s'ouvre** sur son numéro romain, son titre et une phrase qui dit ce qu'il montre
+(charte §4.2).
 
 ### 4.2 Synthèse
 
 Dans cet ordre, de haut en bas :
 
-- **trois tuiles**, le gain d'abord ([D-22](decisions.md)) : **gain**, **TRI**, **TWRR**. Puis deux
-  tuiles secondaires : **valeur des actifs** et **capital net investi**, celle-ci portant la
-  plus-value latente ;
+- une première rangée de boîtes : **la valeur des actifs**, la plus grande, point d'entrée de la
+  page ([D-99](decisions.md)) ; puis **quatre indicateurs** : le **gain** d'abord
+  ([D-22](decisions.md)), le **TRI** (avec son signalement « Peu fiable », qui s'explique au
+  survol), le **TWRR**, et le **capital net investi**, qui porte la plus-value latente ;
 - **la courbe** — capital brut et capital net investi, du début de la période à sa fin. Le capital
   investi monte **en escalier** : il ne bouge qu'aux opérations, et la forme le dit mieux qu'une
   note. Les montants à une date se lisent dans la boîte qui suit la souris (§3.2) ;
-- **les poches**, à côté de la courbe : les mêmes trois chiffres par poche ;
+- **les poches**, à côté de la courbe : une barre empilée fine, puis le montant et la part de
+  chaque poche, alignés ;
 - **les cartes d'actifs**, triées par variation. Elles ne répètent pas le tableau de l'onglet
   suivant : elles montrent ce qui a le plus bougé.
 
@@ -391,7 +427,7 @@ sans cours n'empêche pas les autres d'être justes. La remarque porte alors le 
 
 ### 4.4 Diversification
 
-**Quatre sous-onglets**, dans l'ordre où l'on se pose les questions : **Actifs** (les classes),
+**Quatre rubriques**, choisies dans la bande sous la navigation ([D-104](decisions.md)), dans l'ordre où l'on se pose les questions : **Actifs** (les classes),
 **Zone géographique**, **Pays**, **Secteur**. Les quatre sur un même écran écrasaient chacun d'eux.
 
 Les quatre sous-onglets ont **la même mise en page** (arbitrage du propriétaire, étape 9 : les
@@ -447,6 +483,29 @@ choisies. Elle contient, dans cet ordre :
   estimations.
 
 ---
+
+### 4.7 Projections
+
+**La prédiction de l'évolution** ([D-97](decisions.md), hypothèses [D-105](decisions.md),
+formules au [glossaire](glossaire.md) §9). Une hypothèse sur l'avenir, jamais une prévision ni un
+conseil : la bande le dit, la page le redit.
+
+La page tient sur un écran et se lit de haut en bas :
+
+- **« Le montant atteint »**, en une bande : le grand chiffre à gauche ; à côté, sans aléa, ce qui
+  a été versé et ce que le taux a ajouté ; avec l'aléa, la médiane, « dans 8 cas sur 10, entre … et
+  … », et les niveaux 90 %, 75 %, médiane, 25 %, 10 %, avec la valeur sans aléa et le total versé
+  pour comparer ;
+- **« L'évolution supposée »** : le total versé (pointillé ocre), puis la courbe sans aléa ou les
+  cinq quantiles, en lignes seules, nommés à leur bout ; la boîte de lecture suit la souris ;
+- **« Vos hypothèses »**, sur une ligne : la valeur de départ (proposée : la valeur des actifs,
+  avec sa date ; modifiable), le taux annuel, la durée, le versement mensuel, et le choix de
+  lecture « une courbe | 10 000 simulations ». Une saisie hors bornes affiche son **motif**,
+  jamais une valeur remplacée en silence. À leur pied, replié, **« Ce que ce calcul suppose »** :
+  les hypothèses en clair, et leurs limites (la loi sous-estime les krachs ; tout est nominal).
+
+Le calcul (`pastory/projection.py`) ne dépend pas du moteur, et rien ne dépend de lui
+([D-27](decisions.md)).
 
 ## 5. Les quatre états de chaque écran
 

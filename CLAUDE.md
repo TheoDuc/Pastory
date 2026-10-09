@@ -16,6 +16,7 @@ lisible et vérifiable à la main.
 | [docs/notes-initiales.md](docs/notes-initiales.md) | **Référence** des intentions du propriétaire (notes + évolutions de cap) |
 | [docs/format-pivot.md](docs/format-pivot.md) | **Le format des opérations** : le contrat entre les adaptateurs et le moteur |
 | [docs/conception-interface.md](docs/conception-interface.md) | **Le contrat de l'interface** (étape 8) : ce que le moteur produit et où ça s'affiche, le vocabulaire d'écran, les règles d'affichage |
+| [docs/charte-graphique.md](docs/charte-graphique.md) | **La charte graphique** (étape 9 bis) : le livre relié, la palette et ses contrastes mesurés, les polices, la structure en chapitres, les graphiques, les animations, le logo. **Fait référence** pour toute modification d'interface |
 | [maquettes/](maquettes/) | **Les écrans**, en HTML et CSS. `index.html` s'ouvre directement dans le navigateur ; `style.css` est repris tel quel à l'étape 9 |
 | [docs/architecture.md](docs/architecture.md) | **Comment c'est construit** : les couches, leurs frontières, et le trajet d'un chiffre de bout en bout |
 | [docs/architecture-notes.md](docs/architecture-notes.md) | Points d'architecture notés en chemin |
@@ -61,7 +62,11 @@ lisible et vérifiable à la main.
      secteurs en code de nomenclature), avec **une seule nomenclature nommée à l'écran** — jamais
      « GICS » (D-65, D-66). On lit les **agrégats** d'un fonds, jamais ses lignes détenues : un ETF
      synthétique ne détient pas son indice (D-63, D-64). Ce qui n'est pas attribué reste visible, et
-     rien n'est jamais renormalisé à 100 % (D-69).
+     rien n'est jamais renormalisé à 100 % (D-69) ;
+   - **l'interface suit la charte graphique** ([docs/charte-graphique.md](docs/charte-graphique.md),
+     D-98) : toutes les couleurs, polices et espacements viennent de
+     `pastory/vues/assets/theme.css`, et **aucune couleur n'est écrite en dur ailleurs**. Une
+     modification visuelle ne change jamais un chiffre.
 9. Toute décision structurante est ajoutée à `docs/decisions.md`. Tout point d'architecture qui apparaît en discussion est noté dans `docs/architecture-notes.md`. Les notes initiales évoluent quand le propriétaire change de cap.
 10. **Les choix de fonctionnalités visent l'utilisateur type de Trade Republic**, pas le
     portefeuille du propriétaire (D-62). Un cas courant chez cette banque est traité même s'il ne le

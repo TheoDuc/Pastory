@@ -1,0 +1,393 @@
+/* LE THÈME DE PASTORY — le seul fichier qui porte des valeurs.
+ *
+ * Couleurs, polices, tailles, espacements, durées et gabarit des graphiques : tout est ici,
+ * et nulle part ailleurs. `pastory.css` et `dessin.js` n'emploient que des `var(--…)` ; un test
+ * le vérifie (tests/vues/test_feuille_de_style.py), et un autre recalcule les contrastes de la
+ * charte à partir de ce fichier.
+ *
+ * La règle, et ses raisons : docs/charte-graphique.md. Un livre ancien relié, à la dorure
+ * discrète — par la structure et la typographie, jamais par l'imitation de matières : aucune
+ * texture, aucune ombre, aucun dégradé métallique.
+ *
+ * AUCUN APPEL RÉSEAU : les polices sont dans le dépôt (D-31).
+ */
+
+/* ============================================================================
+   LES POLICES, EMBARQUÉES — SIL Open Font 1.1 (voir polices/LICENCE-*.txt)
+   EB Garamond : titres, numéros de chapitre, grand chiffre, introductions en italique.
+   Ses chiffres par défaut sont alignés et à chasse fixe (mesuré à l'étape 9 bis).
+   IBM Plex Sans : données, libellés, tableaux.
+   ========================================================================== */
+
+@font-face {
+  font-family: "EB Garamond";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("polices/eb-garamond-latin-400-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215,
+    U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "EB Garamond";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("polices/eb-garamond-latin-ext-400-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0,
+    U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "EB Garamond";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("polices/eb-garamond-latin-400-italic.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215,
+    U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "EB Garamond";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("polices/eb-garamond-latin-ext-400-italic.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0,
+    U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "EB Garamond";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("polices/eb-garamond-latin-500-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215,
+    U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "EB Garamond";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("polices/eb-garamond-latin-ext-500-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0,
+    U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "EB Garamond";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("polices/eb-garamond-latin-600-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215,
+    U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "EB Garamond";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("polices/eb-garamond-latin-ext-600-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0,
+    U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Plex Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("polices/ibm-plex-sans-latin-400-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+2074,
+    U+20AC, U+2122, U+2191, U+2193, U+2212, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Plex Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("polices/ibm-plex-sans-latin-ext-400-normal.woff2") format("woff2");
+  unicode-range: U+0100-02AF, U+0304-0308, U+1E00-1EFF, U+2020, U+20A0-20AB,
+    U+20AD-20CF, U+2113, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Plex Sans";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("polices/ibm-plex-sans-latin-600-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+2074,
+    U+20AC, U+2122, U+2191, U+2193, U+2212, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Plex Sans";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("polices/ibm-plex-sans-latin-ext-600-normal.woff2") format("woff2");
+  unicode-range: U+0100-02AF, U+0304-0308, U+1E00-1EFF, U+2020, U+20A0-20AB,
+    U+20AD-20CF, U+2113, U+A720-A7FF;
+}
+
+:root {
+  /* `only light` interdit au navigateur d'assombrir la page tout seul : sans cette ligne, son
+   * mode sombre automatique inverse les clartés, et un gain en sauge peut virer au rouge.
+   * La reliure brune n'est pas un mode sombre : c'est la couverture du livre. */
+  color-scheme: only light;
+
+  /* ==========================================================================
+     LA PALETTE — douze couleurs du propriétaire, et six variantes mesurées.
+     Contrastes WCAG : docs/charte-graphique.md §2. Rien d'autre n'est admis à l'écran,
+     hors les drapeaux (charte §9).
+     ======================================================================== */
+
+  /* La reliure : navigation, couverture. */
+  --brun-reliure: #2b2118;
+  --brun-reliure-clair: #3a2c20;
+  --or-vieilli: #b8955a; /* accents sur fond sombre ; ORNEMENT seulement sur les pages */
+  --or-clair: #d4b87a; /* survol, état actif sur fond sombre */
+
+  /* Les pages : contenu. */
+  --papier: #f4ecdd;
+  --papier-ombre: #eae0cc;
+  --filet: #d8cbb3;
+  --encre: #2a211a;
+  --encre-pale: #6b5b4b;
+
+  /* Les données : traits et aplats (seuil 3:1). */
+  --sauge: #5f7a5a;
+  --terracotta: #a4553a;
+  --ocre: #9c7a3c;
+
+  /* Les variantes : la même famille, assez foncée pour du TEXTE (>= 4,5:1 sur le papier
+     et sur le papier ombré). La teinte de la consigne échoue en texte : sauge 4,05:1,
+     ocre 3,40:1, terracotta 4,08:1 sur le papier ombré. */
+  --sauge-texte: #4d6748;
+  --terracotta-texte: #974b31;
+  --ocre-texte: #7a5c24;
+  --reliure-texte-pale: #bfaf95; /* texte secondaire sur la reliure : 7,34:1 */
+  --filet-fort: #93826a; /* contour d'une commande, hachure de l'absent : 3,17:1 */
+
+  /* Les poches : trois bruns d'encre, distincts par la clarté (charte §2.5). Passés au
+     validateur dataviz en rampe : écarts OKLab x100 de 19,4 et 17,9, la plus claire à
+     3,02:1 sur le papier. Une couleur suit sa poche, jamais son rang (D-96). */
+  --poche-1: #2a211a; /* PEA */
+  --poche-2: #625241; /* CTO */
+  --poche-3: #9a8566; /* Crypto */
+
+  /* ==========================================================================
+     LES RÔLES — ce que `pastory.css` emploie. On change une couleur ici, pas là-bas.
+     ======================================================================== */
+
+  --fond-livre: var(--papier-ombre); /* derrière les boîtes : la page du livre */
+  --fond-page: var(--papier); /* dans une boîte : là où l'on lit */
+  --fond-secondaire: var(--papier-ombre);
+  --fond-colophon: var(--papier-ombre);
+  --bord-bloc: var(--filet); /* la frontière d'une boîte : un filet, jamais une ombre */
+  --texte: var(--encre);
+  --texte-secondaire: var(--encre-pale);
+  --separateur: var(--filet);
+  --contour: var(--filet-fort);
+
+  --gain: var(--sauge-texte);
+  --perte: var(--terracotta-texte);
+  --reserve: var(--ocre-texte); /* « Estimé », « Partiel », « Peu fiable »… */
+  --mise-en-valeur: var(--ocre); /* un trait mis en valeur : le capital net investi */
+  --texte-mise-en-valeur: var(--ocre-texte); /* son libellé */
+  --absent: var(--filet-fort); /* non couvert, non attribué : toujours en hachures */
+
+  --reliure: var(--brun-reliure);
+  --reliure-clair: var(--brun-reliure-clair);
+  --sur-reliure: var(--papier);
+  --sur-reliure-pale: var(--reliure-texte-pale);
+  --sur-reliure-or: var(--or-vieilli);
+  --sur-reliure-actif: var(--or-clair);
+  --reliure-filet: var(--encre-pale);
+  --ornement: var(--or-vieilli); /* numéros de chapitre, fleurons, signet : jamais du texte */
+
+  --focus: var(--encre);
+  --focus-sur-reliure: var(--or-clair);
+
+  /* ==========================================================================
+     LA TYPOGRAPHIE
+     ======================================================================== */
+
+  --serif: "EB Garamond", Garamond, "Palatino Linotype", Georgia, serif;
+  --sans: "Plex Sans", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+
+  --taille-base: 14px;
+  --taille-texte: 13px;
+  --taille-petite: 12.5px;
+  --taille-mini: 11px;
+  --taille-intro: 16.5px; /* la phrase d'introduction d'un chapitre, en italique */
+  --taille-titre-bloc: 18px;
+  --taille-titre-chapitre: 30px;
+  --taille-numero-chapitre: 32px;
+  --taille-indicateur: 24px; /* les indicateurs de seconde ligne */
+  --taille-entree: 46px; /* LE point d'entrée de la page : la valeur des actifs */
+  --taille-marque: 21px;
+  --taille-titre-couverture: 64px;
+
+  /* Les « petites capitales » : des capitales réduites et espacées. Ni Plex Sans ni la
+     version Google d'EB Garamond n'ont de petites capitales dessinées, et celles que le
+     navigateur synthétise sont maigres (charte §3.1). */
+  --petites-capitales-taille: 10.5px;
+  --petites-capitales-espace: 0.1em;
+
+  --chiffres: tabular-nums lining-nums;
+
+  /* ==========================================================================
+     LES ESPACEMENTS
+     ======================================================================== */
+
+  --espace-1: 4px;
+  --espace-2: 8px;
+  --espace-3: 12px;
+  --espace-4: 20px;
+  --espace-5: 32px;
+  --espace-6: 48px;
+  --espace-7: 72px;
+  --ecart: 10px;
+  --largeur-page: 1200px;
+  --gouttiere: 40px;
+  --gouttiere-etroite: 16px;
+  --rayon: 2px;
+  --hauteur-navigation: 54px;
+  --signet-largeur: 11px;
+  --signet-hauteur: 13px;
+
+  /* ==========================================================================
+     LES ANIMATIONS (charte §7)
+     ======================================================================== */
+
+  --duree-chapitre: 260ms; /* glissement et fondu d'un changement de chapitre : 300 ms au plus */
+  --duree-ouverture: 720ms; /* l'ouverture du livre : moins de 800 ms, à chaque ouverture */
+  --duree-fondu: 200ms; /* tout, quand le système demande moins d'animations */
+  --glissement-chapitre: 14px;
+  --duree-cartes: 170ms; /* les cartes d'actifs, d'une page à l'autre : très rapide */
+  --glissement-cartes: 18px;
+  --courbe-animation: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  /* ==========================================================================
+     LE GABARIT DES GRAPHIQUES — un seul, réutilisé partout (charte §6).
+     Aucune couleur par défaut d'une bibliothèque : les dessins sont en SVG, colorés par
+     classes CSS, qui lisent ces jetons. Ils renvoient aux RÔLES, jamais à la palette brute :
+     c'est ce qui les fait suivre le mode de nuit sans être redéfinis.
+     ======================================================================== */
+
+  --graphique-principal: var(--texte); /* le capital brut */
+  --graphique-secondaire: var(--mise-en-valeur); /* le capital net investi */
+  --graphique-epaisseur: 2px;
+  --graphique-epaisseur-secondaire: 1.5px;
+  --graphique-pointilles: 5 4;
+  --graphique-grille: var(--separateur); /* horizontale seulement */
+  --graphique-axe: var(--texte-secondaire);
+  /* En unités du dessin, larges de 1 000 : la courbe s'affiche vers 780 px de large à 1 200 px
+     de page, soit 11 px à l'écran pour l'axe. */
+  --graphique-taille-axe: 14px;
+  --graphique-taille-libelle: 15.5px;
+  --graphique-viseur: var(--texte-secondaire);
+  --graphique-anneau-point: var(--fond-page); /* le liseré autour d'un point posé sur une courbe */
+  --graphique-barre: var(--texte-secondaire); /* une grandeur seule : le classement */
+  --graphique-piste: var(--fond-secondaire);
+  --graphique-terre: var(--contour);
+  --graphique-zone: var(--texte);
+  --graphique-hachure: var(--absent);
+  --graphique-eventail: var(--texte-secondaire); /* les quantiles de la projection */
+  --graphique-barre-fine: 10px; /* l'épaisseur de la barre empilée des poches */
+}
+
+/* ============================================================================
+   LES COMPOSANTS DE DASH — les champs et les cases du chapitre V.
+   Dash 4 les colore avec ses propres variables (`--Dash-…`, un violet et des bleus), définies
+   sur `:root` dans une feuille injectée APRÈS la nôtre : `:root:root` l'emporte. Elles pointent
+   vers nos rôles, et suivent donc la lecture de nuit d'elles-mêmes. Pas d'ombre (charte §1).
+   ========================================================================== */
+
+:root:root {
+  --Dash-Stroke-Strong: var(--contour);
+  --Dash-Stroke-Weak: var(--separateur);
+  --Dash-Fill-Interactive-Strong: var(--texte);
+  --Dash-Fill-Interactive-Weak: var(--fond-secondaire);
+  --Dash-Fill-Inverse-Strong: var(--fond-page);
+  --Dash-Fill-Primary-Hover: var(--fond-secondaire);
+  --Dash-Fill-Primary-Active: var(--fond-secondaire);
+  --Dash-Fill-Disabled: var(--fond-secondaire);
+  --Dash-Text-Primary: var(--texte);
+  --Dash-Text-Strong: var(--texte);
+  --Dash-Text-Weak: var(--texte-secondaire);
+  --Dash-Text-Disabled: var(--texte-secondaire);
+  --Dash-Shading-Strong: transparent;
+  --Dash-Shading-Weak: transparent;
+}
+
+/* ============================================================================
+   LA LECTURE DE NUIT — le mode sombre (charte §2.8, D-100).
+
+   Le même livre, à la lumière d'une lampe : les pages deviennent un brun très profond, un
+   cran plus clair que la reliure pour que la navigation reste distincte ; l'encre devient
+   crème ; l'or reste rare et ne change pas. Seuls les RÔLES sont redéfinis : la feuille et le
+   gabarit des graphiques les lisent, et suivent d'eux-mêmes.
+
+   Il suit le réglage du système, sauf si l'utilisateur a choisi avec le bouton jour / nuit ;
+   l'attribut `data-theme` est posé avant le premier affichage (application.py), sans éclair.
+   `color-scheme: dark` dit au navigateur que la page est déjà sombre : il ne l'assombrit pas
+   une seconde fois. En clair, `only light` garde son rôle (§2.7).
+
+   Contrastes mesurés (texte >= 4,5:1, traits >= 3:1) : charte §2.8 ; un test les recalcule.
+   ========================================================================== */
+
+:root[data-theme="sombre"] {
+  color-scheme: dark;
+
+  /* La palette de nuit. */
+  --nuit-livre: #1a140f;
+  --nuit-reliure: #17110c;
+  --nuit-page: #241c15;
+  --nuit-page-ombre: #2e241b;
+  --nuit-filet: #44372a;
+  --nuit-filet-fort: #7d6b55;
+  --nuit-encre: #ede3d0;
+  --nuit-encre-pale: #b6a68c;
+  --nuit-sauge-texte: #9db894;
+  --nuit-terracotta-texte: #e0967b;
+  --nuit-ocre: #c49a55;
+  --nuit-ocre-texte: #d7b46f;
+
+  /* Les rôles. */
+  --fond-livre: var(--nuit-livre);
+  --fond-colophon: var(--nuit-livre);
+  --bord-bloc: var(--nuit-filet);
+  --fond-page: var(--nuit-page);
+  --fond-secondaire: var(--nuit-page-ombre);
+  --texte: var(--nuit-encre);
+  --texte-secondaire: var(--nuit-encre-pale);
+  --separateur: var(--nuit-filet);
+  --contour: var(--nuit-filet-fort);
+  --gain: var(--nuit-sauge-texte);
+  --perte: var(--nuit-terracotta-texte);
+  --reserve: var(--nuit-ocre-texte);
+  --mise-en-valeur: var(--nuit-ocre);
+  --texte-mise-en-valeur: var(--nuit-ocre-texte);
+  --absent: var(--nuit-filet-fort);
+  --reliure: var(--nuit-reliure);
+  /* La bande des filtres, nettement plus claire que la navigation et que le colophon : à
+     #2b2118 contre un colophon à #2e241b, la différence était imperceptible (retour du
+     propriétaire). */
+  --reliure-clair: var(--brun-reliure-clair);
+  --reliure-filet: var(--nuit-filet-fort);
+  --focus: var(--nuit-encre);
+
+  /* Les poches : la même rampe, inversée — la plus marquée reste au PEA. Validée en rampe sur
+     la page de nuit : écarts OKLab x100 de 21,7 et 17,4, la plus sombre à 3,14:1. */
+  --poche-1: #ede3d0;
+  --poche-2: #b09c7e;
+  --poche-3: #7a6852;
+}

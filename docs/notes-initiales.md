@@ -139,6 +139,16 @@ et la documentation de ses données. Il ne nomme plus l'application, qui ne lit 
 >   doit expliquer que les actifs numériques n'ont ni pays ni secteur, pour qu'on ne croie pas à un
 >   oubli.
 
+### 2026-10-09 · Un livre relié, et une lecture de nuit ([D-98](decisions.md), [D-100](decisions.md))
+> L'application s'appelle Pastory (*Past* + *Story*) : elle raconte l'histoire d'un patrimoine.
+> Sa direction artistique est celle d'un livre ancien relié, à la dorure discrète — par la
+> structure et la typographie, jamais par l'imitation de matières. Le « papier texturé » de mes
+> premières notes est donc abandonné : pas de texture.
+>
+> Après discussion avec un ami : un mode sombre, mais **dans la même identité** — le livre lu à la
+> lampe, pas le « style moderne sombre » que je voulais éviter. Il suit le réglage de l'ordinateur,
+> et un bouton permet de choisir.
+
 ---
 
 ## Objectif de l'application

@@ -13,7 +13,7 @@ from tests.vues.portefeuille import coter
 
 
 def corps(chiffres, **etat):
-    return ecrans.rendre(chiffres, {**etat_ecran.initial(), "onglet": "detail", **etat})[5]
+    return ecrans.rendre(chiffres, {**etat_ecran.initial(), "onglet": "detail", **etat})[4]
 
 
 def section(page, titre):

@@ -19,12 +19,13 @@ import sys
 import threading
 import traceback
 import webbrowser
+from datetime import date as Date
 from pathlib import Path
 
 from dash import ALL, Dash, Input, Output, State, ctx, dcc, html, no_update
 from dash.exceptions import PreventUpdate
 
-from pastory.vues import bandeau, ecrans
+from pastory.vues import bandeau, ecrans, projections
 from pastory.vues import etat as etat_ecran
 from pastory.vues.chiffres import Chiffres, Echec, poches_du
 from pastory.vues.reception import recevoir
@@ -60,12 +61,12 @@ FILET_DE_CHARGEMENT = """
     if (document.querySelector(".entete") || document.getElementById("pastory-filet")) { return; }
     var avis = document.createElement("div");
     avis.id = "pastory-filet";
-    avis.style.cssText = "max-width:60ch;margin:60px auto;font:14px sans-serif;color:#665c51;" +
-      "text-align:center";
+    // Aucune couleur ici (charte graphique) : la classe la prend dans le thème, s'il a pu se
+    // charger ; sinon, le navigateur l'écrit en noir, ce qui reste lisible.
+    avis.className = "filet-de-chargement";
     avis.innerHTML = "<p>La page n'a pas fini de se charger : une connexion a été coupée en " +
       "route, souvent par un antivirus qui inspecte le trafic de l'ordinateur. Vos données ne " +
-      "sont pas en cause.</p><button type='button' style='font:14px sans-serif;" +
-      "padding:6px 14px;cursor:pointer'>Réessayer</button>";
+      "sont pas en cause.</p><button type='button' class='bouton'>Réessayer</button>";
     avis.querySelector("button").onclick = function () {
       try { sessionStorage.removeItem(CLE); } catch (e) {}
       window.location.reload();
@@ -82,14 +83,33 @@ FILET_DE_CHARGEMENT = """
 </script>
 """
 
+THEME_AU_CHARGEMENT = """
+<script>
+/* Le thème, posé AVANT le premier affichage : sans cela, une page de nuit s'afficherait un
+   instant en clair. Le choix fait avec le bouton jour / nuit est retenu par le navigateur ;
+   sans choix, Pastory suit le réglage clair / sombre du système (D-100). */
+(function () {
+  var choix = null;
+  try { choix = localStorage.getItem("pastory-theme"); } catch (e) {}
+  var sombre = choix ? choix === "sombre"
+    : !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  document.documentElement.setAttribute("data-theme", sombre ? "sombre" : "clair");
+})();
+</script>
+"""
+
+# Les icônes de l'onglet : le logo de Pastory (D-98), en .ico — que Dash annonce avec la date du
+# fichier, ce qui force le navigateur à oublier l'icône de Dash qu'il a pu garder en cache — et en
+# SVG, net à toutes les tailles. Le .ico sert aussi au raccourci du bureau.
 INDEX = """<!DOCTYPE html>
 <html lang="fr">
   <head>
     {%metas%}
     <title>{%title%}</title>
     {%favicon%}
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
     {%css%}
-""" + FILET_DE_CHARGEMENT + """
+""" + THEME_AU_CHARGEMENT + FILET_DE_CHARGEMENT + """
   </head>
   <body>
     {%app_entry%}
@@ -144,8 +164,8 @@ def creer(chiffres: Chiffres) -> Dash:
         Output("signalements", "children"),
         Output("filtres", "children"),
         Output("filtres", "hidden"),
-        Output("etat-des-donnees", "children"),
         Output("corps", "children"),
+        Output("livre", "className"),
         Input("etat", "data"),
     )
     def rendre(etat):
@@ -186,6 +206,25 @@ def creer(chiffres: Chiffres) -> Dash:
         _ouvrir(chiffres.dossier())
         return no_update
 
+    @application.callback(
+        Output("projection-montant", "children"),
+        Output("projection-courbe", "children"),
+        Input("projection-depart", "value"),
+        Input("projection-taux", "value"),
+        Input("projection-duree", "value"),
+        Input("projection-versement", "value"),
+        Input("projection-alea", "value"),
+        State("projection-debut", "data"),
+    )
+    def projeter(depart, taux, duree, versement, alea, debut):
+        # La prédiction (chapitre V, D-105) : recalculée dès qu'une hypothèse change. Elle ne
+        # touche à rien d'autre, et rien ne dépend d'elle (D-27). La courbe part de la date de la
+        # valeur de départ — celle des derniers cours.
+        return projections.resultat(
+            depart, taux, duree, versement, alea == projections.ALEA,
+            Date.fromisoformat(debut) if debut else None,
+        )
+
     application.clientside_callback(
         DEFILER_VERS_L_ANCRE,
         Output("corps", "className"),
@@ -196,8 +235,12 @@ def creer(chiffres: Chiffres) -> Dash:
 
 
 def _mise_en_page() -> html.Div:
+    # La classe de la racine dit quelle partie du livre est ouverte : la couverture, ou les
+    # pages (`ecrans.rendre`). Elle commence sur la couverture, comme l'état initial.
     return html.Div(
-        [
+        id="livre",
+        className="livre livre--couverture",
+        children=[
             dcc.Store(id="etat", data=etat_ecran.initial()),
             html.Header(
                 [
@@ -208,14 +251,13 @@ def _mise_en_page() -> html.Div:
                                 id="onglets",
                                 className="onglets",
                                 role="tablist",
-                                **{"aria-label": "Sections"},
+                                **{"aria-label": "Chapitres"},
                             ),
                             html.Div(id="signalements", className="pousse"),
                         ],
                         className="bande bande--titre",
                     ),
                     html.Div(id="filtres", className="bande bande--filtres", hidden=True),
-                    html.Div(id="etat-des-donnees", className="bande bande--etat"),
                 ],
                 className="entete",
             ),
@@ -279,8 +321,8 @@ def _rendre(chiffres: Chiffres, etat: dict) -> tuple:
             [],
             [],
             True,
-            [],
             avis,
+            ecrans.CLASSE_DES_PAGES,
         )
 
 
@@ -310,4 +352,3 @@ def lancer(
     if navigateur:
         threading.Timer(1.0, webbrowser.open, args=(adresse,)).start()
     application.run(host="127.0.0.1", port=port, debug=False)
-

@@ -45,9 +45,10 @@ AIDES: dict[str, Aide] = {
     ),
     "peuSignificatif": Aide(
         "Pourquoi ce taux est peu fiable",
-        "Sur moins d'un an, un rendement <b>annualisé</b> s'emballe : quelques semaines de "
-        "hausse, ramenées à l'année, donnent un pourcentage énorme qui ne décrit rien de "
-        "durable. Le gain en euros, lui, reste lisible dès le premier jour.",
+        "<b>La période examinée est trop courte pour se fier à ce taux.</b> Sur moins d'un an, "
+        "un rendement <b>annualisé</b> s'emballe : quelques semaines de hausse, ramenées à "
+        "l'année, donnent un pourcentage énorme qui ne décrit rien de durable. Le gain en "
+        "euros, lui, reste lisible dès le premier jour.",
     ),
     "valeur": Aide(
         "La valeur des actifs",
