@@ -282,6 +282,14 @@ dossier temporaire de la session, pas dans le dépôt : les réécrire au besoin
   `failed to hardlink` (os error 396), puis `failed to remove directory … Accès refusé`
   (os error 5). Remède : `$env:UV_LINK_MODE = "copy"`, puis **relancer la même commande** — la
   deuxième passe. Ce n'est pas un échec des tests, et le message le dit mal.
+- **Après un changement de `pyproject.toml`, `uv run pastory ouvrir` échoue** (constaté le
+  2026-10-09, après l'ajout de numpy) : uv veut réinstaller Pastory, bute d'abord sur OneDrive
+  (`os error 396`, contourné par `UV_LINK_MODE=copy`), puis sur le certificat de l'antivirus en
+  téléchargeant l'outil de construction `editables` (`UnknownIssuer`, même avec `--native-tls`).
+  L'environnement, lui, est intact : **`uv run --no-sync pastory ouvrir`** lance Pastory. Pour
+  lever le blocage, il faut une synchronisation réussie, l'analyse HTTPS de l'antivirus
+  suspendue le temps de `UV_LINK_MODE=copy uv sync --native-tls`. **Conséquence pour l'étape 10 :
+  le raccourci du bureau doit appeler `.venv\Scripts\pythonw.exe` directement, jamais `uv run`.**
 - **`uv` a besoin de `--native-tls`** : l'antivirus Norton inspecte le trafic chiffré, et le jeu de
   certificats par défaut ne le reconnaît pas. `uv sync --native-tls`, `uv run --native-tls …`.
 - **L'antivirus peut couper Claude Code en pleine session.** Le 2026-09-26, **Avast WebShield** a
