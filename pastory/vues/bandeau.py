@@ -26,6 +26,8 @@ class Onglet:
     periode: bool
     type: bool
     poches: bool
+    principal: bool = True
+    """Faux pour une page qui ne figure pas dans la rangée des onglets."""
 
 
 ONGLETS = (
@@ -34,7 +36,12 @@ ONGLETS = (
     # Aucun filtre ici : une répartition est la photo d'un tout, il n'y a rien à filtrer.
     Onglet("diversification", "Diversification", periode=False, type=False, poches=False),
     Onglet("frais", "Frais et taxes", periode=False, type=False, poches=False),
-    Onglet("detail", "Détail des calculs", periode=True, type=False, poches=True),
+    # Pas un onglet comme les autres : une page à part, ouverte depuis le bouton discret à
+    # droite de la manchette (arbitrage du propriétaire, étape 9). Elle n'est pas aussi
+    # importante que le reste, et ne doit pas en avoir l'air.
+    Onglet(
+        "detail", "Détail des calculs", periode=True, type=False, poches=True, principal=False
+    ),
 )
 
 ACCUEIL = "accueil"
@@ -71,20 +78,21 @@ def onglets(actuel: str) -> list:
             **{"aria-selected": "true" if o.cle == actuel else "false"},
         )
         for o in ONGLETS
+        if o.principal
     ]
 
 
-def compteur(nombre: int | None) -> list:
-    """Le bouton qui mène au bloc « à surveiller ». Rien tant que rien n'est lu."""
-    if nombre is None:
-        return []
+def lien_vers_le_detail(actuel: str) -> list:
+    """À droite de la manchette, discret : la page qui permet de refaire chaque chiffre à la
+    main. Elle porte aussi le bloc « À surveiller », qui y remplace l'ancien compteur."""
     return [
         html.Button(
-            f"À surveiller · {nombre}",
-            id=choix("surveiller", "detail"),
-            className="bouton bouton--surveiller",
+            "Détail des calculs",
+            id=choix("onglet", "detail"),
+            className="bouton bouton--discret",
             type="button",
             n_clicks=0,
+            **{"aria-pressed": "true" if actuel == "detail" else "false"},
         )
     ]
 

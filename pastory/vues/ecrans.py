@@ -12,6 +12,7 @@ from pastory.vues import (
     accueil,
     actifs,
     bandeau,
+    detail,
     diversification,
     frais,
     surveiller,
@@ -37,10 +38,9 @@ def rendre(chiffres: Chiffres, etat: dict) -> Rendu:
         if messages is not None:
             corps.children.insert(0, messages)
         etat_des_donnees = [] if isinstance(base, Echec) else _etat_de_l_export(base)
-        compteur = None if isinstance(base, Echec) else len(surveiller.points(base))
         return (
             [] if isinstance(base, Echec) else bandeau.onglets(onglet),
-            bandeau.compteur(compteur),
+            [] if isinstance(base, Echec) else bandeau.lien_vers_le_detail(onglet),
             [],
             True,
             etat_des_donnees,
@@ -58,7 +58,7 @@ def rendre(chiffres: Chiffres, etat: dict) -> Rendu:
     )
     return (
         bandeau.onglets(onglet),
-        bandeau.compteur(len(points)),
+        bandeau.lien_vers_le_detail(onglet),
         filtres,
         not filtres,
         _etat_des_donnees(vue, onglet),
@@ -69,6 +69,8 @@ def rendre(chiffres: Chiffres, etat: dict) -> Rendu:
 def _corps(onglet: str, vue: Vue, points: list[Point], chiffres: Chiffres, etat: dict):
     if onglet == "synthese":
         return synthese.ecran(vue, chiffres, int(etat.get("page", 0)))
+    if onglet == "detail":
+        return detail.ecran(vue, points)
     if onglet == "frais":
         return frais.ecran(vue)
     if onglet == "diversification":

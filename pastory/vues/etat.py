@@ -49,9 +49,6 @@ def appliquer(etat: Etat, champ: str, valeur: str, poches_presentes: list[str]) 
         case "onglet" | "aller" if valeur == ACCUEIL or any(o.cle == valeur for o in ONGLETS):
             nouveau["onglet"] = valeur
             nouveau["page"] = 0
-        case "surveiller":
-            nouveau["onglet"] = "detail"
-            nouveau["ancre"] = "a-surveiller"
         case "periode" if any(p.cle == valeur for p in PERIODES):
             nouveau["periode"] = valeur
         case "type" if any(cle == valeur for cle, _ in TYPES):

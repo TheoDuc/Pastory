@@ -93,9 +93,12 @@ class TestApresLeDepot:
         assert "Type inconnu" in lu
         assert fictifs.TYPE_INCONNU in lu
 
-    def test_le_compteur_a_surveiller_apparait(self, chiffres):
-        compteur = rendu(chiffres)[1]
-        assert compteur and "À surveiller" in texte(compteur)
+    def test_le_detail_des_calculs_est_un_lien_discret_pas_un_onglet(self, chiffres):
+        """Arbitrage du propriétaire : le détail n'est pas aussi important que le reste."""
+        onglets, lien = rendu(chiffres)[:2]
+        assert "Détail des calculs" not in texte(onglets)
+        assert "Détail des calculs" in texte(lien)
+        assert "À surveiller" not in texte(lien)
 
     def test_l_etat_des_donnees_dit_la_periode_de_l_export(self, chiffres):
         assert "Export du 02/01/2026 au 01/08/2026" in texte(rendu(chiffres)[4])
@@ -219,10 +222,9 @@ class TestEtat:
         etat = self.appliquer(etat, "tri", "valeur")
         assert (etat["tri"], etat["sens"]) == ("valeur", -1)
 
-    def test_le_compteur_mene_au_bloc_a_surveiller(self):
-        etat = self.appliquer(etat_ecran.initial(), "surveiller", "detail")
+    def test_le_lien_mene_au_detail(self):
+        etat = self.appliquer(etat_ecran.initial(), "onglet", "detail")
         assert etat["onglet"] == "detail"
-        assert etat["ancre"] == "a-surveiller"
 
     def test_une_valeur_inconnue_est_ignoree(self):
         etat = self.appliquer(etat_ecran.initial(), "periode", "10 ans")

@@ -1676,3 +1676,27 @@ img.fanion {
 .liste-parts__nom > .aide {
   margin-left: 4px;
 }
+
+/* Le lien vers le « Détail des calculs », à droite de la manchette : discret, parce que la page
+   n'est pas aussi importante que les onglets (arbitrage du propriétaire, étape 9). */
+.bouton--discret {
+  color: var(--bandeau-douce);
+  border-color: var(--bandeau-trait);
+  font-weight: 400;
+}
+
+.bouton--discret:hover,
+.bouton--discret[aria-pressed="true"] {
+  color: var(--bandeau-encre);
+  background: var(--bandeau-clair);
+}
+
+/* Le détail des calculs : l'explication sous un calcul, l'origine d'un réglage. */
+.detail__explication {
+  margin: 10px 0 0;
+}
+
+.detail__origine {
+  text-align: right;
+  max-width: 65%;
+}

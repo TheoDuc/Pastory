@@ -214,8 +214,10 @@ def valoriser_position(
             position=position,
             date=date,
             cours=None,
+            # Le pourquoi est celui de la source de cours, dans la liste de ses refus : le bloc
+            # « Cours de marché » de « pastory positions », « À surveiller » à l'écran.
             motif=f"aucun cours utilisable au {date.isoformat()} ni dans les jours qui "
-            "précèdent : voir le bloc « Cours de marché »",
+            "précèdent : la raison donnée par la source de cours est dans la liste de ses refus",
         )
     if cours.devise.upper() != _devise(position).upper():
         # La source vérifie déjà la devise (D-48). Le redire ici ne coûte rien, et empêche

@@ -107,7 +107,7 @@ class TestCeQuiNEstPasValorise:
         assert exclue.actif == AUTRE_ACTIF
         assert exclue.valeur is None
         assert exclue.plus_value_latente is None
-        assert "Cours de marché" in (exclue.motif or "")
+        assert "liste de ses refus" in (exclue.motif or "")
         # Le total ne compte que ce qui est valorisé, et le dit : jamais un zéro silencieux.
         assert resultat.total.valeur == Decimal("600.00")
         assert resultat.total.nombre_de_positions == 2
