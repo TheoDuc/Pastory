@@ -220,6 +220,8 @@ class FournisseurDeCours:
             )
             return None
 
+        if not self.hors_ligne:
+            self._completer_la_fin(actif, date)
         trouve = self._dernier_jour_cote(actif, date)
         if trouve is not None:
             return trouve
@@ -382,6 +384,26 @@ class FournisseurDeCours:
         if candidat < date - RECUL_MAXIMAL:
             return None
         return serie[candidat]
+
+    def _completer_la_fin(self, actif: str, date: Date) -> None:
+        """Demande la suite du cache quand on cherche un jour **après** son dernier jour connu.
+
+        Sans cela, un cache arrêté au lundi servait encore le jeudi : le cours du lundi est dans
+        le recul maximal, donc « trouvé », et rien n'était redemandé. Les cours ne bougeaient
+        plus qu'en lançant `pastory cours` (défaut vu à l'étape 9 : l'écran restait au lundi).
+
+        Une seule demande par exécution suffit — du lendemain du dernier jour connu jusqu'à
+        hier —, et les jours suivants tombent dedans. Une réponse vide n'est pas un refus : la
+        clôture d'hier n'est souvent pas encore publiée, et le dernier jour connu reste valable.
+        Un jour **dans** la série (un week-end entre deux cours) ne provoque aucun appel (D-50).
+        """
+        if not self._serie(actif) or self._date_deja_demandee(actif, date):
+            return
+        if actif not in self._jours_tries:
+            self._jours_tries[actif] = sorted(self._serie(actif))
+        dernier = self._jours_tries[actif][-1]
+        if date > dernier:
+            self.remplir(actif, dernier + UN_JOUR, self.aujourd_hui)
 
     def _ce_qui_manque(self, actif: str, debut: Date, fin: Date) -> tuple[Date, Date]:
         """Réduit la période à ce que le cache ne connaît pas encore.

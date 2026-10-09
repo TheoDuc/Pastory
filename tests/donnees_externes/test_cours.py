@@ -84,6 +84,51 @@ class TestCoursTrouve:
         assert trouve.valeur == Decimal("128.885")
         assert source.appels == []
 
+    def test_au_dela_du_cache_le_cours_plus_recent_est_demande(self):
+        # Le défaut vu à l'étape 9 : un cache arrêté au vendredi servait encore le lundi, le
+        # mardi… sans jamais redemander, tant que le vendredi restait dans le recul maximal. Les
+        # cours s'arrêtaient au dernier passage de `pastory cours`.
+        cache = CacheEnMemoire()
+        cache.ecrire(ACTIF, [cours(VENDREDI, "100.00")])
+        source = SourceFictive({ACTIF: [cours(VENDREDI, "100.00"), cours(LUNDI, "110.00")]})
+
+        trouve = fournisseur(source, cache=cache).cours(ACTIF, LUNDI)
+
+        assert trouve.date == LUNDI
+        assert cache.lire(ACTIF)[LUNDI].valeur == Decimal("110.00")
+
+    def test_la_fin_du_cache_n_est_redemandee_qu_une_fois(self):
+        # La valorisation jour par jour demande chaque jour après la fin du cache : un seul
+        # appel doit suffire, même si la source n'a rien de plus récent (clôture pas encore
+        # publiée) — et ce n'est pas un refus, le dernier jour connu reste valable.
+        cache = CacheEnMemoire()
+        cache.ecrire(ACTIF, [cours(VENDREDI, "100.00")])
+        source = SourceFictive({ACTIF: [cours(VENDREDI, "100.00")]})
+        mardi = Date(2026, 3, 10)
+        leur_fournisseur = FournisseurDeCours(configuration(), cache, source, aujourd_hui=mardi)
+
+        for jour in (SAMEDI, Date(2026, 3, 8), LUNDI, mardi):
+            assert leur_fournisseur.cours(ACTIF, jour).date == VENDREDI
+
+        assert len(source.appels) == 1
+        assert leur_fournisseur.refus == []
+
+    def test_un_week_end_au_milieu_du_cache_ne_provoque_aucun_appel(self):
+        cache = CacheEnMemoire()
+        cache.ecrire(ACTIF, [cours(VENDREDI, "100.00"), cours(LUNDI, "110.00")])
+        source = SourceFictive({ACTIF: []})
+
+        assert fournisseur(source, cache=cache).cours(ACTIF, SAMEDI).date == VENDREDI
+        assert source.appels == []
+
+    def test_hors_ligne_la_fin_du_cache_sert_sans_appel(self):
+        cache = CacheEnMemoire()
+        cache.ecrire(ACTIF, [cours(VENDREDI, "100.00")])
+
+        trouve = fournisseur(None, hors_ligne=True, cache=cache).cours(ACTIF, LUNDI)
+
+        assert trouve.date == VENDREDI
+
     def test_un_cours_recupere_est_ecrit_dans_le_cache(self):
         cache = CacheEnMemoire()
         source = SourceFictive({ACTIF: [cours(VENDREDI, "128.885")]})
