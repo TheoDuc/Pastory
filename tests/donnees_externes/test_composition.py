@@ -27,7 +27,9 @@ ACTION = "XX0000000ACT"
 CRYPTO = "BTC"
 
 
-def composition(actif: str = ETF, source: str = "source de test") -> Composition:
+def composition(
+    actif: str = ETF, source: str = "source de test", regle: str = "pays d'activité"
+) -> Composition:
     return Composition(
         actif=actif,
         pays=(Part("US", Decimal("70")),),
@@ -37,6 +39,7 @@ def composition(actif: str = ETF, source: str = "source de test") -> Composition
         intitule_de_la_date="date annoncée par la source",
         source=source,
         recupere_le=AUJOURD_HUI,
+        regle_de_pays=regle,
     )
 
 
@@ -125,6 +128,63 @@ class TestLOrdreDesEtages:
 
         assert trouvee.source == "depuis le cache"
         assert source.appels == []
+
+    def test_une_composition_gardee_sans_regle_de_pays_est_redemandee(self):
+        """Le cache d'avant l'étape 9 ne gardait pas la règle de pays : une composition relue
+        n'en avait plus. En ligne, elle est redemandée, et réécrite avec sa règle."""
+        cache = CacheFictif({ETF: composition(source="depuis le cache", regle="")})
+        source = SourceEtfFictive({ETF: composition()})
+        fournisseur = FournisseurDeCompositions(
+            cache=cache, source_etf=source, actifs=config(**{ETF: etf_declare()})
+        )
+
+        trouvee = fournisseur.composition(ETF)
+
+        assert trouvee.regle_de_pays == "pays d'activité"
+        assert source.appels == [ETF]
+        assert cache.ecritures == [ETF]
+
+    def test_un_fonds_servi_par_le_secours_est_rafraichi_par_le_secours(self):
+        """Le cas des données du propriétaire : un fonds Amundi, que la source principale
+        n'ouvre pas. Le rafraîchissement doit passer par le secours, sinon la règle de pays ne
+        revient jamais."""
+        cache = CacheFictif({ETF: composition(source="depuis le cache", regle="")})
+
+        class Secours:
+            def composition(self, actif):
+                return composition(actif, source="secours", regle="pays de l'indice")
+
+        fournisseur = FournisseurDeCompositions(
+            cache=cache,
+            source_etf=SourceEtfFictive({}),
+            actifs=config(**{ETF: etf_declare()}),
+            secours={"amundi": Secours()},
+        )
+
+        trouvee = fournisseur.composition(ETF)
+
+        assert trouvee.regle_de_pays == "pays de l'indice"
+        assert fournisseur.refus == []
+
+    def test_si_la_source_ne_repond_pas_l_ancienne_est_gardee_sans_refus(self):
+        cache = CacheFictif({ETF: composition(source="depuis le cache", regle="")})
+        source = SourceEtfFictive({})
+        fournisseur = FournisseurDeCompositions(
+            cache=cache, source_etf=source, actifs=config(**{ETF: etf_declare()})
+        )
+
+        trouvee = fournisseur.composition(ETF)
+
+        assert trouvee.source == "depuis le cache"
+        assert fournisseur.refus == []
+
+    def test_hors_ligne_elle_sert_telle_quelle(self):
+        cache = CacheFictif({ETF: composition(source="depuis le cache", regle="")})
+        fournisseur = FournisseurDeCompositions(
+            cache=cache, actifs=config(**{ETF: etf_declare()}), hors_ligne=True
+        )
+
+        assert fournisseur.composition(ETF).source == "depuis le cache"
 
     def test_ce_qui_vient_de_la_source_est_mis_en_cache(self):
         cache = CacheFictif()

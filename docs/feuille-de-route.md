@@ -639,6 +639,41 @@ fichiers**.
 **Toi :** utiliser l'application sur tes données et noter tout ce qui est faux, lent ou peu clair.
 Et **vérifier que tu n'ouvres plus aucun fichier** pour t'en servir.
 
+**Avancement (2026-10-09) :** 9.0 à 9.4 faits : le contrat, l'accueil et le dépôt, la synthèse,
+les actifs, la diversification, les frais et taxes, et le détail des calculs, devenu une page
+discrète ouverte depuis la droite de la manchette (il remplace le compteur « À surveiller »).
+Restent 9.5 (les écrans de correction) et 9.6 (cahier, revue, documents).
+
+## Étape 9 bis · Une identité propre, et la prédiction de l'évolution ⏳
+**But :** passer d'une interface qui marche à une interface qu'on reconnaît, et ajouter la
+section « Prédiction de l'évolution » ([D-97](decisions.md)). L'étape vient **après** la 9 :
+elle reprend des écrans finis, elle ne les remplace pas.
+
+**Claude :**
+- **L'identité visuelle.** Aujourd'hui l'interface est propre mais sans caractère (le fond en
+  particulier). Proposer une identité **en maquette d'abord** (`maquettes/`), en deux ou trois
+  pistes comparables côte à côte : fond, typographie, couleurs, logo, rythme des blocs. Rien ne
+  change dans les chiffres ni dans les règles d'affichage du contrat
+  ([conception-interface.md](conception-interface.md) §3). Les couleurs de poche (D-96) et la
+  palette des données restent contrôlées par le validateur (daltonisme, contraste).
+- **La prédiction de l'évolution** (ce qui était l'étape 12) : une section à part, qui ne lit
+  rien d'autre que la valeur de départ. Ce que le propriétaire a demandé :
+  - les entrées : une **valeur de départ** (par défaut le capital brut du portefeuille, modifiable),
+    un **taux annuel**, une **durée**, un **versement mensuel** ;
+  - le résultat simple : **une courbe et le montant atteint** ;
+  - une option **« taux aléatoire »** : **10 000 simulations**, d'autant plus dispersées que le
+    taux visé est élevé, résumées par cinq courbes, les quantiles **5 %, 25 %, médiane, 75 % et
+    95 %**.
+  - **Les hypothèses s'écrivent d'abord** dans le glossaire (loi des rendements, lien entre taux
+    et dispersion, pas mensuel ou annuel, ce que représente le taux), puis le propriétaire les
+    valide ([Q-61](questions-ouvertes.md)). Elles sont **affichées à l'écran**, et la
+    section dit clairement que c'est une hypothèse, pas une prévision ni un conseil.
+  - Le cas sans aléa se refait à la main (intérêts composés plus versements) : c'est le cas de
+    test, et le cahier de vérification le donne.
+
+**Toi :** choisir une piste d'identité ; trancher [Q-61](questions-ouvertes.md) ; refaire le cas
+sans aléa à la calculatrice.
+
 ## Étape 10 · Installation pour d'autres utilisateurs ⏳
 **But :** qu'un investisseur non développeur l'installe en quelques étapes.
 
@@ -670,11 +705,4 @@ Et **vérifier que tu n'ouvres plus aucun fichier** pour t'en servir.
 **Toi :** relire le README, choisir la licence (elle doit autoriser les forks pour d'autres
 banques, D-26), passer le dépôt en public sur GitHub (Settings → Danger Zone → Change visibility).
 
-## Étape 12 · Simulation Monte-Carlo ⏳ (fonctionnalité indépendante, D-27)
-**But :** projection du patrimoine selon un montant épargné et un rendement cible. Rien d'autre
-n'en dépend : cette étape peut venir quand tu le souhaites, après le cœur.
-
-**Claude :** définit d'abord les hypothèses dans le glossaire (loi des rendements, volatilité,
-horizon), puis les implémente.
-
-**Toi :** valider les hypothèses, qui devront être affichées à l'écran.
+## ~~Étape 12 · Simulation Monte-Carlo~~ → déplacée dans l'étape 9 bis ([D-97](decisions.md))

@@ -21,6 +21,7 @@ pastory composition         ce qu'il y a à l'intérieur de chaque actif détenu
 pastory oublier-cours       effacer des cours en cache, pour les reprendre à la source
 pastory oublier-composition effacer des compositions, pour les reprendre à la source
 pastory oublier-reglages    effacer ce qui a été trouvé en ligne, pour le rechercher
+pastory ouvrir              le tableau de bord, dans le navigateur
 ```
 
 `positions` et `exporter-positions` acceptent `--au AAAA-MM-JJ` (la fin de la période, et la
@@ -44,50 +45,34 @@ import contextlib
 import sys
 import textwrap
 from collections.abc import Sequence
-from dataclasses import dataclass
 from datetime import date as Date
 from datetime import timedelta
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
-from pastory import tableur
+from pastory import assembleur, tableur
 from pastory.adaptateurs.trade_republic import depot as depot_export
-from pastory.adaptateurs.trade_republic.lecture import Lecteur
 from pastory.adaptateurs.trade_republic.rapport import Rapport
 from pastory.config import ConfigurationInvalide, emplacements
-from pastory.config import actifs as config_actifs
-from pastory.config import fiscalite as config_fiscalite
-from pastory.donnees_externes import actions as source_actions
-from pastory.donnees_externes import amundi, extraetf, firds, xetra
 from pastory.donnees_externes import completion as completion_cours
 from pastory.donnees_externes import composition as composition_externe
 from pastory.donnees_externes import cours as cours_module
 from pastory.donnees_externes.cache import Cache, CacheIllisible
 from pastory.donnees_externes.cache_compositions import CacheDeCompositions
 from pastory.donnees_externes.completion import Completion
-from pastory.donnees_externes.cours import FournisseurDeCours, Refus
-from pastory.donnees_externes.yahoo import Yahoo
-from pastory.moteur import couts as couts_moteur
+from pastory.donnees_externes.cours import Refus
 from pastory.moteur import diversification as diversification_moteur
 from pastory.moteur import export_csv as export_moteur
 from pastory.moteur import rapport as rapport_moteur
 from pastory.moteur import rendements as rendements_moteur
-from pastory.moteur import valeur_reelle as valeur_reelle_moteur
 from pastory.moteur import valorisation as valorisation_moteur
 from pastory.moteur.portefeuille import Portefeuille
 from pastory.parametres import ParametresInvalides
-from pastory.parametres import contenus as parametres_contenus
-from pastory.parametres import couts as parametres_couts
-from pastory.parametres import fiscalite as parametres_fiscalite
-from pastory.parametres import referentiels as parametres_referentiels
 from pastory.pivot import export_csv
 from pastory.pivot.operation import Poche
-from pastory.reglages import Trouvee
-from pastory.reglages import assemblage as assemblage_reglages
 from pastory.reglages import rapport as rapport_reglages
 from pastory.reglages.assemblage import Reglages
 from pastory.reglages.cache import CacheDesReglages
-from pastory.reglages.recherche import Recherche
 
 NOM = "pastory"
 
@@ -135,28 +120,10 @@ def commande_emplacements() -> int:
     return CODE_SUCCES
 
 
-def _dossier(dossier_export: Path | None) -> Path:
-    """Le dossier où lire les exports : celui indiqué par `--export`, ou le dossier de dépôt.
-
-    Le dossier de dépôt est créé s'il n'existe pas encore : c'est là que l'utilisateur doit
-    déposer son export (D-80), et le message qui l'y invite doit désigner un dossier réel.
-    """
-    if dossier_export is not None:
-        return dossier_export
-    dossier = emplacements.dossier_exports()
-    dossier.mkdir(parents=True, exist_ok=True)
-    return dossier
-
-
-def _lire(dossier: Path) -> Rapport:
-    """Lecture commune à toutes les commandes : tous les exports du dossier (D-80)."""
-    return Lecteur().lire(depot_export.lire_dossier(dossier))
-
-
 def commande_lire(dossier_export: Path | None) -> int:
     """Affiche le rapport de lecture, sans rien écrire."""
     try:
-        rapport = _lire(_dossier(dossier_export))
+        rapport = assembleur.lire(assembleur.dossier_de_lecture(dossier_export))
     except depot_export.ExportIntrouvable as erreur:
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
@@ -173,7 +140,7 @@ def commande_exporter_pivot(dossier_export: Path | None, hors_ligne: bool = Fals
     justement le fichier que le propriétaire ouvre pour vérifier.
     """
     try:
-        rapport = _lire(_dossier(dossier_export))
+        rapport = assembleur.lire(assembleur.dossier_de_lecture(dossier_export))
     except depot_export.ExportIntrouvable as erreur:
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
@@ -183,9 +150,10 @@ def commande_exporter_pivot(dossier_export: Path | None, hors_ligne: bool = Fals
     try:
         # L'export d'un tiers : aucun appel réseau (règle 2 de CLAUDE.md).
         hors_ligne = hors_ligne or dossier_export is not None
-        reglages = _reglages(rapport, hors_ligne, tiers=dossier_export is not None)
+        reglages = assembleur.reglages(rapport, hors_ligne, tiers=dossier_export is not None)
         completion = completion_cours.completer_les_prix(
-            rapport.operations, _fournisseur_de_cours(reglages.configuration(), hors_ligne)
+            rapport.operations,
+            assembleur.fournisseur_de_cours(reglages.configuration(), hors_ligne),
         )
     except CacheIllisible as erreur:
         print(erreur, file=sys.stderr)
@@ -242,149 +210,6 @@ def _etat_de_la_lecture(rapport: Rapport) -> list[str]:
             )
         )
     return lignes
-
-
-def _source_des_cotations() -> Yahoo:
-    """**Le seul endroit qui nomme Yahoo** pour la recherche des cotations (D-51), et celui que
-    les tests remplacent : aucun test ne sort de la machine."""
-    return Yahoo()
-
-
-def _frais_courants_de_l_emetteur() -> amundi.FraisCourantsAmundi:
-    """Les frais courants publiés par l'émetteur (Amundi), première source de TER."""
-    return amundi.FraisCourantsAmundi()
-
-
-def _classes_d_actifs() -> extraetf.SourceExtraEtf:
-    """La classe d'actifs d'un fonds (D-89). La construire n'appelle rien."""
-    return extraetf.SourceExtraEtf()
-
-
-def _registre_cfi() -> firds.RegistreFirds:
-    """Le registre de l'ESMA, témoin du contenu d'un fonds (D-89). Le construire n'appelle rien."""
-    return firds.RegistreFirds()
-
-
-def _reglages(rapport: Rapport, hors_ligne: bool = False, tiers: bool = False) -> Reglages:
-    """Tout ce que l'application trouve seule, contrôle et montre (D-80).
-
-    Ce que dit la banque, ce que les sources trouvent — gardé dans `cache/reglages.csv` — et
-    les corrections de l'utilisateur, qui l'emportent. Hors ligne, seul le cache sert ; pour
-    l'export d'un tiers (`--export`), rien n'est cherché (règle 2 de CLAUDE.md).
-
-    Les sources de TER sont rangées **par ordre de confiance** : l'émetteur, qui publie le
-    chiffre de son document d'information clé, puis la liste de Xetra, parfois en retard.
-    """
-    recherche = Recherche(
-        CacheDesReglages(),
-        None if hors_ligne else _source_des_cotations(),
-        (lambda: _frais_courants_de_l_emetteur(), lambda: _liste_des_etf()),
-        classes=_classes_d_actifs(),
-        registre=_registre_cfi(),
-        lecture_des_contenus=parametres_contenus.charger(),
-        tiers=tiers,
-    )
-    banque = rapport.ce_que_dit_la_banque()
-    duree = parametres_fiscalite.charger().pea_duree_exoneration_ir.valeur
-    corrections = config_actifs.charger()
-    return assemblage_reglages.assembler(
-        banque,
-        recherche.trouver(banque, rapport.operations, corrections),
-        corrections,
-        config_fiscalite.charger(),
-        duree_avant_retrait_libre=int(duree),
-    )
-
-
-def _fournisseur_de_cours(
-    configuration: config_actifs.Configuration, hors_ligne: bool = False
-) -> FournisseurDeCours:
-    """Réunit la cotation de chaque actif, le cache local et la source.
-
-    **C'est le seul endroit de l'application qui nomme Yahoo pour les cours** (D-51). Le moteur
-    ne sait pas d'où viennent les cours, et changer de source ne toucherait que cette fonction
-    (D-26).
-    """
-    return FournisseurDeCours(
-        configuration,
-        Cache(),
-        None if hors_ligne else Yahoo(),
-        hors_ligne=hors_ligne,
-    )
-
-
-def _parametres_des_couts(reglages: Reglages) -> couts_moteur.ParametresDeCouts:
-    """Le barème livré avec l'application, croisé avec les réglages de chaque actif.
-
-    C'est **le seul endroit** qui réunit les deux : le moteur, lui, ne connaît qu'un protocole
-    (`ParametresDeCouts`) et ne sait ni ce qu'est un fichier TOML, ni ce qu'est un ETF (D-26).
-    """
-    return parametres_couts.ParametresDuPortefeuille(parametres_couts.charger(), reglages)
-
-
-def _fournisseur_de_compositions(
-    configuration: config_actifs.Configuration, hors_ligne: bool = False
-) -> composition_externe.FournisseurDeCompositions:
-    """Réunit le cache local, la source des fonds et celle des actions (D-63, D-70).
-
-    **C'est le seul endroit de l'application qui nomme extraETF et GLEIF.** Le moteur ne sait pas
-    d'où viennent les compositions : il déclare un protocole, et changer de source ne toucherait
-    que cette fonction (D-26).
-
-    Le type de chaque actif décide de la source interrogée : un ETF et une action ne se
-    regardent pas au même endroit, et une crypto ne se regarde nulle part (D-68). La source de
-    secours est essayée d'elle-même pour un ETF que la principale n'ouvre pas (D-80) ; la source
-    de chaque chiffre reste affichée ligne par ligne.
-    """
-    return composition_externe.FournisseurDeCompositions(
-        cache=CacheDeCompositions(),
-        source_etf=None if hors_ligne else extraetf.SourceExtraEtf(),
-        source_action=None if hors_ligne else source_actions.SourceDActions(),
-        actifs=configuration,
-        hors_ligne=hors_ligne,
-        secours={} if hors_ligne else _sources_de_secours(),
-    )
-
-
-def _sources_de_secours() -> dict[str, composition_externe.SourceDeCompositionDEtf]:
-    """Les sources de secours, par le nom sous lequel une correction les désigne (D-77).
-
-    Une seule pour l'instant. Sa table de libellés de pays est chargée ici, parce que c'est ici
-    qu'on sait qu'elle existe : le moteur n'a jamais à connaître ni Amundi, ni un fichier TOML.
-    """
-    return {"amundi": amundi.SourceAmundi(parametres_referentiels.charger_libelles_de_pays())}
-
-
-def _referentiels() -> parametres_referentiels.Referentiels:
-    """Les secteurs, les pays et leurs zones, avec leur source et leur date (D-65 à D-67)."""
-    return parametres_referentiels.charger_tout()
-
-
-def _regles_fiscales(reglages: Reglages) -> parametres_fiscalite.ReglesFiscales:
-    """Les taux datés et sourcés, plus la date d'ouverture du PEA et son origine (D-59, D-80)."""
-    pea = reglages.premier_versement_pea
-    retenu = pea.retenu if pea is not None else None
-    if not isinstance(retenu, Trouvee):
-        return parametres_fiscalite.charger()
-    alerte = None
-    if reglages.retraits_pea:
-        alerte = (
-            "aucun retrait n'a jamais été fait sur le plan - CONTREDIT par vos exports : de "
-            "l'argent est sorti du PEA le "
-            + ", le ".join(jour.isoformat() for jour in reglages.retraits_pea)
-            + ". Le gain du plan est alors mal approché, et l'impôt estimé aussi"
-        )
-    origine = (
-        "corrigée par vous dans fiscalite.toml"
-        if retenu.origine.corrigee
-        else f"trouvée dans votre {retenu.origine.source}"
-    )
-    return parametres_fiscalite.charger(
-        premier_versement_pea=retenu.valeur,
-        origine_de_la_date=origine,
-        reserve=None if retenu.origine.corrigee else retenu.origine.reserve,
-        alerte=alerte,
-    )
 
 
 def _rapport_des_compositions(
@@ -472,38 +297,6 @@ def _enveloppe_cours(texte: str, actif: str) -> list[str]:
     )
 
 
-@dataclass(frozen=True)
-class Construit:
-    """Tout ce qu'une commande du moteur a sous la main après la lecture et le rejeu."""
-
-    portefeuille: Portefeuille
-    """Arrêté à la fin de la période."""
-
-    rapport: Rapport
-    entete: list[str]
-    completion: Completion
-    fournisseur: FournisseurDeCours
-    """Le même pour la complétion et la valorisation : ses refus couvrent les deux."""
-
-    periode: rendements_moteur.Periode
-    synthese: rendements_moteur.Synthese
-
-    detail_des_couts: couts_moteur.DetailDesCouts
-    """Les coûts payés de la période et les coûts estimés (étape 6)."""
-
-    valeur_reelle: valeur_reelle_moteur.ValeurReelle
-    """Ce qu'on récupérerait en vendant tout à la date de valorisation (D-23)."""
-
-    diversification: diversification_moteur.Diversification | None = None
-    """Les trois répartitions (étape 7). `None` si aucune composition n'est disponible."""
-
-    compositions: composition_externe.FournisseurDeCompositions | None = None
-    """Gardé pour que les refus de compositions soient affichés après les chiffres."""
-
-    reglages: Reglages | None = None
-    """Ce qui a été trouvé seul pour chaque actif, et ce qui ne l'a pas été (D-80)."""
-
-
 def _periode(au: Date | None, depuis: Date | None) -> rendements_moteur.Periode | None:
     """La période des chiffres clés, ou `None` avec un message si elle est à l'envers.
 
@@ -518,63 +311,12 @@ def _periode(au: Date | None, depuis: Date | None) -> rendements_moteur.Periode 
         return None
 
 
-def _construire_moteur(
-    dossier: Path,
-    periode: rendements_moteur.Periode,
-    hors_ligne: bool = False,
-    tiers: bool = False,
-) -> Construit:
-    """Lecture, complétion des prix, rejeu, puis valorisation et rendements.
-
-    La complétion s'insère **entre** la lecture et le moteur, et ne produit que du format
-    pivot : le moteur ne gagne pas une ligne et ne sait rien des cours (D-26). La
-    valorisation, elle, reçoit le fournisseur de cours **en paramètre** : le moteur déclare
-    ce dont il a besoin, et c'est ici, et seulement ici, qu'on le lui donne.
-    """
-    rapport = _lire(dossier)
-    # L'export d'un tiers : aucun appel réseau, ni recherche, ni cours, ni composition. Envoyer
-    # ses ISIN à un service extérieur, ce serait divulguer ce qu'il détient (règle 2).
-    hors_ligne = hors_ligne or tiers
-    reglages = _reglages(rapport, hors_ligne, tiers)
-    configuration = reglages.configuration()
-
-    fournisseur = _fournisseur_de_cours(configuration, hors_ligne)
-    completion = completion_cours.completer_les_prix(rapport.operations, fournisseur)
-
-    portefeuille = Portefeuille.construire(completion.operations).au(periode.fin)
-    synthese = rendements_moteur.synthese(portefeuille, periode, fournisseur)
-
-    # Les coûts et la valeur réelle partent de la **même** valorisation que les rendements :
-    # deux valorisations du même jour pourraient différer d'un centime, et le propriétaire
-    # verrait deux valeurs brutes dans le même rapport.
-    parametres = _parametres_des_couts(reglages)
-    detail = couts_moteur.detailler(
-        portefeuille, periode, synthese.valorisation, parametres
-    )
-    valeur = valeur_reelle_moteur.valeur_reelle(
-        portefeuille, synthese.valorisation, parametres, _regles_fiscales(reglages)
-    )
-
-    # La répartition part de la **même** valorisation que tout le reste : c'est elle qui fournit
-    # les poids, et deux valorisations du même jour pourraient différer d'un centime.
-    compositions = _fournisseur_de_compositions(configuration, hors_ligne)
-    diversification = diversification_moteur.diversifier(
-        synthese.valorisation, compositions, _referentiels()
-    )
-    return Construit(
-        portefeuille=portefeuille,
-        rapport=rapport,
-        entete=_etat_de_la_lecture(rapport) + _etat_des_reglages(reglages),
-        completion=completion,
-        fournisseur=fournisseur,
-        periode=periode,
-        synthese=synthese,
-        detail_des_couts=detail,
-        valeur_reelle=valeur,
-        diversification=diversification,
-        compositions=compositions,
-        reglages=reglages,
-    )
+def _entete(construit: assembleur.Construit) -> list[str]:
+    """Ce que la ligne de commande dit avant les chiffres : l'état de la lecture et des réglages."""
+    entete = _etat_de_la_lecture(construit.rapport)
+    if construit.reglages is not None:
+        entete += _etat_des_reglages(construit.reglages)
+    return entete
 
 
 def _etat_des_reglages(reglages: Reglages) -> list[str]:
@@ -610,8 +352,11 @@ def commande_positions(
     if periode is None:
         return CODE_ECHEC
     try:
-        construit = _construire_moteur(
-            _dossier(dossier_export), periode, hors_ligne, tiers=dossier_export is not None
+        construit = assembleur.construire(
+            assembleur.dossier_de_lecture(dossier_export),
+            periode,
+            hors_ligne,
+            tiers=dossier_export is not None,
         )
     except depot_export.ExportIntrouvable as erreur:
         print(erreur, file=sys.stderr)
@@ -625,7 +370,7 @@ def commande_positions(
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
 
-    for ligne in construit.entete:
+    for ligne in _entete(construit):
         print(ligne)
     if au is not None:
         print(f"Chiffres arrêtés au {au.isoformat()}.")
@@ -668,8 +413,11 @@ def commande_exporter_positions(
     if periode is None:
         return CODE_ECHEC
     try:
-        construit = _construire_moteur(
-            _dossier(dossier_export), periode, hors_ligne, tiers=dossier_export is not None
+        construit = assembleur.construire(
+            assembleur.dossier_de_lecture(dossier_export),
+            periode,
+            hors_ligne,
+            tiers=dossier_export is not None,
         )
     except depot_export.ExportIntrouvable as erreur:
         print(erreur, file=sys.stderr)
@@ -683,7 +431,7 @@ def commande_exporter_positions(
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
 
-    for ligne in construit.entete:
+    for ligne in _entete(construit):
         print(ligne)
 
     portefeuille, synthese = construit.portefeuille, construit.synthese
@@ -796,8 +544,8 @@ def commande_actifs(dossier_export: Path | None, hors_ligne: bool = False) -> in
     service extérieur, ce serait divulguer ce qu'il détient (règle 2 de CLAUDE.md).
     """
     try:
-        rapport = _lire(_dossier(dossier_export))
-        reglages = _reglages(rapport, hors_ligne, tiers=dossier_export is not None)
+        rapport = assembleur.lire(assembleur.dossier_de_lecture(dossier_export))
+        reglages = assembleur.reglages(rapport, hors_ligne, tiers=dossier_export is not None)
     except depot_export.ExportIntrouvable as erreur:
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
@@ -813,16 +561,6 @@ def commande_actifs(dossier_export: Path | None, hors_ligne: bool = False) -> in
     return CODE_SUCCES
 
 
-def _liste_des_etf() -> xetra.ListeXetra:
-    """La liste des ETF de Xetra, seconde source des frais courants (D-61).
-
-    Fonction à part, et non un appel direct, pour la même raison que `_source_des_cotations` :
-    c'est **le seul endroit** qui nomme la source, et les tests la remplacent ici — aucun test
-    du projet ne sort de la machine.
-    """
-    return xetra.telecharger()
-
-
 def commande_cours(dossier_export: Path | None, actif_demande: str | None = None) -> int:
     """Récupère les cours des actifs qui ont une cotation et les garde en cache (D-50).
 
@@ -831,8 +569,10 @@ def commande_cours(dossier_export: Path | None, actif_demande: str | None = None
     cours déjà en cache n'est jamais redemandé.
     """
     try:
-        rapport = _lire(_dossier(dossier_export))
-        configuration = _reglages(rapport, tiers=dossier_export is not None).configuration()
+        rapport = assembleur.lire(assembleur.dossier_de_lecture(dossier_export))
+        configuration = assembleur.reglages(
+            rapport, tiers=dossier_export is not None
+        ).configuration()
     except depot_export.ExportIntrouvable as erreur:
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
@@ -869,7 +609,9 @@ def commande_cours(dossier_export: Path | None, actif_demande: str | None = None
     a_remplir = [actif for actif in cotes if actif_demande is None or actif == actif_demande]
 
     # L'export d'un tiers : aucun cours n'est demandé (règle 2 de CLAUDE.md).
-    fournisseur = _fournisseur_de_cours(configuration, hors_ligne=dossier_export is not None)
+    fournisseur = assembleur.fournisseur_de_cours(
+        configuration, hors_ligne=dossier_export is not None
+    )
     cache = Cache()
     aujourd_hui = Date.today()
     total_nouveaux = 0
@@ -977,12 +719,12 @@ def commande_composition(dossier_export: Path | None, hors_ligne: bool = False) 
     l'utilisateur doit savoir quand cela arrive (D-63).
     """
     try:
-        rapport = _lire(_dossier(dossier_export))
+        rapport = assembleur.lire(assembleur.dossier_de_lecture(dossier_export))
         portefeuille = Portefeuille.construire(rapport.operations)
         hors_ligne = hors_ligne or dossier_export is not None  # règle 2
-        reglages = _reglages(rapport, hors_ligne, tiers=dossier_export is not None)
-        fournisseur = _fournisseur_de_compositions(reglages.configuration(), hors_ligne)
-        referentiels = _referentiels()
+        reglages = assembleur.reglages(rapport, hors_ligne, tiers=dossier_export is not None)
+        fournisseur = assembleur.fournisseur_de_compositions(reglages.configuration(), hors_ligne)
+        referentiels = assembleur.referentiels()
     except depot_export.ExportIntrouvable as erreur:
         print(erreur, file=sys.stderr)
         return CODE_ECHEC
@@ -1100,9 +842,16 @@ def commande_oublier_reglages(actif: str | None, tout: bool) -> int:
     return CODE_SUCCES
 
 
-def _a_venir(commande: str, etape: str) -> int:
-    print(f"La commande « {commande} » sera disponible à l'{etape}.", file=sys.stderr)
-    return CODE_ECHEC
+def commande_ouvrir(dossier_export: Path | None, hors_ligne: bool, port: int) -> int:
+    """Ouvre le tableau de bord dans le navigateur, jusqu'à Ctrl+C (étape 9, D-31).
+
+    L'import est fait ici, et non en tête : Dash est long à charger, et les autres commandes
+    n'en ont pas besoin.
+    """
+    from pastory.vues import application
+
+    application.lancer(hors_ligne=hors_ligne, dossier_export=dossier_export, port=port)
+    return CODE_SUCCES
 
 
 def construire_analyseur() -> argparse.ArgumentParser:
@@ -1208,7 +957,24 @@ def construire_analyseur() -> argparse.ArgumentParser:
         "--tout", action="store_true", help="oublier les réglages de tous les actifs"
     )
 
-    commandes.add_parser("ouvrir", help="ouvrir le tableau de bord (étape 9)")
+    ouvrir = commandes.add_parser(
+        "ouvrir", help="ouvrir le tableau de bord dans le navigateur (tout commence ici)"
+    )
+    ouvrir.add_argument(
+        "--export",
+        type=Path,
+        default=None,
+        metavar="DOSSIER",
+        help="lire les exports de ce dossier, sans aucun appel réseau (l'export d'un tiers)",
+    )
+    ouvrir.add_argument(
+        "--hors-ligne",
+        action="store_true",
+        help="n'utiliser que ce qui est déjà en mémoire, sans aucun appel réseau",
+    )
+    ouvrir.add_argument(
+        "--port", type=int, default=8050, help="le port local de l'application (8050)"
+    )
     return analyseur
 
 
@@ -1276,7 +1042,7 @@ def main(arguments: list[str] | None = None) -> int:
         case "oublier-reglages":
             return commande_oublier_reglages(options.actif, options.tout)
         case "ouvrir":
-            return _a_venir("ouvrir", "étape 9 (réalisation de l'interface)")
+            return commande_ouvrir(options.export, options.hors_ligne, options.port)
         case _:
             analyseur.print_help()
             return CODE_SUCCES

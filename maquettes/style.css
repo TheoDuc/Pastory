@@ -138,9 +138,15 @@
   /* --- Les séries des graphiques --- */
   --courbe-brut: #1d6c93;
   --courbe-investi: #665c51;
-  --poche-1: #1b4a63;
-  --poche-2: #37738c;
-  --poche-3: #6fa0b4;
+  /* Les poches : trois teintes distinctes, qui sont LEUR couleur partout où elles
+     apparaissent (D-96). PEA bleu, CTO bleu-vert canard, crypto prune — aucune n'est la
+     sauge, la terracotta ni l'ocre, réservées aux statuts. Passées au validateur du skill
+     dataviz sur le fond des blocs : séparation daltonienne 11,0 (cible 8), vision normale
+     15,3 (plancher 15), contraste >= 3:1. Les trois bleus d'avant échouaient : trop peu
+     saturés, ils se lisaient comme des gris. */
+  --poche-1: #4167ad; /* PEA */
+  --poche-2: #14938d; /* CTO */
+  --poche-3: #76386a; /* crypto */
   --absent: #ada08a; /* ce qui manque : non couvert, non attribué, hors actions */
 
   --serif: "Plex Serif", Georgia, "Palatino Linotype", serif;

@@ -282,7 +282,7 @@ class TestValorisation:
         assert sans_cours["valeur"] == tableur.VALEUR_SANS_OBJET
         assert sans_cours["cours"] == tableur.VALEUR_SANS_OBJET
         assert sans_cours["gain"] == tableur.VALEUR_SANS_OBJET
-        assert "Cours de marché" in sans_cours["remarque"]
+        assert "liste de ses refus" in sans_cours["remarque"]
 
 
 class TestFlux:

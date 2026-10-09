@@ -220,6 +220,8 @@ class FournisseurDeCours:
             )
             return None
 
+        if not self.hors_ligne:
+            self._completer_la_fin(actif, date)
         trouve = self._dernier_jour_cote(actif, date)
         if trouve is not None:
             return trouve
@@ -383,6 +385,26 @@ class FournisseurDeCours:
             return None
         return serie[candidat]
 
+    def _completer_la_fin(self, actif: str, date: Date) -> None:
+        """Demande la suite du cache quand on cherche un jour **après** son dernier jour connu.
+
+        Sans cela, un cache arrêté au lundi servait encore le jeudi : le cours du lundi est dans
+        le recul maximal, donc « trouvé », et rien n'était redemandé. Les cours ne bougeaient
+        plus qu'en lançant `pastory cours` (défaut vu à l'étape 9 : l'écran restait au lundi).
+
+        Une seule demande par exécution suffit — du lendemain du dernier jour connu jusqu'à
+        hier —, et les jours suivants tombent dedans. Une réponse vide n'est pas un refus : la
+        clôture d'hier n'est souvent pas encore publiée, et le dernier jour connu reste valable.
+        Un jour **dans** la série (un week-end entre deux cours) ne provoque aucun appel (D-50).
+        """
+        if not self._serie(actif) or self._date_deja_demandee(actif, date):
+            return
+        if actif not in self._jours_tries:
+            self._jours_tries[actif] = sorted(self._serie(actif))
+        dernier = self._jours_tries[actif][-1]
+        if date > dernier:
+            self.remplir(actif, dernier + UN_JOUR, self.aujourd_hui)
+
     def _ce_qui_manque(self, actif: str, debut: Date, fin: Date) -> tuple[Date, Date]:
         """Réduit la période à ce que le cache ne connaît pas encore.
 
@@ -394,17 +416,43 @@ class FournisseurDeCours:
         quelconque, alors que le cache commence au premier jour **coté** qui suit. Quelques
         jours d'écart sont donc normaux — au-delà, c'est que la source ne connaissait rien
         avant, et il faut redemander.
+
+        **Le cache ne doit jamais se trouer**, et un trou existant doit se combler : c'est le
+        défaut trouvé à l'étape 9. La version d'avant ne regardait que le premier et le dernier
+        jour connus. Un cache arrêté au 21 août, interrogé pour un jour d'octobre, faisait donc
+        télécharger les seuls trente jours précédant ce jour — laissant un trou fin août ; et
+        toute date tombant ensuite dans ce trou était jugée « couverte », puisque le cache
+        connaissait des cours avant et après. Le cours d'un jour d'achat manquait pour toujours.
+
+        D'où la règle : on parcourt les jours connus à partir du début demandé, et la demande
+        repart **du lendemain du dernier jour connu avant le premier trou** — un écart de plus
+        de `RECUL_MAXIMAL` entre deux jours cotés, qu'aucun week-end ni jour férié n'explique.
+        Les jours déjà connus que la réponse contiendra ne sont pas réécrits (D-50).
         """
         serie = self._serie(actif)
         if not serie:
             return debut, fin
 
-        premier, dernier = min(serie), max(serie)
+        if actif not in self._jours_tries:
+            self._jours_tries[actif] = sorted(serie)
+        jours = self._jours_tries[actif]
+        premier = jours[0]
         if debut < premier - RECUL_MAXIMAL:
             return debut, fin
-        if dernier >= fin:
+
+        # Le dernier jour connu au début de la période (ou le premier, si la période commence
+        # juste avant lui) : c'est de là que l'on vérifie que rien ne manque jusqu'à la fin.
+        rang = bisect.bisect_right(jours, max(debut, premier))
+        curseur = jours[rang - 1]
+        for jour in jours[rang:]:
+            if jour > fin:
+                break
+            if jour - curseur > RECUL_MAXIMAL:
+                return curseur + UN_JOUR, fin  # un trou : on repart de son début
+            curseur = jour
+        if curseur >= fin:
             return fin, debut  # période vide : le cache couvre tout
-        return max(debut, dernier + UN_JOUR), fin
+        return curseur + UN_JOUR, fin
 
     def _deja_demande(self, actif: str, debut: Date, fin: Date) -> bool:
         return any(

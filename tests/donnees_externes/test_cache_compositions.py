@@ -35,6 +35,7 @@ def composition(arrete_le: Date = Date(2026, 8, 31), pays: str = "US") -> Compos
         recupere_le=Date(2026, 9, 27),
         replication="synthétique",
         document="https://exemple.test/dic.pdf",
+        regle_de_pays="pays d'activité, au sens de la source de test",
     )
 
 
@@ -50,6 +51,28 @@ class TestEcrireEtRelire:
         relue = cache.lire(ACTIF)
 
         assert relue == composition()
+
+    def test_la_regle_de_pays_survit_au_cache(self, cache):
+        """Défaut trouvé à l'étape 9 : la colonne manquait. Relue depuis le cache, à chaque
+        lancement après le premier, une composition perdait sa règle de pays — celle que D-72
+        exige de voir ligne par ligne."""
+        cache.ecrire(composition())
+
+        assert cache.lire(ACTIF).regle_de_pays == "pays d'activité, au sens de la source de test"
+
+    def test_un_fichier_d_avant_sans_la_colonne_se_relit_sans_regle(self, cache):
+        cache.ecrire(composition())
+        fichier = cache.chemin(ACTIF)
+        lignes = fichier.read_text(encoding="utf-8-sig").splitlines()
+        rang = lignes[0].split(";").index("regle_de_pays")
+        sans = [
+            ";".join(c for i, c in enumerate(ligne.split(";")) if i != rang) for ligne in lignes
+        ]
+        fichier.write_text("\n".join(sans) + "\n", encoding="utf-8-sig")
+
+        relue = cache.lire(ACTIF)
+
+        assert relue is not None and relue.regle_de_pays == ""
 
     def test_un_actif_absent_n_est_pas_une_erreur(self, cache):
         assert cache.lire("XX0000000999") is None
@@ -117,7 +140,8 @@ class TestUnFichierAbime:
         cache.ecrire(composition())
         fichier = cache.chemin(ACTIF)
         fichier.write_text(
-            fichier.read_text(encoding=tableur.ENCODAGE).replace("pays", "planete", 1),
+            # La rubrique d'une ligne de données, pas le nom de colonne « regle_de_pays ».
+            fichier.read_text(encoding=tableur.ENCODAGE).replace("\npays;", "\nplanete;", 1),
             encoding=tableur.ENCODAGE,
         )
 

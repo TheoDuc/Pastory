@@ -445,6 +445,16 @@ def _repartir(
         somme_hors_actions = sum(hors_actions.values(), ZERO)
         cumul.non_attribue += max(ZERO, _arrondi(valeur - valeur_actions - somme_hors_actions))
 
+        if not parts and valeur_actions > ZERO:
+            # La composition ne publie **rien** pour cette rubrique : c'est le cas de la source
+            # de secours, qui sert les pays et jamais les secteurs (D-77). La part actions n'est
+            # pas « non attribuée » — cette case est celle des liquidités et des dérivés que le
+            # fonds lui-même ne classe pas — elle est **non couverte** ici, et seulement ici : le
+            # fonds garde ses pays (conception-interface §5.2).
+            cumul.non_couvert += valeur_actions
+            non_couverts.append(position.actif)
+            continue
+
         attribue = _accumuler(cumul, parts, valeur, rubrique, referentiels)
         reste = _arrondi(valeur_actions - attribue)
         if reste >= ZERO:

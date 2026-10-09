@@ -336,7 +336,10 @@ class FournisseurDeCompositions:
             return declaree
 
         en_cache = self.cache.lire(actif)
-        if en_cache is not None:
+        # Une composition gardée sans règle de pays vient d'un cache d'avant l'étape 9, qui ne
+        # l'enregistrait pas : en ligne, elle est redemandée, pour que la règle se voie ligne par
+        # ligne (D-72). Hors ligne, ou si la source ne répond plus, elle sert telle quelle.
+        if en_cache is not None and (en_cache.regle_de_pays or self.hors_ligne):
             return en_cache
 
         if self.hors_ligne:
@@ -349,6 +352,20 @@ class FournisseurDeCompositions:
             return None
 
         source = self._source(actif)
+        if source is not None and en_cache is not None:
+            # Rafraîchir une composition gardée sans sa règle : la principale, puis le secours —
+            # c'est souvent par lui qu'un fonds était servi. Si rien ne répond, l'ancienne sert,
+            # et aucun refus n'est retenu : l'actif a bien une composition.
+            refus_avant = list(self._refus)
+            try:
+                composition = controler(source())
+            except ErreurDeSource as erreur:
+                composition = self._de_secours(actif, apres=erreur)
+                self._refus[:] = refus_avant
+                if composition is None:
+                    return en_cache
+            self.cache.ecrire(composition)
+            return composition
         if source is not None:
             try:
                 composition = controler(source())

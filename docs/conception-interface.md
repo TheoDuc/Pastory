@@ -4,9 +4,10 @@
 > Il ne dit pas comment l'écrire en Dash : c'est le travail de l'étape 9.
 >
 > Écrit à l'**étape 8**, complété à l'**étape 8 bis**. Dernière mise à jour :
-> **2026-10-01** — le §6 ajoute les **écrans de réglages** : l'étape 9 doit faire disparaître
-> l'édition de fichiers ([D-78](decisions.md)). Avec les §4 (les écrans retenus) et §5 (leurs
-> quatre états), **le document est complet : l'étape 9 peut s'appuyer dessus.**
+> **2026-10-08** — le §6 est réécrit au début de l'étape 9 : les écrans de réglages deviennent des
+> écrans de **correction**, facultatifs, puisque tout est trouvé seul ([D-80](decisions.md),
+> [D-94](decisions.md)). Avec les §4 (les écrans retenus) et §5 (leurs quatre états), **le
+> document est complet : l'étape 9 peut s'appuyer dessus.**
 >
 > Comme tout le dépôt, il n'utilise **aucune valeur réelle** ([D-03](decisions.md)). Les chiffres
 > qui l'illustrent sont inventés.
@@ -18,9 +19,9 @@
 | [1](#1-linventaire--ce-que-le-moteur-produit-et-où-ça-saffiche) | **L'inventaire** : chaque chose que le moteur produit, et l'écran qui la porte |
 | [2](#2-le-vocabulaire-décran) | **Le vocabulaire d'écran** : les mots que l'utilisateur va lire sans les avoir choisis |
 | [3](#3-les-règles-daffichage) | **Les règles d'affichage** : unités, alignement, troncature, couleurs |
-| [4](#4-les-écrans-retenus) | **Les écrans retenus** : les cinq onglets, leur ordre, et ce que chacun porte |
+| [4](#4-les-écrans-retenus) | **Les écrans retenus** : les quatre onglets, la page « Détail des calculs », et ce que chacun porte |
 | [5](#5-les-quatre-états-de-chaque-écran) | **Les quatre états** de chaque écran : vide, partiel, estimé, en erreur — et ce qu'aucun n'autorise |
-| [6](#6-les-écrans-de-réglages) | **Les écrans de réglages** : plus aucune configuration en éditant un fichier ([D-78](decisions.md)) |
+| [6](#6-les-écrans-de-correction) | **Les écrans de correction** : tout est trouvé seul, tout se corrige à l'écran, rien ne s'édite en fichier ([D-78](decisions.md), [D-80](decisions.md)) |
 
 ---
 
@@ -58,7 +59,7 @@ dépend des arbitrages sur les maquettes ; les *contenus*, eux, sont fixés.
 | Date des cours : « arrêté au 12/09/2026 » | `Valorisation.date` (`valorisation.py:160`) | rapport |
 | Source des cours, dédoublonnée | `Valorisation.sources` (`valorisation.py:190`) | rapport |
 | Fourchette des arrêtés de composition : « du 31/07 au 31/08/2026 » | `Diversification.arrete_du` / `.arrete_au` | rapport |
-| **Compteur « à surveiller »**, qui ouvre le panneau du §1.7 | Les trois listes de `Signalement` | rapport |
+| **Bouton « Détail des calculs »**, qui mène entre autres au panneau du §1.7 (le compteur prévu a été retiré à l'étape 9) | Les trois listes de `Signalement` | rapport |
 
 ### 1.2 Synthèse
 
@@ -330,12 +331,14 @@ Le rapport texte a **une fonction de mise en forme par unité**, et c'est le mod
 
 ## 4. Les écrans retenus
 
-Cinq onglets, arbitrés sur les maquettes de l'étape 8 et **fixés**. Les
-[maquettes](../maquettes/) en sont la version exécutable : là où ce document et elles se
-contredisent, **les maquettes ont raison**, et ce document est à corriger.
+Quatre onglets et une page à part, arbitrés sur les maquettes de l'étape 8 puis à l'écran pendant
+l'étape 9. Les [maquettes](../maquettes/) en sont la version exécutable de l'étape 8 ; depuis
+l'étape 9, **l'application fait foi** là où elles divergent (la diversification et le détail des
+calculs ont changé à l'écran, sur arbitrage du propriétaire).
 
 L'ordre des onglets est celui des questions qu'on se pose, de la plus large à la plus fine :
-combien j'ai gagné → sur quoi → où est mon argent → ce que ça coûte → comment c'est calculé.
+combien j'ai gagné → sur quoi → où est mon argent → ce que ça coûte. **Comment c'est calculé**
+n'est pas un onglet : c'est une page qu'on ouvre quand on veut vérifier (§4.6).
 
 | # | Onglet | La question à laquelle il répond | Filtres actifs |
 |---|---|---|---|
@@ -343,7 +346,7 @@ combien j'ai gagné → sur quoi → où est mon argent → ce que ça coûte �
 | 2 | **Les actifs** | Sur quoi, actif par actif ? | type, poches |
 | 3 | **Diversification** | Où est mon argent ? | **aucun** |
 | 4 | **Frais et taxes** | Combien tout cela coûte ? | **aucun** |
-| 5 | **Détail des calculs** | Comment ces chiffres sont-ils obtenus ? | période, poches |
+| — | **Détail des calculs** (page à part, §4.6) | Comment ces chiffres sont-ils obtenus ? | période, poches |
 
 **Pourquoi la diversification et les frais n'ont aucun filtre**, et c'est une règle et non un
 oubli : une répartition est la **photo d'un tout**, et la valeur réelle est celle du portefeuille
@@ -354,8 +357,10 @@ fait douter du chiffre affiché.
 
 Trois rangées, toujours visibles, de la plus sombre à la plus claire :
 
-1. **la manchette** : le logo et le nom, les cinq onglets, et à droite le compteur de ce qui est
-   **à surveiller** — qui mène au bloc du même nom, dans « Détail des calculs » ;
+1. **la manchette** : le logo et le nom, les quatre onglets, et à droite un bouton discret,
+   **« Détail des calculs »**, qui ouvre la page du même nom. Il remplace le compteur « à
+   surveiller » prévu à l'étape 8 : le bloc du même nom vit en bas de cette page. Sans export
+   déposé, la manchette n'a **ni onglets ni bouton** : seul l'accueil existe (§5.1) ;
 2. **les filtres** : période, type d'actif, poches. Chaque onglet n'affiche que ceux qui
    **agissent sur lui** (voir le tableau ci-dessus) ;
 3. **l'état des données** : la date de l'export, celle des cours, et les arrêtés de composition.
@@ -389,18 +394,23 @@ sans cours n'empêche pas les autres d'être justes. La remarque porte alors le 
 **Quatre sous-onglets**, dans l'ordre où l'on se pose les questions : **Actifs** (les classes),
 **Zone géographique**, **Pays**, **Secteur**. Les quatre sur un même écran écrasaient chacun d'eux.
 
-Chaque sous-onglet montre la même chose, deux fois :
+Les quatre sous-onglets ont **la même mise en page** (arbitrage du propriétaire, étape 9 : les
+anneaux, puis les carrés découpés essayés à leur place, ont été retirés) :
 
-- **le classement**, à gauche : une ligne par poste, avec son repère, sa barre, son montant et sa
-  part. Les barres sont toutes rapportées à la **même base**, jamais renormalisées
-  ([D-69](decisions.md)). En dessous d'une coupure, **« ce qui n'entre pas dans cette
-  répartition »** : non attribué, non couvert, hors actions ;
-- **l'anneau**, à droite : la même chose vue d'un coup d'œil. Il ne fait pas foi — **un anneau ne
-  porte pas de chiffre** — et une note le dit : « les montants et les parts sont dans le
-  classement, à gauche ».
+- **des chiffres clés**, en tuiles, rapportés à la valeur totale comme le classement : pour les
+  classes, la part en actions, hors actions et en actifs numériques ; ailleurs, le premier poste,
+  le nombre de pays ou de secteurs représentés, les dix premiers pays, et ce qui reste sans pays
+  ou sans secteur ;
+- **le classement**, pleine largeur : une ligne par poste, avec son repère (un drapeau par pays,
+  un pictogramme par classe ou secteur), sa barre, son montant et sa part. Les barres sont toutes
+  rapportées à la **même base**, jamais renormalisées ([D-69](decisions.md)). Au-delà de 15
+  postes, les autres se déplient (« Afficher les N autres ») ;
+- en dessous, **ce qui n'entre pas dans cette répartition** (non attribué, non couvert, hors
+  actions) sur **une seule ligne qui se déplie** pour montrer le détail par actif.
 
-Puis, pleine largeur, **« ce qu'il faut savoir de ces chiffres »** : les réserves qui rendent la
-lecture honnête, et non des notes techniques.
+Puis, **repliée**, « ce qu'il faut savoir de ces chiffres » : les réserves qui rendent la
+lecture honnête (origines des données, fonds synthétiques, contenus déclarés, fonds non
+couverts), et non des notes techniques.
 
 ### 4.5 Frais et taxes
 
@@ -418,8 +428,11 @@ séparation **réel / estimé** ([D-17](decisions.md)), et **non une chronologie
 
 ### 4.6 Détail des calculs
 
-L'onglet qui rend les chiffres **refaisables à la main**, et c'est sa seule raison d'être : le
-propriétaire ne code pas, il vérifie. Il contient, dans cet ordre :
+La page qui rend les chiffres **refaisables à la main**, et c'est sa seule raison d'être : le
+propriétaire ne code pas, il vérifie. **Ce n'est pas un onglet** (arbitrage du propriétaire,
+étape 9) : elle n'est pas aussi importante que le reste et ne doit pas en avoir l'air. Elle
+s'ouvre par le bouton discret à droite de la manchette, et suit la période et les poches
+choisies. Elle contient, dans cet ordre :
 
 - **comment le gain est obtenu**, et **pourquoi il ne tombe pas sur la somme de la colonne** — le
   piège le plus coûteux de l'étape 8 : le gain se calcule sur les montants **bruts**
@@ -428,9 +441,10 @@ propriétaire ne code pas, il vérifie. Il contient, dans cet ordre :
 - **les flux datés, qui donnent le TRI** ;
 - **les sous-périodes, qui donnent le TWRR** ;
 - **une estimation, de bout en bout** — un exemple chiffré d'un coût estimé ;
-- **ce que le calcul d'impôt suppose** ;
+- **ce que le calcul d'impôt suppose**, et de quoi la base imposable est faite ;
+- **« D'où viennent les réglages »**, replié (§6.3) ;
 - **« à surveiller »** — le panneau des types d'événements inconnus, des déductions et des
-  estimations. C'est ici qu'aboutit le compteur de la manchette.
+  estimations.
 
 ---
 
@@ -447,7 +461,7 @@ doit savoir lequel elle affiche, et un bloc qui n'en prévoit qu'un est incomple
 
 | Cas | Ce que l'écran dit |
 |---|---|
-| Aucune opération lue | Où récupérer un export, et avec quelle commande |
+| Aucune opération lue | Où récupérer un export dans l'application Trade Republic, et où le déposer : la zone de dépôt de l'accueil ([D-95](decisions.md)). **Les onglets n'apparaissent pas** : ils ramèneraient tous au dépôt, et feraient croire qu'il y a quelque chose derrière. Ils viennent avec le premier export lu *(arbitrage du propriétaire, 2026-10-08)* |
 | Une seule ligne au portefeuille | Les chiffres, sans camembert : un anneau à une part ne dit rien |
 | Aucun cours connu sur la période | **Rien n'est tracé**, plutôt qu'une ligne à zéro — et la phrase le dit |
 | Aucun actif dans le filtre choisi | Que le filtre est en cause, et non les données |
@@ -512,86 +526,118 @@ Quatre choses, jamais, sur aucun écran :
 
 ---
 
-## 6. Les écrans de réglages
+## 6. Les écrans de correction
 
-> **À réécrire au début de l'étape 9 ([D-80](decisions.md), 2026-10-01).** L'application ne
-> **propose** plus : elle **trouve, applique et montre** chaque valeur, avec sa source et sa date, et
-> l'utilisateur **peut** la corriger. Ces écrans deviennent des écrans de **correction**,
-> facultatifs. Ce qui suit reste juste sur trois points — l'édition à la main n'est jamais écrasée,
-> un manque se dit là où il se voit, rien n'exige un réglage pour afficher le reste — mais la règle
-> « l'application propose, l'utilisateur décide » est remplacée, et le rôle des comptes n'existe
-> plus ([D-79](decisions.md)).
->
-> **Ce que l'étape 8 quater met en place pour ces écrans (2026-10-05).** Chaque réglage existe
-> désormais sous une seule forme (`pastory/reglages`) : une valeur, **sa source, sa date, ce qui a
-> été vérifié, ce qu'il faut savoir** — ou le **motif** de son absence — et, quand l'utilisateur
-> l'a corrigée, **ce que la source donnait**. `pastory actifs` en est la version texte : c'est le
-> contenu exact de l'écran de correction, à reprendre tel quel. Les réglages à montrer : cotation,
-> type, frais courants, contenu, source de secours (`aucun` pour la refuser), date d'ouverture du
-> PEA et retraits relevés ([D-85](decisions.md) à [D-92](decisions.md)). Une correction de ticker
-> n'a rien à faire des cours déjà gardés : ceux d'une autre cotation ne sont jamais employés
-> ([architecture-notes §7 bis](architecture-notes.md)).
+> **Réécrit au début de l'étape 9 (2026-10-08)**, selon [D-80](decisions.md) : l'application
+> **trouve, applique et montre** chaque valeur, avec sa source et sa date ; l'utilisateur **peut**
+> la corriger, il n'a **jamais** à le faire. La version d'avant — « l'application propose,
+> l'utilisateur décide », écrite le 2026-10-01 pour [D-78](decisions.md) — est remplacée ; ses
+> trois règles qui restent vraies sont reprises au §6.2.
 
-**Ajouté le 2026-10-01, et ce n'est pas un complément :** [D-78](decisions.md) fait de ces écrans
-une partie de l'étape 9, au même titre que la synthèse. La raison est un arbitrage du propriétaire,
-et elle vaut d'être lue avant d'écrire une ligne :
+**La raison de ces écrans**, un arbitrage du propriétaire qu'il faut lire avant d'écrire une ligne
+([D-78](decisions.md)) :
 
 > Une bidouille qui fait peur n'est pas seulement désagréable : **elle fait douter de l'application
 > entière.** Ce projet demande à l'utilisateur de croire ses chiffres. Cette confiance ne survit pas
 > à une mise en route qui ressemble à du dépannage.
 
-Le fichier TOML reste le **format de stockage**. Il n'est plus le moyen de configurer.
+Le fichier TOML reste le **format de stockage**. Il n'est plus le moyen de configurer, ni même
+celui de corriger : **l'étape 9 n'est pas terminée tant qu'une correction n'existe qu'en fichier.**
 
-### 6.1 Ce qui doit avoir un écran
+### 6.1 Ce que chaque réglage montre, et ce qu'on peut y corriger
 
-Quatre réglages existent aujourd'hui, et **aucun** ne doit rester accessible seulement par le
-fichier :
+Le contenu de ces écrans existe déjà : c'est `pastory/reglages` (un `Reglage` par réglage), dont
+`pastory actifs` est la version texte. L'écran le reprend tel quel, avec les mêmes mots.
 
-| Réglage | Ce que l'utilisateur fait aujourd'hui | Ce que l'écran doit permettre |
+**Pour chaque réglage, l'écran montre** :
+
+| Cas | Ce qui s'affiche |
+|---|---|
+| **Trouvé** | la valeur ; « trouvé : » sa **source** et sa **date** (ou « taux en vigueur depuis le » pour un TER) ; « vérifié : » le contrôle passé ; « à savoir : » la réserve de la source, s'il y en a une |
+| **Corrigé par vous** | la valeur ; « corrigé par vous » ; et **« la source donnait »** la valeur trouvée, si elle est différente — c'est ce qui rend visible une correction devenue inutile ou fausse. Un bouton **« revenir à la valeur trouvée »** |
+| **Introuvable** | le **motif**, écrit pour quelqu'un qui découvre (règle 10). Jamais une valeur par défaut |
+| **Sans objet** | rien — un TER pour une action, un contenu que rien n'annonce. Le réglage n'apparaît pas |
+
+**Ce qui se corrige**, actif par actif (`config/actifs.py`, `Declaration`) :
+
+| Réglage | Trouvé où | La correction à l'écran |
 |---|---|---|
-| ~~Le rôle des comptes espèces~~ | *supprimé à l'étape 8 ter* : la poche est écrite dans l'export officiel ([D-81](decisions.md)) | — |
-| **Le ticker et la devise d'un actif** | ouvre `actifs.toml`, valide ou corrige la proposition | l'actif, la proposition de la source, sa devise, et **valider / corriger / laisser vide** |
-| **Le type, le TER, le spread** | même fichier, mêmes lignes | des champs, avec le TER proposé et sa source |
-| **Le `contenu`** ([D-71](decisions.md)) | écrit `contenu = "obligations"` | un choix, proposé **là où l'actif est annoncé non couvert** |
-| **La source de secours** ([D-77](decisions.md)) | écrit `secours = "amundi"` | un bouton, proposé au même endroit — voir §6.3 |
+| **Cotation** : ticker et devise | recherche par ISIN, contrôlée par le prix payé ([D-85](decisions.md)) | un ticker et sa devise. Seul l'euro est accepté ([D-48](decisions.md)) : un autre est refusé avec la raison |
+| **Type** | l'export ([D-82](decisions.md)) | un choix : ETF, action, crypto-actif |
+| **Frais courants (TER)** | l'émetteur, puis Xetra ([D-90](decisions.md)) | un taux en pour cent, refusé hors de sa fourchette. ETF seulement |
+| **Spread propre** | — *(le taux de son type s'applique)* | un taux en pour cent, par côté. Facultatif |
+| **Contenu** | extraETF, contrôlé par le code CFI ([D-89](decisions.md)) | un choix : actions, obligations, matières premières |
+| **Source de secours** | essayée d'elle-même ([D-91](decisions.md)) | **la refuser** pour cet actif, ou l'imposer |
+| **Répartition déclarée** : pays, secteurs | — *(la source de composition)* | une liste de lignes code + pour cent ; le pays et le secteur se choisissent par leur **nom**, l'écran écrit le code ([D-65](decisions.md), [D-66](decisions.md)) |
+
+Et pour le portefeuille entier : la **date d'ouverture du PEA** (`fiscalite.toml`), trouvée dans les
+mouvements d'espèces du plan ([D-86](decisions.md)), avec sa réserve ; et les **retraits relevés**
+([D-87](decisions.md)), qui se montrent et ne se corrigent pas — ce sont des faits de l'export.
 
 ### 6.2 Les trois règles de ces écrans
 
-1. **L'application propose, l'utilisateur décide.** Quand elle peut deviner un réglage, elle le
-   **propose avec sa raison** et ne l'applique jamais sans accord. Ce que
-   [D-70](decisions.md), [D-71](decisions.md) et [D-77](decisions.md) interdisent, c'est de
-   **basculer en silence** — pas de demander en un clic. Un réglage appliqué sans accord reste
-   interdit ; un réglage proposé, expliqué et accepté d'un clic est exactement ce qu'elles veulent.
-2. **L'édition à la main reste possible, et n'est jamais écrasée.** L'écran et le fichier sont deux
-   portes sur la même chose. Un utilisateur qui a écrit une ligne à la main doit la retrouver
-   intacte, et **les commentaires du fichier doivent survivre à une écriture par l'écran** — ce
-   sont eux qui le rendent compréhensible, et les perdre viderait cette règle de son sens. À
-   traiter comme un sujet, pas comme un détail.
-3. **Un réglage manquant se dit là où il manque.** Pas dans un écran de réglages qu'il faudrait
-   penser à aller voir : sur la ligne, sur le chiffre, à l'endroit où son absence se voit. Un actif
-   sans ticker le dit dans le tableau des actifs, et le lien vers son réglage est là.
+1. **L'application trouve, applique et montre ; l'utilisateur peut corriger** ([D-80](decisions.md)).
+   Aucun réglage n'attend un clic pour s'appliquer, et aucun écran n'est un passage obligé. Ce qui
+   protège d'une valeur fausse, ce sont les **contrôles** et la **visibilité de la source** — pas
+   une validation qu'un utilisateur non connaisseur ne saurait pas juger.
+2. **L'écran écrit une correction, et rien d'autre** ([D-94](decisions.md)). Un seul champ d'un
+   seul actif, celui que l'utilisateur vient de saisir. Le fichier garde ses **commentaires**, son
+   ordre et les lignes écrites à la main : l'écran et le fichier sont deux portes sur la même chose.
+   Une saisie passe par **la même lecture** que le fichier : ce que l'application refuserait de lire,
+   l'écran refuse de l'écrire, et dit pourquoi. Jamais une valeur trouvée n'est recopiée dans le
+   fichier ([D-92](decisions.md)).
+3. **Un manque se dit là où il se voit, et le lien vers sa correction est là.** Pas dans un écran
+   de réglages qu'il faudrait penser à aller voir : un actif sans cotation le dit sur sa ligne du
+   tableau des actifs ; un TER introuvable, dans les frais ; un fonds non couvert, dans la
+   diversification ; la date du PEA, dans la règle d'impôt. Chacun ouvre la correction de **cet**
+   actif.
 
-### 6.3 Le cas de la source de secours, en exemple
+### 6.3 Où sont ces écrans
 
-C'est le cas qui a produit [D-78](decisions.md), et il montre ce que « proposer » veut dire.
+Les onglets sont fixés (§4) : la correction n'en ajoute pas un de plus.
 
-L'application **sait déjà tout** ce qu'il faut : elle connaît les fonds **non couverts**, et elle
-sait reconnaître un fonds Amundi puisque la source de secours répond « aucun produit » pour les
-autres émetteurs. Donc, là où l'actif est annoncé non couvert :
+- **La fiche de réglages d'un actif** s'ouvre en volet, par-dessus l'onglet en cours, depuis
+  chaque endroit où l'actif apparaît avec un réglage à dire — sa ligne dans « Les actifs », un
+  fonds non couvert ou servi par le secours dans « Diversification », un TER introuvable dans
+  « Frais et taxes ». Elle montre tous les réglages de l'actif (§6.1), dans l'ordre de
+  `ReglagesDUnActif.reglages()`, puis ce qui ne se trouve jamais seul (spread, répartition,
+  secours). La fermer ramène là où l'on était.
+- **La date d'ouverture du PEA** s'ouvre de la même façon depuis la règle d'impôt du PEA, dans
+  « Frais et taxes ».
+- **« D'où viennent les réglages »**, dans « Détail des calculs », juste avant « à surveiller » :
+  la version écran de `pastory actifs`. En tête, le compte — « 18 valeurs trouvées seules,
+  1 corrigée par vous, 2 introuvables » —, puis chaque actif, chaque réglage et son origine, avec
+  le lien vers sa fiche. C'est l'endroit où l'on vérifie **tout** d'un coup, sans rien chercher.
+- **Les corrections sans actif** (une ligne d'`actifs.toml` qu'aucun export ne contient, souvent un
+  ancien identifiant) sont listées au même endroit, avec un bouton pour les retirer.
 
-> **Ce fonds n'est pas couvert.** Amundi publie la répartition de l'indice qu'il suit. L'utiliser
-> pour sa répartition **par pays** ? Ses secteurs resteront non couverts, et la source comme la
-> règle de pays seront affichées sur chaque ligne.
-> **[Utiliser Amundi]  [Non]**
+Après une correction, les chiffres sont **recalculés** et l'écran le dit en une ligne. Une
+correction de cotation n'a rien à faire des cours déjà gardés : ceux d'une autre cotation ne sont
+jamais employés ([architecture-notes §7 bis](architecture-notes.md)).
 
-Rien à taper, et la décision reste celle de l'utilisateur. Le refus est aussi une réponse, et il
-doit se retenir : ne pas reposer la question à chaque lancement.
+### 6.4 Un exemple : un TER introuvable
 
-### 6.4 Ce que ces écrans n'ont pas le droit de faire
+Un ETF iShares « Swap PEA » n'est ni dans la liste de Xetra ni chez Amundi, et la seule source qui
+le publie n'a pas de date ([D-90](decisions.md)). Dans « Frais et taxes », sa ligne des frais
+courants dit :
 
-- **deviner et appliquer** sans le dire ni demander ;
-- **masquer** un réglage manquant pour faire propre : c'est ce qui produit un chiffre faux plus
+> **TER introuvable** — aucune source datée ne publie les frais courants de ce fonds. Ils ne sont
+> pas comptés dans l'estimation des frais pendant la détention, qui est donc plus basse que la
+> réalité. [Indiquer le TER de ce fonds]
+
+Le lien ouvre la fiche de l'actif, au champ des frais courants. L'utilisateur y écrit le taux de son
+document d'informations clés ; l'écran vérifie la fourchette, écrit la ligne dans `actifs.toml`,
+recalcule, et la ligne des frais affiche désormais le taux avec « corrigé par vous ». Rien n'a été
+demandé à l'ouverture, et rien n'empêchait de lire le reste.
+
+### 6.5 Ce que ces écrans n'ont pas le droit de faire
+
+- **appliquer une valeur sans la montrer**, avec sa source ([D-80](decisions.md), règle 1) ;
+- **masquer** un réglage introuvable pour faire propre : c'est ce qui produit un chiffre faux plus
   loin ;
-- **écrire dans le fichier autre chose que ce que l'utilisateur a validé** ;
-- **exiger un réglage pour afficher le reste.** Un portefeuille dont trois actifs ne sont pas
-  déclarés s'affiche quand même, avec ses trois trous nommés — c'est l'état « partiel » du §5.2.
+- **écrire dans le fichier autre chose que ce que l'utilisateur a saisi**, ni une valeur trouvée
+  ([D-92](decisions.md), [D-94](decisions.md)) ;
+- **exiger un réglage pour afficher le reste.** Un portefeuille dont trois réglages sont
+  introuvables s'affiche quand même, avec ses trois trous nommés — c'est l'état « partiel » du §5.2 ;
+- **reposer une question** : un refus (de la source de secours, par exemple) est une correction
+  comme une autre, écrite et retenue.

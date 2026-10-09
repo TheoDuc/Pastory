@@ -116,6 +116,51 @@ part.
 multi-actifs reste un trou ; l'immobilier compté en actions, comme le fait l'émetteur. Rien ne
 presse : aucun des deux portefeuilles connus n'en détient.
 
+### Q-61 · La prédiction de l'évolution : quelles hypothèses ?
+*Ouverte le 2026-10-09, avec [D-97](decisions.md). À trancher avant d'écrire le code (étape 9 bis).*
+
+**Le cadre, déjà décidé :** une valeur de départ, un taux annuel, une durée, un versement
+mensuel ; sans aléa, une courbe ; avec l'option « taux aléatoire », 10 000 simulations et les
+quantiles 5 %, 25 %, 50 %, 75 %, 95 %. Restent cinq choix, qui changent les chiffres affichés.
+
+**1. Que veut dire le taux, une fois l'aléa ajouté ?** C'est le piège principal. Si les
+rendements varient, la **moyenne** des résultats et le résultat **médian** ne sont plus égaux :
+la médiane est plus basse, d'autant plus que la dispersion est forte (une année à −20 % puis une
+à +20 % ne ramènent pas au point de départ : 0,8 × 1,2 = 0,96).
+- **(a) Le taux est celui de la médiane :** la courbe médiane retombe (presque exactement) sur la
+  courbe sans aléa. L'option « aléatoire » ajoute un éventail autour de la même courbe ;
+- **(b) Le taux est celui de la moyenne :** la courbe médiane passe sous la courbe sans aléa, et
+  l'écart grandit avec le taux et la durée.
+
+**2. La loi des rendements.**
+- **(a) Log-normale, mois par mois, indépendante** : la plus courante, se décrit en une phrase,
+  ne descend jamais sous zéro. Elle **sous-estime les krachs** (une chute comme 2008 y est plus
+  rare que dans la réalité) ;
+- **(b) Rejouer l'histoire d'un indice** (tirer au hasard des mois réels) : plus réaliste, mais
+  il faut une série historique sourcée et datée (D-58), et elle ne parle que de cet indice-là.
+
+**3. Le lien entre le taux et la dispersion** (« plus le taux est élevé, plus c'est dispersé ») :
+- **(a) Proportionnel :** dispersion = k × taux, un seul nombre k. Simple, mais k est arbitraire ;
+- **(b) Des points de repère sourcés :** quelques classes d'actifs (monétaire, obligations,
+  actions monde) avec leur rendement et leur volatilité historiques, chacun avec sa valeur, sa
+  date et sa source (D-58) ; entre deux repères, on interpole. Le taux choisi revient alors à un
+  profil de risque ;
+- **(c) La dispersion saisie à la main**, à côté du taux.
+
+**4. Ce que le taux contient.** Un taux **nominal, avant impôt, frais et inflation**, et l'écran
+le dit ; ou bien une case pour retrancher l'inflation.
+
+**5. Le hasard est-il fixé ?** Avec une graine fixe, les mêmes entrées donnent toujours les
+mêmes courbes : le résultat ne bouge pas en rechargeant la page, et il se vérifie.
+
+**Recommandation (pas une décision) :**
+- **1 (a)** : la courbe simple reste la référence, et l'éventail s'ajoute autour d'elle ;
+- **2 (a)**, et l'écran dit que la loi sous-estime les krachs ;
+- **3 (b)**, avec la valeur trouvée affichée et modifiable, comme toute valeur trouvée (D-80).
+  Les repères seront à chercher et à sourcer, rien n'est inventé ;
+- **4** : nominal, dit à l'écran ;
+- **5** : graine fixe.
+
 ---
 
 ## Tranchées

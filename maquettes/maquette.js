@@ -40,7 +40,7 @@
     courbeBrut: "#1d6c93",
     courbeInvesti: "#665c51",
     absent: "#ada08a",
-    poche: { PEA: "#1b4a63", CTO: "#37738c", Crypto: "#6fa0b4" },
+    poche: { PEA: "#4167ad", CTO: "#14938d", Crypto: "#76386a" }, // D-96
   };
   const COULEUR_POCHE = COULEURS.poche;
 

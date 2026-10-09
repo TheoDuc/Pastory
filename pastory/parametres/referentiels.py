@@ -43,7 +43,7 @@ ZONE_INCONNUE = "inconnue"
 """La zone des pays que `zones.toml` ne connaît pas. Elle n'est **pas** dans le fichier : elle est
 fabriquée ici, pour que le total reste juste sans qu'aucun pays soit rattaché de force."""
 
-LIBELLE_ZONE_INCONNUE = "Zone non renseignee"
+LIBELLE_ZONE_INCONNUE = "Zone non renseignée"
 """Sans accent : ce libellé peut sortir sur une console Windows, qui écrit en cp1252."""
 
 RANG_ZONE_INCONNUE = 99

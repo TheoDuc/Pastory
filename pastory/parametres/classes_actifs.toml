@@ -19,15 +19,16 @@
 
 [meta]
 nomenclature = "Classes d'actifs d'un fonds, telles que les publient les agrégateurs de données"
-source = "Postes observés dans le champ `asset_allocation_exposure_list` d'extraETF le 2026-09-27 (stock, bond, preferred, convertible, cash, other) ; docs/composition-des-etf.md §3.1"
-verifie_le = 2026-09-27
+source = "Postes observés dans le champ `asset_allocation_exposure_list` d'extraETF le 2026-09-27 (stock, bond, preferred, convertible, cash, other) ; docs/composition-des-etf.md §3.1. Classes de l'indice suivi chez Amundi (`INDEX_ASSETCLASSES`, `equity_ordinary`, `equity_preferred`) observées le 2026-10-08 ; docs/reglages-automatiques.md"
+verifie_le = 2026-10-08
 note = "Les libellés français sont ceux de l'application ; les alias sont les codes des sources."
 
 [classe.actions]
 libelle = "Actions"
 rang = 1
 actions = true
-alias = ["stock", "stocks", "equity", "equities", "preferred", "preferred_stock"]
+alias = ["stock", "stocks", "equity", "equities", "preferred", "preferred_stock", "equity_ordinary", "equity_preferred"]
+note = "`equity_ordinary` et `equity_preferred` sont les actions de la source de secours (Amundi). Absents jusqu'au 2026-10-08, ils faisaient compter un fonds servi par elle deux fois dans les pays : par ses pays, et comme « hors actions » sous un code non reconnu."
 
 [classe.obligations]
 libelle = "Obligations"
@@ -49,7 +50,8 @@ actions = false
 alias = ["cash", "cash_and_equivalents", "money_market", "liquidity"]
 
 [classe.autres]
-libelle = "Autres"
+libelle = "Dérivés et divers"
 rang = 5
 actions = false
 alias = ["other", "others", "derivative", "derivatives"]
+note_libelle = "Nommé « Dérivés et divers » et non « Autres » depuis le 2026-10-08 : « autres » pour un reste fait passer un manque pour une catégorie (conception-interface §2.4). Le poste reste ce que la source publie sous ce nom : dérivés, lignes qu'elle ne classe pas."

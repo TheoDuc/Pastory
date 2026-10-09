@@ -662,3 +662,37 @@ class TestLOrigineDeChaqueActifEstConnue:
         resultat = dv.diversifier(valorisation, source, referentiels)
 
         assert [o.actif for o in resultat.origines] == [ETF]
+
+
+class TestUneRubriqueAbsenteDeLaCompositionEstNonCouverte:
+    """Le cas de la source de secours (D-77) : elle sert les pays, jamais les secteurs. Un tel
+    fonds « a des pays et reste non couvert en secteur » (conception-interface §5.2).
+
+    Défaut trouvé à l'étape 9 sur les données du propriétaire : sa part en actions finissait en
+    « non attribué », la case des liquidités et des dérivés d'un fonds — 18 % du portefeuille
+    expliqués par une bulle qui parlait de lignes non classées."""
+
+    def test_le_fonds_a_ses_pays_et_reste_non_couvert_en_secteur(self, referentiels):
+        valorisation = _valorisation(_achat(ETF, "10", "100.00"), cours={ETF: "100.00"})
+        secours = CompositionFictive(pays=parts(US="60", CN="40"), classes=parts(stock="100"))
+        source = SourceDeCompositionFictive({ETF: secours})
+
+        resultat = dv.diversifier(valorisation, source, referentiels)
+
+        assert resultat.pays.non_couvert == Decimal("0")
+        assert resultat.pays.attribue == Decimal("1000.00")
+        assert resultat.secteurs.non_couvert == Decimal("1000.00")
+        assert resultat.secteurs.non_attribue == Decimal("0")
+        assert resultat.secteurs.actifs_non_couverts == (ETF,)
+        assert resultat.pays.actifs_non_couverts == ()
+
+    def test_un_fonds_sans_action_n_est_pas_non_couvert(self, referentiels):
+        """Un obligataire n'a ni pays ni secteur au sens des actions : c'est hors périmètre,
+        pas un manque (D-68)."""
+        valorisation = _valorisation(_achat(OBLIG, "5", "100.00"), cours={OBLIG: "100.00"})
+        source = SourceDeCompositionFictive({OBLIG: etf_obligataire()})
+
+        resultat = dv.diversifier(valorisation, source, referentiels)
+
+        assert resultat.secteurs.non_couvert == Decimal("0")
+        assert resultat.secteurs.actifs_non_couverts == ()
