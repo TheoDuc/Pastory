@@ -7,8 +7,9 @@ commencer.
 > **À mettre à jour par l'instance qui termine une étape**, avant la fusion dans `main`. La
 > dernière section dit comment.
 >
-> Dernière mise à jour : **2026-10-05**, fin de l'étape 8 quater : les réglages se trouvent
-> seuls, et `actifs.toml` n'est plus qu'un fichier de corrections.
+> Dernière mise à jour : **2026-10-09**, au milieu de l'étape 9 (blocs 9.0 à 9.4 faits et
+> fusionnés dans `main`). La section « Où en est l'étape 9 » ci-dessous prime sur le reste du
+> fichier, qui date de la fin de l'étape 8 quater et sera réécrit au bloc 9.6.
 
 ---
 
@@ -16,8 +17,53 @@ commencer.
 
 ```
 Lis CLAUDE.md puis docs/feuille-de-route.md, et docs/prompt-session-suivante.md.
-On attaque l'étape 9 : la réalisation de l'interface.
+On attaque l'étape 9 bis : l'identité visuelle et la prédiction de l'évolution.
 ```
+
+---
+
+## Où en est l'étape 9 (2026-10-09)
+
+**Fait, sur la branche `etape-9`, fusionné dans `main` :** l'assembleur (`pastory/assembleur.py`),
+`pastory ouvrir`, l'accueil avec le dépôt de l'export (D-95), la synthèse, les actifs, la
+diversification, les frais et taxes, et le **détail des calculs**, devenu une **page discrète**
+ouverte par un bouton à droite de la manchette (il remplace le compteur « À surveiller », dont
+le bloc est en bas de cette page). Décisions D-93 à D-97. Le contrat d'écran
+([conception-interface.md](conception-interface.md) §4) décrit ce qui est à l'écran.
+
+**Reste :**
+- **l'étape 9 bis**, que le propriétaire veut attaquer en premier
+  ([feuille-de-route.md](feuille-de-route.md)) :
+  - l'identité visuelle, en maquettes comparables d'abord ;
+  - la prédiction de l'évolution (Monte-Carlo, D-97). **Rien n'est codé avant que Q-61 soit
+    tranchée** : les hypothèses, avec la recommandation écrite.
+- **Le choix du fond** : trois pistes (A, B, C) sont dans `maquettes/apercus-fond/`, non
+  versionné. Le propriétaire n'a pas encore choisi ; à reprendre dans la 9 bis, puis supprimer
+  le dossier.
+- **9.5** : les écrans de correction (tomlkit, D-94 ; le §6 du contrat est déjà réécrit).
+- **9.6** : le cahier `docs/verification/etape-9.md`, `/code-review`, et la réécriture de ce
+  fichier.
+
+**Les pièges de cette session :**
+- **Dash 4 n'a pas de composants SVG** : tout graphique est un élément vide `data-dessin` dont
+  `data-donnees` porte des libellés **déjà mis en forme** par Python ; `assets/dessin.js` dessine
+  (D-93).
+- **Coupures de connexion locales** (`ERR_CONNECTION_RESET` sur 127.0.0.1, sans doute
+  l'antivirus) : page blanche. Le script `FILET_DE_CHARGEMENT` d'`application.py` recharge, puis
+  affiche un message.
+- **uv sur OneDrive** (« Accès refusé ») : `UV_LINK_MODE=copy uv sync --native-tls`.
+- **Yahoo rend la clôture d'hier vide (`null`) pendant plusieurs heures**, pour les ETF comme
+  pour le bitcoin. Pastory ne l'invente pas. Et depuis le 2026-10-09, un jour cherché **après**
+  la fin du cache fait redemander la suite (`FournisseurDeCours._completer_la_fin`) : avant, les
+  cours restaient figés au dernier `pastory cours`.
+- **Vérifier à l'écran** : lancer sur une **copie** du dossier Pastory, jamais sur le vrai :
+  `PASTORY_DOSSIER=<copie> .venv/Scripts/python.exe -c "from pastory.vues import application;
+  application.lancer(hors_ligne=True, port=8085, navigateur=False)"`, puis une capture par Edge
+  sans fenêtre (protocole DevTools). Le script de capture vivait dans le scratchpad : à réécrire.
+- **Bash et les barres obliques inverses** : écrire les scripts avec l'outil d'écriture de
+  fichiers, pas par heredoc.
+- `ruff check` est la règle ; `ruff format` n'est pas appliqué au dépôt (66 fichiers le
+  changeraient) : ne pas le lancer en masse.
 
 ---
 
