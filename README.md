@@ -17,6 +17,22 @@ machine.
 > dans [docs/feuille-de-route.md](docs/feuille-de-route.md), et le guide d'installation complet
 > viendra à l'étape 10.
 
+## Ouvrir Pastory
+
+Dans un terminal, à la racine du projet :
+
+```bash
+uv run --no-sync pastory ouvrir
+```
+
+L'application s'ouvre dans le navigateur. Laissez le terminal ouvert pendant que vous l'utilisez ;
+**Ctrl+C** l'arrête.
+
+`--no-sync` empêche uv de réinstaller le projet avant de le lancer : sur cette machine, cette
+réinstallation échoue (OneDrive, et l'antivirus qui bloque un téléchargement), alors que
+l'environnement déjà installé fonctionne. Un raccourci sur le bureau remplacera cette commande à
+l'étape 10.
+
 ## Installation, pour l'instant
 
 Le projet utilise [uv](https://docs.astral.sh/uv/) ([D-32](docs/decisions.md)).
