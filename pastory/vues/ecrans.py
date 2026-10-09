@@ -8,7 +8,15 @@ from __future__ import annotations
 
 from dash import html
 
-from pastory.vues import accueil, actifs, bandeau, diversification, surveiller, synthese
+from pastory.vues import (
+    accueil,
+    actifs,
+    bandeau,
+    diversification,
+    frais,
+    surveiller,
+    synthese,
+)
 from pastory.vues.briques import bloc, mot
 from pastory.vues.chiffres import Chiffres, Echec, Vue
 from pastory.vues.surveiller import Point
@@ -61,6 +69,8 @@ def rendre(chiffres: Chiffres, etat: dict) -> Rendu:
 def _corps(onglet: str, vue: Vue, points: list[Point], chiffres: Chiffres, etat: dict):
     if onglet == "synthese":
         return synthese.ecran(vue, chiffres, int(etat.get("page", 0)))
+    if onglet == "frais":
+        return frais.ecran(vue)
     if onglet == "diversification":
         return diversification.ecran(
             vue, etat.get("rubrique", "classes"), bool(etat.get("deplie", False))

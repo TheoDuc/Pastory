@@ -42,7 +42,10 @@ def coter(dossier_personnel: Path, sauf: tuple[str, ...] = ()) -> Chiffres:
     fichier.write_text(
         "[actifs]\n"
         + "".join(
-            f'"{actif}" = {{ ticker = "{ticker}", devise = "EUR" }}\n'
+            f'"{actif}" = {{ ticker = "{ticker}", devise = "EUR"'
+            # Le TER de l'ETF, corrigé à la main : hors ligne, aucune source ne le trouverait.
+            + (", ter_pour_cent = 0.20" if actif == fictifs.ACTIF_ETF else "")
+            + " }\n"
             for actif, (ticker, _, _) in COURS.items()
         ),
         encoding="utf-8",

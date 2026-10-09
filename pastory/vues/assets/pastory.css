@@ -1666,3 +1666,13 @@ img.fanion {
 .deroulant > .rang {
   padding-left: 14px;
 }
+
+/* Le nom d'une poche ne se coupe jamais sous sa pastille. */
+.jeton {
+  white-space: nowrap;
+}
+
+/* Un « ? » qui suit un libellé de liste n'y est jamais collé. */
+.liste-parts__nom > .aide {
+  margin-left: 4px;
+}
