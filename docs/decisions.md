@@ -1683,3 +1683,16 @@ d'au moins 3:1.
 ferait dépendre la lecture de la couleur.
 **Limite connue :** sur le fond de page (`--papier`), le bleu-vert est à 2,95:1, juste sous le
 seuil ; il n'y est jamais seul — le nom de la poche l'accompagne toujours.
+
+### D-97 · 2026-10-09 · La prédiction de l'évolution rejoint l'étape 9 bis · Validée
+**Décision :** la simulation Monte-Carlo de [D-27](#d-27), prévue à l'étape 12, devient une
+section de l'interface, « **Prédiction de l'évolution** », réalisée à l'étape **9 bis** avec la
+refonte de l'identité visuelle. Ses entrées : une valeur de départ (par défaut le **capital brut**
+du portefeuille, modifiable), un taux annuel, une durée, un versement mensuel. Son résultat : une
+courbe et le montant atteint ; avec l'option « taux aléatoire », **10 000 simulations** résumées
+par les quantiles 5 %, 25 %, 50 %, 75 % et 95 %. D-27 tient toujours : rien d'autre n'en dépend,
+et elle ne lit du portefeuille que sa valeur de départ.
+**Raison :** le propriétaire, en fin d'étape 9.4 : la section fait partie de l'application qu'il
+veut utiliser, pas d'une étape lointaine après la publication.
+**Reste à trancher :** la loi des rendements et le lien entre le taux et la dispersion
+([Q-61](questions-ouvertes.md)). Rien n'est codé avant.

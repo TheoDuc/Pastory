@@ -268,7 +268,13 @@ pastory/
     ├── accueil.py             où trouver l'export, où le déposer, ce que la lecture a trouvé
     ├── reception.py           un export déposé : vérifié sur place, rangé, jamais écrasé (D-95)
     ├── surveiller.py          « à surveiller » : tout ce que chaque couche signale
-    └── assets/                pastory.css (la feuille de la maquette), les polices, dessin.js
+    ├── synthese.py            les tuiles, la courbe, les poches, les cartes d'actifs
+    ├── actifs.py              le tableau des actifs, filtrable et triable, et sa remarque par ligne
+    ├── diversification.py     les quatre rubriques : chiffres clés, classement, restes repliés
+    ├── frais.py               les trois niveaux : prélevé, détention, sortie
+    ├── detail.py              la page discrète « Détail des calculs », et « à surveiller » en bas
+    └── assets/                pastory.css (la feuille de la maquette), les polices, dessin.js,
+                               les drapeaux (flag-icons, licence MIT)
 
 scripts/
 └── inventaire_structure.py    relevé structurel d'un export officiel, sans aucune valeur (D-05)
@@ -636,7 +642,7 @@ données est un exercice séparé, fait par le propriétaire, guidé par un
 | À venir | Où | Ce qui ne changera pas |
 |---|---|---|
 | Interface Dash *(étape 9, en cours)* | `vues/`, et `assembleur.py` qui sort de `cli.py` pour servir aux deux | Les vues n'appellent que le moteur et les réglages, par l'assembleur — jamais l'adaptateur ni une source externe. Python met en forme chaque chiffre ; un script repris des maquettes ne fait que dessiner ([D-93](decisions.md)). L'écran de correction écrit un champ, et rien d'autre ([D-94](decisions.md)) |
-| Monte-Carlo *(étape 12)* | Module indépendant, branché sur les résultats du moteur | Rien ne dépendra de lui ([D-27](decisions.md)) |
+| Prédiction de l'évolution, Monte-Carlo *(étape 9 bis, [D-97](decisions.md))* | Module indépendant, qui ne lit du moteur que la valeur de départ | Rien ne dépendra de lui ([D-27](decisions.md)) |
 
 Les deux branchements des cours sont **faits** : les **titres reçus sans prix**
 ([D-15](decisions.md)) reçoivent le cours de leur jour d'apparition (étape 4), et le moteur

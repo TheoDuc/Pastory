@@ -19,7 +19,7 @@
 | [1](#1-linventaire--ce-que-le-moteur-produit-et-où-ça-saffiche) | **L'inventaire** : chaque chose que le moteur produit, et l'écran qui la porte |
 | [2](#2-le-vocabulaire-décran) | **Le vocabulaire d'écran** : les mots que l'utilisateur va lire sans les avoir choisis |
 | [3](#3-les-règles-daffichage) | **Les règles d'affichage** : unités, alignement, troncature, couleurs |
-| [4](#4-les-écrans-retenus) | **Les écrans retenus** : les cinq onglets, leur ordre, et ce que chacun porte |
+| [4](#4-les-écrans-retenus) | **Les écrans retenus** : les quatre onglets, la page « Détail des calculs », et ce que chacun porte |
 | [5](#5-les-quatre-états-de-chaque-écran) | **Les quatre états** de chaque écran : vide, partiel, estimé, en erreur — et ce qu'aucun n'autorise |
 | [6](#6-les-écrans-de-correction) | **Les écrans de correction** : tout est trouvé seul, tout se corrige à l'écran, rien ne s'édite en fichier ([D-78](decisions.md), [D-80](decisions.md)) |
 
@@ -59,7 +59,7 @@ dépend des arbitrages sur les maquettes ; les *contenus*, eux, sont fixés.
 | Date des cours : « arrêté au 12/09/2026 » | `Valorisation.date` (`valorisation.py:160`) | rapport |
 | Source des cours, dédoublonnée | `Valorisation.sources` (`valorisation.py:190`) | rapport |
 | Fourchette des arrêtés de composition : « du 31/07 au 31/08/2026 » | `Diversification.arrete_du` / `.arrete_au` | rapport |
-| **Compteur « à surveiller »**, qui ouvre le panneau du §1.7 | Les trois listes de `Signalement` | rapport |
+| **Bouton « Détail des calculs »**, qui mène entre autres au panneau du §1.7 (le compteur prévu a été retiré à l'étape 9) | Les trois listes de `Signalement` | rapport |
 
 ### 1.2 Synthèse
 
@@ -331,12 +331,14 @@ Le rapport texte a **une fonction de mise en forme par unité**, et c'est le mod
 
 ## 4. Les écrans retenus
 
-Cinq onglets, arbitrés sur les maquettes de l'étape 8 et **fixés**. Les
-[maquettes](../maquettes/) en sont la version exécutable : là où ce document et elles se
-contredisent, **les maquettes ont raison**, et ce document est à corriger.
+Quatre onglets et une page à part, arbitrés sur les maquettes de l'étape 8 puis à l'écran pendant
+l'étape 9. Les [maquettes](../maquettes/) en sont la version exécutable de l'étape 8 ; depuis
+l'étape 9, **l'application fait foi** là où elles divergent (la diversification et le détail des
+calculs ont changé à l'écran, sur arbitrage du propriétaire).
 
 L'ordre des onglets est celui des questions qu'on se pose, de la plus large à la plus fine :
-combien j'ai gagné → sur quoi → où est mon argent → ce que ça coûte → comment c'est calculé.
+combien j'ai gagné → sur quoi → où est mon argent → ce que ça coûte. **Comment c'est calculé**
+n'est pas un onglet : c'est une page qu'on ouvre quand on veut vérifier (§4.6).
 
 | # | Onglet | La question à laquelle il répond | Filtres actifs |
 |---|---|---|---|
@@ -344,7 +346,7 @@ combien j'ai gagné → sur quoi → où est mon argent → ce que ça coûte �
 | 2 | **Les actifs** | Sur quoi, actif par actif ? | type, poches |
 | 3 | **Diversification** | Où est mon argent ? | **aucun** |
 | 4 | **Frais et taxes** | Combien tout cela coûte ? | **aucun** |
-| 5 | **Détail des calculs** | Comment ces chiffres sont-ils obtenus ? | période, poches |
+| — | **Détail des calculs** (page à part, §4.6) | Comment ces chiffres sont-ils obtenus ? | période, poches |
 
 **Pourquoi la diversification et les frais n'ont aucun filtre**, et c'est une règle et non un
 oubli : une répartition est la **photo d'un tout**, et la valeur réelle est celle du portefeuille
@@ -355,8 +357,10 @@ fait douter du chiffre affiché.
 
 Trois rangées, toujours visibles, de la plus sombre à la plus claire :
 
-1. **la manchette** : le logo et le nom, les cinq onglets, et à droite le compteur de ce qui est
-   **à surveiller** — qui mène au bloc du même nom, dans « Détail des calculs » ;
+1. **la manchette** : le logo et le nom, les quatre onglets, et à droite un bouton discret,
+   **« Détail des calculs »**, qui ouvre la page du même nom. Il remplace le compteur « à
+   surveiller » prévu à l'étape 8 : le bloc du même nom vit en bas de cette page. Sans export
+   déposé, la manchette n'a **ni onglets ni bouton** : seul l'accueil existe (§5.1) ;
 2. **les filtres** : période, type d'actif, poches. Chaque onglet n'affiche que ceux qui
    **agissent sur lui** (voir le tableau ci-dessus) ;
 3. **l'état des données** : la date de l'export, celle des cours, et les arrêtés de composition.
@@ -390,18 +394,23 @@ sans cours n'empêche pas les autres d'être justes. La remarque porte alors le 
 **Quatre sous-onglets**, dans l'ordre où l'on se pose les questions : **Actifs** (les classes),
 **Zone géographique**, **Pays**, **Secteur**. Les quatre sur un même écran écrasaient chacun d'eux.
 
-Chaque sous-onglet montre la même chose, deux fois :
+Les quatre sous-onglets ont **la même mise en page** (arbitrage du propriétaire, étape 9 : les
+anneaux, puis les carrés découpés essayés à leur place, ont été retirés) :
 
-- **le classement**, à gauche : une ligne par poste, avec son repère, sa barre, son montant et sa
-  part. Les barres sont toutes rapportées à la **même base**, jamais renormalisées
-  ([D-69](decisions.md)). En dessous d'une coupure, **« ce qui n'entre pas dans cette
-  répartition »** : non attribué, non couvert, hors actions ;
-- **l'anneau**, à droite : la même chose vue d'un coup d'œil. Il ne fait pas foi — **un anneau ne
-  porte pas de chiffre** — et une note le dit : « les montants et les parts sont dans le
-  classement, à gauche ».
+- **des chiffres clés**, en tuiles, rapportés à la valeur totale comme le classement : pour les
+  classes, la part en actions, hors actions et en actifs numériques ; ailleurs, le premier poste,
+  le nombre de pays ou de secteurs représentés, les dix premiers pays, et ce qui reste sans pays
+  ou sans secteur ;
+- **le classement**, pleine largeur : une ligne par poste, avec son repère (un drapeau par pays,
+  un pictogramme par classe ou secteur), sa barre, son montant et sa part. Les barres sont toutes
+  rapportées à la **même base**, jamais renormalisées ([D-69](decisions.md)). Au-delà de 15
+  postes, les autres se déplient (« Afficher les N autres ») ;
+- en dessous, **ce qui n'entre pas dans cette répartition** (non attribué, non couvert, hors
+  actions) sur **une seule ligne qui se déplie** pour montrer le détail par actif.
 
-Puis, pleine largeur, **« ce qu'il faut savoir de ces chiffres »** : les réserves qui rendent la
-lecture honnête, et non des notes techniques.
+Puis, **repliée**, « ce qu'il faut savoir de ces chiffres » : les réserves qui rendent la
+lecture honnête (origines des données, fonds synthétiques, contenus déclarés, fonds non
+couverts), et non des notes techniques.
 
 ### 4.5 Frais et taxes
 
@@ -419,8 +428,11 @@ séparation **réel / estimé** ([D-17](decisions.md)), et **non une chronologie
 
 ### 4.6 Détail des calculs
 
-L'onglet qui rend les chiffres **refaisables à la main**, et c'est sa seule raison d'être : le
-propriétaire ne code pas, il vérifie. Il contient, dans cet ordre :
+La page qui rend les chiffres **refaisables à la main**, et c'est sa seule raison d'être : le
+propriétaire ne code pas, il vérifie. **Ce n'est pas un onglet** (arbitrage du propriétaire,
+étape 9) : elle n'est pas aussi importante que le reste et ne doit pas en avoir l'air. Elle
+s'ouvre par le bouton discret à droite de la manchette, et suit la période et les poches
+choisies. Elle contient, dans cet ordre :
 
 - **comment le gain est obtenu**, et **pourquoi il ne tombe pas sur la somme de la colonne** — le
   piège le plus coûteux de l'étape 8 : le gain se calcule sur les montants **bruts**
@@ -429,9 +441,10 @@ propriétaire ne code pas, il vérifie. Il contient, dans cet ordre :
 - **les flux datés, qui donnent le TRI** ;
 - **les sous-périodes, qui donnent le TWRR** ;
 - **une estimation, de bout en bout** — un exemple chiffré d'un coût estimé ;
-- **ce que le calcul d'impôt suppose** ;
+- **ce que le calcul d'impôt suppose**, et de quoi la base imposable est faite ;
+- **« D'où viennent les réglages »**, replié (§6.3) ;
 - **« à surveiller »** — le panneau des types d'événements inconnus, des déductions et des
-  estimations. C'est ici qu'aboutit le compteur de la manchette.
+  estimations.
 
 ---
 
@@ -581,7 +594,7 @@ mouvements d'espèces du plan ([D-86](decisions.md)), avec sa réserve ; et les 
 
 ### 6.3 Où sont ces écrans
 
-Les cinq onglets sont fixés (§4) : la correction n'en ajoute pas un sixième.
+Les onglets sont fixés (§4) : la correction n'en ajoute pas un de plus.
 
 - **La fiche de réglages d'un actif** s'ouvre en volet, par-dessus l'onglet en cours, depuis
   chaque endroit où l'actif apparaît avec un réglage à dire — sa ligne dans « Les actifs », un
