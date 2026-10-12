@@ -1097,6 +1097,44 @@ class TestCoutsEstimesEtValeurReelle:
         assert "premier versement le 2026-01-02, trouvée dans votre export" in affichage
         assert "transféré" in affichage
 
+    def test_ma_date_de_pea_ne_s_applique_pas_au_portefeuille_d_un_proche(
+        self, export, capsys
+    ):
+        """D-109 : avec deux portefeuilles, une date de PEA écrite sans nom n'est appliquée
+        à aucun — on ne sait pas à qui elle est — et les chiffres le disent en tête. Écrite
+        pour un portefeuille, elle ne sert qu'à lui."""
+        from pastory.adaptateurs.trade_republic import depot
+
+        self.preparer()
+        declarer_le_pea("2020-01-15")
+        cli.main(["positions", "--hors-ligne", "--au", "2026-02-28"])
+        seul = " ".join(capsys.readouterr().out.split())
+        assert "2020-01-15" in seul
+
+        export_fictif.deposer(
+            export, [export_fictif.achat_crypto()], nom="Un proche.csv"
+        )
+        depot.ouvrir(export, "Exportation de transactions")
+        cli.main(["positions", "--hors-ligne", "--au", "2026-02-28"])
+        a_deux = " ".join(capsys.readouterr().out.split())
+        assert "2020-01-15" not in a_deux
+        assert "1 correction(s) fiscale(s) non appliquée(s)" in a_deux
+
+        cli.main(["actifs", "--hors-ligne"])
+        detail = " ".join(capsys.readouterr().out.split())
+        assert "correction non appliquée" in detail
+        assert "sans dire pour quel portefeuille" in detail
+
+        config_fiscalite.chemin().write_text(
+            '[portefeuille."Exportation de transactions".pea]\n'
+            "premier_versement = 2020-01-15\n",
+            encoding="utf-8",
+        )
+        cli.main(["positions", "--hors-ligne", "--au", "2026-02-28"])
+        nommee = " ".join(capsys.readouterr().out.split())
+        assert "2020-01-15" in nommee
+        assert "non appliquée" not in nommee
+
     def test_une_date_de_pea_mal_ecrite_est_expliquee_sans_trace(self, export, capsys):
         self.preparer()
         declarer_le_pea('"2021-03-01"')

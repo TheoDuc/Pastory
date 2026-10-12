@@ -140,6 +140,11 @@ class Reglages:
     orphelines: tuple[str, ...] = ()
     """Les actifs corrigés dans `actifs.toml` qu'aucun export ne contient."""
 
+    corrections_ecartees: tuple[str, ...] = ()
+    """Les corrections fiscales écrites mais **non appliquées** à ce portefeuille, chacune
+    avec sa raison (D-109) : une date de PEA sans nom alors qu'il y a plusieurs
+    portefeuilles, ou écrite pour un portefeuille qui n'existe plus."""
+
     retraits_pea: tuple[Date, ...] = ()
     """Les sorties d'espèces du PEA depuis son ouverture : chacune contredit l'hypothèse
     « aucun retrait passé » sur laquelle repose l'impôt estimé du PEA (D-59, D-87)."""
@@ -182,6 +187,7 @@ def assembler(
     corrections: Configuration,
     fiscalite: ConfigurationFiscale | None = None,
     duree_avant_retrait_libre: int = 5,
+    corrections_ecartees: tuple[str, ...] = (),
 ) -> Reglages:
     """Le réglage retenu pour chaque actif de l'export, et pour la date d'ouverture du PEA.
 
@@ -203,6 +209,7 @@ def assembler(
         premier_versement_pea=date_pea,
         orphelines=tuple(sorted(corrections.actifs_declares - set(banque.poches))),
         retraits_pea=retraits,
+        corrections_ecartees=corrections_ecartees,
     )
 
 

@@ -160,6 +160,8 @@ def _reglages(construit: assembleur.Construit) -> list[Point]:
         )
         for actif, nom, trou in reglages.trous()
     ]
+    for ecartee in reglages.corrections_ecartees:
+        liste.append(Point("Correction non appliquée", ecartee))
     for actif in reglages.orphelines:
         liste.append(
             Point(

@@ -66,6 +66,10 @@ def resume(reglages: Reglages) -> str:
                 RETRAIT_DETAIL,
             )
 
+    for ecartee in reglages.corrections_ecartees:
+        lignes.append("")
+        lignes += _envelopper(f"ATTENTION - correction non appliquée. {ecartee}", "  ")
+
     if reglages.orphelines:
         lignes.append("")
         lignes += _envelopper(

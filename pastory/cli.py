@@ -314,13 +314,17 @@ def _etat_des_reglages(reglages: Reglages) -> list[str]:
     suffit qu'aucun trou ne passe inaperçu (D-80, règle 3).
     """
     trous = reglages.trous()
-    if not trous and not reglages.orphelines:
+    if not trous and not reglages.orphelines and not reglages.corrections_ecartees:
         return []
     morceaux = []
     if trous:
         morceaux.append(f"{len(trous)} réglage(s) introuvable(s)")
     if reglages.orphelines:
         morceaux.append(f"{len(reglages.orphelines)} correction(s) sans actif")
+    if reglages.corrections_ecartees:
+        morceaux.append(
+            f"{len(reglages.corrections_ecartees)} correction(s) fiscale(s) non appliquée(s)"
+        )
     return textwrap.wrap(
         "Réglages : " + ", ".join(morceaux) + f". « {NOM} actifs » dit lesquels et pourquoi ; "
         "le reste est compté.",

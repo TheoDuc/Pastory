@@ -126,12 +126,19 @@ def reglages(rapport: Rapport, hors_ligne: bool = False, tiers: bool = False) ->
     banque = rapport.ce_que_dit_la_banque()
     duree = parametres_fiscalite.charger().pea_duree_exoneration_ir.valeur
     corrections = config_actifs.charger()
+    # Une date de PEA corrigée à la main est celle d'une personne : elle ne vaut que pour
+    # le portefeuille qu'elle désigne (D-109).
+    depot = rapport.depot
+    du_pea = config_fiscalite.charger().pour(
+        depot.portefeuille, [*depot.autres], tiers=tiers
+    )
     return assemblage_reglages.assembler(
         banque,
         recherche.trouver(banque, rapport.operations, corrections),
         corrections,
-        config_fiscalite.charger(),
+        config_fiscalite.ConfigurationFiscale(premier_versement_pea=du_pea.date),
         duree_avant_retrait_libre=int(duree),
+        corrections_ecartees=du_pea.ecartees,
     )
 
 
