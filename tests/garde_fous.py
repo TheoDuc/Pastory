@@ -10,6 +10,9 @@ appeler un service par simple oubli.
 
 from __future__ import annotations
 
+import subprocess
+from types import SimpleNamespace
+
 import pytest
 
 from pastory import assembleur
@@ -89,6 +92,32 @@ def aucune_recherche_de_reglages(monkeypatch):
     monkeypatch.setattr(assembleur, "frais_courants_de_l_emetteur", lambda: EmetteurMuet())
     monkeypatch.setattr(assembleur, "classes_d_actifs", lambda: ClassesMuettes())
     monkeypatch.setattr(assembleur, "registre_cfi", lambda: ClassesMuettes())
+
+
+@pytest.fixture(autouse=True)
+def rien_ne_touche_au_bureau(tmp_path, monkeypatch):
+    """Détourne le bureau et le menu Démarrer, et interdit d'ouvrir une fenêtre (étape 10).
+
+    Cinquième garde-fou : sans lui, un test de `pastory installer` écrirait de vrais raccourcis
+    sur le bureau de la personne qui lance la suite, et un test du lanceur lui ouvrirait un
+    navigateur. Les tests qui veulent voir une fenêtre s'ouvrir remplacent eux-mêmes le
+    navigateur.
+    """
+    from pastory import installation, lanceur
+
+    monkeypatch.setattr(
+        installation, "_emplacements", lambda: (tmp_path / "bureau", tmp_path / "menu")
+    )
+
+    def refuser(*arguments, **options):
+        raise AssertionError("aucune fenêtre ne s'ouvre pendant les tests")
+
+    # Les modules du lanceur seulement, remplacés par des doublures : `subprocess` lui-même
+    # reste entier, d'autres s'en servent.
+    monkeypatch.setattr(
+        lanceur, "subprocess", SimpleNamespace(Popen=refuser, DEVNULL=subprocess.DEVNULL)
+    )
+    monkeypatch.setattr(lanceur, "webbrowser", SimpleNamespace(open=refuser))
 
 
 class EmetteurMuet:

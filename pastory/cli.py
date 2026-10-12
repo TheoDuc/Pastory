@@ -22,6 +22,7 @@ pastory oublier-cours       effacer des cours en cache, pour les reprendre à la
 pastory oublier-composition effacer des compositions, pour les reprendre à la source
 pastory oublier-reglages    effacer ce qui a été trouvé en ligne, pour le rechercher
 pastory ouvrir              le tableau de bord, dans le navigateur
+pastory installer           les raccourcis qui ouvrent Pastory sans terminal (étape 10)
 ```
 
 `positions` et `exporter-positions` acceptent `--au AAAA-MM-JJ` (la fin de la période, et la
@@ -854,6 +855,29 @@ def commande_ouvrir(dossier_export: Path | None, hors_ligne: bool, port: int) ->
     return CODE_SUCCES
 
 
+def commande_installer(retirer: bool) -> int:
+    """Crée, ou retire, les raccourcis qui ouvrent Pastory comme un logiciel (étape 10)."""
+    from pastory import installation
+
+    try:
+        concernes = installation.retirer() if retirer else installation.installer()
+    except installation.InstallationImpossible as erreur:
+        print(erreur, file=sys.stderr)
+        return CODE_ECHEC
+    if retirer:
+        print(f"{len(concernes)} raccourci(s) retiré(s).")
+        return CODE_SUCCES
+    print("Raccourcis créés :")
+    for raccourci in concernes:
+        print(f"  {raccourci.chemin}")
+    print(
+        "\nPastory s'ouvre désormais par son icône, sur le bureau ou dans le menu Démarrer,\n"
+        "et s'arrête quand on ferme sa fenêtre. Si ce dossier est déplacé ou renommé,\n"
+        "relancez l'installation : les raccourcis pointent sur lui."
+    )
+    return CODE_SUCCES
+
+
 def construire_analyseur() -> argparse.ArgumentParser:
     analyseur = argparse.ArgumentParser(
         prog=NOM,
@@ -975,6 +999,14 @@ def construire_analyseur() -> argparse.ArgumentParser:
     ouvrir.add_argument(
         "--port", type=int, default=8050, help="le port local de l'application (8050)"
     )
+
+    installer = commandes.add_parser(
+        "installer",
+        help="créer les raccourcis qui ouvrent Pastory comme un logiciel (bureau, menu Démarrer)",
+    )
+    installer.add_argument(
+        "--retirer", action="store_true", help="supprimer ces raccourcis au lieu de les créer"
+    )
     return analyseur
 
 
@@ -1043,6 +1075,8 @@ def main(arguments: list[str] | None = None) -> int:
             return commande_oublier_reglages(options.actif, options.tout)
         case "ouvrir":
             return commande_ouvrir(options.export, options.hors_ligne, options.port)
+        case "installer":
+            return commande_installer(options.retirer)
         case _:
             analyseur.print_help()
             return CODE_SUCCES

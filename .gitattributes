@@ -1,0 +1,3 @@
+# Un fichier de commandes Windows doit garder ses fins de ligne Windows, y compris dans
+# l'archive ZIP que GitHub propose en téléchargement : sans elles, il peut échouer.
+*.cmd text eol=crlf

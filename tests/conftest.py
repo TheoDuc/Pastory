@@ -10,4 +10,5 @@ from tests.garde_fous import (  # noqa: F401 - des fixtures automatiques, active
     aucune_recherche_de_reglages,
     aucune_source_de_composition,
     dossier_personnel,
+    rien_ne_touche_au_bureau,
 )
