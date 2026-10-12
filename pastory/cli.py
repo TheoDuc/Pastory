@@ -105,19 +105,6 @@ def commande_emplacements() -> int:
     for nom, chemin in emplacements.tous_les_dossiers().items():
         etat = "existe" if chemin.exists() else "pas encore créé"
         print(f"  {nom:<14} {chemin}  [{etat}]")
-
-    # L'application a changé de nom, et son dossier personnel avec elle. Sur une machine
-    # où elle tournait déjà, tout est resté dans l'ancien dossier : le dire ici, plutôt
-    # que de laisser croire que les données ont disparu.
-    for ancien in emplacements.anciens_dossiers_personnels():
-        print(
-            "\nL'application s'appelait auparavant « DashBoard Trade Republic », et les "
-            "fichiers\n"
-            f"de cette époque sont restés dans :\n  {ancien}\n"
-            "Rien n'a été déplacé automatiquement. Pour les reprendre, déplacez le "
-            "contenu de\n"
-            "ce dossier dans celui indiqué ci-dessus, puis supprimez l'ancien."
-        )
     return CODE_SUCCES
 
 

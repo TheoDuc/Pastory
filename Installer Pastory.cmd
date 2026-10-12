@@ -38,8 +38,11 @@ uv sync
 if errorlevel 1 (
     echo.
     echo   L'installation des bibliotheques a echoue : le message ci-dessus dit pourquoi.
-    echo   Les causes les plus courantes : pas de connexion a Internet, un antivirus qui
-    echo   bloque le telechargement, ou ce dossier range dans OneDrive.
+    echo   Les causes les plus courantes :
+    echo     - pas de connexion a Internet ;
+    echo     - "invalid peer certificate" : un antivirus inspecte les connexions securisees.
+    echo       Suspendez son analyse HTTPS le temps de l'installation, puis relancez ;
+    echo     - "Acces refuse" : ce dossier est range dans OneDrive. Deplacez-le ailleurs.
     echo.
     pause
     exit /b 1

@@ -338,9 +338,10 @@ Le rapport texte a **une fonction de mise en forme par unité**, et c'est le mod
 ## 4. Les écrans retenus
 
 Quatre chapitres, la place d'un cinquième, et une annexe, arbitrés sur les maquettes de l'étape 8
-puis à l'écran pendant les étapes 9 et 9 bis. Les [maquettes](../maquettes/) en sont la version exécutable de l'étape 8 ; depuis
-l'étape 9, **l'application fait foi** là où elles divergent (la diversification et le détail des
-calculs ont changé à l'écran, sur arbitrage du propriétaire).
+puis à l'écran pendant les étapes 9 et 9 bis. **L'application fait foi** : les maquettes de
+l'étape 8, qu'elle a remplacées, ont été retirées du dépôt à l'étape 10 ([D-108](decisions.md)) et
+restent dans l'historique git (la diversification et le détail des calculs avaient déjà changé à
+l'écran, sur arbitrage du propriétaire).
 
 L'ordre des onglets est celui des questions qu'on se pose, de la plus large à la plus fine :
 combien j'ai gagné → sur quoi → où est mon argent → ce que ça coûte. **Comment c'est calculé**
