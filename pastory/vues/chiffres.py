@@ -105,11 +105,17 @@ class Chiffres:
         hors_ligne: bool = False,
         aujourd_hui: Callable[[], Date] = Date.today,
         construire: Construire | None = None,
+        demonstration: bool = False,
     ) -> None:
         """`dossier` : un autre dossier d'exports que le dossier de dépôt — celui d'un tiers,
-        lu alors sans aucun appel réseau (règle 2 de CLAUDE.md)."""
+        lu alors sans aucun appel réseau (règle 2 de CLAUDE.md).
+
+        `demonstration` : le portefeuille fictif (D-107). Il ne change aucun calcul — le
+        dossier personnel a déjà été détourné par `demonstration.preparer` — mais l'écran le
+        dit partout, et ne propose pas d'y déposer un vrai export."""
         self.dossier_export = dossier
         self.hors_ligne = hors_ligne
+        self.demonstration = demonstration
         self._aujourd_hui = aujourd_hui
         self._construire = construire
         self._verrou = threading.RLock()

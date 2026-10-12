@@ -40,7 +40,9 @@ from collections.abc import Callable, Mapping
 from datetime import datetime
 from pathlib import Path
 
+from pastory import demonstration as portefeuille_fictif
 from pastory.config import emplacements
+from pastory.demonstration import TITRE_DE_LA_FENETRE as TITRE_DE_LA_DEMONSTRATION
 from pastory.vues import veille as veille_des_pages
 
 NOM = "Pastory"
@@ -142,6 +144,10 @@ def qui_repond(port: int, patience: float = PATIENCE) -> dict | None:
     return None
 
 
+def premier_port(demonstration: bool) -> int:
+    return PREMIER_PORT + (PORTS_ESSAYES if demonstration else 0)
+
+
 def reserver(
     demonstration: bool,
     prendre: Callable[[int], socket.socket | None] = prendre,
@@ -152,7 +158,7 @@ def reserver(
     La démonstration a ses propres ports : elle peut s'ouvrir à côté du vrai portefeuille, et
     un Pastory ne répond jamais à la place de l'autre.
     """
-    premier = PREMIER_PORT + (PORTS_ESSAYES if demonstration else 0)
+    premier = premier_port(demonstration)
     for port in range(premier, premier + PORTS_ESSAYES):
         prise = prendre(port)
         if prise is not None:
@@ -223,7 +229,7 @@ def ouvrir_la_fenetre(adresse: str) -> None:
 
 
 def titre_de_la_fenetre(demonstration: bool) -> str:
-    return f"{NOM} · démonstration" if demonstration else NOM
+    return TITRE_DE_LA_DEMONSTRATION if demonstration else NOM
 
 
 def ramener_la_fenetre(titre: str) -> bool:
@@ -296,7 +302,7 @@ def lancer(demonstration: bool = False) -> int:
     logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
     veille = veille_des_pages.Veille()
-    interface = application.creer(Chiffres(), veille)
+    interface = application.creer(Chiffres(demonstration=demonstration), veille)
     serveur = make_server(HOTE, port, interface.server, threaded=True, fd=prise.fileno())
     threading.Thread(target=veiller, args=(veille, serveur.shutdown), daemon=True).start()
     print(f"{NOM} est ouvert sur {adresse}")
@@ -309,10 +315,21 @@ def main(arguments: list[str] | None = None) -> int:
     analyseur = argparse.ArgumentParser(
         prog="pastory.lanceur", description="Ouvre Pastory dans sa fenêtre."
     )
+    analyseur.add_argument(
+        "--demonstration",
+        action="store_true",
+        help="ouvrir le portefeuille fictif, dans son dossier à part",
+    )
     try:
+        # `parse_known_args` : un argument inattendu ferait quitter le programme sans un mot,
+        # et un raccourci qui ne fait rien est la panne à éviter.
+        options, _ = analyseur.parse_known_args(arguments)
+        if options.demonstration:
+            # Avant le journal, qui s'écrit dans le dossier personnel : celui de la
+            # démonstration, dès maintenant.
+            portefeuille_fictif.preparer()
         ouvrir_le_journal()
-        analyseur.parse_args(arguments)
-        return lancer()
+        return lancer(options.demonstration)
     except AucunPortLibre as erreur:
         avertir(f"{NOM} n'a pas pu s'ouvrir. {erreur}")
         return 1

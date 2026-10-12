@@ -26,6 +26,7 @@ from dash import ALL, Dash, Input, Output, State, ctx, dcc, html, no_update
 from dash.exceptions import PreventUpdate
 from flask import jsonify, request
 
+from pastory.demonstration import TITRE_DE_LA_FENETRE as TITRE_DE_LA_DEMONSTRATION
 from pastory.vues import bandeau, ecrans, projections
 from pastory.vues import etat as etat_ecran
 from pastory.vues.chiffres import Chiffres, Echec, poches_du
@@ -190,14 +191,14 @@ def creer(chiffres: Chiffres, veille: Veille | None = None) -> Dash:
     application = Dash(
         __name__,
         assets_folder=str(DOSSIER_DES_ASSETS),
-        title=NOM,
+        title=TITRE_DE_LA_DEMONSTRATION if chiffres.demonstration else NOM,
         update_title=None,
         suppress_callback_exceptions=True,
         serve_locally=True,
     )
     application.index_string = INDEX
-    application.layout = _mise_en_page()
-    _brancher_la_vie(application, veille)
+    application.layout = _mise_en_page(chiffres.demonstration)
+    _brancher_la_vie(application, veille, chiffres.demonstration)
 
     @application.callback(
         Output("etat", "data"),
@@ -290,9 +291,10 @@ def creer(chiffres: Chiffres, veille: Veille | None = None) -> Dash:
     return application
 
 
-def _brancher_la_vie(application: Dash, veille: Veille | None) -> None:
+def _brancher_la_vie(application: Dash, veille: Veille | None, demonstration: bool) -> None:
     """L'adresse de vie. Elle sert deux fois : la page y donne signe de vie, et le lanceur y
-    demande « qui est là ? » avant de démarrer un second Pastory."""
+    demande « qui est là ? » avant de démarrer un second Pastory — la réponse dit aussi si
+    c'est la démonstration, pour qu'un Pastory ne réponde jamais à la place de l'autre."""
     serveur = application.server
 
     @serveur.route(CHEMIN_DE_VIE, methods=["GET", "POST"])
@@ -306,7 +308,7 @@ def _brancher_la_vie(application: Dash, veille: Veille | None) -> None:
                 veille.adieu(page)
             else:
                 veille.signe(page)
-        reponse = jsonify(application=NOM)
+        reponse = jsonify(application=NOM, demonstration=demonstration)
         reponse.headers["Cache-Control"] = "no-store"
         return reponse
 
@@ -324,7 +326,7 @@ def _brancher_la_vie(application: Dash, veille: Veille | None) -> None:
             veille.finir_un_travail()
 
 
-def _mise_en_page() -> html.Div:
+def _mise_en_page(demonstration: bool = False) -> html.Div:
     # La classe de la racine dit quelle partie du livre est ouverte : la couverture, ou les
     # pages (`ecrans.rendre`). Elle commence sur la couverture, comme l'état initial.
     return html.Div(
@@ -337,6 +339,7 @@ def _mise_en_page() -> html.Div:
                     html.Div(
                         [
                             bandeau.marque(),
+                            *([bandeau.mention_de_demonstration()] if demonstration else []),
                             html.Nav(
                                 id="onglets",
                                 className="onglets",
@@ -432,9 +435,12 @@ def lancer(
     dossier_export: Path | None = None,
     port: int = PORT_PAR_DEFAUT,
     navigateur: bool = True,
+    demonstration: bool = False,
 ) -> None:
     """Démarre l'application et ouvre le navigateur. S'arrête avec Ctrl+C."""
-    chiffres = Chiffres(dossier=dossier_export, hors_ligne=hors_ligne)
+    chiffres = Chiffres(
+        dossier=dossier_export, hors_ligne=hors_ligne, demonstration=demonstration
+    )
     application = creer(chiffres)
     adresse = f"http://127.0.0.1:{port}/"
     print(f"Pastory est ouvert dans votre navigateur : {adresse}")

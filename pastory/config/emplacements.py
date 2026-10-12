@@ -72,6 +72,22 @@ def anciens_dossiers_personnels(
     ]
 
 
+SUFFIXE_DE_DEMONSTRATION = "-demonstration"
+
+
+def dossier_de_demonstration(environnement: Mapping[str, str] | None = None) -> Path:
+    """Le dossier personnel de la démonstration (D-107) : un dossier **à part**, voisin du
+    dossier personnel, avec son propre export, son cache et sa configuration. Un export fictif
+    ne peut donc jamais se mêler aux vrais, ni l'inverse.
+
+    Appelée depuis une démonstration déjà en cours, elle rend ce même dossier.
+    """
+    personnel = dossier_personnel(environnement)
+    if personnel.name.endswith(SUFFIXE_DE_DEMONSTRATION):
+        return personnel
+    return personnel.with_name(personnel.name + SUFFIXE_DE_DEMONSTRATION)
+
+
 def dossier_exports(environnement: Mapping[str, str] | None = None) -> Path:
     """Le dossier de dépôt : l'utilisateur y dépose ses exports des transactions (D-80)."""
     return dossier_personnel(environnement) / "exports"

@@ -843,15 +843,43 @@ def commande_oublier_reglages(actif: str | None, tout: bool) -> int:
     return CODE_SUCCES
 
 
-def commande_ouvrir(dossier_export: Path | None, hors_ligne: bool, port: int) -> int:
+def commande_ouvrir(
+    dossier_export: Path | None,
+    hors_ligne: bool,
+    port: int | None,
+    demonstration: bool = False,
+) -> int:
     """Ouvre le tableau de bord dans le navigateur, jusqu'à Ctrl+C (étape 9, D-31).
 
     L'import est fait ici, et non en tête : Dash est long à charger, et les autres commandes
     n'en ont pas besoin.
+
+    `demonstration` : le portefeuille fictif (D-107), dans son dossier à part et sur un autre
+    port, pour pouvoir s'ouvrir à côté du vrai.
     """
+    if demonstration:
+        if dossier_export is not None:
+            print(
+                "--demonstration et --export ne vont pas ensemble : la démonstration lit son "
+                "propre export fictif.",
+                file=sys.stderr,
+            )
+            return CODE_ECHEC
+        from pastory import demonstration as portefeuille_fictif
+
+        portefeuille_fictif.preparer()
+
+    from pastory import lanceur
     from pastory.vues import application
 
-    application.lancer(hors_ligne=hors_ligne, dossier_export=dossier_export, port=port)
+    if port is None:
+        port = lanceur.premier_port(demonstration)
+    application.lancer(
+        hors_ligne=hors_ligne,
+        dossier_export=dossier_export,
+        port=port,
+        demonstration=demonstration,
+    )
     return CODE_SUCCES
 
 
@@ -997,7 +1025,16 @@ def construire_analyseur() -> argparse.ArgumentParser:
         help="n'utiliser que ce qui est déjà en mémoire, sans aucun appel réseau",
     )
     ouvrir.add_argument(
-        "--port", type=int, default=8050, help="le port local de l'application (8050)"
+        "--port",
+        type=int,
+        default=None,
+        help="le port local de l'application (8050 ; 8060 pour la démonstration)",
+    )
+    ouvrir.add_argument(
+        "--demonstration",
+        action="store_true",
+        help="ouvrir un portefeuille fictif, dans un dossier à part, pour montrer Pastory "
+        "sans montrer le sien",
     )
 
     installer = commandes.add_parser(
@@ -1074,7 +1111,9 @@ def main(arguments: list[str] | None = None) -> int:
         case "oublier-reglages":
             return commande_oublier_reglages(options.actif, options.tout)
         case "ouvrir":
-            return commande_ouvrir(options.export, options.hors_ligne, options.port)
+            return commande_ouvrir(
+                options.export, options.hors_ligne, options.port, options.demonstration
+            )
         case "installer":
             return commande_installer(options.retirer)
         case _:

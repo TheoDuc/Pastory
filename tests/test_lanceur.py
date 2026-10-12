@@ -18,6 +18,9 @@ from pastory.vues import application
 from pastory.vues.chiffres import Chiffres
 from pastory.vues.veille import CHEMIN, Veille
 
+PASTORY = {"application": "Pastory", "demonstration": False}
+"""Ce que répond l'adresse de vie du vrai portefeuille."""
+
 
 def un_port_libre() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as prise:
@@ -115,7 +118,7 @@ class TestQuiRepond:
         fil = threading.Thread(target=serveur.serve_forever, daemon=True)
         fil.start()
         try:
-            assert lanceur.qui_repond(port, patience=10) == {"application": "Pastory"}
+            assert lanceur.qui_repond(port, patience=10) == PASTORY
             assert lanceur.prendre(port) is None
         finally:
             serveur.shutdown()
@@ -135,7 +138,7 @@ class TestLAdresseDeVie:
 
     def test_elle_dit_qui_elle_est(self, client):
         reponse = client.get(CHEMIN)
-        assert reponse.get_json() == {"application": "Pastory"}
+        assert reponse.get_json() == PASTORY
         assert reponse.headers["Cache-Control"] == "no-store"
 
     def test_un_signe_puis_un_adieu(self, client, veille):
@@ -157,7 +160,7 @@ class TestLAdresseDeVie:
 
     def test_sans_veille_l_adresse_repond_quand_meme(self):
         client = application.creer(Chiffres(hors_ligne=True)).server.test_client()
-        assert client.post(f"{CHEMIN}?page=abc").get_json() == {"application": "Pastory"}
+        assert client.post(f"{CHEMIN}?page=abc").get_json() == PASTORY
 
     def test_la_page_donne_signe_de_vie(self, client):
         page = client.get("/").get_data(as_text=True)
@@ -264,7 +267,7 @@ class TestLeLancement:
     def test_une_panne_de_demarrage_ne_reste_jamais_muette(self, monkeypatch, capsys):
         messages: list[str] = []
 
-        def panne():
+        def panne(demonstration):
             raise RuntimeError("le détail de la panne")
 
         monkeypatch.setattr(lanceur, "lancer", panne)
@@ -276,7 +279,7 @@ class TestLeLancement:
     def test_sans_port_libre_le_message_le_dit(self, monkeypatch):
         messages: list[str] = []
 
-        def panne():
+        def panne(demonstration):
             raise lanceur.AucunPortLibre("Les ports 8050 à 8059 sont tous occupés.")
 
         monkeypatch.setattr(lanceur, "lancer", panne)

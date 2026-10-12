@@ -203,6 +203,20 @@ html {
   color: var(--sur-reliure-actif);
 }
 
+/* « Données de démonstration » (D-107), à côté du nom : en or sur la reliure, dans un filet,
+   comme une mention portée au dos d'un livre. Elle reste là sur tous les chapitres. */
+.entete .mention-demonstration {
+  padding: 2px var(--espace-2);
+  border: 1px solid var(--reliure-filet);
+  border-radius: var(--rayon);
+  color: var(--sur-reliure-or);
+  font-family: var(--sans);
+  font-size: var(--petites-capitales-taille);
+  letter-spacing: var(--petites-capitales-espace);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 /* LE BOUTON JOUR / NUIT : une lune le jour (passer à la lecture de nuit), un soleil la nuit.
    Il vit sur la reliure, dans la navigation et dans le coin de la couverture. */
 .bascule-theme {

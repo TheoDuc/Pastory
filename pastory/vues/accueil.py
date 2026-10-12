@@ -28,6 +28,7 @@ from dash import dcc, html
 
 from pastory import assembleur
 from pastory.adaptateurs.trade_republic.depot import CHEMIN_DANS_L_APPLICATION, NOM_PAR_DEFAUT
+from pastory.demonstration import MENTION
 from pastory.vues import format as f
 from pastory.vues.bandeau import bascule_du_theme
 from pastory.vues.briques import aide, choix, dessin, fleuron, ligne_de_liste, mot
@@ -72,8 +73,13 @@ def ecran(
     dossier: Path,
     tiers: bool = False,
     messages: object = None,
+    demonstration: bool = False,
 ) -> html.Div:
-    """La couverture, dans l'un de ses trois états : vide, lu, ou empêché."""
+    """La couverture, dans l'un de ses trois états : vide, lu, ou empêché.
+
+    En **démonstration** (D-107), l'étiquette s'ouvre sur un avis — ce portefeuille est fictif —
+    et ne propose aucun dépôt : un vrai export n'a rien à faire dans ce dossier-là."""
+    avis = [_avis_de_demonstration()] if demonstration else []
     return html.Div(
         html.Section(
             [
@@ -84,7 +90,12 @@ def ecran(
                         html.H1("Pastory", className="couverture__titre"),
                         fleuron(),
                         html.Div(
-                            [messages, *_etiquette(base, dossier, tiers)], className="cartouche"
+                            [
+                                messages,
+                                *avis,
+                                *_etiquette(base, dossier, tiers or demonstration, demonstration),
+                            ],
+                            className="cartouche",
                         ),
                     ],
                     className="couverture__interieur",
@@ -96,13 +107,30 @@ def ecran(
     )
 
 
-def _etiquette(base, dossier: Path, tiers: bool) -> list:
+def _etiquette(base, dossier: Path, sans_depot: bool, demonstration: bool = False) -> list:
+    """`sans_depot` : l'export d'un tiers ou la démonstration — on y lit, on n'y dépose rien."""
     if isinstance(base, Echec):
         contenu: list = []
         if base.nature != "aucun-export":
             contenu.append(_empeche(base))
-        return [*contenu, *_premier_depot(dossier, tiers)]
-    return _livre_lu(base, dossier, tiers)
+        # La démonstration écrit elle-même son export : sans lui, il n'y a rien à expliquer de
+        # plus que l'avis et l'empêchement.
+        return contenu if demonstration else [*contenu, *_premier_depot(dossier, sans_depot)]
+    return _livre_lu(
+        base, dossier, sans_depot, "Un portefeuille fictif" if demonstration else "Votre livre"
+    )
+
+
+def _avis_de_demonstration() -> html.P:
+    return html.P(
+        [
+            mot(MENTION),
+            " Ce portefeuille est fictif : des opérations inventées, sur des titres réels dont "
+            "les cours, les frais et la composition sont les vrais. Pour suivre votre "
+            "portefeuille, fermez cette fenêtre et ouvrez « Pastory », sans « démonstration ».",
+        ],
+        className="cartouche__alerte",
+    )
 
 
 def _volet(titre: str, contenu: list) -> html.Details:
@@ -188,7 +216,9 @@ def _empeche(echec: Echec) -> html.Div:
 # --- Avec données -------------------------------------------------------------------------
 
 
-def _livre_lu(base: assembleur.Construit, dossier: Path, tiers: bool) -> list:
+def _livre_lu(
+    base: assembleur.Construit, dossier: Path, tiers: bool, titre: str = "Votre livre"
+) -> list:
     depot = base.rapport.depot
     lignes: list = []
     if depot.premier_jour is not None:
@@ -226,7 +256,7 @@ def _livre_lu(base: assembleur.Construit, dossier: Path, tiers: bool) -> list:
         actions.append(zone_de_depot("Déposer un export plus récent"))
     nombre = len(depot.fichiers)
     return [
-        html.H2("Votre livre", className="cartouche__titre"),
+        html.H2(titre, className="cartouche__titre"),
         html.Ul(lignes, className="liste-parts"),
         *_alertes(base),
         _volet(
