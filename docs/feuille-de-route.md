@@ -755,6 +755,44 @@ les documents purement historiques à archiver plutôt qu'à garder en tête du 
 - Faire installer l'application par quelqu'un d'autre (ton ami ?) en suivant **seulement** le
   README, et noter chaque blocage.
 
+**Avancement (2026-10-12) : les trois demandes du propriétaire sont faites**, sur la branche
+`etape-10`. Ses arbitrages du jour : une fenêtre à part ; de vrais titres pour la démonstration ;
+et la liste du ménage. Trois décisions ([D-106](decisions.md) à [D-108](decisions.md)), le
+[cahier de vérification](verification/etape-10.md), et le [README](../README.md) réécrit en guide
+d'installation.
+
+- **Le lancement** ([D-106](decisions.md)) : l'icône Pastory (bureau et menu Démarrer) ouvre une
+  fenêtre sans barre d'adresse ni fenêtre noire ; fermer la fenêtre arrête Pastory ; un second
+  double-clic ramène la fenêtre existante. Essayé en vrai sur la machine du propriétaire, par le
+  raccourci lui-même : réponse en 3 à 5 secondes, arrêt 8 secondes après la fermeture.
+- **La démonstration** ([D-107](decisions.md)) : « Pastory (démonstration) », dans le menu
+  Démarrer, ouvre un portefeuille fictif de 8 positions sur les trois poches, dans un dossier à
+  part. Pastory y trouve seul **27 valeurs sur 27** (cotation, type, frais courants, contenu, date
+  du PEA), et la diversification y montre d'elle-même les cas délicats : fonds synthétique, source
+  de secours, obligations, matières premières.
+- **Le ménage** ([D-108](decisions.md)) : maquettes, branches, code de l'ancien nom, anciennes
+  données et pytr.
+
+**Ce que la démonstration a trouvé, et qui vaut pour de vrais utilisateurs :** une action
+américaine restait sans cours. Cherchée par son nom, elle a aussi une cotation étrangère créée
+après l'achat ; la source refuse cette période par une erreur 400, que Pastory prenait pour une
+panne de réseau, et il abandonnait la recherche à chaque fois. Corrigé, avec son test.
+
+**Ce qui n'a pas pu être essayé sur la machine du propriétaire :** `Installer Pastory.cmd` jusqu'au
+bout. Son antivirus bloque le téléchargement des bibliothèques (« invalid peer certificate »), ce
+que le fichier explique ; la création des raccourcis, elle, a été essayée par la commande que ce
+fichier appelle.
+
+**Reste de l'étape 10 :**
+- **l'installation par un tiers**, en suivant le seul README : c'est le vrai test du fichier
+  d'installation, et il n'a pas encore eu lieu ;
+- **le raccourci pour Mac** ([D-62](decisions.md)) : le lanceur ne dépend pas de Windows, mais rien
+  n'a pu être essayé sur un Mac ;
+- la **relecture des messages d'erreur** (un fichier qui n'est pas un export, des colonnes
+  inattendues, un export partiel) : ceux du dépôt existent depuis l'étape 9, ils n'ont pas été
+  repassés un à un ;
+- le guide **« écrire un adaptateur pour une autre banque »**.
+
 ## Étape 11 · Publication ⏳
 **But :** rendre le dépôt public sans risque.
 

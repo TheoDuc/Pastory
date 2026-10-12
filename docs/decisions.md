@@ -1853,3 +1853,86 @@ d'actifs sourcés ; une volatilité saisie à la main ; une case d'inflation.
 (« dans 8 cas sur 10 »), et non 5 % et 95 %, que le propriétaire a jugés peu pertinents ; la page
 se lit de haut en bas — le montant atteint, la courbe, puis les hypothèses — et tient sur un
 écran ; le « taux aléatoire » est un choix à deux boutons, « une courbe | 10 000 simulations ».
+
+### D-106 · 2026-10-12 · Pastory s'ouvre par un raccourci, dans sa fenêtre, et s'arrête avec elle · Validée
+**Décision :** on lance Pastory **comme un logiciel**. Un raccourci (bureau et menu Démarrer,
+avec le logo) appelle `pythonw -m pastory.lanceur`, qui :
+1. ouvre Pastory dans **une fenêtre à part, sans barre d'adresse** — Edge ou Chrome en mode
+   application ; à défaut des deux, un onglet du navigateur habituel ;
+2. **s'arrête quand on ferme la fenêtre** : la page donne signe de vie au serveur toutes les cinq
+   secondes et lui dit adieu en se fermant ; le serveur s'arrête quand plus aucune page n'est
+   ouverte (`pastory/vues/veille.py`) ;
+3. **ne démarre jamais deux fois** : le port est pris avant le chargement de l'interface, et un
+   second lancement ramène la fenêtre existante au premier plan ;
+4. **ne reste jamais muet** : sans terminal, ce qui s'écrirait à l'écran va dans `journal.txt`
+   (dossier personnel), et une panne de démarrage s'affiche dans une boîte de message.
+
+Les raccourcis sont créés par `pastory installer` (et retirés par `--retirer`) ; un nouvel
+utilisateur double-clique sur `Installer Pastory.cmd`, qui installe l'environnement puis les crée.
+Le raccourci appelle le Python de l'environnement **par son chemin, jamais `uv run`**.
+`pastory ouvrir`, dans un terminal, reste ce qu'il était.
+**Raison :** le propriétaire, le 2026-10-09 : « plus de commande à taper ». Et sur sa machine,
+`uv run` échoue dès que `pyproject.toml` change (OneDrive, antivirus), alors que l'environnement
+installé fonctionne.
+**Trois réglages de la veille, chacun né d'un cas réel :** le silence se compte en **battements**
+et non à l'horloge (un ordinateur mis en veille n'arrête rien) ; une page se tait **cinq minutes**
+avant d'être tenue pour fermée (un navigateur ralentit une fenêtre réduite à un signe par minute,
+et l'antivirus du propriétaire coupe une connexion locale sur dix) ; Pastory **ne s'arrête pas au
+milieu d'un travail** (un cache à moitié écrit). Fenêtre fermée, il s'arrête en une dizaine de
+secondes ; si l'adieu s'est perdu, en cinq minutes au plus.
+**Écarte :** un `.exe` empaqueté (lourd, et signalé comme suspect par les antivirus déjà
+rencontrés) ; une fenêtre native (une dépendance de plus pour peu de gain) ; attendre la fin du
+processus du navigateur (il se confond avec les autres fenêtres d'Edge) ; un arrêt dès le premier
+signe manqué.
+**Limites connues :** sous Windows seulement pour les raccourcis — le lanceur ne dépend pas de
+Windows, mais aucun raccourci Mac n'a pu être essayé ; l'icône de la fenêtre dans la barre des
+tâches est celle que le navigateur lui donne ; les raccourcis pointent sur le dossier du projet,
+et sont à recréer s'il est déplacé ou renommé.
+
+### D-107 · 2026-10-12 · Un portefeuille de démonstration : opérations inventées, titres réels, dossier à part · Validée
+**Décision :** Pastory sait s'ouvrir sur un **portefeuille fictif** (`pastory/demonstration/`),
+pour être montré sans révéler un vrai portefeuille.
+- C'est un **export des transactions fictif, au format officiel**, que Pastory lit comme un
+  vrai : il y cherche seul les cours, les frais des fonds et leur composition. La démonstration
+  montre donc la vraie chaîne, y compris ses trous et ses réserves.
+- **Les opérations sont inventées ; les titres sont réels**, publics et courants, jamais choisis
+  d'après un portefeuille réel. **Les prix d'achat sont les vraies clôtures** des jours choisis
+  (`clotures.py`, relevé par `scripts/releve_de_demonstration.py`) : sans cela, le contrôle par le
+  prix payé ([D-85](#d-85)) refuserait la bonne cotation.
+- **Seules des formes déjà vues sur de vrais fichiers** sont écrites
+  ([export-officiel.md](export-officiel.md) §4.1) : pas de dividende de fonds, par exemple.
+- **Un dossier personnel à part**, voisin du vrai (`Pastory-demonstration`), avec son export, son
+  cache et sa configuration : rien ne se mêle. L'export y est **écrit par le programme** — aucun
+  fichier de données n'entre dans git ([D-01](#d-01)).
+- **L'écran le dit partout** : « Données de démonstration » sur la couverture et dans la
+  navigation de chaque chapitre, un autre titre de fenêtre, et **aucun dépôt possible**.
+**Raison :** le propriétaire, le 2026-10-09, puis son arbitrage du 2026-10-12 entre de vrais titres
+et des actifs entièrement fictifs.
+**Écarte :** des actifs fictifs livrés avec des cours inventés (fonctionne sans réseau et donne
+toujours les mêmes chiffres, mais ne montre pas la recherche automatique, et chaque source
+affichée serait « valeur de démonstration ») ; un CSV versionné ; un bouton qui bascule un Pastory
+ouvert sur la démonstration (le dossier personnel se lit dans l'environnement du programme : deux
+programmes, deux ports, aucun mélange possible).
+**Conséquences :** la première ouverture demande Internet, et les chiffres bougent avec le marché.
+Les **ISIN du scénario sont réels** : c'est la seule exception à « valeurs fictives » ([D-03](#d-03)),
+et elle ne porte que sur des titres publics. Le scénario s'arrête en septembre 2026 ; le prolonger
+demande de relancer le relevé.
+**Ce que la démonstration a trouvé en chemin :** une cotation étrangère créée après l'achat faisait
+répondre « 400 » à la source de cours, pris pour une panne ; l'action restait sans cours. Ce refus
+écarte désormais un candidat, pas la recherche (`PeriodeSansCours`).
+
+### D-108 · 2026-10-12 · Le ménage : ce que l'application a remplacé s'en va · Validée
+**Décision :** maintenant que Pastory fonctionne de bout en bout, ce qui ne sert plus est retiré.
+- **Du dépôt :** les maquettes d'écran de l'étape 8 (l'application fait foi ; `maquettes/logo/`
+  reste, citée par la charte) ; le signalement de l'ancien dossier « DashBoardTradeRepublic », qui
+  ne servait qu'à la machine du propriétaire ; les douze branches d'étape, toutes fusionnées.
+- **De la machine du propriétaire :** `data/` (ses fichiers pytr, et une copie de son export
+  entièrement contenue dans celui du dossier de dépôt), les deux fichiers pytr de son ami, le PDF
+  de la maquette d'origine, l'ancien dossier personnel, et pytr lui-même.
+**Raison :** le propriétaire. L'historique git garde tout ce qui était versionné.
+**Ce qui a été vérifié avant d'effacer :** chaque correction manuelle de l'ancienne configuration
+a été comparée à ce que Pastory trouve seul. Toutes sont retrouvées à l'identique, sauf un taux de
+frais courants, reporté dans le fichier de corrections du nouveau dossier.
+**Gardé volontairement :** les documents de l'époque pytr ([inventaire-donnees.md](inventaire-donnees.md),
+le cahier de l'étape 2) — leurs pièges expliquent des décisions ; l'export officiel du tiers, seule
+pièce de [Q-54](questions-ouvertes.md) ; les relevés de vérification locaux du propriétaire.

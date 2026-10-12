@@ -280,10 +280,35 @@ l'écriture a confirmé, et ce qu'elle a ajouté :
 - Affichage permanent possible des alertes de lecture : types inconnus, libellés non reconnus,
   écarts avec les positions réelles.
 
+## 8 bis. Lancement, installation, démonstration — **écrits à l'étape 10** ([D-106](decisions.md), [D-107](decisions.md))
+
+- **Le serveur ne voit pas sa fenêtre.** C'est la page qui lui donne signe de vie ; le reste
+  (`vues/veille.py`) n'est que la règle qui décide quand conclure. Elle compte des **battements**,
+  pas des secondes : c'est ce qui la rend testable sans horloge, et insensible à une mise en veille.
+- **Prendre le port avant de charger l'interface** règle deux problèmes d'un coup : un second
+  double-clic trouve la place occupée, et la fenêtre peut s'ouvrir tout de suite — sa demande attend
+  dans la file du port pendant que Dash se charge.
+- **Une adresse, deux usages** : `/pastory/vie` reçoit les signes de vie et répond « qui est là ».
+  Sans la seconde moitié, un Pastory déjà ouvert serait indiscernable d'un autre programme sur le
+  même port.
+- **La démonstration ne traverse aucune couche** : elle écrit un export et détourne le dossier
+  personnel (`PASTORY_DOSSIER`). Tout ce qui suit ignore qu'il s'agit d'un exemple, sauf l'écran.
+  Conséquence utile : **la démonstration est un essai de bout en bout sur de vrais titres**, et
+  elle a trouvé un défaut que les données fictives des tests ne pouvaient pas montrer (une
+  période où un titre ne cotait pas, prise pour une panne).
+- **Un raccourci ne doit dépendre de rien de fragile** : il appelle l'interpréteur de
+  l'environnement par son chemin. `uv run`, qui resynchronise avant de lancer, peut échouer là où
+  l'environnement installé fonctionne.
+- **`pyproject.toml` n'a pas changé à l'étape 10**, et c'est voulu : ni point d'entrée graphique,
+  ni dépendance. Le lanceur s'appelle par `-m pastory.lanceur`.
+
 ## 9. Qualité et vérification
 
 - Tests `pytest` sur **données fictives uniquement**, versionnés ([D-38](decisions.md)). Aucune
-  donnée réelle dans les tests.
+  donnée réelle dans les tests. *Seule exception, depuis l'étape 10 :* le portefeuille de
+  démonstration et son test portent des ISIN réels de titres publics ([D-107](decisions.md)).
+- **Aucun test n'écrit sur le bureau ni n'ouvre de fenêtre** : un garde-fou automatique de plus
+  (`tests/garde_fous.py`), à côté de ceux qui coupent le réseau et détournent le dossier personnel.
 - Un **cahier de vérification** par étape de calcul, avec des cas refaisables à la main
   ([feuille-de-route.md](feuille-de-route.md)).
 - Le script [inventaire_structure.py](../scripts/inventaire_structure.py) peut servir à

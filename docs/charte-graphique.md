@@ -273,6 +273,11 @@ La bande des **filtres** (période, type, poches), quand l'onglet en a, suit la 
 les groupes respirent entre eux. À droite, en italique, **ce que les filtres ont retenu** : la
 période en clair (« Du … au … · 2 mois »). **Il n'y a pas de troisième bande** ([D-103](decisions.md)).
 
+**En démonstration** ([D-107](decisions.md)), la mention « Données de démonstration » suit le nom,
+en petites capitales d'or dans un filet : une mention portée au dos du livre, sur la reliure
+seulement, où l'or se lit (§2.4). **L'avis d'arrêt** ([D-106](decisions.md)), quand le serveur ne
+répond plus, est une bande de reliure collée au bas de la fenêtre.
+
 **Un chapitre sans filtre garde sa bande**, de la même hauteur, pour que le livre ait le même
 rythme d'une page à l'autre ([D-104](decisions.md)) : elle porte alors **le sommaire du
 chapitre**, jamais un faux filtre — les rubriques de la Diversification, des liens vers les trois

@@ -378,6 +378,13 @@ alertes (type inconnu, période non couverte, fichier ignoré) n'y sont jamais. 
 l'étape 9 n'a disparu. On y revient par le **nom « Pastory »** en tête de la navigation, ou par le
 lien « vos exports » du colophon.
 
+**En démonstration** ([D-107](decisions.md)), l'étiquette s'ouvre sur un avis qui ne se replie
+pas — « Données de démonstration : ce portefeuille est fictif… », avec la façon d'ouvrir son propre
+portefeuille —, son titre devient « Un portefeuille fictif », et **aucun dépôt n'est proposé** : ni
+zone de dépôt, ni bouton vers le dossier. La même mention reste dans la navigation de chaque
+chapitre, à côté du nom (§4.1), et dans le titre de la fenêtre. Un chiffre montré à quelqu'un ne
+doit jamais pouvoir passer pour celui d'un vrai portefeuille.
+
 ### 4.1 Le bandeau permanent
 
 Deux bandes, toujours visibles, de la plus sombre à la plus claire :
@@ -400,6 +407,12 @@ qui permet de dire « ces chiffres sont d'hier ».
 
 Chaque chapitre **s'ouvre** sur son numéro romain, son titre et une phrase qui dit ce qu'il montre
 (charte §4.2).
+
+**Si le serveur ne répond plus** ([D-106](decisions.md)) — Pastory a été arrêté alors que la page
+est restée ouverte —, un avis se colle au bas de la fenêtre : « Pastory est arrêté : cette page ne
+répond plus. Fermez-la, puis rouvrez Pastory. » Des boutons qui ne font plus rien, sans un mot,
+feraient douter des chiffres restés à l'écran. L'avis s'efface de lui-même si le serveur répond de
+nouveau.
 
 ### 4.2 Synthèse
 
