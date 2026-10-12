@@ -381,7 +381,7 @@ class TestErreursReseau:
         erreur = self._refus("Data doesn't exist for startDate = 1696032000, endDate = 1697846400")
         yahoo = self._yahoo_qui_leve(monkeypatch, erreur)
 
-        with pytest.raises(PeriodeSansCours, match="pas encore coté") as leve:
+        with pytest.raises(PeriodeSansCours, match="aucun cours sur la période") as leve:
             yahoo.serie(ACTIF, EN_EUROS, DEBUT, FIN)
 
         assert not isinstance(leve.value, SourceInjoignable)

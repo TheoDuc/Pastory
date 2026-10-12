@@ -153,6 +153,20 @@ class TestUnDossierAPart:
         assert emplacements.dossier_cache(environnement) == racine / "cache"
         assert not dossier_personnel.exists()
 
+    def test_c_est_le_dossier_qui_dit_si_c_est_une_demonstration(self, dossier_personnel):
+        """Trouvé à la relecture : un drapeau passé à l'écran et un dossier détourné à part
+        pouvaient se contredire — un vrai portefeuille sous la mention « démonstration », ou
+        l'inverse. Il n'y a plus qu'une source : le dossier."""
+        assert emplacements.est_une_demonstration() is False
+        assert Chiffres(hors_ligne=True).demonstration is False
+
+        demonstration.detourner()
+
+        assert emplacements.est_une_demonstration() is True
+        assert Chiffres(hors_ligne=True).demonstration is True
+        # L'export d'un tiers n'est jamais une démonstration, où qu'on se trouve.
+        assert Chiffres(dossier=dossier_personnel, hors_ligne=True).demonstration is False
+
     def test_preparer_deux_fois_ne_s_eloigne_pas(self, dossier_personnel):
         environnement = {emplacements.VARIABLE_EMPLACEMENT: str(dossier_personnel)}
         assert demonstration.preparer(environnement) == demonstration.preparer(environnement)
@@ -170,8 +184,10 @@ class TestUnDossierAPart:
 
 @pytest.fixture
 def chiffres_de_demonstration(dossier_personnel):
-    demonstration.ecrire(dossier_personnel / "exports")
-    return Chiffres(hors_ligne=True, demonstration=True)
+    """Une démonstration, comme la préparent le lanceur et la ligne de commande : c'est le
+    dossier personnel détourné qui en fait une, pas une option passée à l'écran."""
+    demonstration.preparer()
+    return Chiffres(hors_ligne=True)
 
 
 def rendu(chiffres: Chiffres, **etat) -> ecrans.Rendu:
@@ -222,7 +238,8 @@ class TestALEcran:
         assert "depot" in identifiants(corps)
 
     def test_une_demonstration_empechee_ne_propose_pas_de_depot(self, dossier_personnel):
-        corps = rendu(Chiffres(hors_ligne=True, demonstration=True))[4]
+        demonstration.detourner()
+        corps = rendu(Chiffres(hors_ligne=True))[4]
         assert demonstration.MENTION in texte(corps)
         assert "depot" not in identifiants(corps)
 
@@ -230,11 +247,25 @@ class TestALEcran:
 class TestLesDeuxPortesDEntree:
     def test_le_raccourci_prepare_le_dossier_avant_tout(self, dossier_personnel, monkeypatch):
         lances: list[bool] = []
+        au_journal: list[tuple[bool, bool]] = []
+        export = (
+            dossier_personnel.with_name("personnel-demonstration")
+            / "exports"
+            / demonstration.NOM_DU_FICHIER
+        )
         monkeypatch.setattr(lanceur, "lancer", lambda demonstration: lances.append(demonstration))
+        # Le journal s'ouvre dans le dossier de la démonstration, et AVANT l'écriture de
+        # l'export : une panne d'écriture y laisse ainsi sa trace.
+        monkeypatch.setattr(
+            lanceur,
+            "ouvrir_le_journal",
+            lambda: au_journal.append((emplacements.est_une_demonstration(), export.exists())),
+        )
 
         lanceur.main(["--demonstration"])
 
         assert lances == [True]
+        assert au_journal == [(True, False)]
         attendu = dossier_personnel.with_name("personnel-demonstration")
         assert emplacements.dossier_personnel() == attendu
         assert (attendu / "exports" / demonstration.NOM_DU_FICHIER).is_file()
@@ -254,9 +285,7 @@ class TestLesDeuxPortesDEntree:
 
         assert cli.main(["ouvrir", "--demonstration"]) == 0
 
-        assert appels == [
-            {"hors_ligne": False, "dossier_export": None, "port": 8060, "demonstration": True}
-        ]
+        assert appels == [{"hors_ligne": False, "dossier_export": None, "port": 8060}]
         assert emplacements.dossier_personnel().name == "personnel-demonstration"
 
     def test_la_commande_garde_son_port_habituel(self, monkeypatch):
@@ -264,7 +293,8 @@ class TestLesDeuxPortesDEntree:
         monkeypatch.setattr(application, "lancer", lambda **options: appels.append(options))
 
         assert cli.main(["ouvrir"]) == 0
-        assert appels[0]["port"] == 8050 and appels[0]["demonstration"] is False
+        assert appels[0]["port"] == 8050
+        assert emplacements.est_une_demonstration() is False
 
     def test_la_demonstration_ne_lit_pas_l_export_d_un_tiers(self, tmp_path, capsys):
         assert cli.main(["ouvrir", "--demonstration", "--export", str(tmp_path)]) == 1

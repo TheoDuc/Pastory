@@ -26,7 +26,7 @@ from pathlib import Path
 
 from pastory import assembleur
 from pastory.adaptateurs.trade_republic.depot import ExportIntrouvable
-from pastory.config import ConfigurationInvalide
+from pastory.config import ConfigurationInvalide, emplacements
 from pastory.donnees_externes.cache import CacheIllisible
 from pastory.moteur import rendements as rendements_moteur
 from pastory.moteur import valorisation as valorisation_moteur
@@ -105,17 +105,17 @@ class Chiffres:
         hors_ligne: bool = False,
         aujourd_hui: Callable[[], Date] = Date.today,
         construire: Construire | None = None,
-        demonstration: bool = False,
     ) -> None:
         """`dossier` : un autre dossier d'exports que le dossier de dépôt — celui d'un tiers,
         lu alors sans aucun appel réseau (règle 2 de CLAUDE.md).
 
-        `demonstration` : le portefeuille fictif (D-107). Il ne change aucun calcul — le
-        dossier personnel a déjà été détourné par `demonstration.preparer` — mais l'écran le
-        dit partout, et ne propose pas d'y déposer un vrai export."""
+        La démonstration (D-107) ne se demande pas ici : **c'est le dossier personnel qui
+        dit si c'en est une** (`demonstration.preparer` l'a détourné avant). Elle ne change
+        aucun calcul, mais l'écran le dit partout, et ne propose pas d'y déposer un vrai
+        export."""
         self.dossier_export = dossier
         self.hors_ligne = hors_ligne
-        self.demonstration = demonstration
+        self.demonstration = dossier is None and emplacements.est_une_demonstration()
         self._aujourd_hui = aujourd_hui
         self._construire = construire
         self._verrou = threading.RLock()

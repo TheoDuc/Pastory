@@ -26,17 +26,20 @@ from dash import ALL, Dash, Input, Output, State, ctx, dcc, html, no_update
 from dash.exceptions import PreventUpdate
 from flask import jsonify, request
 
-from pastory.demonstration import TITRE_DE_LA_FENETRE as TITRE_DE_LA_DEMONSTRATION
 from pastory.vues import bandeau, ecrans, projections
 from pastory.vues import etat as etat_ecran
 from pastory.vues.chiffres import Chiffres, Echec, poches_du
 from pastory.vues.reception import recevoir
 from pastory.vues.veille import CHEMIN as CHEMIN_DE_VIE
-from pastory.vues.veille import Veille
+from pastory.vues.veille import (
+    HOTE,
+    PORT_PAR_DEFAUT,
+    Veille,
+    identite,
+    titre_de_la_fenetre,
+)
 
 DOSSIER_DES_ASSETS = Path(__file__).parent / "assets"
-NOM = "Pastory"
-PORT_PAR_DEFAUT = 8050
 
 SIGNE_DE_VIE = """
 <script>
@@ -82,6 +85,13 @@ SIGNE_DE_VIE = """
   window.addEventListener("pagehide", function () {
     if (navigator.sendBeacon) { navigator.sendBeacon(adresse + "&fin=1"); }
   });
+  // Un navigateur peut endormir tout à fait une page masquée depuis longtemps : plus aucun
+  // signe, et Pastory s'arrêterait sous une fenêtre simplement réduite. Chrome et Edge
+  // disent ne pas endormir une page qui tient un verrou : elle en tient un, jamais rendu.
+  // NON MESURÉ sur la durée (il faudrait des heures) : le cahier de l'étape 10 le demande.
+  if (navigator.locks && navigator.locks.request) {
+    navigator.locks.request(adresse, function () { return new Promise(function () {}); });
+  }
 })();
 </script>
 """.replace("{chemin}", CHEMIN_DE_VIE)
@@ -191,7 +201,7 @@ def creer(chiffres: Chiffres, veille: Veille | None = None) -> Dash:
     application = Dash(
         __name__,
         assets_folder=str(DOSSIER_DES_ASSETS),
-        title=TITRE_DE_LA_DEMONSTRATION if chiffres.demonstration else NOM,
+        title=titre_de_la_fenetre(chiffres.demonstration),
         update_title=None,
         suppress_callback_exceptions=True,
         serve_locally=True,
@@ -303,12 +313,15 @@ def _brancher_la_vie(application: Dash, veille: Veille | None, demonstration: bo
         # Seule une page de Pastory compte : un autre site ouvert dans le navigateur pourrait
         # écrire à cette adresse, et tiendrait Pastory en vie sans fenêtre.
         de_la_page = request.headers.get("Sec-Fetch-Site", "same-origin") == "same-origin"
-        if veille is not None and request.method == "POST" and page and de_la_page:
-            if request.args.get("fin"):
+        if veille is not None and request.method == "POST" and de_la_page:
+            if request.args.get("annonce"):
+                # Le lanceur, qui a trouvé ce Pastory ouvert et lui amène une fenêtre.
+                veille.annoncer_une_fenetre()
+            elif page and request.args.get("fin"):
                 veille.adieu(page)
-            else:
+            elif page:
                 veille.signe(page)
-        reponse = jsonify(application=NOM, demonstration=demonstration)
+        reponse = jsonify(**identite(demonstration))
         reponse.headers["Cache-Control"] = "no-store"
         return reponse
 
@@ -435,16 +448,13 @@ def lancer(
     dossier_export: Path | None = None,
     port: int = PORT_PAR_DEFAUT,
     navigateur: bool = True,
-    demonstration: bool = False,
 ) -> None:
     """Démarre l'application et ouvre le navigateur. S'arrête avec Ctrl+C."""
-    chiffres = Chiffres(
-        dossier=dossier_export, hors_ligne=hors_ligne, demonstration=demonstration
-    )
+    chiffres = Chiffres(dossier=dossier_export, hors_ligne=hors_ligne)
     application = creer(chiffres)
-    adresse = f"http://127.0.0.1:{port}/"
+    adresse = f"http://{HOTE}:{port}/"
     print(f"Pastory est ouvert dans votre navigateur : {adresse}")
     print("Laissez cette fenêtre ouverte pendant que vous l'utilisez ; Ctrl+C pour l'arrêter.")
     if navigateur:
         threading.Timer(1.0, webbrowser.open, args=(adresse,)).start()
-    application.run(host="127.0.0.1", port=port, debug=False)
+    application.run(host=HOTE, port=port, debug=False)

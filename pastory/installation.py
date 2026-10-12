@@ -22,7 +22,9 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-NOM = "Pastory"
+from pastory.config.emplacements import NOM_APPLICATION
+
+NOM = NOM_APPLICATION
 NOM_DE_LA_DEMONSTRATION = f"{NOM} (démonstration)"
 
 BUREAU = "{B4BFCC3A-DB2C-424C-B029-7FE99A87C641}"

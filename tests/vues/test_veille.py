@@ -85,6 +85,29 @@ def test_pastory_ne_s_arrete_pas_au_milieu_d_un_travail():
     assert veille.battre() is True
 
 
+def test_une_fenetre_annoncee_est_attendue_comme_la_premiere():
+    """Le lanceur rouvre Pastory juste après sa fermeture : la fenêtre qu'il amène doit
+    trouver un Pastory vivant, pas un Pastory à une seconde de s'arrêter."""
+    veille = une_veille()
+    veille.signe("ancienne")
+    veille.adieu("ancienne")
+    for _ in range(4):
+        assert veille.battre() is False
+    veille.annoncer_une_fenetre()
+    for _ in range(29):
+        assert veille.battre() is False
+    veille.signe("nouvelle")
+    assert veille.battre() is False
+
+
+def test_une_fenetre_annoncee_qui_ne_vient_pas_n_est_pas_attendue_toujours():
+    veille = une_veille()
+    veille.signe("ancienne")
+    veille.adieu("ancienne")
+    veille.annoncer_une_fenetre()
+    assert battements_avant_l_arret(veille) == 30
+
+
 def test_l_adieu_d_une_page_inconnue_est_sans_effet():
     veille = une_veille()
     veille.signe("page")

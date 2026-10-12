@@ -778,6 +778,19 @@ américaine restait sans cours. Cherchée par son nom, elle a aussi une cotation
 après l'achat ; la source refuse cette période par une erreur 400, que Pastory prenait pour une
 panne de réseau, et il abandonnait la recherche à chaque fois. Corrigé, avec son test.
 
+**La relecture indépendante a rendu dix remarques, toutes traitées**, et chaque défaut de
+comportement est gardé par un test. Les deux plus sérieuses tenaient au même angle mort que le
+lanceur devait justement couvrir — **savoir si Pastory tourne déjà** : un second pouvait démarrer
+si le premier s'était installé sur un port de repli, et rouvrir Pastory dans les secondes qui
+suivent sa fermeture lui amenait une fenêtre juste avant qu'il ne s'éteigne. Elle a aussi trouvé
+le nom réel du dossier d'un tiers dans le cahier de l'étape : retiré, y compris de l'historique
+de la branche, qui n'avait pas été envoyée. Le détail est au [cahier](verification/etape-10.md) §5.
+
+**Ce qui n'a pas pu être mesuré :** la tenue d'une fenêtre réduite **pendant des heures**. Un
+navigateur peut endormir une page masquée, qui ne donnerait plus signe de vie ; une précaution est
+posée, non vérifiée sur la durée ([D-106](decisions.md)). Le cahier demande l'essai au
+propriétaire.
+
 **Ce qui n'a pas pu être essayé sur la machine du propriétaire :** `Installer Pastory.cmd` jusqu'au
 bout. Son antivirus bloque le téléchargement des bibliothèques (« invalid peer certificate »), ce
 que le fichier explique ; la création des raccourcis, elle, a été essayée par la commande que ce

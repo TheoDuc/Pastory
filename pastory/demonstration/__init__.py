@@ -451,6 +451,16 @@ def ecrire(dossier_des_exports: Path) -> Path:
     return chemin
 
 
+def detourner(environnement: MutableMapping[str, str] | None = None) -> Path:
+    """Fait du dossier personnel celui de la démonstration, **sans rien écrire**. C'est ce
+    détournement, et lui seul, qui fait d'un lancement une démonstration
+    (`emplacements.est_une_demonstration`). Rend ce dossier."""
+    environnement = os.environ if environnement is None else environnement
+    racine = emplacements.dossier_de_demonstration(environnement)
+    environnement[emplacements.VARIABLE_EMPLACEMENT] = str(racine)
+    return racine
+
+
 def preparer(environnement: MutableMapping[str, str] | None = None) -> Path:
     """Fait de ce lancement une démonstration : le dossier personnel devient celui de la
     démonstration, et l'export fictif y est écrit. À appeler avant tout le reste.
@@ -458,7 +468,6 @@ def preparer(environnement: MutableMapping[str, str] | None = None) -> Path:
     Rend le dossier personnel de la démonstration.
     """
     environnement = os.environ if environnement is None else environnement
-    racine = emplacements.dossier_de_demonstration(environnement)
-    environnement[emplacements.VARIABLE_EMPLACEMENT] = str(racine)
+    racine = detourner(environnement)
     ecrire(emplacements.dossier_exports(environnement))
     return racine

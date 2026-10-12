@@ -24,6 +24,8 @@ des pannes : elle s'affiche dans une boîte de message, et son détail va au jou
 from __future__ import annotations
 
 import argparse
+import contextlib
+import http.client
 import json
 import os
 import shutil
@@ -42,12 +44,10 @@ from pathlib import Path
 
 from pastory import demonstration as portefeuille_fictif
 from pastory.config import emplacements
-from pastory.demonstration import TITRE_DE_LA_FENETRE as TITRE_DE_LA_DEMONSTRATION
 from pastory.vues import veille as veille_des_pages
+from pastory.vues.veille import HOTE, NOM, identite, titre_de_la_fenetre
 
-NOM = "Pastory"
-HOTE = "127.0.0.1"
-PREMIER_PORT = 8050
+PREMIER_PORT = veille_des_pages.PORT_PAR_DEFAUT
 PORTS_ESSAYES = 10
 
 NOM_DU_JOURNAL = "journal.txt"
@@ -82,7 +82,10 @@ def ouvrir_le_journal() -> Path | None:
     dossier.mkdir(parents=True, exist_ok=True)
     chemin = dossier / NOM_DU_JOURNAL
     if chemin.exists() and chemin.stat().st_size > TAILLE_MAXIMALE_DU_JOURNAL:
-        chemin.unlink()
+        # Un Pastory déjà ouvert tient ce fichier : sous Windows, on ne peut alors pas
+        # l'effacer. Tant pis pour le ménage — on écrit à la suite.
+        with contextlib.suppress(OSError):
+            chemin.unlink()
     flux = chemin.open("a", encoding="utf-8", buffering=1)
     sys.stdout = sys.stderr = flux
     print(f"--- {datetime.now():%Y-%m-%d %H:%M:%S} · ouverture de {NOM}")
@@ -138,6 +141,8 @@ def qui_repond(port: int, patience: float = PATIENCE) -> dict | None:
                 contenu = json.loads(reponse.read().decode("utf-8"))
         except urllib.error.HTTPError:
             return None  # un autre programme, qui répond autre chose
+        except http.client.HTTPException:
+            return None  # un autre programme, qui ne parle pas HTTP
         except (OSError, ValueError):
             continue
         return contenu if isinstance(contenu, dict) else None
@@ -151,29 +156,60 @@ def premier_port(demonstration: bool) -> int:
 def reserver(
     demonstration: bool,
     prendre: Callable[[int], socket.socket | None] = prendre,
-    qui_repond: Callable[[int], dict | None] = qui_repond,
+    qui_repond: Callable[[int, float], dict | None] = qui_repond,
 ) -> tuple[int, socket.socket | None]:
     """Le port de Pastory, et la prise sur ce port — `None` s'il y tourne déjà.
+
+    **Toute la plage est regardée avant de s'installer**, et pas seulement jusqu'au premier
+    port libre : un Pastory lancé un jour où le premier port était pris tourne sur le
+    suivant, et le premier, libéré depuis, ne doit pas en accueillir un second.
 
     La démonstration a ses propres ports : elle peut s'ouvrir à côté du vrai portefeuille, et
     un Pastory ne répond jamais à la place de l'autre.
     """
     premier = premier_port(demonstration)
+    attendu = identite(demonstration)
+    limite = time.monotonic() + PATIENCE
+    libre: tuple[int, socket.socket] | None = None
     for port in range(premier, premier + PORTS_ESSAYES):
         prise = prendre(port)
-        if prise is not None:
-            return port, prise
-        present = qui_repond(port)
-        if (
-            present is not None
-            and present.get("application") == NOM
-            and bool(present.get("demonstration")) == demonstration
-        ):
-            return port, None
+        if prise is None:
+            # La patience est partagée entre les ports occupés : un programme muet sur
+            # chacun ne doit pas faire attendre dix fois.
+            present = qui_repond(port, max(1.0, limite - time.monotonic()))
+            if present == attendu:
+                if libre is not None:
+                    libre[1].close()
+                return port, None
+        elif libre is None:
+            libre = (port, prise)
+        else:
+            prise.close()  # libre, donc sans Pastory : on ne faisait que regarder
+    if libre is not None:
+        return libre
     raise AucunPortLibre(
         f"Les ports {premier} à {premier + PORTS_ESSAYES - 1} de cet ordinateur sont tous "
         "occupés par d'autres programmes."
     )
+
+
+def annoncer(port: int) -> bool:
+    """Prévient le Pastory de ce port qu'une fenêtre arrive. `False` s'il ne répond plus.
+
+    Un Pastory dont la dernière page vient de se fermer s'arrête quelques secondes plus
+    tard : sans cette annonce, on lui ouvrirait une fenêtre juste avant qu'il ne s'éteigne.
+    """
+    sans_intermediaire = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    requete = urllib.request.Request(
+        f"http://{HOTE}:{port}{veille_des_pages.CHEMIN}?annonce=1", data=b"", method="POST"
+    )
+    for _ in range(3):
+        try:
+            with sans_intermediaire.open(requete, timeout=5) as reponse:
+                return reponse.status == 200
+        except (OSError, http.client.HTTPException):
+            continue
+    return False
 
 
 # --- La fenêtre ---------------------------------------------------------------------------
@@ -228,10 +264,6 @@ def ouvrir_la_fenetre(adresse: str) -> None:
     )
 
 
-def titre_de_la_fenetre(demonstration: bool) -> str:
-    return TITRE_DE_LA_DEMONSTRATION if demonstration else NOM
-
-
 def ramener_la_fenetre(titre: str) -> bool:
     """Remet au premier plan la fenêtre de Pastory déjà ouverte. `False` si elle n'est pas
     trouvée — ou ailleurs que sous Windows, où l'on ouvre simplement une fenêtre de plus."""
@@ -279,6 +311,9 @@ def veiller(
 
 def lancer(demonstration: bool = False) -> int:
     port, prise = reserver(demonstration)
+    if prise is None and not annoncer(port):
+        # Il répondait à l'instant, il ne répond plus : il s'arrêtait. On repart de zéro.
+        port, prise = reserver(demonstration)
     adresse = f"http://{HOTE}:{port}/"
     if prise is None:
         print(f"{NOM} tourne déjà sur {adresse}")
@@ -302,7 +337,8 @@ def lancer(demonstration: bool = False) -> int:
     logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
     veille = veille_des_pages.Veille()
-    interface = application.creer(Chiffres(demonstration=demonstration), veille)
+    # C'est le dossier personnel qui dit si c'est la démonstration : `main` l'a détourné.
+    interface = application.creer(Chiffres(), veille)
     serveur = make_server(HOTE, port, interface.server, threaded=True, fd=prise.fileno())
     threading.Thread(target=veiller, args=(veille, serveur.shutdown), daemon=True).start()
     print(f"{NOM} est ouvert sur {adresse}")
@@ -325,20 +361,30 @@ def main(arguments: list[str] | None = None) -> int:
         # et un raccourci qui ne fait rien est la panne à éviter.
         options, _ = analyseur.parse_known_args(arguments)
         if options.demonstration:
-            # Avant le journal, qui s'écrit dans le dossier personnel : celui de la
-            # démonstration, dès maintenant.
-            portefeuille_fictif.preparer()
+            # Le dossier personnel devient celui de la démonstration, sans rien écrire
+            # encore : le journal s'ouvre d'abord, pour qu'une panne d'écriture y laisse
+            # sa trace.
+            portefeuille_fictif.detourner()
         ouvrir_le_journal()
+        if options.demonstration:
+            portefeuille_fictif.ecrire(emplacements.dossier_exports())
         return lancer(options.demonstration)
     except AucunPortLibre as erreur:
         avertir(f"{NOM} n'a pas pu s'ouvrir. {erreur}")
         return 1
-    except Exception:  # noqa: BLE001 - une panne de démarrage ne doit jamais rester muette
+    except Exception as erreur:  # noqa: BLE001 - une panne ne doit jamais rester muette
+        # Sans journal (il n'a pas pu s'ouvrir), la boîte de message est la seule trace :
+        # elle porte alors l'erreur elle-même, plutôt que de renvoyer à un fichier absent.
+        ou_lire = (
+            f"Le détail est écrit dans le fichier « {NOM_DU_JOURNAL} » du dossier "
+            f"{emplacements.dossier_personnel()}."
+            if sys.stderr is not None
+            else f"Ce que dit le programme : {type(erreur).__name__} : {erreur}"
+        )
         traceback.print_exc()
         avertir(
             f"{NOM} n'a pas pu s'ouvrir : c'est un défaut du programme, pas de vos données. "
-            f"Le détail est écrit dans le fichier « {NOM_DU_JOURNAL} » du dossier "
-            f"{emplacements.dossier_personnel()}."
+            f"{ou_lire}"
         )
         return 1
 

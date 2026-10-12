@@ -536,7 +536,15 @@ dans un autre dossier personnel et y pointe `PASTORY_DOSSIER` avant tout le rest
 les réglages, le moteur et les vues font ensuite exactement ce qu'ils font pour un vrai export.
 Deux choses seulement savent qu'il s'agit d'une démonstration : l'écran, qui le dit partout et
 retire le dépôt, et l'adresse de vie, pour que la démonstration et le vrai portefeuille ne se
-répondent jamais l'un à la place de l'autre.
+répondent jamais l'un à la place de l'autre. Toutes deux le lisent **au même endroit, le nom du
+dossier personnel** (`emplacements.est_une_demonstration`) : il n'y a pas d'option à accorder
+avec lui.
+
+**Ce que le lanceur et l'application doivent dire de la même façon** — le nom, l'hôte, le port, le
+titre de la fenêtre, l'adresse de vie et ce qu'elle répond — est écrit une fois, dans
+`vues/veille.py`. C'est par ces valeurs que le lanceur reconnaît son propre Pastory : dites à deux
+endroits, elles finiraient par différer, et un second Pastory démarrerait sans qu'aucun test ne
+le voie.
 
 ### 5.7 `donnees_externes/` — les cours, et ce qu'on refuse d'inventer
 

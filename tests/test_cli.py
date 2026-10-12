@@ -137,13 +137,8 @@ class TestBases:
         assert cli.main(["ouvrir", "--export", str(tmp_path)]) == 0
 
         assert lancements == [
-            {"hors_ligne": True, "dossier_export": None, "port": 8123, "demonstration": False},
-            {
-                "hors_ligne": False,
-                "dossier_export": tmp_path,
-                "port": 8050,
-                "demonstration": False,
-            },
+            {"hors_ligne": True, "dossier_export": None, "port": 8123},
+            {"hors_ligne": False, "dossier_export": tmp_path, "port": 8050},
         ]
 
 

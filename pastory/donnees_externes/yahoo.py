@@ -305,9 +305,10 @@ def _resultat(texte: str, ticker: str) -> dict:
         # l'étape 10 : une cotation étrangère créée après l'achat (cherchée par le nom de la
         # société) recevait ce refus, pris pour une panne, et l'action restait sans cours.
         if "data doesn't exist" in description.lower():
+            # Le message dit ce que la source dit, pas pourquoi : elle répond de même pour
+            # un titre pas encore coté et, peut-être, pour un titre qui ne cote plus.
             raise PeriodeSansCours(
-                f"la source n'a aucun cours de {ticker} sur la période demandée : il n'y "
-                "était pas encore coté"
+                f"la source connaît {ticker}, mais n'a aucun cours sur la période demandée"
             )
         raise SourceInjoignable(f"la source a refusé la demande : {description}")
 

@@ -51,10 +51,11 @@ publication.
 **Questions ouvertes** : **Q-54** (actions gratuites puis « migration ») et **Q-60** (le contenu du
 monétaire, des multi-actifs, de l'immobilier). Aucune ne bloque.
 
-**À la fin de la session du 2026-10-13**, il restait à faire, avec l'accord du propriétaire : sa
-vérification par le [cahier de l'étape 10](verification/etape-10.md), la relecture `/code-review`
-si elle n'a pas eu lieu, puis la fusion d'`etape-10` dans `main` et l'envoi sur GitHub. **Vérifier
-`git branch` et `git log` avant de supposer que c'est fait.**
+**À la fin de la session du 2026-10-13**, la relecture `/code-review` était faite et ses dix
+remarques traitées. Il restait, avec l'accord du propriétaire : sa vérification par le
+[cahier de l'étape 10](verification/etape-10.md) — dont **l'essai d'une fenêtre réduite pendant une
+heure ou deux**, seul point non mesuré —, puis la fusion d'`etape-10` dans `main` et l'envoi sur
+GitHub. **Vérifier `git branch` et `git log` avant de supposer que c'est fait.**
 
 ---
 
@@ -64,7 +65,12 @@ si elle n'a pas eu lieu, puis la fusion d'`etape-10` dans `main` et l'envoi sur 
   connaît ni Dash ni le réseau : elle se teste avec une horloge factice. Elle n'est branchée que
   par le lanceur ; `pastory ouvrir` s'arrête toujours par Ctrl+C.
 - **L'adresse de vie**, `/pastory/vie` : la page y donne signe de vie, et le lanceur y demande « qui
-  est là ? ». Sa réponse dit si c'est la démonstration.
+  est là ? », puis y **annonce la fenêtre qu'il amène**. Sa réponse dit si c'est la démonstration.
+- **Ce que le lanceur et l'application partagent est écrit une fois, dans `veille.py`** : le nom,
+  l'hôte, le port, le titre de la fenêtre, l'adresse de vie. Ne pas les réécrire ailleurs : c'est
+  par eux que le lanceur reconnaît son propre Pastory.
+- **C'est le dossier personnel qui dit si c'est une démonstration**
+  (`emplacements.est_une_demonstration`), et lui seul : aucune option n'est passée à l'écran.
 - **`pastory installer`** (`pastory/installation.py`) crée les raccourcis ; `--retirer` les enlève.
 - **La démonstration** (`pastory/demonstration/`) : le scénario est dans `__init__.py`, les
   clôtures dans `clotures.py`, **écrit par** `scripts/releve_de_demonstration.py`. Changer le
@@ -76,12 +82,25 @@ si elle n'a pas eu lieu, puis la fusion d'`etape-10` dans `main` et l'envoi sur 
 
 ## Les pièges de l'étape 10
 
-- **Comparer des nombres « avant / après » : hors ligne, et sur la même copie.** Un essai en ligne
-  ajoute des cours au cache de la copie, et tous les chiffres bougent : cela a produit 2 548 faux
-  écarts. La bonne méthode : une copie fraîche du dossier `Pastory`, le code d'avant dans une copie
-  de travail (`git worktree add <dossier> main`), le code d'après dans le projet, les deux lancés
-  hors ligne sur cette copie. Le script de relevé (`ecrans.rendre` sur 105 états) vivait dans le
+- **Comparer des nombres « avant / après » : hors ligne, sur la même copie, et le même jour.** Un
+  essai en ligne ajoute des cours au cache de la copie, et tous les chiffres bougent : cela a
+  produit 2 548 faux écarts. Et une session qui passe minuit change « aujourd'hui », donc les
+  durées et les taux annualisés : encore des faux écarts. La bonne méthode : une copie fraîche du
+  dossier `Pastory`, le code d'avant extrait à part (`git archive main pastory tests | tar -x`,
+  depuis un dossier temporaire — `git worktree` y laisse des restes que OneDrive empêche
+  d'effacer), le code d'après dans le projet, les deux lancés **à la suite**, hors ligne, sur
+  cette copie. Le script de relevé (`ecrans.rendre` sur 105 états) vivait dans le
   dossier temporaire de la session : à réécrire.
+- **Le nom du dossier d'un tiers ne s'écrit dans aucun fichier versionné**, pas même dans un cahier
+  de vérification : écrire « le dossier `data_*/` ». C'est arrivé dans le cahier de l'étape 10, et
+  seule la relecture l'a vu. Avant un commit de documents : `git diff --cached | grep -i <nom>`.
+- **Un long script passé au shell par heredoc peut casser l'interpréteur** (« unexpected EOF »),
+  surtout s'il contient des apostrophes : l'écrire avec l'outil d'écriture de fichiers, puis le
+  lancer. Vécu deux fois dans cette session.
+- **« Déjà ouvert ? » est la question la plus piégeuse du lanceur.** Trois réponses fausses ont
+  été corrigées : ne regarder que le premier port libre ; croire vivant un Pastory qui s'éteint ;
+  prendre pour une panne un programme qui ne parle pas HTTP. Tout changement du lanceur se
+  rejoue en vrai (ouvrir, relancer, fermer, rouvrir aussitôt), pas seulement en tests.
 - **Un garde-fou de test ne doit pas remplacer un module partagé.** Remplacer `subprocess.Popen`
   pour interdire d'ouvrir une fenêtre a cassé l'écriture des raccourcis, qui s'en sert aussi : le
   garde-fou remplace `lanceur.subprocess` et `lanceur.webbrowser` par des doublures, pas le module.

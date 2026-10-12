@@ -861,12 +861,7 @@ def commande_ouvrir(
 
     if port is None:
         port = lanceur.premier_port(demonstration)
-    application.lancer(
-        hors_ligne=hors_ligne,
-        dossier_export=dossier_export,
-        port=port,
-        demonstration=demonstration,
-    )
+    application.lancer(hors_ligne=hors_ligne, dossier_export=dossier_export, port=port)
     return CODE_SUCCES
 
 

@@ -14,9 +14,15 @@ l'annexe pour chaque période et chaque choix de poches, les actifs pour chaque 
 rubriques de la diversification, les frais, les projections), **12 380 nombres**. Les deux relevés
 sont identiques, au caractère près.
 
-Un premier relevé avait montré des écarts : la copie avait reçu entre-temps des cours plus récents,
-par un essai en ligne. Refait sur une copie fraîche, avec les deux codes sur les mêmes données.
-**Une comparaison avant / après n'a de sens que hors ligne, sur la même copie.**
+La comparaison a été refaite après les corrections de la relecture (§5) : identiques encore.
+
+Deux faux écarts sont apparus en chemin, et aucun ne venait du code :
+
+- la copie avait reçu des cours plus récents, par un essai en ligne fait entre les deux relevés ;
+- la session avait passé minuit : « aujourd'hui » entre dans les durées, les taux annualisés et
+  les dates affichées, qui bougent donc d'un jour à l'autre avec n'importe quel code.
+
+**Une comparaison avant / après n'a de sens que hors ligne, sur la même copie, et le même jour.**
 
 ### À vérifier par toi
 
@@ -38,6 +44,7 @@ par un essai en ligne. Refait sur une copie fraîche, avec les deux codes sur le
 | Second lancement pendant que Pastory tourne | la fenêtre existante revient ; **ni seconde fenêtre, ni second serveur** |
 | Fermeture de la fenêtre | Pastory s'arrête seul **8 secondes** plus tard |
 | Fermeture pendant le premier téléchargement des cours | il finit ce travail d'abord, puis s'arrête (73 secondes lors de l'essai) |
+| Fenêtre fermée, puis **relancée 5 secondes après** | le Pastory qui allait s'arrêter est prévenu, sert la nouvelle fenêtre, et ne s'arrête qu'à sa fermeture (9 secondes après) |
 | Le vrai raccourci « Pastory (démonstration) », ouvert comme un double-clic | même comportement ; le dossier `Pastory` n'a pas été touché |
 | Les trois raccourcis relus | la cible existe, l'icône existe, le dossier de départ est celui du projet |
 
@@ -52,6 +59,11 @@ par un essai en ligne. Refait sur une copie fraîche, avec les deux codes sur le
 - [ ] Ferme la fenêtre, attends une quinzaine de secondes, ouvre le Gestionnaire des tâches
   (Ctrl+Maj+Échap) → onglet « Détails » : il n'y a plus de `pythonw.exe`.
 - [ ] Réduis la fenêtre une dizaine de minutes, puis reviens : Pastory répond toujours.
+- [ ] **Le même essai sur une heure ou deux**, fenêtre réduite, ordinateur allumé. C'est le seul
+  point que je n'ai pas pu mesurer : un navigateur peut endormir une page masquée depuis
+  longtemps, et Pastory s'arrêterait alors sans que tu aies rien fermé. Une précaution est en
+  place, mais elle n'est pas vérifiée sur la durée ([D-106](../decisions.md)). Si tu retrouves
+  « Pastory est arrêté » au bas de la fenêtre, dis-le-moi avec la durée.
 - [ ] Menu Démarrer → tape « Pastory » : les deux entrées apparaissent.
 
 ### Si quelque chose ne va pas
@@ -165,16 +177,35 @@ trouve seul aujourd'hui :
 
 ---
 
-## 5. Les tests
+## 5. La relecture indépendante
 
-1 330 tests, tous au vert : 83 nouveaux, et 6 retirés avec le code de l'ancien nom.
+Un agent qui n'avait pas écrit le code l'a relu. Dix remarques, toutes traitées, et chaque défaut
+de comportement est désormais gardé par un test :
+
+| Ce qui a été trouvé | Ce qui a été fait |
+|---|---|
+| Un second Pastory pouvait démarrer si le premier tournait sur un port de repli | toute la plage de ports est regardée avant de s'installer |
+| Rouvert dans les secondes qui suivent sa fermeture, Pastory s'éteignait sous la nouvelle fenêtre | le lanceur annonce la fenêtre qu'il amène ; essayé en vrai (§2) |
+| Un programme qui ne parle pas HTTP sur le port faisait tomber le lancement en panne | il est sauté, comme tout autre programme |
+| Une panne de la démonstration avant l'ouverture du journal ne laissait aucune trace | le journal s'ouvre d'abord ; sans journal, le message porte l'erreur elle-même |
+| Un journal trop gros, tenu par un Pastory ouvert, empêchait d'ouvrir | sa remise à zéro n'est plus qu'une tentative |
+| Le message « période sans cours » affirmait une cause que la source ne donne pas | il dit ce que la source dit, rien de plus |
+| Une page endormie par le navigateur arrêterait Pastory sous une fenêtre réduite | une précaution est posée, **non mesurée sur la durée** : à vérifier par toi (§2) |
+| Le nom réel du dossier d'un tiers figurait dans ce cahier | retiré, y compris de l'historique de la branche, qui n'avait pas été envoyée |
+| La démonstration reposait sur deux réglages qui devaient concorder | il n'y en a plus qu'un : le dossier dit si c'en est une |
+| Le nom, le port et le titre de la fenêtre étaient écrits à plusieurs endroits | écrits une fois, pour le lanceur comme pour l'application |
+
+## 6. Les tests
+
+1 340 tests, tous au vert : 93 nouveaux, et 6 retirés avec le code de l'ancien nom.
 
 - **la veille** : une page qui donne signe de vie garde Pastory ouvert ; fermée, il s'arrête ;
   rechargée, il continue ; une seconde fenêtre réduite le garde ouvert ; il ne s'arrête jamais au
-  milieu d'un travail ;
+  milieu d'un travail ; une fenêtre annoncée est attendue, mais pas indéfiniment ;
 - **le lanceur** : un vrai serveur démarré sur le port pris d'avance répond « c'est moi » ; un
-  Pastory déjà ouvert n'en démarre pas un second ; la démonstration et le vrai portefeuille ne se
-  répondent jamais l'un pour l'autre ; une panne de démarrage ne reste jamais muette ;
+  Pastory déjà ouvert n'en démarre pas un second, même sur un port de repli ; la démonstration et
+  le vrai portefeuille ne se répondent jamais l'un pour l'autre ; une panne de démarrage ne reste
+  jamais muette, avec ou sans journal ;
 - **l'installation** : un vrai raccourci s'écrit dans un chemin accentué ; `--retirer` défait tout,
   et seulement cela ;
 - **la démonstration** : Pastory lit l'export fictif sans réserve ; chaque prix d'achat est une

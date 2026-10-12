@@ -1884,10 +1884,23 @@ secondes ; si l'adieu s'est perdu, en cinq minutes au plus.
 rencontrés) ; une fenêtre native (une dépendance de plus pour peu de gain) ; attendre la fin du
 processus du navigateur (il se confond avec les autres fenêtres d'Edge) ; un arrêt dès le premier
 signe manqué.
+**Précisée le même jour, par la relecture indépendante :** la recherche d'un Pastory déjà ouvert
+regarde **toute la plage de ports**, et pas seulement jusqu'au premier libre (lancé un jour où le
+premier était pris, il tourne sur le suivant) ; le lanceur **annonce la fenêtre qu'il amène** à un
+Pastory déjà ouvert, qui l'attend alors comme la première (sans quoi, rouvert dans les secondes
+qui suivent sa fermeture, il s'éteignait sous la nouvelle fenêtre) ; le journal s'ouvre **avant**
+tout ce qui peut échouer ; et le nom, l'hôte, le port et le titre de la fenêtre sont dits **une
+seule fois**, dans `veille.py`, pour le lanceur comme pour l'application.
 **Limites connues :** sous Windows seulement pour les raccourcis — le lanceur ne dépend pas de
 Windows, mais aucun raccourci Mac n'a pu être essayé ; l'icône de la fenêtre dans la barre des
 tâches est celle que le navigateur lui donne ; les raccourcis pointent sur le dossier du projet,
 et sont à recréer s'il est déplacé ou renommé.
+**Une limite non mesurée :** un navigateur peut **endormir tout à fait** une page masquée depuis
+longtemps ; elle ne donnerait plus signe de vie, et Pastory s'arrêterait sous une fenêtre
+simplement réduite. La page tient un verrou du navigateur, que Chrome et Edge disent respecter
+avant d'endormir une page — **ce n'est pas vérifié sur la durée**. Si cela arrive, la page le dit
+(« Pastory est arrêté… »), aucun chiffre n'est en jeu, et le remède est d'allonger le silence
+toléré ou de faire prévenir le serveur par la page qui s'endort.
 
 ### D-107 · 2026-10-12 · Un portefeuille de démonstration : opérations inventées, titres réels, dossier à part · Validée
 **Décision :** Pastory sait s'ouvrir sur un **portefeuille fictif** (`pastory/demonstration/`),
@@ -1906,6 +1919,10 @@ pour être montré sans révéler un vrai portefeuille.
   fichier de données n'entre dans git ([D-01](#d-01)).
 - **L'écran le dit partout** : « Données de démonstration » sur la couverture et dans la
   navigation de chaque chapitre, un autre titre de fenêtre, et **aucun dépôt possible**.
+- **C'est le dossier qui dit si c'est une démonstration**, et lui seul
+  (`emplacements.est_une_demonstration`) : aucune option n'est passée à l'écran. La mention et les
+  fichiers lus ne peuvent donc pas se contredire — ni un vrai portefeuille s'afficher sous
+  « démonstration », ni l'inverse.
 **Raison :** le propriétaire, le 2026-10-09, puis son arbitrage du 2026-10-12 entre de vrais titres
 et des actifs entièrement fictifs.
 **Écarte :** des actifs fictifs livrés avec des cours inventés (fonctionne sans réseau et donne
@@ -1919,7 +1936,10 @@ et elle ne porte que sur des titres publics. Le scénario s'arrête en septembre
 demande de relancer le relevé.
 **Ce que la démonstration a trouvé en chemin :** une cotation étrangère créée après l'achat faisait
 répondre « 400 » à la source de cours, pris pour une panne ; l'action restait sans cours. Ce refus
-écarte désormais un candidat, pas la recherche (`PeriodeSansCours`).
+écarte désormais un candidat, pas la recherche (`PeriodeSansCours`). Son message dit ce que la
+source dit — aucun cours sur la période — sans supposer pourquoi : c'est un texte de la source qui
+est lu ici, faute de code (règle 4), et il ne dit pas si le titre n'était pas encore coté ou ne
+l'est plus.
 
 ### D-108 · 2026-10-12 · Le ménage : ce que l'application a remplacé s'en va · Validée
 **Décision :** maintenant que Pastory fonctionne de bout en bout, ce qui ne sert plus est retiré.

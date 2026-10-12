@@ -57,6 +57,16 @@ def dossier_de_demonstration(environnement: Mapping[str, str] | None = None) -> 
     return personnel.with_name(personnel.name + SUFFIXE_DE_DEMONSTRATION)
 
 
+def est_une_demonstration(environnement: Mapping[str, str] | None = None) -> bool:
+    """Vrai si le dossier personnel en cours est celui de la démonstration.
+
+    **C'est le dossier qui le dit, et lui seul** : l'écran qui annonce « Données de
+    démonstration » et les fichiers qu'on lit ne peuvent donc pas se contredire — ni un vrai
+    portefeuille s'afficher sous cette mention, ni l'inverse.
+    """
+    return dossier_personnel(environnement).name.endswith(SUFFIXE_DE_DEMONSTRATION)
+
+
 def dossier_exports(environnement: Mapping[str, str] | None = None) -> Path:
     """Le dossier de dépôt : l'utilisateur y dépose ses exports des transactions (D-80)."""
     return dossier_personnel(environnement) / "exports"

@@ -118,8 +118,9 @@ class TickerInconnu(ErreurDeSource):
 
 
 class PeriodeSansCours(ErreurDeSource):
-    """La source connaît ce ticker, mais n'a aucun cours sur la période demandée : il n'y
-    était pas encore coté. Ce n'est ni une panne, ni un ticker inconnu."""
+    """La source connaît ce ticker, mais n'a aucun cours sur la période demandée — le plus
+    souvent parce qu'il n'y était pas encore coté. Ce n'est ni une panne, ni un ticker
+    inconnu ; la source ne dit pas pourquoi, et le message ne le suppose pas."""
 
     categorie = "période sans cours"
 
