@@ -17,6 +17,7 @@ from dataclasses import dataclass
 
 from dash import html
 
+from pastory.demonstration import MENTION
 from pastory.pivot.operation import Poche
 from pastory.vues.briques import choix, dessin, groupe
 from pastory.vues.chiffres import PERIODES
@@ -112,6 +113,13 @@ def marque() -> html.Button:
         title="Revenir à la couverture",
         **{"aria-label": "Pastory : revenir à la couverture"},
     )
+
+
+def mention_de_demonstration() -> html.Span:
+    """En démonstration (D-107), à côté du nom et sur chaque chapitre : ce portefeuille est
+    fictif. Elle ne quitte jamais l'écran — un chiffre montré à quelqu'un ne doit pas pouvoir
+    passer pour celui d'un vrai portefeuille."""
+    return html.Span(MENTION, className="mention-demonstration")
 
 
 def bascule_du_theme() -> html.Button:

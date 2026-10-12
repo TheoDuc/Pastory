@@ -20,16 +20,6 @@ VARIABLE_EMPLACEMENT = "PASTORY_DOSSIER"
 """Permet de choisir un autre emplacement : utile pour les tests et pour un utilisateur
 qui range ses fichiers ailleurs."""
 
-ANCIENS_NOMS_APPLICATION = ("DashBoardTradeRepublic",)
-"""L'application s'est appelée « DashBoard Trade Republic » avant de s'appeler Pastory, et
-le dossier personnel a changé de nom avec elle : sur une machine où elle tournait déjà,
-l'export, le cache de cours et la configuration sont restés dans l'ancien dossier.
-
-**Rien n'est déplacé automatiquement.** Un cours en cache est définitif (D-50), et le
-déplacer sans le dire reviendrait à changer des chiffres dans le dos de l'utilisateur.
-L'application se contente de **signaler** l'ancien dossier ; c'est lui qui décide.
-"""
-
 
 def _racine_du_systeme(environnement: Mapping[str, str]) -> Path:
     """Le dossier où le système range les données des applications."""
@@ -51,25 +41,30 @@ def dossier_personnel(environnement: Mapping[str, str] | None = None) -> Path:
     return _racine_du_systeme(environnement) / NOM_APPLICATION
 
 
-def anciens_dossiers_personnels(
-    environnement: Mapping[str, str] | None = None,
-) -> list[Path]:
-    """Les dossiers personnels d'un ancien nom de l'application, s'ils existent encore.
+SUFFIXE_DE_DEMONSTRATION = "-demonstration"
 
-    Vide dans le cas normal. Un emplacement choisi à la main (`PASTORY_DOSSIER`) n'a pas
-    changé de nom : on ne cherche alors rien.
+
+def dossier_de_demonstration(environnement: Mapping[str, str] | None = None) -> Path:
+    """Le dossier personnel de la démonstration (D-107) : un dossier **à part**, voisin du
+    dossier personnel, avec son propre export, son cache et sa configuration. Un export fictif
+    ne peut donc jamais se mêler aux vrais, ni l'inverse.
+
+    Appelée depuis une démonstration déjà en cours, elle rend ce même dossier.
     """
-    environnement = os.environ if environnement is None else environnement
-    if environnement.get(VARIABLE_EMPLACEMENT):
-        return []
+    personnel = dossier_personnel(environnement)
+    if personnel.name.endswith(SUFFIXE_DE_DEMONSTRATION):
+        return personnel
+    return personnel.with_name(personnel.name + SUFFIXE_DE_DEMONSTRATION)
 
-    racine = _racine_du_systeme(environnement)
-    actuel = dossier_personnel(environnement)
-    return [
-        racine / nom
-        for nom in ANCIENS_NOMS_APPLICATION
-        if racine / nom != actuel and (racine / nom).is_dir()
-    ]
+
+def est_une_demonstration(environnement: Mapping[str, str] | None = None) -> bool:
+    """Vrai si le dossier personnel en cours est celui de la démonstration.
+
+    **C'est le dossier qui le dit, et lui seul** : l'écran qui annonce « Données de
+    démonstration » et les fichiers qu'on lit ne peuvent donc pas se contredire — ni un vrai
+    portefeuille s'afficher sous cette mention, ni l'inverse.
+    """
+    return dossier_personnel(environnement).name.endswith(SUFFIXE_DE_DEMONSTRATION)
 
 
 def dossier_exports(environnement: Mapping[str, str] | None = None) -> Path:

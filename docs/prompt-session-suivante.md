@@ -7,10 +7,7 @@ commencer.
 > **À mettre à jour par l'instance qui termine une étape**, avant la fusion dans `main`. La
 > dernière section dit comment.
 >
-> Dernière mise à jour : **2026-10-09**, au milieu de l'étape 9 (blocs 9.0 à 9.4 faits et
-> fusionnés dans `main`), puis après l'identité visuelle de l'étape 9 bis (branche
-> `etape-9-bis`). La section « Où en est l'étape 9 » ci-dessous prime sur le reste du fichier, qui
-> date de la fin de l'étape 8 quater et sera réécrit au bloc 9.6.
+> Dernière mise à jour : **2026-10-13**, à la fin de la session de l'étape 10 (branche `etape-10`).
 
 ---
 
@@ -18,175 +15,195 @@ commencer.
 
 ```
 Lis CLAUDE.md puis docs/feuille-de-route.md, et docs/prompt-session-suivante.md.
-On attaque l'étape 10 : l'installation — un raccourci qui lance Pastory comme un logiciel, un jeu
-de démonstration, et le ménage du dépôt.
+On attaque le bloc 9.5 : les écrans de correction — qu'on puisse corriger une valeur trouvée
+(cotation, type, frais courants, contenu, date du PEA) sans ouvrir de fichier.
 ```
+
+*Le propriétaire choisit l'ordre.* Deux autres suites sont prêtes, et ce fichier vaut pour les
+trois : **finir l'étape 10** (l'installation par un tiers, le raccourci Mac, les messages d'erreur,
+le guide d'adaptateur — voir la [feuille de route](feuille-de-route.md)), ou **l'étape 11**, la
+publication.
 
 ---
 
-## Où en est l'étape 9 (2026-10-09)
+## Où en est le projet (2026-10-13)
 
-**Fait, sur la branche `etape-9`, fusionné dans `main` :** l'assembleur (`pastory/assembleur.py`),
-`pastory ouvrir`, l'accueil avec le dépôt de l'export (D-95), la synthèse, les actifs, la
-diversification, les frais et taxes, et le **détail des calculs**, devenu une **page discrète**
-ouverte par un bouton à droite de la manchette (il remplace le compteur « À surveiller », dont
-le bloc est en bas de cette page). Décisions D-93 à D-97. Le contrat d'écran
-([conception-interface.md](conception-interface.md) §4) décrit ce qui est à l'écran.
+- **Le moteur est complet** (étapes 0 à 8 quater) : positions, valorisation, rendements, coûts,
+  impôt estimé, diversification. Les opérations viennent de l'**export officiel** de Trade Republic
+  ([D-79](decisions.md)), et **tous les réglages se trouvent seuls** ([D-80](decisions.md)).
+- **L'interface est faite** (étapes 9 et 9 bis) : la couverture et le dépôt, cinq chapitres
+  (Synthèse, Les actifs, Diversification, Frais et taxes, Projections), l'annexe « Détail des
+  calculs », l'identité « livre relié » et la lecture de nuit. **Toute modification d'interface
+  suit [charte-graphique.md](charte-graphique.md).**
+- **Pastory s'ouvre comme un logiciel** (étape 10, cette session) : une icône, une fenêtre à part,
+  l'arrêt à la fermeture ([D-106](decisions.md)) ; un portefeuille de démonstration
+  ([D-107](decisions.md)) ; et le ménage ([D-108](decisions.md)).
 
-**Fait ensuite, sur la branche `etape-9-bis` (2026-10-09) : l'identité visuelle** — le livre
-relié ([D-98](decisions.md), [D-99](decisions.md)). **Toute modification d'interface suit
-[charte-graphique.md](charte-graphique.md)**, et ne pose aucune couleur hors de
-`pastory/vues/assets/theme.css` (des tests le vérifient, contrastes compris). **Il y a deux thèmes**,
-jour et nuit ([D-100](decisions.md)) : la nuit ne redéfinit que les rôles, donc une couleur
-nouvelle se déclare comme un rôle, dans les deux, et se vérifie dans les deux. Le choix du fond est
-réglé par la charte (aucune texture) : `maquettes/apercus-fond/` est supprimé.
+**Ce qui reste, dans l'ordre que le propriétaire choisira :**
 
-**Reste :**
-- **l'étape 9 bis est finie et fusionnée** (2026-10-09) : l'identité, la lecture de nuit, la
-  prédiction de l'évolution (chapitre V, D-105). Le propriétaire a choisi d'enchaîner sur
-  **l'étape 10** ([feuille-de-route.md](feuille-de-route.md) : ses trois demandes et la
-  recommandation pour le lanceur y sont écrites) ;
-- **9.5** : les écrans de correction (tomlkit, D-94 ; le §6 du contrat est déjà réécrit).
-- **9.6** : le cahier `docs/verification/etape-9.md`, `/code-review`, et la réécriture de ce
-  fichier.
+| Quoi | Où c'est décrit |
+|---|---|
+| **9.5** : les écrans de correction (tomlkit, [D-94](decisions.md)) | [conception-interface.md](conception-interface.md) §6, déjà réécrit |
+| **9.6** : le cahier `docs/verification/etape-9.md` | il n'existe pas encore |
+| **Fin de l'étape 10** : installation par un tiers, raccourci Mac, messages d'erreur, guide d'adaptateur | [feuille-de-route.md](feuille-de-route.md), « Reste de l'étape 10 » |
+| **Étape 11** : la publication | [feuille-de-route.md](feuille-de-route.md) |
 
-**Les pièges de cette session :**
+**Questions ouvertes** : **Q-54** (actions gratuites puis « migration ») et **Q-60** (le contenu du
+monétaire, des multi-actifs, de l'immobilier). Aucune ne bloque.
+
+**À la fin de la session du 2026-10-13**, la relecture `/code-review` était faite et ses dix
+remarques traitées. Il restait, avec l'accord du propriétaire : sa vérification par le
+[cahier de l'étape 10](verification/etape-10.md) — dont **l'essai d'une fenêtre réduite pendant une
+heure ou deux**, seul point non mesuré —, puis la fusion d'`etape-10` dans `main` et l'envoi sur
+GitHub. **Vérifier `git branch` et `git log` avant de supposer que c'est fait.**
+
+---
+
+## Ce que l'étape 10 laisse en main
+
+- **Le lanceur** (`pastory/lanceur.py`) et **la veille** (`pastory/vues/veille.py`). La veille ne
+  connaît ni Dash ni le réseau : elle se teste avec une horloge factice. Elle n'est branchée que
+  par le lanceur ; `pastory ouvrir` s'arrête toujours par Ctrl+C.
+- **L'adresse de vie**, `/pastory/vie` : la page y donne signe de vie, et le lanceur y demande « qui
+  est là ? », puis y **annonce la fenêtre qu'il amène**. Sa réponse dit si c'est la démonstration.
+- **Ce que le lanceur et l'application partagent est écrit une fois, dans `veille.py`** : le nom,
+  l'hôte, le port, le titre de la fenêtre, l'adresse de vie. Ne pas les réécrire ailleurs : c'est
+  par eux que le lanceur reconnaît son propre Pastory.
+- **C'est le dossier personnel qui dit si c'est une démonstration**
+  (`emplacements.est_une_demonstration`), et lui seul : aucune option n'est passée à l'écran.
+- **`pastory installer`** (`pastory/installation.py`) crée les raccourcis ; `--retirer` les enlève.
+- **La démonstration** (`pastory/demonstration/`) : le scénario est dans `__init__.py`, les
+  clôtures dans `clotures.py`, **écrit par** `scripts/releve_de_demonstration.py`. Changer le
+  scénario (un titre, un plan prolongé) demande de relancer ce script.
+- **Le fichier de corrections du propriétaire existe désormais** :
+  `%LOCALAPPDATA%\Pastory\configuration\actifs.toml`, avec **une** correction (les frais courants
+  d'un ETF). C'est le premier cas réel pour les écrans de correction du bloc 9.5 — et il a été
+  écrit à la main, ce que ces écrans doivent rendre inutile.
+
+## Les pièges de l'étape 10
+
+- **Comparer des nombres « avant / après » : hors ligne, sur la même copie, et le même jour.** Un
+  essai en ligne ajoute des cours au cache de la copie, et tous les chiffres bougent : cela a
+  produit 2 548 faux écarts. Et une session qui passe minuit change « aujourd'hui », donc les
+  durées et les taux annualisés : encore des faux écarts. La bonne méthode : une copie fraîche du
+  dossier `Pastory`, le code d'avant extrait à part (`git archive main pastory tests | tar -x`,
+  depuis un dossier temporaire — `git worktree` y laisse des restes que OneDrive empêche
+  d'effacer), le code d'après dans le projet, les deux lancés **à la suite**, hors ligne, sur
+  cette copie. Le script de relevé (`ecrans.rendre` sur 105 états) vivait dans le
+  dossier temporaire de la session : à réécrire.
+- **Le nom du dossier d'un tiers ne s'écrit dans aucun fichier versionné**, pas même dans un cahier
+  de vérification : écrire « le dossier `data_*/` ». C'est arrivé dans le cahier de l'étape 10, et
+  seule la relecture l'a vu. Avant un commit de documents : `git diff --cached | grep -i <nom>`.
+- **Un long script passé au shell par heredoc peut casser l'interpréteur** (« unexpected EOF »),
+  surtout s'il contient des apostrophes : l'écrire avec l'outil d'écriture de fichiers, puis le
+  lancer. Vécu deux fois dans cette session.
+- **« Déjà ouvert ? » est la question la plus piégeuse du lanceur.** Trois réponses fausses ont
+  été corrigées : ne regarder que le premier port libre ; croire vivant un Pastory qui s'éteint ;
+  prendre pour une panne un programme qui ne parle pas HTTP. Tout changement du lanceur se
+  rejoue en vrai (ouvrir, relancer, fermer, rouvrir aussitôt), pas seulement en tests.
+- **Un garde-fou de test ne doit pas remplacer un module partagé.** Remplacer `subprocess.Popen`
+  pour interdire d'ouvrir une fenêtre a cassé l'écriture des raccourcis, qui s'en sert aussi : le
+  garde-fou remplace `lanceur.subprocess` et `lanceur.webbrowser` par des doublures, pas le module.
+- **De l'or en texte se déclare sur la reliure.** La mention de démonstration a été refusée par le
+  test de la charte tant que son sélecteur ne commençait pas par `.entete`. C'est voulu : la règle
+  dit où l'élément vit.
+- **`pythonw` n'a ni sortie ni erreur** (`sys.stdout` vaut `None`). Tout ce qui écrit passe par le
+  journal ; une erreur d'argument quitterait sans un mot, d'où `parse_known_args` dans le lanceur.
+- **Un `.cmd` doit garder ses fins de ligne Windows**, y compris dans le ZIP de GitHub :
+  `.gitattributes` le garantit. Il est écrit **sans accents** : la fenêtre de commandes ne les
+  affiche pas de la même façon partout.
+- **`uv sync --no-dev` retirerait pytest et ruff de l'environnement du projet** : ne jamais essayer
+  le fichier d'installation dans le dossier du projet. L'essayer sur une copie
+  (`git archive etape-10 | tar -x`, depuis le dossier de destination).
+- **Bash et les chemins Windows** : `$LOCALAPPDATA` contient des antislashs ; `tar`, `cd` et
+  consorts veulent `$(cygpath -u "$LOCALAPPDATA")`.
+- **La fenêtre d'Edge en mode application porte le titre de la page**, exactement. C'est par ce
+  titre, et par la classe `Chrome_WidgetWin_1`, que le lanceur retrouve sa fenêtre — le dossier
+  « Pastory » ouvert dans l'explorateur porte le même titre.
+- **Pour des captures d'écran** : Edge sans fenêtre (`--headless=new --remote-debugging-port`) et un
+  petit client du protocole DevTools en Python standard. Le thème se force par
+  `localStorage.setItem('pastory-theme', …)` **une fois sur l'adresse de Pastory** — posé avant,
+  sur `about:blank`, il est sans effet. Script dans le dossier temporaire : à réécrire.
+- **`.git/worktrees/` garde deux dossiers vides** (`ancien`, `code-de-main`) que OneDrive empêche
+  d'effacer. Sans conséquence : `git worktree list` ne les voit pas.
+
+## Les pièges de l'étape 9, toujours vrais
+
 - **Dash 4 n'a pas de composants SVG** : tout graphique est un élément vide `data-dessin` dont
   `data-donnees` porte des libellés **déjà mis en forme** par Python ; `assets/dessin.js` dessine
   (D-93).
 - **Coupures de connexion locales** (`ERR_CONNECTION_RESET` sur 127.0.0.1, sans doute
   l'antivirus) : page blanche. Le script `FILET_DE_CHARGEMENT` d'`application.py` recharge, puis
-  affiche un message.
-- **uv sur OneDrive** (« Accès refusé ») : `UV_LINK_MODE=copy uv sync --native-tls`.
+  affiche un message. La veille de l'étape 10 en tient compte : un signe de vie perdu n'arrête
+  rien.
 - **Yahoo rend la clôture d'hier vide (`null`) pendant plusieurs heures**, pour les ETF comme
-  pour le bitcoin. Pastory ne l'invente pas. Et depuis le 2026-10-09, un jour cherché **après**
-  la fin du cache fait redemander la suite (`FournisseurDeCours._completer_la_fin`) : avant, les
-  cours restaient figés au dernier `pastory cours`.
-- **Dash recrée le contenu à chaque rappel**, filtre compris, quelle que soit la `key` React
-  (mesuré à la 9 bis). Ce qui doit survivre à un filtre (la transition de chapitre) est décidé
-  côté navigateur, dans `dessin.js`, par comparaison d'un attribut (`data-chapitre`).
+  pour le bitcoin. Pastory ne l'invente pas. Un jour cherché **après** la fin du cache fait
+  redemander la suite (`FournisseurDeCours._completer_la_fin`).
+- **Yahoo répond 400 à une période où un titre ne cotait pas encore** (étape 10) : c'est
+  `PeriodeSansCours`, un candidat écarté — pas une panne. Tout autre refus reste une panne, qui
+  n'est jamais gardée en mémoire.
+- **Dash recrée le contenu à chaque rappel**, filtre compris, quelle que soit la `key` React. Ce
+  qui doit survivre à un filtre (la transition de chapitre) est décidé côté navigateur, dans
+  `dessin.js`, par comparaison d'un attribut (`data-chapitre`).
 - **Une modification Python demande de relancer le serveur** ; une modification de CSS ou de JS,
   seulement de recharger la page. Une vérification faite sur l'ancien serveur ment.
-- **Les nombres d'avant et d'après** : la 9 bis a relevé chaque nombre de chaque écran (27 états)
-  par `ecrans.rendre`, avant et après, et comparé les multiensembles. À refaire pour toute
-  modification d'interface. Les captures et l'audit de la charte passent par un petit client du
-  protocole DevTools en Python standard (aucune bibliothèque websocket n'est installée) : scripts
-  dans le dossier temporaire de la session, à réécrire au besoin.
 - **Vérifier à l'écran** : lancer sur une **copie** du dossier Pastory, jamais sur le vrai :
   `PASTORY_DOSSIER=<copie> .venv/Scripts/python.exe -c "from pastory.vues import application;
-  application.lancer(hors_ligne=True, port=8085, navigateur=False)"`, puis une capture par Edge
-  sans fenêtre (protocole DevTools). Le script de capture vivait dans le scratchpad : à réécrire.
-- **Bash et les barres obliques inverses** : écrire les scripts avec l'outil d'écriture de
-  fichiers, pas par heredoc.
-- `ruff check` est la règle ; `ruff format` n'est pas appliqué au dépôt (66 fichiers le
-  changeraient) : ne pas le lancer en masse.
+  application.lancer(hors_ligne=True, port=8085, navigateur=False)"`.
+- **Il y a deux thèmes**, jour et nuit ([D-100](decisions.md)) : la nuit ne redéfinit que les rôles,
+  donc une couleur nouvelle se déclare comme un rôle, dans les deux, et se vérifie dans les deux.
+- `ruff check` est la règle ; `ruff format` n'est pas appliqué au dépôt : ne pas le lancer en masse.
 
----
-
-## Où en est le projet
-
-- **Étapes 0 à 8 quater terminées.** Le moteur est complet, l'interface est **conçue**, les
-  opérations viennent de l'**export officiel** de Trade Republic ([D-79](decisions.md)), et
-  **tous les réglages se trouvent seuls** ([D-80](decisions.md), D-85 à D-92) : cotation, type,
-  TER, contenu d'un fonds, source de secours, date d'ouverture du PEA — chacun avec sa source,
-  sa date et son contrôle, ou le motif de son absence.
-- **La vision du propriétaire, à garder en tête ([D-80](decisions.md))** : l'utilisateur **dépose
-  l'export, et c'est tout**. Une correction est possible, jamais nécessaire.
-- **Prochaine : étape 9**, l'interface.
-- **Questions ouvertes** : **Q-54** (actions gratuites puis « migration » : le propriétaire doit
-  choisir le traitement, options a, b, c) et **Q-60** (le contenu du monétaire, des multi-actifs,
-  de l'immobilier). Aucune ne bloque l'étape 9.
-
-**Ce qui existe déjà :**
-
-| Où | Quoi |
-|---|---|
-| `pastory/reglages/` | **Ce qui se trouve seul** : `Origine`, `Trouvee`, `Trou`, `Reglage` ; l'assemblage correction > trouvé > trou ; la recherche contrôlée ; le cache ; le rapport de `pastory actifs` ([architecture.md §5.8](architecture.md)) |
-| [reglages-automatiques.md](reglages-automatiques.md) | Le comparatif des sources des réglages, leurs mesures et quinze pièges |
-| [verification/etape-8-quater.md](verification/etape-8-quater.md) | Le cahier de l'étape |
-| [export-officiel.md](export-officiel.md) | Le relevé de l'export officiel |
-| `data/` et un dossier `data_*/` | Les exports officiels du propriétaire et de son ami. Le second est **à un tiers** : structure seulement (règle 2) |
-| [decisions.md](decisions.md) | D-01 à D-92 |
-
----
-
-## Ce que l'étape 9 doit savoir de l'étape 8 quater
-
-### Ce qu'elle lui laisse en main
-
-- **Le contenu des écrans de correction existe** : pour chaque actif et chaque réglage, un
-  `Reglage` dit la valeur retenue, sa source, sa date, ce qui a été vérifié, ce qu'il faut savoir,
-  ou le motif de son absence ; et, si l'utilisateur a corrigé, ce que la source donnait.
-  `pastory actifs` (`pastory/reglages/rapport.py`) en est la version texte : l'écran la reprend.
-- **Ce que l'écran doit permettre de corriger** : ticker et devise, type, TER, contenu, spread,
-  répartition, refus du secours (`secours = "aucun"`), date du PEA. Le fichier reste le format de
-  stockage ; **l'application ne l'a jamais réécrit jusqu'ici** ([D-92](decisions.md)), et l'écran
-  sera le premier à le faire : garder les commentaires, c'est le sujet annoncé par D-78.
-- **Une correction de ticker** est sans danger pour les cours : ceux d'une autre cotation ne
-  sont jamais employés, et sont repris à la source ([architecture-notes §7 bis](architecture-notes.md)).
-- **Avec `--export` (l'export d'un tiers), aucun appel réseau** n'est fait, ni recherche, ni
-  cours, ni composition (règle 2). C'est voulu.
-- **Les trous se disent là où ils se voient** : `positions` annonce déjà en une ligne les réglages
-  introuvables ; le bloc « D'où viennent les TER » nomme la source de chaque taux ; la date du PEA
-  porte son origine et sa réserve dans la règle de l'impôt ; un retrait trouvé remplace
-  l'hypothèse « aucun retrait » ([D-87](decisions.md)).
-
-### Les pièges de l'étape 8 quater, à connaître
+## Les pièges des réglages et de la lecture, toujours vrais
 
 - **Un contenu « actions » trouvé ne s'applique pas** : il ferait passer le fonds avant sa
   composition. Ne pas « corriger » cela sans relire [D-89](decisions.md).
 - **Une panne n'est jamais gardée en mémoire** comme un trou ; un test le garde. La liste de Xetra
   écrit son lien de deux façons selon le serveur ([reglages-automatiques.md §2.3](reglages-automatiques.md)).
-- **Les tests coupent désormais six sources** par des fixtures automatiques de `tests/test_cli.py`
-  (cotations, TER de l'émetteur, Xetra, classe d'extraETF, registre de l'ESMA, compositions). Un
-  test qui veut une recherche branche une source factice (`brancher_les_cotations`).
-- **`actifs.toml` du propriétaire** contient encore l'ancien code pytr de sa crypto (signalé comme
-  orphelin) et des valeurs désormais trouvées seules. Sa configuration est toujours dans l'ancien
-  dossier `DashBoardTradeRepublic` : le cahier lui demande de la déplacer et de l'alléger.
-- **La date d'ouverture du PEA** se lit dans l'ordre des **horodatages** : une clôture et une
-  réouverture tombent le même jour, et la sortie qui clôt un plan n'est pas un retrait du suivant.
-
-### Les pièges de l'étape 8 ter, toujours vrais
-
-- **Le brut des dividendes néerlandais est faux dans l'export**, sans marque ([D-84](decisions.md)).
-  C'est une limite **affichée**, pas un réglage.
+- **Avec `--export` (l'export d'un tiers), aucun appel réseau** n'est fait, ni recherche, ni
+  cours, ni composition (règle 2). C'est voulu. La démonstration, elle, n'est pas un tiers : elle
+  cherche en ligne comme un vrai portefeuille.
+- **Les tests coupent six sources** par des fixtures automatiques (`tests/garde_fous.py`). Un test
+  qui veut une recherche branche une source factice (`brancher_les_cotations`).
 - **Les tests de la ligne de commande ajoutent deux titres reçus à la lecture**
   (`export_ligne_de_commande.titres_recus()`) ; la fixture `lecture_pure` retire l'ajout.
-- **Le Saveback** est affiché comme non traité, en attendant un export plus récent du
-  propriétaire.
+- **La date d'ouverture du PEA** se lit dans l'ordre des **horodatages** : une clôture et une
+  réouverture tombent le même jour, et la sortie qui clôt un plan n'est pas un retrait du suivant.
+- **Le brut des dividendes néerlandais est faux dans l'export**, sans marque ([D-84](decisions.md)).
+  C'est une limite **affichée**, pas un réglage.
+- **Le Saveback** est affiché comme non traité, en attendant un export plus récent du propriétaire.
+  La démonstration en contient une ligne, exprès.
 
-## Ce que l'étape 9 doit savoir, de l'étape 8 et du contrat d'interface
-
-### La chose à ne pas rater de cette étape
+## Ce que le bloc 9.5 doit savoir
 
 **L'édition de fichiers doit disparaître** ([D-78](decisions.md), et le
-[§6 du contrat](conception-interface.md)). C'est un arbitrage du propriétaire du 2026-10-01, rendu
-en voyant arriver un quatrième réglage à écrire à la main, et sa raison porte loin : **une bidouille
-qui fait peur fait douter de l'application entière**, or ce projet ne tient que sur la confiance
-dans ses chiffres.
+[§6 du contrat](conception-interface.md)). Sa raison porte loin : **une bidouille qui fait peur
+fait douter de l'application entière**, or ce projet ne tient que sur la confiance dans ses
+chiffres.
 
-Concrètement : le ticker et la devise d'un actif, son type, son TER, son `contenu`, sa source de
-secours et la date du PEA ont **tous** un écran — un écran de **correction**, facultatif, puisque
-tout est désormais trouvé seul ([D-80](decisions.md), [D-92](decisions.md)). Le fichier TOML
-reste le format de stockage. **L'étape n'est pas terminée tant qu'une correction n'existe qu'en
-fichier.**
-
-Deux points de méthode qui vont avec :
-
-- **l'application trouve, applique et montre ; l'utilisateur peut corriger** ([D-80](decisions.md)
-  remplace « l'application propose, l'utilisateur décide » de D-78). Ce qui protège d'une valeur
-  fausse, ce sont les contrôles et la visibilité de la source, pas un clic de validation. Le
-  [§6 du contrat](conception-interface.md) est à réécrire en conséquence, en premier ;
-- **un écran qui écrit dans le fichier doit le relire et le réécrire sans perdre ses
-  commentaires.** Ce sont eux qui rendent le fichier compréhensible à la main. C'est faisable et ce
-  n'est pas gratuit : un sujet, pas un détail.
+- **Le contenu des écrans existe** : pour chaque actif et chaque réglage, un `Reglage` dit la
+  valeur retenue, sa source, sa date, ce qui a été vérifié, ou le motif de son absence ; et, si
+  l'utilisateur a corrigé, ce que la source donnait. `pastory actifs`
+  (`pastory/reglages/rapport.py`) en est la version texte : l'écran la reprend.
+- **Ce que l'écran doit permettre de corriger** : ticker et devise, type, TER, contenu, spread,
+  répartition, refus du secours (`secours = "aucun"`), date du PEA.
+- **L'application trouve, applique et montre ; l'utilisateur peut corriger** ([D-80](decisions.md)).
+  Ce qui protège d'une valeur fausse, ce sont les contrôles et la visibilité de la source, pas un
+  clic de validation.
+- **Un écran qui écrit dans le fichier doit le relire et le réécrire sans perdre ses
+  commentaires** ([D-92](decisions.md), [D-94](decisions.md)) : ce sont eux qui rendent le fichier
+  compréhensible à la main. tomlkit serait une **dépendance nouvelle**, donc un changement de
+  `pyproject.toml` — voir, plus bas, ce que cela déclenche sur cette machine.
+- **En démonstration, une correction s'écrirait dans le dossier de la démonstration** : c'est le
+  comportement attendu, et à vérifier.
 
 ### Le contrat, et où il est
 
 **Tout est dans [conception-interface.md](conception-interface.md).** Ne pas rouvrir les
 arbitrages : les cinq onglets, leur ordre et leurs filtres sont fixés, et le §5 dit les quatre
-états que chaque bloc doit prévoir. Là où le document et les maquettes se contredisent, **les
-maquettes ont raison** et le document est à corriger.
+états que chaque bloc doit prévoir. Là où le document et l'écran se contredisent, **l'application
+a raison** et le document est à corriger : les maquettes de l'étape 8 ont été retirées du dépôt
+([D-108](decisions.md)) et ne se lisent plus que dans l'historique git.
 
 Le point le plus facile à rater : **la diversification et les frais n'ont aucun filtre**, et c'est
 une règle. Une répartition est la photo d'un tout ; un filtre qui n'agit sur rien fait douter du
@@ -205,7 +222,10 @@ chiffre affiché.
   reste **non couvert en secteur**. Les deux écrans de diversification ne sont pas d'accord, et
   c'est juste — le §5.2 du contrat le dit.
 
-### Les pièges d'affichage trouvés à l'étape 8, qui valent tous pour l'étape 9
+### Les pièges d'affichage trouvés à l'étape 8, qui valent pour tout écran nouveau
+
+*(Les fichiers `maquette.js` et `style.css` cités ci-dessous sont ceux des maquettes, aujourd'hui
+dans l'historique git ; leurs héritiers sont `assets/dessin.js` et `assets/pastory.css`.)*
 
 Neuf passes de relecture par le propriétaire. Les pièges sont tous des pièges **d'affichage qui
 font douter des chiffres** — jamais des pièges de calcul :
@@ -275,6 +295,8 @@ dossier temporaire de la session, pas dans le dépôt : les réécrire au besoin
   de l'utilisateur est `Pastory`. **Le nom « Trade Republic » ne subsiste que là où il désigne la
   banque** : l'adaptateur, l'export, la documentation des données. Deux choses restent à faire
   **par le propriétaire, hors dépôt** : renommer le dépôt GitHub et le dossier local du projet.
+  **Renommer le dossier local casse les icônes** de l'étape 10, qui pointent sur lui : relancer
+  ensuite `.venv\Scripts\python.exe -m pastory.cli installer`.
   *Attention en relisant les vieux documents :* `notes-initiales.md` cite volontairement l'ancien
   nom deux fois, parce qu'il y désigne un fichier PDF et un souvenir — ne pas les « corriger ».
 - **`uv run` peut échouer deux fois de suite sur OneDrive, puis réussir.** Dès que
@@ -288,8 +310,10 @@ dossier temporaire de la session, pas dans le dépôt : les réécrire au besoin
   téléchargeant l'outil de construction `editables` (`UnknownIssuer`, même avec `--native-tls`).
   L'environnement, lui, est intact : **`uv run --no-sync pastory ouvrir`** lance Pastory. Pour
   lever le blocage, il faut une synchronisation réussie, l'analyse HTTPS de l'antivirus
-  suspendue le temps de `UV_LINK_MODE=copy uv sync --native-tls`. **Conséquence pour l'étape 10 :
-  le raccourci du bureau doit appeler `.venv\Scripts\pythonw.exe` directement, jamais `uv run`.**
+  suspendue le temps de `UV_LINK_MODE=copy uv sync --native-tls`. **C'est pourquoi les icônes de
+  l'étape 10 appellent `.venv\Scripts\pythonw.exe` directement, jamais `uv run`** — et pourquoi
+  toute dépendance nouvelle (tomlkit, au bloc 9.5) demandera cette synchronisation, antivirus
+  suspendu.
 - **`uv` a besoin de `--native-tls`** : l'antivirus Norton inspecte le trafic chiffré, et le jeu de
   certificats par défaut ne le reconnaît pas. `uv sync --native-tls`, `uv run --native-tls …`.
 - **L'antivirus peut couper Claude Code en pleine session.** Le 2026-09-26, **Avast WebShield** a

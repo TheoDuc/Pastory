@@ -167,54 +167,6 @@ class TestExportIntrouvable:
         assert "releve.csv" in capsys.readouterr().err
 
 
-def ancienne_installation(tmp_path, monkeypatch, avec_export: bool):
-    """Simule une machine où l'application tournait sous son ancien nom (D-74).
-
-    Le garde-fou du dossier personnel est volontairement levé — c'est le seul endroit du
-    dossier de tests où il l'est — puis remplacé par un faux `LOCALAPPDATA` : rien ne
-    sort pour autant du dossier temporaire du test.
-    """
-    monkeypatch.delenv("PASTORY_DOSSIER", raising=False)
-    monkeypatch.setattr(emplacements.sys, "platform", "win32")
-    local = tmp_path / "AppData" / "Local"
-    monkeypatch.setenv("LOCALAPPDATA", str(local))
-
-    ancien = local / "DashBoardTradeRepublic"
-    (ancien / "exports").mkdir(parents=True)
-    if avec_export:
-        (ancien / "exports" / "all_events.json").write_text("[]", encoding="utf-8")
-    return ancien
-
-
-class TestAncienNomDeLApplication:
-    """L'application s'appelait « DashBoard Trade Republic » (D-74).
-
-    Ses fichiers personnels sont restés dans un dossier à l'ancien nom. Rien n'est
-    déplacé automatiquement : sans ces deux messages, l'utilisateur croit avoir perdu son
-    export et son cache de cours.
-    """
-
-    def test_emplacements_signale_l_ancien_dossier(self, tmp_path, monkeypatch, capsys):
-        ancien = ancienne_installation(tmp_path, monkeypatch, avec_export=False)
-
-        assert cli.main(["emplacements"]) == 0
-
-        affichage = capsys.readouterr().out
-        assert str(ancien) in affichage
-        assert "DashBoard Trade Republic" in affichage
-        assert "Rien n'a été déplacé automatiquement" in affichage
-
-    def test_sans_export_a_l_ancien_nom_le_message_ne_promet_rien(
-        self, tmp_path, monkeypatch, capsys
-    ):
-        """Un ancien dossier vide ne doit pas faire espérer un export qui n'existe pas."""
-        ancienne_installation(tmp_path, monkeypatch, avec_export=False)
-
-        assert cli.main(["lire"]) == cli.CODE_ECHEC
-
-        assert "ancien nom" not in capsys.readouterr().err
-
-
 class TestLire:
     def test_le_rapport_montre_les_operations(self, export, capsys):
         code = cli.main(["lire"])

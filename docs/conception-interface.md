@@ -338,9 +338,10 @@ Le rapport texte a **une fonction de mise en forme par unité**, et c'est le mod
 ## 4. Les écrans retenus
 
 Quatre chapitres, la place d'un cinquième, et une annexe, arbitrés sur les maquettes de l'étape 8
-puis à l'écran pendant les étapes 9 et 9 bis. Les [maquettes](../maquettes/) en sont la version exécutable de l'étape 8 ; depuis
-l'étape 9, **l'application fait foi** là où elles divergent (la diversification et le détail des
-calculs ont changé à l'écran, sur arbitrage du propriétaire).
+puis à l'écran pendant les étapes 9 et 9 bis. **L'application fait foi** : les maquettes de
+l'étape 8, qu'elle a remplacées, ont été retirées du dépôt à l'étape 10 ([D-108](decisions.md)) et
+restent dans l'historique git (la diversification et le détail des calculs avaient déjà changé à
+l'écran, sur arbitrage du propriétaire).
 
 L'ordre des onglets est celui des questions qu'on se pose, de la plus large à la plus fine :
 combien j'ai gagné → sur quoi → où est mon argent → ce que ça coûte. **Comment c'est calculé**
@@ -377,6 +378,13 @@ alertes (type inconnu, période non couverte, fichier ignoré) n'y sont jamais. 
 l'étape 9 n'a disparu. On y revient par le **nom « Pastory »** en tête de la navigation, ou par le
 lien « vos exports » du colophon.
 
+**En démonstration** ([D-107](decisions.md)), l'étiquette s'ouvre sur un avis qui ne se replie
+pas — « Données de démonstration : ce portefeuille est fictif… », avec la façon d'ouvrir son propre
+portefeuille —, son titre devient « Un portefeuille fictif », et **aucun dépôt n'est proposé** : ni
+zone de dépôt, ni bouton vers le dossier. La même mention reste dans la navigation de chaque
+chapitre, à côté du nom (§4.1), et dans le titre de la fenêtre. Un chiffre montré à quelqu'un ne
+doit jamais pouvoir passer pour celui d'un vrai portefeuille.
+
 ### 4.1 Le bandeau permanent
 
 Deux bandes, toujours visibles, de la plus sombre à la plus claire :
@@ -399,6 +407,12 @@ qui permet de dire « ces chiffres sont d'hier ».
 
 Chaque chapitre **s'ouvre** sur son numéro romain, son titre et une phrase qui dit ce qu'il montre
 (charte §4.2).
+
+**Si le serveur ne répond plus** ([D-106](decisions.md)) — Pastory a été arrêté alors que la page
+est restée ouverte —, un avis se colle au bas de la fenêtre : « Pastory est arrêté : cette page ne
+répond plus. Fermez-la, puis rouvrez Pastory. » Des boutons qui ne font plus rien, sans un mot,
+feraient douter des chiffres restés à l'écran. L'avis s'efface de lui-même si le serveur répond de
+nouveau.
 
 ### 4.2 Synthèse
 

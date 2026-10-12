@@ -17,7 +17,9 @@ lisible et vérifiable à la main.
 | [docs/format-pivot.md](docs/format-pivot.md) | **Le format des opérations** : le contrat entre les adaptateurs et le moteur |
 | [docs/conception-interface.md](docs/conception-interface.md) | **Le contrat de l'interface** (étape 8) : ce que le moteur produit et où ça s'affiche, le vocabulaire d'écran, les règles d'affichage |
 | [docs/charte-graphique.md](docs/charte-graphique.md) | **La charte graphique** (étape 9 bis) : le livre relié, la palette et ses contrastes mesurés, les polices, la structure en chapitres, les graphiques, les animations, le logo. **Fait référence** pour toute modification d'interface |
-| [maquettes/](maquettes/) | **Les écrans**, en HTML et CSS. `index.html` s'ouvre directement dans le navigateur ; `style.css` est repris tel quel à l'étape 9 |
+| [maquettes/logo/](maquettes/logo/) | Les variantes du logo, et celle qui a été choisie. Les maquettes d'écran de l'étape 8 ont été retirées à l'étape 10 (D-108) : **l'application fait foi**, et elles restent dans l'historique git |
+| [pastory/lanceur.py](pastory/lanceur.py) | **Ce que fait le raccourci** (étape 10, D-106) : la fenêtre à part, la veille qui arrête Pastory quand on la ferme, le journal |
+| [pastory/demonstration/](pastory/demonstration/) | **Le portefeuille de démonstration** (étape 10, D-107) : un export fictif sur de vrais titres, dans un dossier à part |
 | [docs/architecture.md](docs/architecture.md) | **Comment c'est construit** : les couches, leurs frontières, et le trajet d'un chiffre de bout en bout |
 | [docs/architecture-notes.md](docs/architecture-notes.md) | Points d'architecture notés en chemin |
 | [docs/contexte-produit.md](docs/contexte-produit.md) | Objectif, public, contraintes, hors périmètre |

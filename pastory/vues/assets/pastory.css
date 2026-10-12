@@ -88,6 +88,21 @@ html {
   text-align: center;
 }
 
+/* L'avis d'arrêt d'`application.py` : le serveur ne répond plus. Il reste collé au bas de la
+   fenêtre, sur la reliure, quel que soit l'endroit de la page où l'on se trouve. */
+.avis-d-arret {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 60;
+  padding: var(--espace-3) var(--espace-4);
+  background: var(--reliure);
+  color: var(--sur-reliure);
+  border-top: 1px solid var(--reliure-filet);
+  font-family: var(--sans);
+  font-size: var(--taille-petite);
+  text-align: center;
+}
+
 /* ============================================================================
    LA NAVIGATION, LES FILTRES, LE COLOPHON — trois bandes, du plus sombre au plus clair
    ========================================================================== */
@@ -186,6 +201,20 @@ html {
 
 .marque:hover {
   color: var(--sur-reliure-actif);
+}
+
+/* « Données de démonstration » (D-107), à côté du nom : en or sur la reliure, dans un filet,
+   comme une mention portée au dos d'un livre. Elle reste là sur tous les chapitres. */
+.entete .mention-demonstration {
+  padding: 2px var(--espace-2);
+  border: 1px solid var(--reliure-filet);
+  border-radius: var(--rayon);
+  color: var(--sur-reliure-or);
+  font-family: var(--sans);
+  font-size: var(--petites-capitales-taille);
+  letter-spacing: var(--petites-capitales-espace);
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 /* LE BOUTON JOUR / NUIT : une lune le jour (passer à la lecture de nuit), un soleil la nuit.

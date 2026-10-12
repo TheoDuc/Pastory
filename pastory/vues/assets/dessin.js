@@ -1,9 +1,9 @@
 /* Le dessin de Pastory : la courbe, le globe des pays sans drapeau, les pictogrammes, le
  * planisphère, le logo — le placement des bulles « ? », et l'ouverture du livre.
  *
- * REPRIS DE maquettes/maquette.js, et c'est voulu (D-93) : ces dessins ont passé neuf
- * relectures du propriétaire, dont trois arrangements de la boîte de lecture. On ne
- * recommence pas le tour.
+ * REPRIS DES MAQUETTES de l'étape 8 (maquette.js, dans l'historique git depuis l'étape 10),
+ * et c'est voulu (D-93) : ces dessins ont passé neuf relectures du propriétaire, dont trois
+ * arrangements de la boîte de lecture. On ne recommence pas le tour.
  *
  * CE QUE CE SCRIPT NE FAIT PAS : il ne calcule aucun chiffre et n'en met aucun en forme.
  * Python pose dans l'attribut `data-donnees` d'un élément `[data-dessin]` les valeurs qui

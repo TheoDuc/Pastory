@@ -44,7 +44,11 @@ def rendre(chiffres: Chiffres, etat: dict) -> Rendu:
         # sans export lisible elle est le seul écran — cinq onglets qui ramènent tous au dépôt
         # feraient croire qu'il y a quelque chose derrière (conception §5.1).
         corps = accueil.ecran(
-            base, chiffres.dossier(), chiffres.tiers, _messages_du_depot(etat.get("message"))
+            base,
+            chiffres.dossier(),
+            chiffres.tiers,
+            _messages_du_depot(etat.get("message")),
+            chiffres.demonstration,
         )
         return (
             [] if isinstance(base, Echec) else bandeau.onglets(onglet),

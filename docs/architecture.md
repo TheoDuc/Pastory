@@ -192,8 +192,15 @@ pastory/
 ├── cli.py                     la ligne de commande : les messages et les fichiers écrits
 ├── assembleur.py              le seul assembleur, pour la ligne de commande et l'interface
 ├── tableur.py                 comment on écrit un nombre (CSV et phrases)
+├── lanceur.py                 ce que fait le raccourci : la fenêtre à part, le port pris
+│                              d'avance, le journal, l'arrêt quand on la ferme (D-106)
+├── installation.py            les raccourcis du bureau et du menu Démarrer (D-106)
+├── demonstration/             le portefeuille fictif (D-107)
+│   ├── __init__.py            le scénario, l'export écrit par le programme, le dossier à part
+│   └── clotures.py            les vraies clôtures qui servent de prix d'achat (fichier relevé)
 ├── config/
-│   ├── emplacements.py        où vivent les fichiers personnels (D-37)
+│   ├── emplacements.py        où vivent les fichiers personnels (D-37), et ceux de la
+│   │                          démonstration (D-107)
 │   ├── actifs.py              les corrections, champ par champ : jamais réécrites (D-92)
 │   └── fiscalite.py           la date du PEA, corrigée à la main si besoin (D-86)
 ├── reglages/                  ce qui se trouve seul, et d'où ça vient (D-80)
@@ -257,7 +264,9 @@ pastory/
 │   ├── fiscalite.py           les règles fiscales, telles que le moteur les attend
 │   └── couts.py               le barème croisé avec les réglages de chaque actif
 └── vues/                      l'interface Dash (étape 9) : `pastory ouvrir`
-    ├── application.py         la page, les trois rappels (choisir, rendre, déposer), le lancement
+    ├── application.py         la page, les trois rappels (choisir, rendre, déposer), le lancement,
+    │                          l'adresse de vie et le signe de vie de la page (D-106)
+    ├── veille.py              qui est encore là : Pastory s'arrête avec sa dernière page (D-106)
     ├── chiffres.py            l'assembleur appelé une fois, la période et les poches recalculées
     ├── ecrans.py              quel écran pour quel état
     ├── etat.py                ce que l'utilisateur a choisi : l'onglet, la période, les poches…
@@ -277,7 +286,10 @@ pastory/
                                les drapeaux (flag-icons, licence MIT)
 
 scripts/
-└── inventaire_structure.py    relevé structurel d'un export officiel, sans aucune valeur (D-05)
+├── inventaire_structure.py    relevé structurel d'un export officiel, sans aucune valeur (D-05)
+└── releve_de_demonstration.py écrit `demonstration/clotures.py` : à relancer si le scénario change
+
+Installer Pastory.cmd          un double-clic : l'environnement, puis les raccourcis (D-106)
 
 tests/                         même arborescence que pastory/, données fictives (D-38)
 ```
@@ -504,6 +516,36 @@ PEA, son origine, sa réserve, et l'alerte d'un retrait ([D-87](decisions.md)).
 ceux que les tests remplacent (`tests/garde_fous.py`, actifs pour toute la suite), pour qu'aucun
 ne sorte de la machine.
 
+### 5.6 bis `lanceur.py`, `installation.py`, `demonstration/` — ouvrir Pastory comme un logiciel
+
+Trois modules de l'étape 10, qui ne calculent rien et dont aucun calcul ne dépend.
+
+**Le lanceur** ([D-106](decisions.md)) est ce qu'appelle le raccourci. Il ne charge l'interface
+qu'après avoir **pris le port** et **ouvert la fenêtre** : Dash et pandas mettent plusieurs
+secondes à se charger, et pendant ce temps la page attend à la porte au lieu de laisser croire
+que rien ne se passe. Un second lancement trouve le port pris, demande « qui est là ? » à
+l'adresse de vie (`/pastory/vie`), et ramène la fenêtre existante.
+
+**La veille** (`vues/veille.py`) est le seul lien entre la fenêtre et le serveur : la page donne
+signe de vie, le serveur compte les battements de silence, et s'arrête quand plus aucune page
+n'est là. Elle ne connaît ni Dash ni le réseau, et se teste avec une horloge factice. Elle n'est
+branchée que par le lanceur : `pastory ouvrir`, dans un terminal, s'arrête toujours par Ctrl+C.
+
+**La démonstration** ([D-107](decisions.md)) ne touche à aucune couche : elle **écrit un export**
+dans un autre dossier personnel et y pointe `PASTORY_DOSSIER` avant tout le reste. Le lecteur,
+les réglages, le moteur et les vues font ensuite exactement ce qu'ils font pour un vrai export.
+Deux choses seulement savent qu'il s'agit d'une démonstration : l'écran, qui le dit partout et
+retire le dépôt, et l'adresse de vie, pour que la démonstration et le vrai portefeuille ne se
+répondent jamais l'un à la place de l'autre. Toutes deux le lisent **au même endroit, le nom du
+dossier personnel** (`emplacements.est_une_demonstration`) : il n'y a pas d'option à accorder
+avec lui.
+
+**Ce que le lanceur et l'application doivent dire de la même façon** — le nom, l'hôte, le port, le
+titre de la fenêtre, l'adresse de vie et ce qu'elle répond — est écrit une fois, dans
+`vues/veille.py`. C'est par ces valeurs que le lanceur reconnaît son propre Pastory : dites à deux
+endroits, elles finiraient par différer, et un second Pastory démarrerait sans qu'aucun test ne
+le voie.
+
 ### 5.7 `donnees_externes/` — les cours, et ce qu'on refuse d'inventer
 
 Quatre fichiers, et un principe qui les explique tous : **on refuse plutôt que d'estimer**.
@@ -607,6 +649,9 @@ Six règles ne sont la propriété d'aucune couche, et se retrouvent dans toutes
 | Exports officiels (`Exportation de transactions.csv`) | Dossier personnel → `exports/`, le dossier de dépôt | **non** |
 | Cours, compositions, et les réglages trouvés (`reglages.csv`) | Dossier personnel → `cache/` | **non** |
 | Les corrections de l'utilisateur (`actifs.toml`, `fiscalite.toml`) | Dossier personnel → `configuration/` | **non** |
+| Ce que Pastory aurait écrit à l'écran, lancé par son raccourci (`journal.txt`) | Dossier personnel | **non** |
+| La démonstration : son export fictif, son cache, sa configuration ([D-107](decisions.md)) | Un **second** dossier personnel, voisin du premier (`Pastory-demonstration`) | **non** : l'export est écrit par le programme |
+| Les clôtures qui servent de prix d'achat à la démonstration | `pastory/demonstration/clotures.py` | oui : des cours publics, aucun portefeuille |
 | Les CSV de vérification (opérations, positions, journal) | Dossier personnel | **non** |
 | Résultats de vérification sur vraies données | `docs/verification/etape-N.local.md` | **non** (exclu) |
 | Identifiants Trade Republic | **nulle part** : aucune connexion depuis l'étape 8 ter ([D-81](decisions.md)) | **non** |
@@ -642,6 +687,7 @@ données est un exercice séparé, fait par le propriétaire, guidé par un
 | À venir | Où | Ce qui ne changera pas |
 |---|---|---|
 | Interface Dash *(étape 9, en cours)* | `vues/`, et `assembleur.py` qui sort de `cli.py` pour servir aux deux | Les vues n'appellent que le moteur et les réglages, par l'assembleur — jamais l'adaptateur ni une source externe. Python met en forme chaque chiffre ; un script repris des maquettes ne fait que dessiner ([D-93](decisions.md)). L'écran de correction écrit un champ, et rien d'autre ([D-94](decisions.md)) |
+| Un raccourci pour Mac *(reste de l'étape 10)* | `installation.py` ; le lanceur, lui, ne dépend pas de Windows | Le raccourci appelle le Python de l'environnement par son chemin, jamais `uv run` ([D-106](decisions.md)) |
 | Prédiction de l'évolution, Monte-Carlo *(étape 9 bis, [D-97](decisions.md))* | Module indépendant, qui ne lit du moteur que la valeur de départ | Rien ne dépendra de lui ([D-27](decisions.md)) |
 
 Les deux branchements des cours sont **faits** : les **titres reçus sans prix**

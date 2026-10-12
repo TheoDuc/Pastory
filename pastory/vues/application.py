@@ -24,14 +24,77 @@ from pathlib import Path
 
 from dash import ALL, Dash, Input, Output, State, ctx, dcc, html, no_update
 from dash.exceptions import PreventUpdate
+from flask import jsonify, request
 
 from pastory.vues import bandeau, ecrans, projections
 from pastory.vues import etat as etat_ecran
 from pastory.vues.chiffres import Chiffres, Echec, poches_du
 from pastory.vues.reception import recevoir
+from pastory.vues.veille import CHEMIN as CHEMIN_DE_VIE
+from pastory.vues.veille import (
+    HOTE,
+    PORT_PAR_DEFAUT,
+    Veille,
+    identite,
+    titre_de_la_fenetre,
+)
 
 DOSSIER_DES_ASSETS = Path(__file__).parent / "assets"
-PORT_PAR_DEFAUT = 8050
+
+SIGNE_DE_VIE = """
+<script>
+/* Le signe de vie (D-106). Ouvert par son raccourci, Pastory n'a pas de terminal : il s'arrête
+   quand plus aucune page n'est ouverte, et c'est la page qui le lui dit (`veille.py`) — un
+   signe toutes les cinq secondes, un adieu à la fermeture.
+
+   Dans l'autre sens : si le serveur ne répond plus à plusieurs signes de suite, c'est qu'il est
+   arrêté. La page le dit, plutôt que de rester là avec des boutons qui ne font plus rien. Un
+   seul signe perdu ne suffit pas (l'antivirus du filet ci-dessous en coupe un sur dix), et
+   l'avis s'efface de lui-même si le serveur répond de nouveau. */
+(function () {
+  var adresse = "{chemin}?page=" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+  var echecs = 0;
+  function avis() { return document.getElementById("pastory-arrete"); }
+  function prevenir() {
+    if (avis() || !document.body) { return; }
+    var element = document.createElement("div");
+    element.id = "pastory-arrete";
+    // Aucune couleur ici (charte graphique) : la classe la prend dans le thème.
+    element.className = "avis-d-arret";
+    element.setAttribute("role", "alert");
+    element.textContent = "Pastory est arrêté : cette page ne répond plus. Fermez-la, puis " +
+      "rouvrez Pastory.";
+    document.body.appendChild(element);
+  }
+  function signe() {
+    if (!window.fetch) { return; }
+    fetch(adresse, {method: "POST", keepalive: true}).then(function (reponse) {
+      if (!reponse.ok) { throw new Error("refus"); }
+      echecs = 0;
+      if (avis()) { avis().remove(); }
+    }).catch(function () {
+      echecs += 1;
+      if (echecs >= 4) { prevenir(); }
+    });
+  }
+  signe();
+  window.setInterval(signe, 5000);
+  window.addEventListener("pageshow", function (evenement) {
+    if (evenement.persisted) { signe(); }
+  });
+  window.addEventListener("pagehide", function () {
+    if (navigator.sendBeacon) { navigator.sendBeacon(adresse + "&fin=1"); }
+  });
+  // Un navigateur peut endormir tout à fait une page masquée depuis longtemps : plus aucun
+  // signe, et Pastory s'arrêterait sous une fenêtre simplement réduite. Chrome et Edge
+  // disent ne pas endormir une page qui tient un verrou : elle en tient un, jamais rendu.
+  // NON MESURÉ sur la durée (il faudrait des heures) : le cahier de l'étape 10 le demande.
+  if (navigator.locks && navigator.locks.request) {
+    navigator.locks.request(adresse, function () { return new Promise(function () {}); });
+  }
+})();
+</script>
+""".replace("{chemin}", CHEMIN_DE_VIE)
 
 FILET_DE_CHARGEMENT = """
 <script>
@@ -109,7 +172,7 @@ INDEX = """<!DOCTYPE html>
     {%favicon%}
     <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
     {%css%}
-""" + THEME_AU_CHARGEMENT + FILET_DE_CHARGEMENT + """
+""" + THEME_AU_CHARGEMENT + FILET_DE_CHARGEMENT + SIGNE_DE_VIE + """
   </head>
   <body>
     {%app_entry%}
@@ -130,18 +193,22 @@ function (enfants, etat) {
 """
 
 
-def creer(chiffres: Chiffres) -> Dash:
-    """L'application, branchée sur `chiffres`. Séparée du lancement pour être testée."""
+def creer(chiffres: Chiffres, veille: Veille | None = None) -> Dash:
+    """L'application, branchée sur `chiffres`. Séparée du lancement pour être testée.
+
+    `veille` : donnée par le lanceur, qui arrête Pastory quand sa fenêtre se ferme (D-106).
+    Sans elle — `pastory ouvrir` dans un terminal — rien ne s'arrête seul."""
     application = Dash(
         __name__,
         assets_folder=str(DOSSIER_DES_ASSETS),
-        title="Pastory",
+        title=titre_de_la_fenetre(chiffres.demonstration),
         update_title=None,
         suppress_callback_exceptions=True,
         serve_locally=True,
     )
     application.index_string = INDEX
-    application.layout = _mise_en_page()
+    application.layout = _mise_en_page(chiffres.demonstration)
+    _brancher_la_vie(application, veille, chiffres.demonstration)
 
     @application.callback(
         Output("etat", "data"),
@@ -234,7 +301,45 @@ def creer(chiffres: Chiffres) -> Dash:
     return application
 
 
-def _mise_en_page() -> html.Div:
+def _brancher_la_vie(application: Dash, veille: Veille | None, demonstration: bool) -> None:
+    """L'adresse de vie. Elle sert deux fois : la page y donne signe de vie, et le lanceur y
+    demande « qui est là ? » avant de démarrer un second Pastory — la réponse dit aussi si
+    c'est la démonstration, pour qu'un Pastory ne réponde jamais à la place de l'autre."""
+    serveur = application.server
+
+    @serveur.route(CHEMIN_DE_VIE, methods=["GET", "POST"])
+    def vie():
+        page = request.args.get("page", "")
+        # Seule une page de Pastory compte : un autre site ouvert dans le navigateur pourrait
+        # écrire à cette adresse, et tiendrait Pastory en vie sans fenêtre.
+        de_la_page = request.headers.get("Sec-Fetch-Site", "same-origin") == "same-origin"
+        if veille is not None and request.method == "POST" and de_la_page:
+            if request.args.get("annonce"):
+                # Le lanceur, qui a trouvé ce Pastory ouvert et lui amène une fenêtre.
+                veille.annoncer_une_fenetre()
+            elif page and request.args.get("fin"):
+                veille.adieu(page)
+            elif page:
+                veille.signe(page)
+        reponse = jsonify(**identite(demonstration))
+        reponse.headers["Cache-Control"] = "no-store"
+        return reponse
+
+    if veille is None:
+        return
+
+    @serveur.before_request
+    def commencer():
+        if request.path != CHEMIN_DE_VIE:
+            veille.commencer_un_travail()
+
+    @serveur.teardown_request
+    def finir(_erreur):
+        if request.path != CHEMIN_DE_VIE:
+            veille.finir_un_travail()
+
+
+def _mise_en_page(demonstration: bool = False) -> html.Div:
     # La classe de la racine dit quelle partie du livre est ouverte : la couverture, ou les
     # pages (`ecrans.rendre`). Elle commence sur la couverture, comme l'état initial.
     return html.Div(
@@ -247,6 +352,7 @@ def _mise_en_page() -> html.Div:
                     html.Div(
                         [
                             bandeau.marque(),
+                            *([bandeau.mention_de_demonstration()] if demonstration else []),
                             html.Nav(
                                 id="onglets",
                                 className="onglets",
@@ -346,9 +452,9 @@ def lancer(
     """Démarre l'application et ouvre le navigateur. S'arrête avec Ctrl+C."""
     chiffres = Chiffres(dossier=dossier_export, hors_ligne=hors_ligne)
     application = creer(chiffres)
-    adresse = f"http://127.0.0.1:{port}/"
+    adresse = f"http://{HOTE}:{port}/"
     print(f"Pastory est ouvert dans votre navigateur : {adresse}")
     print("Laissez cette fenêtre ouverte pendant que vous l'utilisez ; Ctrl+C pour l'arrêter.")
     if navigateur:
         threading.Timer(1.0, webbrowser.open, args=(adresse,)).start()
-    application.run(host="127.0.0.1", port=port, debug=False)
+    application.run(host=HOTE, port=port, debug=False)
