@@ -47,6 +47,8 @@ class Reception:
     message: str
     fichier: Path | None = None
     """Le fichier écrit dans le dossier de dépôt — `None` si rien n'a changé."""
+    etiquette: str | None = None
+    """Le mot qui résume ce qui s'est passé ; à défaut, « Déposé » ou « Refusé »."""
 
 
 def recevoir(nom: str, contenu: str, dossier: Path) -> Reception:
@@ -95,6 +97,7 @@ def _ranger(
                 True,
                 f"« {nom} » est déjà là, à l'identique : c'est le portefeuille "
                 f"« {portefeuille.nom} ». Rien n'a changé.",
+                etiquette="Déjà là",
             )
         siens = depot.identifiants(fichier.lire(portefeuille.chemin))
         liens[depot.comparer(deposes, siens)].append((portefeuille, siens))
@@ -119,6 +122,7 @@ def _ranger(
             True,
             f"« {garde.nom} » est mis à jour : {_lignes_de_plus(de_plus)}{periode}.{suite}",
             garde.chemin,
+            "Mis à jour",
         )
 
     if liens[Lien.CONTENU]:
@@ -127,6 +131,7 @@ def _ranger(
             True,
             f"« {nom} » est une version plus ancienne du portefeuille « {recent.nom} », qui "
             f"contient déjà toutes ses lignes et {len(siens - deposes)} de plus : rien n'a changé.",
+            etiquette="Plus ancien",
         )
 
     cible = dossier / f"{depot.nom_libre(dossier, _nom_souhaite(nom, bool(existants)))}.csv"
@@ -146,7 +151,7 @@ def _ranger(
             "Pastory ne les assemble pas : exportez « toutes les transactions », le fichier "
             "obtenu les remplacera tous les deux."
         )
-    return Reception(True, message, cible)
+    return Reception(True, message, cible, "Nouveau portefeuille")
 
 
 def _nom_souhaite(nom: str, deja_des_portefeuilles: bool) -> str:

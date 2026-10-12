@@ -25,6 +25,7 @@ from datetime import timedelta
 from pathlib import Path
 
 from pastory import assembleur
+from pastory.adaptateurs.trade_republic import depot
 from pastory.adaptateurs.trade_republic.depot import ExportIntrouvable
 from pastory.config import ConfigurationInvalide, emplacements
 from pastory.donnees_externes.cache import CacheIllisible
@@ -122,6 +123,7 @@ class Chiffres:
         self._base: assembleur.Construit | Echec | None = None
         self._vues: dict[tuple[str, tuple[Poche, ...]], Vue] = {}
         self._evolutions: dict[tuple[Poche, ...], list[valorisation_moteur.PointEvolution]] = {}
+        self._inventaire: depot.Inventaire | None = None
         self.version = 0
         """Change à chaque relecture : l'écran s'en sert pour savoir qu'il doit se redessiner."""
 
@@ -132,10 +134,23 @@ class Chiffres:
     def dossier(self) -> Path:
         return assembleur.dossier_de_lecture(self.dossier_export)
 
+    def inventaire(self) -> depot.Inventaire | None:
+        """Les portefeuilles du dossier de dépôt, et celui qui est ouvert (D-109).
+
+        `None` là où l'on ne choisit pas : l'export d'un tiers, lu tel qu'il est désigné, et
+        la démonstration, qui n'a qu'un portefeuille et n'en reçoit pas d'autre."""
+        if self.tiers or self.demonstration:
+            return None
+        with self._verrou:
+            if self._inventaire is None:
+                self._inventaire = depot.inventaire(self.dossier())
+            return self._inventaire
+
     def relire(self) -> None:
         """Oublie tout : au prochain écran, les exports sont relus et le moteur rejoue."""
         with self._verrou:
             self._base = None
+            self._inventaire = None
             self._vues.clear()
             self._evolutions.clear()
             self.version += 1

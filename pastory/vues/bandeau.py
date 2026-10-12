@@ -122,6 +122,17 @@ def mention_de_demonstration() -> html.Span:
     return html.Span(MENTION, className="mention-demonstration")
 
 
+def portefeuille_ouvert(nom: str) -> html.Span:
+    """Le nom du portefeuille qu'on lit, quand il y en a plusieurs (D-109) : sur chaque
+    chapitre, à droite de la navigation. Un chiffre lu sans savoir à qui il est ne vaut rien.
+    On en change sur la couverture."""
+    return html.Span(
+        nom,
+        className="nom-du-portefeuille",
+        title="Le portefeuille ouvert. On en change sur la couverture : cliquez sur Pastory.",
+    )
+
+
 def bascule_du_theme() -> html.Button:
     """Le bouton jour / nuit (D-100). Il ne passe pas par Dash : `dessin.js` change le thème
     dans le navigateur et retient le choix ; sans choix, Pastory suit le réglage du système."""

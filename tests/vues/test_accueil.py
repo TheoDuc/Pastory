@@ -86,7 +86,7 @@ class TestApresLeDepot:
     def test_la_periode_couverte_est_dite(self, chiffres):
         lu = texte(rendu(chiffres, onglet=bandeau.ACCUEIL)[4])
         assert "Période couverte" in lu
-        assert "Vos exports" in lu
+        assert "Votre export" in lu
 
     def test_un_type_inconnu_est_affiche_jamais_ignore(self, chiffres):
         lu = texte(rendu(chiffres, onglet=bandeau.ACCUEIL)[4])
@@ -212,7 +212,7 @@ class TestLaCouverture:
 
         corps = rendu(chiffres)[4]
         (volet,) = [n for n in noeuds(corps) if getattr(n, "className", "") == "volet"]
-        assert "Vos exports" in texte(volet)
+        assert "Votre export" in texte(volet)
         assert fictifs.TYPE_INCONNU in texte(volet)
         dans_le_volet = {id(n) for n in noeuds(volet)}
         alertes = [

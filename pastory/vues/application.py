@@ -26,7 +26,7 @@ from dash import ALL, Dash, Input, Output, State, ctx, dcc, html, no_update
 from dash.exceptions import PreventUpdate
 from flask import jsonify, request
 
-from pastory.vues import bandeau, ecrans, projections
+from pastory.vues import bandeau, ecrans, portefeuilles, projections
 from pastory.vues import etat as etat_ecran
 from pastory.vues.chiffres import Chiffres, Echec, poches_du
 from pastory.vues.reception import recevoir
@@ -258,7 +258,48 @@ def creer(chiffres: Chiffres, veille: Veille | None = None) -> Dash:
         return {
             **etat,
             "onglet": bandeau.ACCUEIL,
-            "message": [{"accepte": r.accepte, "texte": r.message} for r in receptions],
+            "message": [
+                {"accepte": r.accepte, "texte": r.message, "mot": r.etiquette}
+                for r in receptions
+            ],
+            # Un dépôt peut ouvrir un autre portefeuille : les poches cochées étaient
+            # celles du précédent.
+            "poches": None,
+            "page": 0,
+            "a_supprimer": None,
+            "version": chiffres.version,
+        }
+
+    @application.callback(
+        Output("etat", "data", allow_duplicate=True),
+        Input({portefeuilles.CHAMP: ALL, "nom": ALL}, "n_clicks"),
+        State({portefeuilles.RENOMMER: ALL}, "value"),
+        State({portefeuilles.RENOMMER: ALL}, "id"),
+        State("etat", "data"),
+        prevent_initial_call=True,
+    )
+    def gerer_les_portefeuilles(_clics, saisies, champs, etat):
+        # Ouvrir, renommer ou supprimer un portefeuille (D-109). Comme pour `choisir`, un
+        # bouton qui vient d'apparaître déclenche ce rappel avec zéro clic.
+        if not ctx.triggered_id or not any(t["value"] for t in ctx.triggered):
+            raise PreventUpdate
+        action, nom = ctx.triggered_id[portefeuilles.CHAMP], ctx.triggered_id["nom"]
+        saisie = next(
+            (
+                valeur
+                for valeur, champ in zip(saisies, champs, strict=True)
+                if champ[portefeuilles.RENOMMER] == nom
+            ),
+            None,
+        )
+        message = portefeuilles.agir(chiffres, action, nom, saisie)
+        return {
+            **etat,
+            "onglet": bandeau.ACCUEIL,
+            "message": [message] if message else None,
+            "poches": None,
+            "page": 0,
+            "a_supprimer": None,
             "version": chiffres.version,
         }
 

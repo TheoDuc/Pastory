@@ -35,13 +35,16 @@ def initial() -> Etat:
         "deplie": False,
         "ancre": None,
         "message": None,
+        # Le portefeuille dont on a demandé la suppression, en attente de confirmation.
+        "a_supprimer": None,
         "version": 0,
     }
 
 
 def appliquer(etat: Etat, champ: str, valeur: str, poches_presentes: list[str]) -> Etat:
     """Le nouvel état après un clic sur le bouton `{"choix": champ, "valeur": valeur}`."""
-    nouveau = {**initial(), **etat, "ancre": None}
+    # Une suppression demandée ne survit à aucun autre clic : seul « Oui, supprimer » la fait.
+    nouveau = {**initial(), **etat, "ancre": None, "a_supprimer": None}
     if champ != "depot":
         nouveau["message"] = None
     match champ:
@@ -66,6 +69,10 @@ def appliquer(etat: Etat, champ: str, valeur: str, poches_presentes: list[str]) 
         case "rubrique":
             nouveau["rubrique"] = valeur
             nouveau["deplie"] = False
+        case "supprimer":
+            # Le premier clic : il ne supprime rien, il fait poser la question (D-109).
+            nouveau["a_supprimer"] = valeur or None
+            nouveau["onglet"] = ACCUEIL
         case "deplier":
             nouveau["deplie"] = not etat.get("deplie", False)
         case "page":

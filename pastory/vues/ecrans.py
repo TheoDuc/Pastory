@@ -21,6 +21,7 @@ from pastory.vues import (
     detail,
     diversification,
     frais,
+    portefeuilles,
     projections,
     surveiller,
     synthese,
@@ -49,6 +50,8 @@ def rendre(chiffres: Chiffres, etat: dict) -> Rendu:
             chiffres.tiers,
             _messages_du_depot(etat.get("message")),
             chiffres.demonstration,
+            chiffres.inventaire(),
+            etat.get("a_supprimer"),
         )
         return (
             [] if isinstance(base, Echec) else bandeau.onglets(onglet),
@@ -72,9 +75,16 @@ def rendre(chiffres: Chiffres, etat: dict) -> Rendu:
     if not filtres:
         # Un chapitre sans filtre a son sommaire à la place (D-104) : jamais un faux filtre.
         filtres = bandeau.sommaire(onglet, etat.get("rubrique", "classes"))
+    # Avec plusieurs portefeuilles, le nom de celui qu'on lit ne quitte pas l'écran (D-109).
+    inventaire = chiffres.inventaire()
+    lequel = (
+        [bandeau.portefeuille_ouvert(inventaire.ouvert.nom)]
+        if portefeuilles.plusieurs(inventaire) and inventaire.ouvert is not None
+        else []
+    )
     return (
         bandeau.onglets(onglet),
-        bandeau.lien_vers_le_detail(onglet),
+        [*lequel, *bandeau.lien_vers_le_detail(onglet)],
         filtres,
         not filtres,
         _chapitre(onglet, _corps(onglet, vue, points, chiffres, etat), colophon.note(lu)),
@@ -176,7 +186,9 @@ def _messages_du_depot(messages: list[dict] | None):
         [
             html.Li(
                 [
-                    mot("Déposé") if m["accepte"] else mot("Refusé", "absent"),
+                    mot(m.get("mot") or "Déposé")
+                    if m["accepte"]
+                    else mot(m.get("mot") or "Refusé", "absent"),
                     " " + m["texte"],
                 ],
                 className="depot__retour",

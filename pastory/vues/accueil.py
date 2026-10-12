@@ -27,9 +27,14 @@ from pathlib import Path
 from dash import dcc, html
 
 from pastory import assembleur
-from pastory.adaptateurs.trade_republic.depot import CHEMIN_DANS_L_APPLICATION, NOM_PAR_DEFAUT
+from pastory.adaptateurs.trade_republic.depot import (
+    CHEMIN_DANS_L_APPLICATION,
+    NOM_PAR_DEFAUT,
+    Inventaire,
+)
 from pastory.demonstration import MENTION
 from pastory.vues import format as f
+from pastory.vues import portefeuilles
 from pastory.vues.bandeau import bascule_du_theme
 from pastory.vues.briques import aide, choix, dessin, fleuron, ligne_de_liste, mot
 from pastory.vues.chiffres import Echec
@@ -41,12 +46,21 @@ ETAPES = (
     f"Dans l'application Trade Republic : {CHEMIN}.",
     "Choisissez « toutes les transactions », depuis l'ouverture du compte : un export qui "
     "commence plus tard donne une histoire incomplète.",
-    f"Déposez ici le fichier obtenu (« {NOM_PAR_DEFAUT} »). Vous pouvez en déposer plusieurs : "
-    "ils se cumulent, et une opération présente dans deux fichiers n'est comptée qu'une fois.",
+    f"Déposez ici le fichier obtenu (« {NOM_PAR_DEFAUT} »). Plus tard, un export plus récent "
+    "du même compte mettra ce portefeuille à jour ; l'export d'un autre compte deviendra un "
+    "autre portefeuille, jamais mélangé au vôtre.",
+)
+
+CE_QUE_DEVIENT_UN_DEPOT = (
+    "plus récent, il met ce portefeuille à jour · d'un autre compte, il devient un autre "
+    "portefeuille"
 )
 
 
-def zone_de_depot(titre: str = "Déposez votre export ici") -> html.Div:
+def zone_de_depot(
+    titre: str = "Déposez votre export ici",
+    precision: str = "glissez le fichier ici, ou cliquez pour le choisir",
+) -> html.Div:
     return html.Div(
         [
             dcc.Upload(
@@ -54,8 +68,7 @@ def zone_de_depot(titre: str = "Déposez votre export ici") -> html.Div:
                     [
                         html.B(titre),
                         html.Br(),
-                        html.Span("glissez le fichier ici, ou cliquez pour le choisir",
-                                  className="reference"),
+                        html.Span(precision, className="reference"),
                     ]
                 ),
                 id="depot",
@@ -74,6 +87,8 @@ def ecran(
     tiers: bool = False,
     messages: object = None,
     demonstration: bool = False,
+    inventaire: Inventaire | None = None,
+    a_supprimer: str | None = None,
 ) -> html.Div:
     """La couverture, dans l'un de ses trois états : vide, lu, ou empêché.
 
@@ -93,7 +108,14 @@ def ecran(
                             [
                                 messages,
                                 *avis,
-                                *_etiquette(base, dossier, tiers or demonstration, demonstration),
+                                *_etiquette(
+                                    base,
+                                    dossier,
+                                    tiers or demonstration,
+                                    demonstration,
+                                    inventaire,
+                                    a_supprimer,
+                                ),
                             ],
                             className="cartouche",
                         ),
@@ -107,7 +129,14 @@ def ecran(
     )
 
 
-def _etiquette(base, dossier: Path, sans_depot: bool, demonstration: bool = False) -> list:
+def _etiquette(
+    base,
+    dossier: Path,
+    sans_depot: bool,
+    demonstration: bool = False,
+    inventaire: Inventaire | None = None,
+    a_supprimer: str | None = None,
+) -> list:
     """`sans_depot` : l'export d'un tiers ou la démonstration — on y lit, on n'y dépose rien."""
     if isinstance(base, Echec):
         contenu: list = []
@@ -116,9 +145,14 @@ def _etiquette(base, dossier: Path, sans_depot: bool, demonstration: bool = Fals
         # La démonstration écrit elle-même son export : sans lui, il n'y a rien à expliquer de
         # plus que l'avis et l'empêchement.
         return contenu if demonstration else [*contenu, *_premier_depot(dossier, sans_depot)]
-    return _livre_lu(
-        base, dossier, sans_depot, "Un portefeuille fictif" if demonstration else "Votre livre"
-    )
+    if demonstration:
+        titre = "Un portefeuille fictif"
+    elif portefeuilles.plusieurs(inventaire) and base.rapport.depot.portefeuille:
+        # Avec plusieurs portefeuilles, l'étiquette porte le nom de celui qu'elle décrit.
+        titre = base.rapport.depot.portefeuille
+    else:
+        titre = "Votre livre"
+    return _livre_lu(base, dossier, sans_depot, titre, inventaire, a_supprimer)
 
 
 def _avis_de_demonstration() -> html.P:
@@ -133,7 +167,7 @@ def _avis_de_demonstration() -> html.P:
     )
 
 
-def _volet(titre: str, contenu: list) -> html.Details:
+def _volet(titre: str, contenu: list, ouvert: bool = False) -> html.Details:
     """Un volet replié dans l'étiquette : ce qui éclaire sans être nécessaire au premier coup
     d'œil. Il s'ouvre sur place, sans rien appeler."""
     return html.Details(
@@ -142,6 +176,7 @@ def _volet(titre: str, contenu: list) -> html.Details:
             html.Div(contenu, className="volet__corps"),
         ],
         className="volet",
+        open=ouvert,
     )
 
 
@@ -217,7 +252,12 @@ def _empeche(echec: Echec) -> html.Div:
 
 
 def _livre_lu(
-    base: assembleur.Construit, dossier: Path, tiers: bool, titre: str = "Votre livre"
+    base: assembleur.Construit,
+    dossier: Path,
+    tiers: bool,
+    titre: str = "Votre livre",
+    inventaire: Inventaire | None = None,
+    a_supprimer: str | None = None,
 ) -> list:
     depot = base.rapport.depot
     lignes: list = []
@@ -233,9 +273,22 @@ def _livre_lu(
                 "Dernière opération lue", f"le {f.date_courte(depot.dernier_jour)}"
             ),
         ]
+    # Là où l'on dépose, le détail liste les portefeuilles, et permet de les renommer ou de
+    # les supprimer (D-109). Ailleurs — un tiers, la démonstration — le seul export lu.
+    gerables = inventaire is not None and not tiers and bool(inventaire.portefeuilles)
     detail: list = [
-        html.H3("Vos exports", className="volet__sous-titre"),
-        _les_exports(base),
+        html.H3(
+            "Vos portefeuilles" if portefeuilles.plusieurs(inventaire) else "Votre export",
+            className="volet__sous-titre",
+        ),
+        *(
+            [
+                *portefeuilles.gestion(inventaire, a_supprimer),
+                html.Ul(portefeuilles.restes_de_la_lecture(base), className="liste-parts"),
+            ]
+            if gerables
+            else [_les_exports(base)]
+        ),
         html.H3("Ce que la lecture a trouvé", className="volet__sous-titre"),
         _ce_que_la_lecture_a_trouve(base),
     ]
@@ -253,9 +306,14 @@ def _livre_lu(
         )
     ]
     if not tiers:
-        actions.append(zone_de_depot("Déposer un export plus récent"))
+        actions.append(zone_de_depot("Déposer un export", CE_QUE_DEVIENT_UN_DEPOT))
     nombre = len(depot.fichiers)
     return [
+        *(
+            [portefeuilles.choix_du_portefeuille(inventaire)]
+            if portefeuilles.plusieurs(inventaire) and not tiers
+            else []
+        ),
         html.H2(titre, className="cartouche__titre"),
         html.Ul(lignes, className="liste-parts"),
         *_alertes(base),
@@ -263,6 +321,8 @@ def _livre_lu(
             f"Détail de la lecture · {nombre} fichier{'s' if nombre > 1 else ''}, "
             f"{len(base.rapport.operations)} opérations sur vos actifs",
             detail,
+            # Une question posée doit se voir : le volet s'ouvre sur elle.
+            ouvert=a_supprimer is not None,
         ),
         html.Div(actions, className="cartouche__actions"),
     ]
