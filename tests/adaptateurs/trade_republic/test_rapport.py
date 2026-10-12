@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from pastory.adaptateurs.trade_republic.depot import lire_dossier
+from pastory.adaptateurs.trade_republic.depot import lire as lire_dossier
+from pastory.adaptateurs.trade_republic.depot import ouvrir
 from pastory.adaptateurs.trade_republic.lecture import Lecteur
 from pastory.adaptateurs.trade_republic.rapport import LIMITE_DES_DIVIDENDES
 from tests.adaptateurs.trade_republic import export_fictif as fictif
@@ -19,10 +20,22 @@ def test_il_dit_la_periode_couverte_et_comment_la_completer(tmp_path):
     assert "toutes les transactions" in texte
 
 
-def test_il_dit_un_trou_entre_deux_fichiers(tmp_path):
-    fictif.deposer(tmp_path, [fictif.achat_plan_epargne()], nom="a.csv")
-    texte = resume(tmp_path, [fictif.vente()], nom="b.csv")
-    assert "du 2026-03-03 au 2026-04-09" in texte
+def test_il_nomme_le_portefeuille_lu_et_ceux_qui_ne_le_sont_pas(tmp_path):
+    """Un fichier, un portefeuille (D-109) : le rapport ne laisse pas croire que ses chiffres
+    comprennent les autres fichiers du dossier."""
+    fictif.deposer(tmp_path, [fictif.achat_plan_epargne()], nom="Alix.csv")
+    fictif.deposer(tmp_path, [fictif.vente()], nom="Camille.csv")
+    ouvrir(tmp_path, "Camille")
+
+    texte = Lecteur().lire(lire_dossier(tmp_path)).resume()
+
+    assert "Portefeuille lu : Camille" in texte
+    assert "1 autre(s) portefeuille(s)" in texte and "Alix" in texte
+    assert "du 2026-04-10 au 2026-04-10" in texte
+
+
+def test_avec_un_seul_portefeuille_il_ne_parle_pas_des_autres(tmp_path):
+    assert "autre(s) portefeuille(s)" not in resume(tmp_path)
 
 
 def test_il_liste_les_types_non_traites_avec_leur_raison(tmp_path):

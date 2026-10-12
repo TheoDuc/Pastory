@@ -11,7 +11,7 @@ from decimal import Decimal
 
 import pytest
 
-from pastory.adaptateurs.trade_republic.depot import lire_dossier
+from pastory.adaptateurs.trade_republic.depot import lire as lire_dossier
 from pastory.adaptateurs.trade_republic.lecture import Lecteur
 from pastory.pivot.operation import Poche, Provenance, TypeOperation
 from pastory.pivot.validation import controler
@@ -347,11 +347,10 @@ class TestEnsemble:
 
     def test_deux_versions_d_une_operation_sont_signalees(self, tmp_path):
         originale = fictif.achat_plan_epargne()
-        fictif.deposer(tmp_path, [originale], nom="a.csv")
-        fictif.deposer(tmp_path, [originale | {"amount": "-51.00"}], nom="b.csv")
+        fictif.deposer(tmp_path, [originale, originale | {"amount": "-51.00"}], nom="a.csv")
 
         rapport = Lecteur().lire(lire_dossier(tmp_path))
         assert len(rapport.operations) == 1
         (signalement,) = rapport.signalements
         assert signalement.categorie == "deux versions d'une opération"
-        assert signalement.ou == "b.csv, ligne 2"
+        assert signalement.ou == "a.csv, ligne 3"

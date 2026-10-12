@@ -920,9 +920,10 @@ def construire_analyseur() -> argparse.ArgumentParser:
             "--export",
             type=Path,
             default=None,
-            metavar="DOSSIER",
-            help="dossier contenant l'export, au lieu du dossier de dépôt de Pastory "
-            "(pour examiner l'export de quelqu'un d'autre sans le copier dans le projet)",
+            metavar="EXPORT",
+            help="un export (le fichier, ou le dossier qui le contient) à lire à la place du "
+            "portefeuille ouvert dans Pastory : pour examiner l'export de quelqu'un d'autre "
+            "sans le déposer, et sans aucun appel réseau",
         )
         if nom in avec_date:
             sous_analyseur.add_argument(
@@ -998,8 +999,9 @@ def construire_analyseur() -> argparse.ArgumentParser:
         "--export",
         type=Path,
         default=None,
-        metavar="DOSSIER",
-        help="lire les exports de ce dossier, sans aucun appel réseau (l'export d'un tiers)",
+        metavar="EXPORT",
+        help="lire cet export (le fichier, ou le dossier qui le contient), sans aucun appel "
+        "réseau et sans le déposer",
     )
     ouvrir.add_argument(
         "--hors-ligne",

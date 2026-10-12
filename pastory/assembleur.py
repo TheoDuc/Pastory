@@ -51,7 +51,8 @@ from pastory.reglages.recherche import Recherche
 
 
 def dossier_de_lecture(dossier_export: Path | None) -> Path:
-    """Le dossier où lire les exports : celui indiqué par `--export`, ou le dossier de dépôt.
+    """Où lire : ce qu'indique `--export` (un dossier, ou directement un fichier), ou le
+    dossier de dépôt.
 
     Le dossier de dépôt est créé s'il n'existe pas encore : c'est là que l'utilisateur doit
     déposer son export (D-80), et le message qui l'y invite doit désigner un dossier réel.
@@ -64,8 +65,9 @@ def dossier_de_lecture(dossier_export: Path | None) -> Path:
 
 
 def lire(dossier: Path) -> Rapport:
-    """Lecture commune à tout : tous les exports du dossier (D-80)."""
-    return Lecteur().lire(depot_export.lire_dossier(dossier))
+    """Lecture commune à tout : **un** portefeuille — le fichier désigné, ou le
+    portefeuille ouvert du dossier (D-109)."""
+    return Lecteur().lire(depot_export.lire(dossier))
 
 
 # --- Les sources : le seul endroit qui les nomme --------------------------------------

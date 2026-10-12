@@ -72,15 +72,6 @@ def _lecture(construit: assembleur.Construit) -> list[Point]:
         )
     for signalement in rapport.signalements:
         liste.append(Point(signalement.categorie, signalement.message, signalement.ou))
-    for trou in depot.trous():
-        liste.append(
-            Point(
-                "Période non couverte",
-                f"Aucun export ne couvre la période du {f.date_courte(trou.du)} au "
-                f"{f.date_courte(trou.au)} : des opérations peuvent y manquer. Déposez un "
-                "export qui la couvre.",
-            )
-        )
     for nom, raison in depot.fichiers_ignores:
         liste.append(Point("Fichier ignoré", f"{nom} : {raison}."))
     if depot.sans_identifiant:
@@ -88,7 +79,7 @@ def _lecture(construit: assembleur.Construit) -> list[Point]:
             Point(
                 "Ligne sans identifiant",
                 f"{len(depot.sans_identifiant)} ligne(s) sans identifiant d'opération : "
-                "impossibles à dédoublonner entre deux exports, elles ne sont pas lues.",
+                "impossibles à reconnaître d'un export à l'autre, elles ne sont pas lues.",
             )
         )
     for gardee, _ in depot.conflits:

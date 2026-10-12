@@ -283,14 +283,6 @@ def _alertes(base: assembleur.Construit) -> list:
                 "les nomme.",
             ]
         )
-    for trou in depot.trous():
-        alertes.append(
-            [
-                mot("Trou"),
-                f" Aucun fichier ne couvre la période du {f.date_courte(trou.du)} au "
-                f"{f.date_courte(trou.au)} : des opérations peuvent y manquer.",
-            ]
-        )
     for nom, raison in depot.fichiers_ignores:
         alertes.append([mot("Ignoré", "absent"), f" {nom} : {raison}."])
     return [html.P(alerte, className="cartouche__alerte") for alerte in alertes]
@@ -306,20 +298,10 @@ def _les_exports(base: assembleur.Construit) -> html.Ul:
             else "aucune date lisible"
         )
         lignes.append(ligne_de_liste(lu.nom, f"{lu.lignes} lignes, {periode}", "reference"))
-    for trou in depot.trous():
-        lignes.append(
-            ligne_de_liste(
-                [
-                    mot("Trou"),
-                    f" Aucun fichier ne couvre la période du {f.date_courte(trou.du)} au "
-                    f"{f.date_courte(trou.au)} : des opérations peuvent y manquer.",
-                ]
-            )
-        )
     if depot.doublons:
         lignes.append(
             ligne_de_liste(
-                f"{depot.doublons} ligne(s) présente(s) dans plusieurs fichiers, comptée(s) "
+                f"{depot.doublons} ligne(s) écrite(s) deux fois dans le fichier, comptée(s) "
                 "une seule fois"
             )
         )
