@@ -45,6 +45,7 @@ from pastory.config.actifs import Declaration, Proposition, TypeActif
 from pastory.donnees_externes.cours import (
     Cours,
     DeviseInattendue,
+    PeriodeSansCours,
     ReponseIncoherente,
     SourceInjoignable,
     TickerInconnu,
@@ -247,6 +248,13 @@ def _telecharger(adresse: str) -> str:
             raise TickerInconnu(
                 "la source ne connaît pas ce ticker"
             ) from erreur
+        if erreur.code == 400:
+            # Une demande refusée porte son explication dans le corps, et ce n'est pas
+            # toujours une panne : la source répond ainsi à une période où le titre n'était
+            # pas encore coté. `_resultat` lit l'explication, et tranche.
+            explication = _explication(erreur)
+            if explication is not None:
+                return explication
         raise ErreurDeReseau(
             f"la source a répondu une erreur {erreur.code} ({erreur.reason})"
         ) from erreur
@@ -259,6 +267,16 @@ def _telecharger(adresse: str) -> str:
         raise ErreurDeReseau(
             f"la source n'a pas répondu en moins de {DELAI} secondes"
         ) from erreur
+
+
+def _explication(erreur: urllib.error.HTTPError) -> str | None:
+    """Le corps d'un refus, s'il a la forme d'une réponse de série qui annonce son erreur."""
+    try:
+        corps = erreur.read().decode("utf-8")
+        annonce = (json.loads(corps).get("chart") or {}).get("error")
+    except (OSError, ValueError, AttributeError, TypeError):
+        return None
+    return corps if annonce else None
 
 
 def _resultat(texte: str, ticker: str) -> dict:
@@ -280,6 +298,16 @@ def _resultat(texte: str, ticker: str) -> dict:
         if "not found" in description.lower() or "No data found" in description:
             raise TickerInconnu(
                 f"la source ne connaît pas le ticker {ticker}"
+            )
+        # Fragilité assumée (règle 4) : c'est un texte de la source qui est lu ici, faute de
+        # code. S'il change, on retombe sur « source injoignable » ci-dessous — la recherche
+        # d'une cotation s'arrête et sera refaite, aucun chiffre n'en dépend. Trouvé à
+        # l'étape 10 : une cotation étrangère créée après l'achat (cherchée par le nom de la
+        # société) recevait ce refus, pris pour une panne, et l'action restait sans cours.
+        if "data doesn't exist" in description.lower():
+            raise PeriodeSansCours(
+                f"la source n'a aucun cours de {ticker} sur la période demandée : il n'y "
+                "était pas encore coté"
             )
         raise SourceInjoignable(f"la source a refusé la demande : {description}")
 

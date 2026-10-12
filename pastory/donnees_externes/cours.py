@@ -117,6 +117,13 @@ class TickerInconnu(ErreurDeSource):
     categorie = "ticker inconnu"
 
 
+class PeriodeSansCours(ErreurDeSource):
+    """La source connaît ce ticker, mais n'a aucun cours sur la période demandée : il n'y
+    était pas encore coté. Ce n'est ni une panne, ni un ticker inconnu."""
+
+    categorie = "période sans cours"
+
+
 class DeviseInattendue(ErreurDeSource):
     """La source répond dans une autre monnaie que celle déclarée (D-48).
 

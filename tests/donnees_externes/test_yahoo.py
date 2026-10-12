@@ -14,6 +14,7 @@ Les quatre pièges, dans l'ordre où ils feraient des dégâts :
 
 from __future__ import annotations
 
+import io
 import json
 import urllib.error
 from datetime import date as Date
@@ -26,6 +27,7 @@ import pytest
 from pastory.config.actifs import Declaration
 from pastory.donnees_externes.cours import (
     DeviseInattendue,
+    PeriodeSansCours,
     ReponseIncoherente,
     SourceInjoignable,
     TickerInconnu,
@@ -352,6 +354,45 @@ class TestErreursReseau:
 
         with pytest.raises(TickerInconnu):
             yahoo.serie(ACTIF, EN_EUROS, DEBUT, FIN)
+
+    def _refus(self, description: str | None) -> urllib.error.HTTPError:
+        """Une erreur 400 de la source, avec ou sans son explication dans le corps."""
+        corps = (
+            None
+            if description is None
+            else io.BytesIO(
+                json.dumps(
+                    {
+                        "chart": {
+                            "result": None,
+                            "error": {"code": "Bad Request", "description": description},
+                        }
+                    }
+                ).encode()
+            )
+        )
+        return urllib.error.HTTPError("url", 400, "Bad Request", {}, corps)
+
+    def test_une_periode_ou_le_titre_ne_cotait_pas_n_est_pas_une_panne(self, monkeypatch):
+        """Trouvé à l'étape 10, sur une action américaine : cherchée par son nom, elle a aussi
+        une cotation étrangère créée après l'achat. La source refuse la période par une erreur
+        400 ; prise pour une panne, elle arrêtait toute la recherche, et l'action restait sans
+        cours. C'est un candidat à écarter, rien de plus."""
+        erreur = self._refus("Data doesn't exist for startDate = 1696032000, endDate = 1697846400")
+        yahoo = self._yahoo_qui_leve(monkeypatch, erreur)
+
+        with pytest.raises(PeriodeSansCours, match="pas encore coté") as leve:
+            yahoo.serie(ACTIF, EN_EUROS, DEBUT, FIN)
+
+        assert not isinstance(leve.value, SourceInjoignable)
+
+    def test_un_autre_refus_reste_une_panne(self, monkeypatch):
+        """Seul le refus reconnu change de nature : tout autre arrête la recherche, qui sera
+        refaite, plutôt que de garder en mémoire un trou qui n'en est pas un."""
+        for erreur in (self._refus("Invalid cookie"), self._refus(None)):
+            yahoo = self._yahoo_qui_leve(monkeypatch, erreur)
+            with pytest.raises(SourceInjoignable):
+                yahoo.serie(ACTIF, EN_EUROS, DEBUT, FIN)
 
     def test_un_reseau_injoignable_evoque_le_pare_feu(self, monkeypatch):
         yahoo = self._yahoo_qui_leve(monkeypatch, urllib.error.URLError("nom introuvable"))
