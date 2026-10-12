@@ -173,7 +173,9 @@ def _fichiers_csv(dossier: Path) -> list[Path]:
             for chemin in dossier.iterdir()
             if chemin.suffix.lower() == ".csv" and chemin.is_file()
         ),
-        key=lambda chemin: (chemin.name.casefold(), chemin.name),
+        # Par le nom du portefeuille, sans son extension : « Portefeuille » avant
+        # « Portefeuille 2 », ce que l'ordre des noms de fichier ne donne pas.
+        key=lambda chemin: (chemin.stem.casefold(), chemin.name),
     )
 
 

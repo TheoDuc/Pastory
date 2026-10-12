@@ -299,23 +299,26 @@ class TestReception:
         assert "Profil → Relevés → Export des transactions" in reception.message
         assert list(dossier_de_depot.iterdir()) == []
 
-    def test_rien_n_est_jamais_ecrase(self, dossier_de_depot, un_export):
+    def test_un_fichier_qui_n_est_pas_un_export_n_est_jamais_ecrase(
+        self, dossier_de_depot, un_export
+    ):
+        """Seul un export que le nouveau contient en entier est remplacé (D-109). Tout
+        autre fichier du dossier est laissé tel quel."""
         dossier_de_depot.mkdir(parents=True)
         (dossier_de_depot / "export.csv").write_bytes(b"un autre fichier")
 
         reception = recevoir("export.csv", _contenu(un_export), dossier_de_depot)
 
-        assert reception.fichier == dossier_de_depot / "export (2).csv"
+        assert reception.fichier == dossier_de_depot / "export 2.csv"
         assert (dossier_de_depot / "export.csv").read_bytes() == b"un autre fichier"
-        assert "un fichier de ce nom existait" in reception.message
 
     def test_le_meme_fichier_depose_deux_fois_n_est_pas_double(self, dossier_de_depot, un_export):
         recevoir("export.csv", _contenu(un_export), dossier_de_depot)
         reception = recevoir("export.csv", _contenu(un_export), dossier_de_depot)
 
         assert reception.accepte and reception.fichier is None
-        assert "déjà déposé" in reception.message
-        assert [p.name for p in dossier_de_depot.iterdir()] == ["export.csv"]
+        assert "déjà là, à l'identique" in reception.message
+        assert [p.name for p in dossier_de_depot.glob("*.csv")] == ["export.csv"]
 
     def test_aucun_fichier_provisoire_ne_reste(self, dossier_de_depot, un_export):
         recevoir("a.csv", _contenu(un_export), dossier_de_depot)
