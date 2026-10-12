@@ -88,6 +88,21 @@ html {
   text-align: center;
 }
 
+/* L'avis d'arrêt d'`application.py` : le serveur ne répond plus. Il reste collé au bas de la
+   fenêtre, sur la reliure, quel que soit l'endroit de la page où l'on se trouve. */
+.avis-d-arret {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 60;
+  padding: var(--espace-3) var(--espace-4);
+  background: var(--reliure);
+  color: var(--sur-reliure);
+  border-top: 1px solid var(--reliure-filet);
+  font-family: var(--sans);
+  font-size: var(--taille-petite);
+  text-align: center;
+}
+
 /* ============================================================================
    LA NAVIGATION, LES FILTRES, LE COLOPHON — trois bandes, du plus sombre au plus clair
    ========================================================================== */

@@ -24,14 +24,66 @@ from pathlib import Path
 
 from dash import ALL, Dash, Input, Output, State, ctx, dcc, html, no_update
 from dash.exceptions import PreventUpdate
+from flask import jsonify, request
 
 from pastory.vues import bandeau, ecrans, projections
 from pastory.vues import etat as etat_ecran
 from pastory.vues.chiffres import Chiffres, Echec, poches_du
 from pastory.vues.reception import recevoir
+from pastory.vues.veille import CHEMIN as CHEMIN_DE_VIE
+from pastory.vues.veille import Veille
 
 DOSSIER_DES_ASSETS = Path(__file__).parent / "assets"
+NOM = "Pastory"
 PORT_PAR_DEFAUT = 8050
+
+SIGNE_DE_VIE = """
+<script>
+/* Le signe de vie (D-106). Ouvert par son raccourci, Pastory n'a pas de terminal : il s'arrête
+   quand plus aucune page n'est ouverte, et c'est la page qui le lui dit (`veille.py`) — un
+   signe toutes les cinq secondes, un adieu à la fermeture.
+
+   Dans l'autre sens : si le serveur ne répond plus à plusieurs signes de suite, c'est qu'il est
+   arrêté. La page le dit, plutôt que de rester là avec des boutons qui ne font plus rien. Un
+   seul signe perdu ne suffit pas (l'antivirus du filet ci-dessous en coupe un sur dix), et
+   l'avis s'efface de lui-même si le serveur répond de nouveau. */
+(function () {
+  var adresse = "{chemin}?page=" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+  var echecs = 0;
+  function avis() { return document.getElementById("pastory-arrete"); }
+  function prevenir() {
+    if (avis() || !document.body) { return; }
+    var element = document.createElement("div");
+    element.id = "pastory-arrete";
+    // Aucune couleur ici (charte graphique) : la classe la prend dans le thème.
+    element.className = "avis-d-arret";
+    element.setAttribute("role", "alert");
+    element.textContent = "Pastory est arrêté : cette page ne répond plus. Fermez-la, puis " +
+      "rouvrez Pastory.";
+    document.body.appendChild(element);
+  }
+  function signe() {
+    if (!window.fetch) { return; }
+    fetch(adresse, {method: "POST", keepalive: true}).then(function (reponse) {
+      if (!reponse.ok) { throw new Error("refus"); }
+      echecs = 0;
+      if (avis()) { avis().remove(); }
+    }).catch(function () {
+      echecs += 1;
+      if (echecs >= 4) { prevenir(); }
+    });
+  }
+  signe();
+  window.setInterval(signe, 5000);
+  window.addEventListener("pageshow", function (evenement) {
+    if (evenement.persisted) { signe(); }
+  });
+  window.addEventListener("pagehide", function () {
+    if (navigator.sendBeacon) { navigator.sendBeacon(adresse + "&fin=1"); }
+  });
+})();
+</script>
+""".replace("{chemin}", CHEMIN_DE_VIE)
 
 FILET_DE_CHARGEMENT = """
 <script>
@@ -109,7 +161,7 @@ INDEX = """<!DOCTYPE html>
     {%favicon%}
     <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
     {%css%}
-""" + THEME_AU_CHARGEMENT + FILET_DE_CHARGEMENT + """
+""" + THEME_AU_CHARGEMENT + FILET_DE_CHARGEMENT + SIGNE_DE_VIE + """
   </head>
   <body>
     {%app_entry%}
@@ -130,18 +182,22 @@ function (enfants, etat) {
 """
 
 
-def creer(chiffres: Chiffres) -> Dash:
-    """L'application, branchée sur `chiffres`. Séparée du lancement pour être testée."""
+def creer(chiffres: Chiffres, veille: Veille | None = None) -> Dash:
+    """L'application, branchée sur `chiffres`. Séparée du lancement pour être testée.
+
+    `veille` : donnée par le lanceur, qui arrête Pastory quand sa fenêtre se ferme (D-106).
+    Sans elle — `pastory ouvrir` dans un terminal — rien ne s'arrête seul."""
     application = Dash(
         __name__,
         assets_folder=str(DOSSIER_DES_ASSETS),
-        title="Pastory",
+        title=NOM,
         update_title=None,
         suppress_callback_exceptions=True,
         serve_locally=True,
     )
     application.index_string = INDEX
     application.layout = _mise_en_page()
+    _brancher_la_vie(application, veille)
 
     @application.callback(
         Output("etat", "data"),
@@ -232,6 +288,40 @@ def creer(chiffres: Chiffres) -> Dash:
         State("etat", "data"),
     )
     return application
+
+
+def _brancher_la_vie(application: Dash, veille: Veille | None) -> None:
+    """L'adresse de vie. Elle sert deux fois : la page y donne signe de vie, et le lanceur y
+    demande « qui est là ? » avant de démarrer un second Pastory."""
+    serveur = application.server
+
+    @serveur.route(CHEMIN_DE_VIE, methods=["GET", "POST"])
+    def vie():
+        page = request.args.get("page", "")
+        # Seule une page de Pastory compte : un autre site ouvert dans le navigateur pourrait
+        # écrire à cette adresse, et tiendrait Pastory en vie sans fenêtre.
+        de_la_page = request.headers.get("Sec-Fetch-Site", "same-origin") == "same-origin"
+        if veille is not None and request.method == "POST" and page and de_la_page:
+            if request.args.get("fin"):
+                veille.adieu(page)
+            else:
+                veille.signe(page)
+        reponse = jsonify(application=NOM)
+        reponse.headers["Cache-Control"] = "no-store"
+        return reponse
+
+    if veille is None:
+        return
+
+    @serveur.before_request
+    def commencer():
+        if request.path != CHEMIN_DE_VIE:
+            veille.commencer_un_travail()
+
+    @serveur.teardown_request
+    def finir(_erreur):
+        if request.path != CHEMIN_DE_VIE:
+            veille.finir_un_travail()
 
 
 def _mise_en_page() -> html.Div:
