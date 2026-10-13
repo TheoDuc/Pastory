@@ -104,6 +104,16 @@ nulle ; au 99ᵉ centile, ± 1,5 à 2 % à Francfort (qui cote jusque vers 22 h)
 (qui ferme à 17 h 30). Un titre peu échangé sur Xetra y a des clôtures figées. D'où
 [D-88](decisions.md).
 
+**Le nom court n'a été cherché qu'à partir du 2026-10-13.** Jusque-là, le code demandait les
+deux noms exacts — celui que la source associe à l'ISIN (« Société, Inc. ») et celui de la
+banque (« Société (B) », la classe de l'action) — et ni l'un ni l'autre ne ramène de cotation
+en euros pour certaines valeurs : le premier ramène New York et une autre société, le second
+rien. Le premier export d'un autre utilisateur l'a montré sur une action américaine très
+courante, restée sans cours. La recherche a désormais un **second recours** : les mêmes noms
+sans ce qui est entre parenthèses, sans ce qui suit une virgule, sans forme sociale. Il ne
+sert que si les noms exacts n'ont rien donné, et chaque candidat passe les deux mêmes
+contrôles : le prix payé (§1.2) et le change (§1.3).
+
 ### 1.5 Les cryptos, et le jour d'un ordre
 
 `CODE-EUR` existe chez la source pour 18 codes sur 25 relevés ; pour les autres, elle ajoute un
@@ -257,6 +267,9 @@ quatre méritent d'être retenus :
 18. **L'export d'un tiers ne fait aucun appel réseau**, ni recherche, ni cours, ni composition :
     depuis que le type vient de la banque et que le secours s'essaie seul, chacun de ses ISIN
     serait sinon parti vers une source.
+20. **Un nom simplifié ne sert qu'à demander des candidats** : c'est un texte, donc jamais une
+    preuve (règle 4). Une société au nom voisin qui coterait par hasard au prix payé est
+    écartée par le contrôle de change, et un test le garde.
 19. **Une valeur connue survit à une panne** : un TER ou un contenu périmé reste servi tant que sa
     source ne répond pas ; et quand la source de confiance est en panne, la valeur de repli n'est
     pas gardée pour un mois.
