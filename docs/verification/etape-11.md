@@ -141,17 +141,22 @@ pas été jouée pour de vrai : elle demande un nom de domaine et un serveur de 
 
 ## 4. Les gestes qui restent, sur GitHub
 
-L'ancien dépôt ne doit **pas** être rendu public : il garde la trace de l'historique d'avant la
-réécriture, avec ton adresse. On publie un dépôt neuf.
+Le dépôt qui existe aujourd'hui sur GitHub — renommé `Pastory` le 2026-10-13, toujours privé —
+ne doit **pas** être rendu public : il porte l'historique d'avant la réécriture, avec ton
+adresse, et un dépôt garde la trace de ce qu'on y a écrasé. On publie un dépôt neuf.
 
-1. **Crée un dépôt neuf** nommé `Pastory`, **privé**, et **vide** : ne coche ni README, ni
+1. **Écarte l'ancien dépôt** : renomme-le `Pastory-archive` (*Settings → General → Repository
+   name*) et laisse-le privé. Tu pourras le supprimer plus tard ; ton ordinateur a tout.
+2. **Crée un dépôt neuf** nommé `Pastory`, **privé**, et **vide** : ne coche ni README, ni
    licence, ni `.gitignore`.
-2. **Envoie le code** : dans un terminal ouvert dans le dossier du projet, `git push -u origin
-   main` (l'adresse du nouveau dépôt est déjà réglée).
-3. **Regarde-le en privé** : la page d'accueil, les images, la licence que GitHub reconnaît, un
+3. **Envoie le code** : dans un terminal ouvert dans le dossier du projet, `git push -u origin
+   main` (l'adresse `github.com/TheoDuc/Pastory` est déjà réglée).
+4. **Regarde-le en privé** : la page d'accueil, les images, la licence que GitHub reconnaît, un
    commit sans ton adresse.
-4. **Rends-le public** : *Settings → General → Danger Zone → Change repository visibility*.
-5. **Supprime l'ancien dépôt** `Dashboard-Trade-Republic` : *Settings → Danger Zone → Delete this
-   repository*.
+5. **Rends-le public** : *Settings → General → Danger Zone → Change repository visibility*.
 6. Sur la page du dépôt, renseigne la description et quelques mots-clés (*About* → la roue
    dentée) : c'est ce que montrent les recherches.
+
+Une sauvegarde complète du dépôt d'avant la réécriture est rangée hors du projet, dans ton
+dossier personnel (`Pastory-avant-reecriture.bundle`). Elle contient ton adresse : supprime-la
+quand tu n'en as plus besoin, et ne l'envoie nulle part.

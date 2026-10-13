@@ -942,9 +942,9 @@ banques, D-26), passer le dépôt en public sur GitHub (Settings → Danger Zone
 - **L'adresse de courriel du propriétaire retirée de l'historique** (son choix), réécrit en
   entier avant la publication.
 
-**Ce qui reste à la main du propriétaire**, parce que cela se fait sur GitHub : créer le dépôt
-`Pastory`, y envoyer le code, le rendre public, puis supprimer l'ancien dépôt. Le
-[cahier](verification/etape-11.md) donne les gestes.
+**Ce qui reste à la main du propriétaire**, parce que cela se fait sur GitHub : écarter l'ancien
+dépôt (qui porte l'historique d'avant la réécriture), créer un dépôt `Pastory` neuf, y envoyer le
+code, le rendre public. Le [cahier](verification/etape-11.md) donne les gestes.
 
 **Ce qui reste ouvert après la publication** — rien de tout cela ne l'empêchait : les écrans de
 correction (bloc 9.5), l'icône pour Mac, une installation par un tiers rejouée de bout en bout,
