@@ -5,12 +5,24 @@ Tableau de bord **local** et **gratuit** pour suivre les actifs d'un portefeuill
 transactions ; Pastory en tire ce que valent vos actifs, ce qu'ils ont rapporté, ce qu'ils coûtent,
 et où se trouve votre argent. **Vos données ne quittent jamais votre ordinateur.**
 
-Projet indépendant, sans lien avec Trade Republic : il lit le fichier que la banque fournit à ses
-clients.
+**Projet indépendant, sans aucun lien avec Trade Republic** : il lit le fichier que la banque
+fournit à ses clients, et rien d'autre. Ce n'est ni un conseil en investissement, ni une
+déclaration fiscale.
 
-> **Où en est le projet.** Pastory fonctionne de bout en bout et s'ouvre comme un logiciel
-> (étape 10 sur 11). Il reste à écrire les écrans de correction, le raccourci pour Mac, et à
-> publier le dépôt. Le détail est dans [docs/feuille-de-route.md](docs/feuille-de-route.md).
+![La synthèse : la valeur des actifs, le gain, le TRI, le TWRR et la courbe du capital](docs/images/synthese.png)
+
+*Le portefeuille de démonstration livré avec Pastory : des opérations inventées, sur des titres
+réels.*
+
+| | |
+|---|---|
+| ![La couverture, où l'on dépose son export](docs/images/couverture.png) | ![La diversification : chaque pays se déplie vers les actifs qui le composent](docs/images/diversification.png) |
+| **On dépose l'export, et c'est tout** : les cours, les frais des fonds et leur composition sont trouvés seuls. | **Où se trouve l'argent**, en regardant à l'intérieur des fonds — pays, zones, secteurs, classes d'actifs. |
+
+> **Où en est le projet.** Pastory fonctionne de bout en bout sous Windows et s'ouvre comme un
+> logiciel. Restent à faire : les écrans pour corriger à la main une valeur trouvée (aujourd'hui,
+> un fichier), et l'icône pour Mac. Le détail est dans
+> [docs/feuille-de-route.md](docs/feuille-de-route.md).
 
 ## Installer Pastory (Windows)
 
@@ -174,3 +186,50 @@ fictives. Pastory n'a besoin d'aucun identifiant : il ne se connecte jamais à v
 
 Pour chercher un cours ou la composition d'un fonds, Pastory envoie le **code du titre** (son
 ISIN) ou son nom à des sources publiques — jamais vos quantités, vos montants ni votre identité.
+
+## Les sources, et leurs limites
+
+Pastory interroge des services publics et gratuits, depuis votre ordinateur, pour votre usage
+personnel : Yahoo Finance (les cours), extraETF, Amundi et la liste de Xetra (les frais et la
+composition des fonds), le registre de l'ESMA et GLEIF. **Aucun de ces services n'est partenaire
+du projet, et aucun ne garantit sa disponibilité** : l'un d'eux peut changer ou cesser de
+répondre. Pastory affiche alors un trou, avec sa raison — jamais une valeur inventée. Les
+comparatifs qui ont conduit à ces choix sont dans [docs/](docs/).
+
+## Sans garantie
+
+Pastory est un outil personnel, publié tel quel. Ses calculs sont documentés et vérifiables à la
+main ([docs/verification/](docs/verification/)), mais **rien ne garantit qu'ils soient justes
+pour votre situation** : comparez-les à votre application bancaire. L'impôt affiché est une
+estimation, fondée sur des règles françaises datées et sourcées ; ce n'est pas un conseil fiscal.
+
+## Comment ce projet a été fait
+
+Par quelqu'un qui ne code pas, avec [Claude Code](https://claude.com/claude-code), étape par
+étape : le propriétaire décide et vérifie les chiffres, l'assistant écrit le code et la
+documentation. Rien n'est caché de cette méthode : les règles de travail sont dans
+[CLAUDE.md](CLAUDE.md), chaque arbitrage dans [docs/decisions.md](docs/decisions.md) (avec ce qui
+a été écarté, et pourquoi), et les questions restées ouvertes dans
+[docs/questions-ouvertes.md](docs/questions-ouvertes.md).
+
+## Contribuer, adapter à une autre banque
+
+Le moteur ne connaît pas Trade Republic : il ne lit que le
+[format pivot](docs/format-pivot.md). Écrire un adaptateur pour une autre banque, c'est produire
+ce format à partir de son export ; `pastory/adaptateurs/trade_republic/` en est l'exemple. Les
+forks sont les bienvenus.
+
+Pour travailler sur le code : `uv sync`, puis `uv run pytest` et `uv run ruff check .`.
+
+## Licence
+
+Pastory est publié sous licence [MIT](LICENSE).
+
+Il embarque trois œuvres de tiers, chacune avec sa licence, dans son dossier :
+
+- les polices **EB Garamond** et **IBM Plex** (SIL Open Font License 1.1) —
+  `pastory/vues/assets/polices/` ;
+- les drapeaux de **flag-icons** (MIT) — `pastory/vues/assets/drapeaux/`.
+
+« Trade Republic » est une marque de Trade Republic Bank GmbH, citée ici pour désigner la banque
+dont Pastory lit l'export.

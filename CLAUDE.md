@@ -72,6 +72,10 @@ lisible et vérifiable à la main.
      D-98) : toutes les couleurs, polices et espacements viennent de
      `pastory/vues/assets/theme.css`, et **aucune couleur n'est écrite en dur ailleurs**. Une
      modification visuelle ne change jamais un chiffre.
+   - **le serveur local ne répond qu'à l'ordinateur où il tourne, et par son nom** (D-115) :
+     il n'écoute que `127.0.0.1` et refuse toute demande adressée à un autre nom. Ce qu'un
+     écran ne propose pas (déposer en démonstration), le serveur le refuse aussi. **Le dépôt
+     est public** : rien de personnel n'y entre, pas même dans un message de commit.
 9. Toute décision structurante est ajoutée à `docs/decisions.md`. Tout point d'architecture qui apparaît en discussion est noté dans `docs/architecture-notes.md`. Les notes initiales évoluent quand le propriétaire change de cap.
 10. **Les choix de fonctionnalités visent l'utilisateur type de Trade Republic**, pas le
     portefeuille du propriétaire (D-62). Un cas courant chez cette banque est traité même s'il ne le

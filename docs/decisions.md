@@ -2196,9 +2196,75 @@ est donc **établie par le mécanisme et le message**, pas par une reproduction 
 verrouillage, et la borne serait à relever à chaque sortie de Python) ; imposer le Python
 téléchargé par `uv` même quand la machine en a un qui convient (il recréerait l'environnement d'un
 développeur) ; attendre que pandas publie pour 3.15 (la panne reviendrait avec 3.16).
-**Constat fait en chemin, à trancher à l'étape 11 :** **pandas n'est plus importé nulle part**
+**Constat fait en chemin, tranché à l'étape 11 par [D-116](#d-116) :** **pandas n'est plus importé nulle part**
 dans Pastory — il ne reste que dans `pyproject.toml`, avec sa justification de l'étape 1
 ([D-33](#d-33)). La bibliothèque qui a fait échouer l'installation ne sert donc à rien. La retirer
 allège l'installation d'une dizaine de mégaoctets ; ce n'est pas fait ici, parce que modifier
 `pyproject.toml` demande une synchronisation que l'antivirus du propriétaire bloque
 ([architecture-notes.md](architecture-notes.md)).
+
+### D-115 · 2026-10-13 · La publication : licence MIT, un serveur qui ne répond qu'à son nom, un historique sans adresse · Validée
+**Décision :** le dépôt devient public, sous ces conditions.
+- **Licence MIT** (choix du propriétaire) : chacun peut utiliser, modifier et redistribuer Pastory,
+  y compris pour une autre banque ([D-26](#d-26)), en gardant le nom de l'auteur et la licence.
+  Les œuvres de tiers embarquées gardent la leur, à côté d'elles : les polices EB Garamond et IBM
+  Plex (SIL Open Font License), les drapeaux de flag-icons (MIT).
+- **La page d'accueil dit ce que Pastory n'est pas** : ni lié à Trade Republic, ni un conseil en
+  investissement, ni une déclaration fiscale, ni garanti. Elle ne montre que le portefeuille de
+  démonstration ([D-107](#d-107)), et dit comment le projet a été fait.
+- **Le serveur local refuse toute demande qui ne s'adresse pas à lui par son nom** (`127.0.0.1`
+  ou `localhost`). C'est le seul constat de la revue de sécurité. Pastory n'écoutait déjà que
+  l'ordinateur où il tourne ; mais une page web malveillante peut faire pointer **son propre nom**
+  vers cette adresse (« DNS rebinding »), et le navigateur, croyant parler au même site, lui
+  laissait alors lire les écrans — donc le portefeuille — et supprimer un export. Une telle
+  demande porte le nom de l'attaquant : il suffit de n'accepter que le nôtre
+  (`application._n_ecouter_que_soi`). Le refus est fait avant tout le reste.
+- **Le serveur ne s'en remet plus à l'écran** pour refuser un dépôt en démonstration ou sur
+  l'export d'un tiers : la zone de dépôt n'y était que masquée.
+- **L'adresse de courriel du propriétaire sort de l'historique** (son choix) : elle figurait dans
+  les 115 commits, et aurait été lisible par tous. Tout l'historique est réécrit avec l'adresse
+  anonyme que GitHub fournit à cet effet. Les identifiants de commit changent tous.
+- **Le dépôt public est un dépôt neuf, nommé « Pastory »**, et non l'ancien rendu public : un
+  dépôt garde la trace des envois qui l'ont écrasé, et l'ancien historique — avec l'adresse — y
+  serait resté consultable.
+**Ce que la recherche dans l'historique a donné** ([cahier](verification/etape-11.md)) : sur les
+94 000 lignes ajoutées par les 115 commits, **aucun** des identifiants d'opération, des IBAN ni
+des noms de portefeuille des vrais exports ; **aucun** nom de tiers ; aucun fichier de données
+n'y est jamais passé. Ce qui ressemble à une donnée est fictif et voulu : un IBAN tout en zéros,
+un numéro de téléphone d'exemple.
+**Ce que la revue de sécurité a examiné et trouvé sain :** les dépôts de fichiers et les noms de
+portefeuille (aucun chemin ne sort du dossier), les caches, les commandes lancées, le fichier
+d'installation, l'affichage des noms venus d'un export ou d'une source (aucune injection dans la
+page), les téléchargements (certificats vérifiés, adresses fixes), et ce qui quitte l'ordinateur
+— des codes de titres et des noms, jamais un montant.
+**Limites connues, non corrigées :** un export forgé dont un nom de titre commencerait par `=`
+verrait sa formule évaluée par un tableur, si l'on ouvre le CSV que produit `pastory
+exporter-pivot` (jugé peu exploitable ; neutraliser ces cellules demanderait de distinguer les
+colonnes de texte des colonnes de nombres, dont les négatifs commencent par `-`). Et deux codes
+de fonds publics qui figurent aussi dans un vrai export sont cités dans la documentation comme
+exemples de mesure : rien n'y dit qu'ils sont détenus.
+**Écarte :** rendre public l'ancien dépôt après l'avoir écrasé (voir plus haut) ; garder l'adresse
+(le choix par défaut, que le propriétaire n'a pas retenu) ; une licence qui oblige les forks à
+rester libres (GPL : envisagée, écartée pour sa contrainte sur qui voudrait réutiliser un morceau) ;
+un jeton secret entre la page et le serveur (plus lourd, et inutile dès lors que le nom est
+vérifié).
+
+### D-116 · 2026-10-13 · pandas est retiré, les fuseaux horaires sont déclarés · Validée
+**Décision :** `pandas` sort des dépendances ; `tzdata` y entre.
+**Raison :** pandas n'était plus importé nulle part ([D-114](#d-114)) — et c'est la bibliothèque
+qui a fait échouer la première installation par un tiers. En l'interdisant pour vérifier qu'on
+pouvait s'en passer, les tests ont échoué : Pastory lit l'heure de Paris par `zoneinfo`, qui sous
+Windows a besoin des données de `tzdata`… lesquelles n'arrivaient **que parce que pandas les
+demandait**. Une dépendance réelle, jamais déclarée, tenue par une dépendance inutile. Le jour où
+pandas aurait cessé de l'apporter, l'heure de Paris cassait sans raison apparente.
+**Ce que cela change :** trois bibliothèques de moins à installer (pandas, python-dateutil, six),
+une dizaine de mégaoctets, et une bibliothèque compilée de moins à surveiller à chaque sortie de
+Python. Les 1 536 tests d'alors passent avec pandas interdit.
+**Ce qui le garde :** quatre tests (`TestLesDependances`) — les fuseaux sont déclarés puisqu'on
+s'en sert ; l'heure de Paris se lit ; aucune bibliothèque n'est déclarée sans servir ; pandas
+n'est ni déclaré ni importé.
+**Révise :** [D-33](#d-33), qui gardait pandas pour « les séries de cours et les tableaux
+d'affichage » : ni les unes ni les autres ne s'en servent plus.
+**Écarte :** garder pandas « au cas où » (c'est la règle que `pyproject.toml` s'interdit en
+tête de sa liste) ; ne déclarer `tzdata` que pour Windows (une condition de plus, pour quelques
+centaines de kilo-octets ailleurs).
