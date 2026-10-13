@@ -323,7 +323,7 @@ def lancer(demonstration: bool = False) -> int:
 
     ouvrir_la_fenetre(adresse)
 
-    # Chargés seulement maintenant : Dash et pandas prennent plusieurs secondes, et un Pastory
+    # Chargés seulement maintenant : Dash et numpy prennent plusieurs secondes, et un Pastory
     # déjà ouvert n'en a pas besoin pour revenir au premier plan.
     import logging
 

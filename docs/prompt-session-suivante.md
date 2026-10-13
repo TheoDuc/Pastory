@@ -7,9 +7,8 @@ commencer.
 > **À mettre à jour par l'instance qui termine une étape**, avant la fusion dans `main`. La
 > dernière section dit comment.
 >
-> Dernière mise à jour : **2026-10-13**, à la fin de la session du retour du premier testeur,
-> sur la branche `retour-du-premier-testeur` — **pas encore fusionnée** : elle attend la
-> vérification du propriétaire.
+> Dernière mise à jour : **2026-10-13**, à la fin de l'étape 11. **Le dépôt est public** (ou sur
+> le point de l'être : vérifier sur GitHub). Tout est fusionné dans `main`.
 
 ---
 
@@ -17,23 +16,23 @@ commencer.
 
 ```
 Lis CLAUDE.md puis docs/feuille-de-route.md, et docs/prompt-session-suivante.md.
-J'ai vérifié le retour du premier testeur : […]
-On attaque l'étape 11 : la publication du dépôt. On finira par un petit post LinkedIn.
+Pastory est publié. Voici ce que je veux faire maintenant : […]
 ```
 
-**C'est l'ordre choisi par le propriétaire le 2026-10-13** : le retour de son ami (fait, à
-vérifier), puis **l'étape 11**, et pour finir **un court post LinkedIn** qui présente le projet.
-Restent ouverts, sans ordre imposé : le bloc 9.5 (les écrans de correction) et la fin de
-l'étape 10.
+**Les onze étapes sont faites.** Ce qui reste est facultatif, et le propriétaire choisira :
+les écrans de correction (bloc 9.5), l'icône pour Mac, le guide d'adaptateur, les questions
+Q-54 et Q-60 — ou un retour d'utilisateur, maintenant qu'il peut y en avoir.
 
-**Avant toute chose : `git branch` et `git log`.** Si `retour-du-premier-testeur` n'est pas
-fusionnée, demander au propriétaire où il en est de son
-[cahier](verification/retour-du-premier-testeur.md), et si son ami a pu réinstaller.
+**Le dépôt est public : trois réflexes nouveaux.**
 
-**Avant de publier (étape 11)** : le dossier `data_*/` d'un tiers est toujours dans le dossier
-du projet, gardé volontairement par le propriétaire. Il est exclu de git ; vérifier qu'aucun
-nom réel n'est entré dans l'historique (`git log --all -p | grep -i <nom>`) fait partie de la
-recherche de données personnelles de cette étape.
+- **Rien de personnel dans un commit**, message compris : ni nom, ni chemin de la machine, ni
+  valeur. Ce qui était une règle de prudence est maintenant irréversible une fois envoyé.
+- **L'historique a été réécrit le 2026-10-13** pour en retirer une adresse de courriel
+  ([D-115](decisions.md)) : les identifiants de commit cités dans d'anciennes conversations
+  n'existent plus. `git config user.email` porte l'adresse anonyme de GitHub : la vérifier avant
+  un premier commit sur une autre machine.
+- **Un retour d'inconnu arrive par une « issue » GitHub**, et peut contenir un vrai export :
+  ne jamais le recopier dans le dépôt, et prévenir son auteur.
 
 ---
 
@@ -68,8 +67,11 @@ recherche de données personnelles de cette étape.
   cours est reprise une fois pour combler ses jours manquants.
 
 **Questions ouvertes** : **Q-54** (actions gratuites puis « migration ») et **Q-60** (le contenu du
-monétaire, des multi-actifs, de l'immobilier). Aucune ne bloque. **À trancher à l'étape 11 :**
-retirer pandas, qui n'est plus importé nulle part ([D-114](decisions.md)).
+monétaire, des multi-actifs, de l'immobilier). Aucune ne bloque.
+
+- **Pastory est publié** (étape 11, [D-115](decisions.md), [D-116](decisions.md)) : licence MIT,
+  page d'accueil, historique vérifié puis réécrit sans l'adresse du propriétaire, revue de
+  sécurité (un constat, corrigé : le serveur ne répond qu'à son nom), pandas retiré.
 
 **À la fin de la session du 2026-10-13** : l'étape 10 est **fusionnée dans `main` et envoyée**
 sur GitHub, vérifiée par le propriétaire (il reste de son [cahier](verification/etape-10.md)
@@ -112,6 +114,24 @@ prochain**, qui doit mettre son portefeuille à jour et non en créer un second.
   rendre (`unix2dos`) avant de l'essayer, sans quoi ses `goto` et ses `call :étiquette` échouent.
 
 ## Les pièges de cette session
+
+- **Retirer une bibliothèque : l'interdire d'abord.** `sys.modules["pandas"] = None` avant
+  `pytest.main(...)` : pandas ne servait plus, mais apportait `tzdata`, dont l'heure de Paris a
+  besoin sous Windows ([D-116](decisions.md)). `uv lock --offline` suffit pour retirer une
+  dépendance **et** pour en ajouter une déjà connue du fichier de verrouillage.
+- **`pyproject.toml` a changé à l'étape 11** : sur cette machine, `uv run` voudra resynchroniser
+  et butera sur l'antivirus (voir plus bas). Les icônes et `.venv\Scripts\python.exe -m …`
+  ne sont pas touchés. pandas reste installé dans `.venv` tant qu'aucune synchronisation n'a
+  réussi : un test vérifie qu'il n'est plus **importé**, pas qu'il est absent.
+- **Chercher une donnée personnelle dans l'historique sans l'afficher** : lire les vrais exports
+  comme des aiguilles (identifiants d'opération, IBAN, noms de fichiers), parcourir chaque ligne
+  **ajoutée** de `git log --all -p`, et n'écrire que des comptes et des noms de fichiers. Le
+  script vivait dans le dossier temporaire : à réécrire au besoin.
+- **Rendre public un dépôt après l'avoir écrasé ne suffit pas** : GitHub garde la trace des
+  envois forcés, et l'ancien historique y reste consultable. D'où un dépôt neuf.
+- **`/security-review` ne relit que ce qui n'est pas encore envoyé**, et il lui faut
+  `git remote set-head origin main`. Pour une première publication, c'est tout le code qu'il faut
+  faire relire : l'agent a reçu les deux périmètres.
 
 - **Une installation dépend de la date à laquelle on la fait.** « failed to build pandas » : `uv`
   prenait le Python le plus récent (3.15, sorti ce mois-ci), pour lequel le fichier de

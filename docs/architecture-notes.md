@@ -310,10 +310,18 @@ l'écriture a confirmé, et ce qu'elle a ajouté :
   connaît que les bibliothèques publiées le jour où il a été écrit. Entre les deux, une sortie de
   Python suffit à casser l'installation d'un dépôt qui n'a pas changé d'une ligne. D'où
   `.python-version`, et le test qui vérifie que chaque bibliothèque existe toute prête pour lui.
-- **pandas est déclaré et n'est plus importé** (constaté le 2026-10-13) : il reste dans
-  `pyproject.toml` depuis l'étape 1 ([D-33](decisions.md)), mais plus aucun module ne s'en sert.
-  À retirer à l'étape 11, avec une synchronisation de l'environnement (antivirus suspendu sur la
-  machine du propriétaire). Le commentaire de `lanceur.py` qui le cite est à corriger alors.
+- **Une dépendance peut en cacher une autre** ([D-116](decisions.md)). pandas, déclaré depuis
+  l'étape 1 et plus importé nulle part, apportait `tzdata` — dont `zoneinfo` a besoin sous
+  Windows pour l'heure de Paris. Retirer l'inutile a révélé l'indispensable. Pour vérifier qu'on
+  peut se passer d'une bibliothèque sans la désinstaller : `sys.modules["pandas"] = None` avant
+  de lancer les tests, puis lire ce qui casse.
+- **Le serveur est local, et cela ne suffit pas à le protéger** ([D-115](decisions.md)).
+  N'écouter que `127.0.0.1` arrête les autres machines, pas les autres **sites** ouverts dans le
+  même navigateur. Ce qui protège des sites : le navigateur refuse à un site de lire les réponses
+  d'un autre, Dash n'accepte que du JSON (ce qu'un autre site ne peut envoyer sans permission),
+  et — depuis l'étape 11 — Pastory refuse toute demande adressée à un autre nom que le sien. Tout
+  rappel nouveau qui **écrit** (un dépôt, une suppression, demain une correction) repose sur ces
+  trois barrières : ne pas en retirer une.
 - **Renommer le dossier du projet laisse trois traces** : les raccourcis (à recréer par
   `pastory installer`), le chemin du projet dans l'environnement
   (`.venv/Lib/site-packages/_editable_impl_pastory.pth`, corrigé à la main le 2026-10-13), et les

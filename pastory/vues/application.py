@@ -207,6 +207,7 @@ def creer(chiffres: Chiffres, veille: Veille | None = None) -> Dash:
         serve_locally=True,
     )
     application.index_string = INDEX
+    application.server.wsgi_app = _n_ecouter_que_soi(application.server.wsgi_app)
     application.layout = _mise_en_page(chiffres.demonstration)
     _brancher_la_vie(application, veille, chiffres.demonstration)
     _brancher_l_attente(application, chiffres)
@@ -247,7 +248,9 @@ def creer(chiffres: Chiffres, veille: Veille | None = None) -> Dash:
         prevent_initial_call=True,
     )
     def deposer(contenus, noms, etat):
-        if not contenus:
+        # La démonstration et l'export d'un tiers ne reçoivent aucun fichier : l'écran n'y
+        # montre pas de zone de dépôt, et le serveur ne s'en remet pas à l'écran pour cela.
+        if not contenus or chiffres.inventaire() is None:
             raise PreventUpdate
         dossier = chiffres.dossier()
         receptions = [
@@ -284,6 +287,9 @@ def creer(chiffres: Chiffres, veille: Veille | None = None) -> Dash:
         # Ouvrir, renommer ou supprimer un portefeuille (D-109). Comme pour `choisir`, un
         # bouton qui vient d'apparaître déclenche ce rappel avec zéro clic.
         if not ctx.triggered_id or not any(t["value"] for t in ctx.triggered):
+            raise PreventUpdate
+        if chiffres.inventaire() is None:
+            # Ni la démonstration ni l'export d'un tiers ne se renomment ou ne se suppriment.
             raise PreventUpdate
         action, cle = ctx.triggered_id[portefeuilles.CHAMP], ctx.triggered_id["nom"]
         # Le bouton porte la clé du portefeuille, pas son nom : un accent dans un
@@ -347,6 +353,35 @@ def creer(chiffres: Chiffres, veille: Veille | None = None) -> Dash:
         State("etat", "data"),
     )
     return application
+
+
+ADRESSES_DE_PASTORY = frozenset({HOTE, "localhost"})
+"""Les seuls noms sous lesquels on s'adresse à Pastory : ceux de l'ordinateur lui-même."""
+
+
+def _n_ecouter_que_soi(wsgi):
+    """Refuse toute demande adressée à un autre nom que celui de cet ordinateur (D-115).
+
+    Pastory n'écoute que `127.0.0.1`, mais cela ne suffit pas. Une page web malveillante peut
+    faire pointer **son propre nom** vers cette adresse (« DNS rebinding ») : pour le
+    navigateur, ses demandes viennent alors du même site que Pastory, et plus rien ne les
+    arrête — elle lirait les écrans, donc le portefeuille, et pourrait supprimer un export.
+    Une telle demande porte forcément le nom de l'attaquant dans son en-tête `Host` : il
+    suffit de n'accepter que le nôtre. Trouvé par la revue de sécurité de l'étape 11.
+
+    Le refus est fait **avant** Flask : ni la veille ni aucun rappel ne voient la demande.
+    """
+
+    def filtre(environ, start_response):
+        nom = environ.get("HTTP_HOST", "").rsplit(":", 1)[0].lower()
+        if nom not in ADRESSES_DE_PASTORY:
+            start_response(
+                "403 Forbidden", [("Content-Type", "text/plain; charset=utf-8")]
+            )
+            return ["Pastory ne répond qu'à l'ordinateur où il tourne.".encode()]
+        return wsgi(environ, start_response)
+
+    return filtre
 
 
 def _brancher_la_vie(application: Dash, veille: Veille | None, demonstration: bool) -> None:

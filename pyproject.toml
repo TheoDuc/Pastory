@@ -9,7 +9,7 @@ requires-python = ">=3.12"
 # jamais « au cas où » : chacune doit servir à du code existant.
 dependencies = [
     "dash>=3.0",      # interface locale (D-31, étapes 8 et 9)
-    "pandas>=2.2",    # séries de cours et tableaux d'affichage seulement (D-33)
+    "tzdata>=2024.1", # les fuseaux horaires, que Windows ne fournit pas (D-116)
     "numpy>=2.0",     # les 10 000 tirages de la prédiction de l'évolution (D-105)
 ]
 

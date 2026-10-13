@@ -909,7 +909,7 @@ mesurer.**
 - dire si l'on retire **pandas**, qui n'est plus importé nulle part ([D-114](decisions.md)) ;
 - donner ton accord pour la fusion dans `main`.
 
-## Étape 11 · Publication ⏳
+## Étape 11 · Publication ✅
 **But :** rendre le dépôt public sans risque.
 
 **Claude :**
@@ -922,5 +922,33 @@ mesurer.**
 
 **Toi :** relire le README, choisir la licence (elle doit autoriser les forks pour d'autres
 banques, D-26), passer le dépôt en public sur GitHub (Settings → Danger Zone → Change visibility).
+
+**Fait le 2026-10-13** ([D-115](decisions.md), [D-116](decisions.md),
+[cahier](verification/etape-11.md)) :
+
+- **La recherche de données personnelles dans tout l'historique** : 115 commits, 94 000 lignes
+  ajoutées, comparées aux identifiants d'opération, aux IBAN et aux noms des vrais exports.
+  **Rien.** Aucun fichier de données n'est jamais passé par l'historique.
+- **La revue de sécurité**, par un agent indépendant, sur tout le code : **un constat**, corrigé.
+  Le serveur local ne vérifiait pas à quel nom on s'adressait à lui ; une page web malveillante
+  pouvait, par un détour connu, se faire passer pour Pastory et lire les écrans. Il refuse
+  désormais toute demande qui ne porte pas son nom.
+- **La licence MIT**, choisie par le propriétaire, et la **page d'accueil** : ce que fait Pastory,
+  quatre captures du portefeuille de démonstration, ce qu'il n'est pas (ni lié à la banque, ni un
+  conseil, ni garanti), ses sources et leurs limites, comment il a été fait.
+- **pandas retiré** ([D-116](decisions.md)) : il ne servait plus, et c'est lui qui avait fait
+  échouer l'installation du premier testeur. Le retirer a révélé qu'il apportait en cachette les
+  fuseaux horaires dont Pastory a besoin : ils sont déclarés pour de bon.
+- **L'adresse de courriel du propriétaire retirée de l'historique** (son choix), réécrit en
+  entier avant la publication.
+
+**Ce qui reste à la main du propriétaire**, parce que cela se fait sur GitHub : créer le dépôt
+`Pastory`, y envoyer le code, le rendre public, puis supprimer l'ancien dépôt. Le
+[cahier](verification/etape-11.md) donne les gestes.
+
+**Ce qui reste ouvert après la publication** — rien de tout cela ne l'empêchait : les écrans de
+correction (bloc 9.5), l'icône pour Mac, une installation par un tiers rejouée de bout en bout,
+le guide « écrire un adaptateur pour une autre banque », et les questions
+[Q-54](questions-ouvertes.md) et [Q-60](questions-ouvertes.md).
 
 ## ~~Étape 12 · Simulation Monte-Carlo~~ → déplacée dans l'étape 9 bis ([D-97](decisions.md))
