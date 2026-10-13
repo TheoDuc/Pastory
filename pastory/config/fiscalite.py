@@ -137,11 +137,19 @@ def charger(
         )
     par_portefeuille: dict[str, Date] = {}
     for nom, sections in portefeuilles.items():
-        date = _premier_versement(
-            sections.get("pea", {}) if isinstance(sections, dict) else sections,
-            fichier,
-            f'[portefeuille."{nom}".pea]',
-        )
+        section = f'[portefeuille."{nom}".pea]'
+        # Une date écrite un cran trop haut, ou sous un autre mot que « pea », serait lue
+        # comme « rien n'est corrigé » : l'utilisateur la croirait en vigueur.
+        if not isinstance(sections, dict) or set(sections) - {"pea"}:
+            raise ConfigurationInvalide(
+                f"{fichier} : la date du PEA d'un portefeuille s'écrit sous {section}, "
+                "sur la ligne suivante : premier_versement = AAAA-MM-JJ"
+            )
+        if any(nom.casefold() == autre.casefold() for autre in par_portefeuille):
+            raise ConfigurationInvalide(
+                f"{fichier} : le portefeuille « {nom} » y est écrit deux fois, à la casse près"
+            )
+        date = _premier_versement(sections.get("pea", {}), fichier, section)
         if date is not None:
             par_portefeuille[nom] = date
     return ConfigurationFiscale(

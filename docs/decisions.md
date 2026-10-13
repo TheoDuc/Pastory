@@ -1991,6 +1991,19 @@ propriétaire l'a jugé superflu) ; garder le cumul en demandant à l'utilisateu
 (c'est ce qui venait d'échouer) ; assembler deux exports partiels (un export complet est toujours
 possible, et il les remplace tous les deux) ; une vue d'ensemble de plusieurs portefeuilles
 (additionner deux personnes est le mélange qu'on écarte).
+**Précisée le même jour, par la relecture indépendante :**
+- un fichier **copié à la main** dans le dossier échappe à la règle du dépôt. Si le
+  portefeuille ouvert est contenu en entier dans un autre, il est **périmé**, et Pastory le dit
+  dès la couverture ;
+- une **version plus ancienne** se reconnaît avant tout : un fichier que contient déjà un
+  portefeuille n'en remplace aucun, même s'il contient lui-même un export partiel ;
+- un portefeuille dont le fichier **ne peut pas être ouvert** (verrouillé, pas encore
+  téléchargé) compte toujours parmi les portefeuilles, et tant qu'il est illisible aucun
+  dépôt n'est rangé : faute de pouvoir comparer, on ferait un doublon du même compte ;
+- une correction d'actif n'est dite « sans actif » que si **aucun** portefeuille du dossier
+  ne détient le titre ;
+- un dépôt qui ne peut pas s'écrire (fichier ouvert ailleurs) **le dit**, au lieu d'échouer
+  sans un mot.
 **Limites connues :** chaque portefeuille est calculé comme celui d'une personne seule — pour un
 couple qui déclare ensemble, le seuil d'exonération de la crypto et les pertes du compte-titres
 sont partagés, et l'impôt estimé de chacun est alors un peu faux ; l'écran le dit. Une correction

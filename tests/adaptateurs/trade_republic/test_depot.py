@@ -290,3 +290,51 @@ class TestRenommerEtSupprimer:
         assert inventaire(dossier).ouvert is None
         with pytest.raises(ExportIntrouvable):
             lire(dossier)
+
+
+class TestCeQueLaRelectureATrouve:
+    def test_un_portefeuille_illisible_compte_quand_meme(self, tmp_path, monkeypatch):
+        """Verrouillé un instant, il sortait de la liste : l'écran disait « Votre livre » sur les
+        chiffres d'un autre, et une date de PEA sans nom s'appliquait à ce dernier."""
+        fictif.deposer(tmp_path, [fictif.achat_plan_epargne()], nom="Moi.csv")
+        fictif.deposer(tmp_path, [fictif.achat_crypto()], nom="Camille.csv")
+        ouvrir(tmp_path, "Moi")
+        vraie_lecture = module_depot.fichier.lire
+
+        def lecture(chemin):
+            if chemin.name == "Moi.csv":
+                raise PermissionError("accès refusé")
+            return vraie_lecture(chemin)
+
+        monkeypatch.setattr(module_depot.fichier, "lire", lecture)
+        contenu = inventaire(tmp_path)
+
+        assert contenu.inaccessibles == ("Moi",)
+        assert contenu.nombre == 2
+        assert lire(tmp_path).autres == ["Moi"]
+
+    def test_un_fichier_copie_a_la_main_a_cote_de_sa_version_ancienne_se_voit(self, tmp_path):
+        """Le dépôt par l'écran remplace l'ancien. Copié à la main dans le dossier, l'export
+        récent devient un second portefeuille : on lirait le périmé sans le savoir."""
+        achat, vente = fictif.achat_plan_epargne(), fictif.vente()
+        fictif.deposer(tmp_path, [achat], nom="Mars.csv")
+        fictif.deposer(tmp_path, [achat, vente], nom="Avril.csv")
+        fictif.deposer(tmp_path, [fictif.achat_crypto()], nom="Camille.csv")
+
+        ouvrir(tmp_path, "Mars")
+        assert lire(tmp_path).plus_a_jour == ["Avril"]
+        ouvrir(tmp_path, "Avril")
+        assert lire(tmp_path).plus_a_jour == []
+        ouvrir(tmp_path, "Camille")
+        assert lire(tmp_path).plus_a_jour == []
+
+        mars = inventaire(tmp_path).nomme("Mars")
+        assert [(p.nom, lien) for p, lien in inventaire(tmp_path).meme_compte(mars)] == [
+            ("Avril", Lien.CONTENU)
+        ]
+
+    def test_les_titres_des_autres_portefeuilles_sont_connus(self, tmp_path):
+        fictif.deposer(tmp_path, [fictif.achat_plan_epargne()], nom="Moi.csv")
+        fictif.deposer(tmp_path, [fictif.achat_crypto()], nom="Camille.csv")
+        ouvrir(tmp_path, "Moi")
+        assert lire(tmp_path).actifs_des_autres == {fictif.CRYPTO}

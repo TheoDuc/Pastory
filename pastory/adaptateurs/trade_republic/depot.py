@@ -55,6 +55,12 @@ NOMS_RESERVES = frozenset(
 
 INACCESSIBLE = "le fichier n'a pas pu être ouvert (verrouillé ou inaccessible)"
 
+PORTEFEUILLE_PERIME = (
+    "Ce portefeuille est périmé : {noms} contient toutes ses opérations, et d'autres plus "
+    "récentes. C'est le même compte, plus à jour."
+)
+"""Ce qu'on dit d'un portefeuille qu'un autre fichier du dossier contient en entier."""
+
 
 class ExportIntrouvable(Exception):
     """Aucun export lisible. Le message dit comment en obtenir un."""
@@ -80,6 +86,10 @@ class Portefeuille:
 
     chemin: Path
     lu: FichierLu
+    identifiants: frozenset[str] = frozenset()
+    """Les identifiants de ses opérations : ce par quoi deux exports se comparent."""
+    actifs: frozenset[str] = frozenset()
+    """Les codes des titres qu'il nomme (ISIN, ou code d'un crypto-actif)."""
 
     @property
     def nom(self) -> str:
@@ -94,11 +104,37 @@ class Inventaire:
     portefeuilles: tuple[Portefeuille, ...] = ()
     """Par ordre alphabétique, sans tenir compte des majuscules."""
     ignores: tuple[tuple[str, str], ...] = ()
-    """(nom du fichier, raison) pour chaque fichier `.csv` qui n'est pas un export."""
+    """(nom du fichier, raison) pour chaque fichier `.csv` qui n'est pas un export, ou qui
+    n'a pas pu être ouvert."""
     ouvert: Portefeuille | None = None
+    inaccessibles: tuple[str, ...] = ()
+    """Les noms des portefeuilles dont le fichier n'a pas pu être ouvert (verrouillé par un
+    autre programme, laissé « dans le nuage »). Ils ne sont pas lus, mais **ils comptent** :
+    les oublier ferait croire qu'il n'y a qu'un portefeuille, et prendre un fichier déposé
+    pour un nouveau compte faute de pouvoir le comparer au leur."""
 
     def nomme(self, nom: str) -> Portefeuille | None:
         return next((p for p in self.portefeuilles if p.nom == nom), None)
+
+    @property
+    def nombre(self) -> int:
+        """Combien de portefeuilles le dossier contient, lisibles ou non."""
+        return len(self.portefeuilles) + len(self.inaccessibles)
+
+    def meme_compte(self, portefeuille: Portefeuille) -> list[tuple[Portefeuille, Lien]]:
+        """Les autres portefeuilles qui partagent des opérations avec celui-ci, donc le même
+        compte, et ce que **celui-ci** est à chacun (`comparer`).
+
+        Au dépôt par l'écran, cela n'arrive pas : un export plus récent remplace l'ancien.
+        Mais un fichier copié à la main dans le dossier échappe à cette règle — et l'on peut
+        alors lire sans le savoir un portefeuille périmé, à côté de sa version à jour."""
+        return [
+            (autre, lien)
+            for autre in self.portefeuilles
+            if autre != portefeuille
+            and (lien := comparer(portefeuille.identifiants, autre.identifiants))
+            is not Lien.SANS_RAPPORT
+        ]
 
 
 @dataclass
@@ -121,7 +157,14 @@ class Depot:
     portefeuille: str | None = None
     """Le nom du portefeuille lu."""
     autres: list[str] = field(default_factory=list)
-    """Les autres portefeuilles du dossier, qui ne sont **pas** lus."""
+    """Les autres portefeuilles du dossier, qui ne sont **pas** lus — y compris ceux dont le
+    fichier n'a pas pu être ouvert."""
+    actifs_des_autres: frozenset[str] = frozenset()
+    """Les titres que nomment les autres portefeuilles : une correction d'actif qui ne sert
+    pas à celui-ci peut servir à l'un d'eux."""
+    plus_a_jour: list[str] = field(default_factory=list)
+    """Les portefeuilles du dossier qui **contiennent** toutes les opérations de celui-ci, et
+    d'autres : le même compte, plus récent. Celui qu'on lit est donc périmé."""
 
     @property
     def premier_jour(self) -> date | None:
@@ -183,6 +226,7 @@ def inventaire(dossier: Path) -> Inventaire:
     """Les portefeuilles du dossier, les fichiers écartés, et le portefeuille ouvert."""
     portefeuilles: list[Portefeuille] = []
     ignores: list[tuple[str, str]] = []
+    inaccessibles: list[str] = []
     for chemin in _fichiers_csv(dossier):
         try:
             lignes = fichier.lire(chemin)
@@ -190,12 +234,24 @@ def inventaire(dossier: Path) -> Inventaire:
             ignores.append((chemin.name, str(raison)))
         except OSError:
             # Verrouillé, protégé, ou laissé « dans le nuage » par un service de
-            # synchronisation : le fichier est cité, et le reste du dossier est lu.
+            # synchronisation : le fichier est cité, et le reste du dossier est lu. Rien ne
+            # dit que ce n'est pas un export : il compte parmi les portefeuilles.
             ignores.append((chemin.name, INACCESSIBLE))
+            inaccessibles.append(chemin.stem)
         else:
-            portefeuilles.append(Portefeuille(chemin, decrire(chemin.name, lignes)))
+            portefeuilles.append(
+                Portefeuille(
+                    chemin,
+                    decrire(chemin.name, lignes),
+                    identifiants(lignes),
+                    frozenset(ligne.symbol for ligne in lignes if ligne.symbol),
+                )
+            )
     return Inventaire(
-        tuple(portefeuilles), tuple(ignores), _ouvert(dossier, portefeuilles)
+        tuple(portefeuilles),
+        tuple(ignores),
+        _ouvert(dossier, portefeuilles),
+        tuple(inaccessibles),
     )
 
 
@@ -258,7 +314,14 @@ def lire(source: Path) -> Depot:
 
     depot = _lire_un_fichier(contenu.ouvert.chemin)
     depot.fichiers_ignores = list(contenu.ignores)
-    depot.autres = [p.nom for p in contenu.portefeuilles if p != contenu.ouvert]
+    autres = [p for p in contenu.portefeuilles if p != contenu.ouvert]
+    depot.autres = [*(p.nom for p in autres), *contenu.inaccessibles]
+    depot.actifs_des_autres = frozenset().union(*(p.actifs for p in autres))
+    depot.plus_a_jour = [
+        autre.nom
+        for autre, lien in contenu.meme_compte(contenu.ouvert)
+        if lien is Lien.CONTENU
+    ]
     return depot
 
 
@@ -366,11 +429,14 @@ def nom_libre(dossier: Path, souhaite: str = NOM_D_UN_NOUVEAU_PORTEFEUILLE) -> s
 
 def renommer(dossier: Path, nom: str, nouveau: str) -> Portefeuille:
     """Renomme un portefeuille — c'est-à-dire son fichier. Le portefeuille ouvert le reste."""
-    portefeuille = _trouver(dossier, nom)
+    contenu = inventaire(dossier)
+    portefeuille = contenu.nomme(nom)
+    if portefeuille is None:
+        raise ExportIntrouvable(f"Aucun portefeuille « {nom} » dans {dossier}.")
     nouveau = nom_valide(nouveau)
     if _pris(dossier, nouveau, sauf=portefeuille.chemin):
         raise NomRefuse(f"Un portefeuille s'appelle déjà « {nouveau} ».")
-    etait_ouvert = inventaire(dossier).ouvert == portefeuille
+    etait_ouvert = contenu.ouvert == portefeuille
     cible = portefeuille.chemin.with_name(f"{nouveau}.csv")
     # Les noms, pas les chemins : sous Windows, deux chemins qui ne diffèrent que par la
     # casse sont égaux, et « alix » ne deviendrait jamais « Alix ».

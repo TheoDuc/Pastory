@@ -30,6 +30,7 @@ from pastory import assembleur
 from pastory.adaptateurs.trade_republic.depot import (
     CHEMIN_DANS_L_APPLICATION,
     NOM_PAR_DEFAUT,
+    PORTEFEUILLE_PERIME,
     Inventaire,
 )
 from pastory.demonstration import MENTION
@@ -333,6 +334,19 @@ def _alertes(base: assembleur.Construit) -> list:
     été écarté. Visible dès la couverture, au-dessus des actions."""
     depot = base.rapport.depot
     alertes: list = []
+    if depot.plus_a_jour:
+        # Un fichier copié à la main dans le dossier échappe à la règle du dépôt : on peut
+        # lire un portefeuille périmé, à côté de sa version à jour, sans le savoir.
+        alertes.append(
+            [
+                mot("Périmé"),
+                " "
+                + PORTEFEUILLE_PERIME.format(
+                    noms=", ".join(f"« {nom} »" for nom in depot.plus_a_jour)
+                )
+                + " Ouvrez-le, puis supprimez celui-ci.",
+            ]
+        )
     inconnus = sum(base.rapport.types_inconnus.values())
     if inconnus:
         alertes.append(

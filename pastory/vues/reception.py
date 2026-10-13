@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -79,6 +80,16 @@ def recevoir(nom: str, contenu: str, dossier: Path) -> Reception:
 
     try:
         return _ranger(nom, octets, lignes, provisoire, dossier)
+    except OSError:
+        # Le fichier d'un portefeuille est ouvert dans un autre programme, ou protégé :
+        # sous Windows, on ne peut alors ni le remplacer ni l'effacer. Un dépôt qui échoue
+        # sans un mot laisserait croire qu'il a réussi.
+        return Reception(
+            False,
+            f"« {nom} » n'a pas pu être rangé : un fichier du dossier de dépôt est ouvert "
+            "dans un autre programme, ou protégé. Fermez ce programme, puis déposez de "
+            "nouveau.",
+        )
     finally:
         provisoire.unlink(missing_ok=True)
 
@@ -90,7 +101,18 @@ def _ranger(
     deposes = depot.identifiants(lignes)
     contenu = depot.inventaire(dossier)
     existants, ouvert = contenu.portefeuilles, contenu.ouvert
-    liens: dict[Lien, list[tuple[Portefeuille, frozenset[str]]]] = {lien: [] for lien in Lien}
+    if contenu.inaccessibles:
+        # Sans pouvoir lire un portefeuille, on ne peut pas dire si ce fichier est le sien : le
+        # ranger quand même risquerait d'en faire un doublon du même compte.
+        return Reception(
+            False,
+            f"« {nom} » n'a pas été rangé : {_guillemets(contenu.inaccessibles)} ne peut pas "
+            "être lu pour l'instant (son fichier est ouvert dans un autre programme, ou pas "
+            "encore téléchargé), et Pastory ne peut donc pas savoir si c'est le même compte. "
+            "Fermez ce programme, puis déposez de nouveau.",
+        )
+
+    liens: dict[Lien, list[Portefeuille]] = {lien: [] for lien in Lien}
     for portefeuille in existants:
         if portefeuille.chemin.read_bytes() == octets:
             return Reception(
@@ -99,39 +121,49 @@ def _ranger(
                 f"« {portefeuille.nom} ». Rien n'a changé.",
                 etiquette="Déjà là",
             )
-        siens = depot.identifiants(fichier.lire(portefeuille.chemin))
-        liens[depot.comparer(deposes, siens)].append((portefeuille, siens))
+        liens[depot.comparer(deposes, portefeuille.identifiants)].append(portefeuille)
 
     periode = _periode(nom, lignes)
 
+    # Une version plus ancienne d'abord : un fichier que contient déjà un portefeuille n'apporte
+    # rien, même s'il contient lui-même un export partiel resté dans le dossier. Le ranger à la
+    # place de ce partiel ferait lire un historique incomplet à côté du complet.
+    if liens[Lien.CONTENU]:
+        recent = liens[Lien.CONTENU][0]
+        return Reception(
+            True,
+            f"« {nom} » est une version plus ancienne du portefeuille « {recent.nom} », qui "
+            f"contient déjà toutes ses lignes et {len(recent.identifiants - deposes)} de plus : "
+            "rien n'a changé.",
+            etiquette="Plus ancien",
+        )
+
     if liens[Lien.CONTIENT]:
         # Le même compte, plus récent. Le portefeuille ouvert garde la préférence, s'il en est.
-        contenus = sorted(liens[Lien.CONTIENT], key=lambda paire: paire[0] != ouvert)
-        (garde, siens), autres = contenus[0], contenus[1:]
+        garde, *autres = sorted(liens[Lien.CONTIENT], key=lambda p: p != ouvert)
         provisoire.replace(garde.chemin)
-        for absorbe, _ in autres:
-            absorbe.chemin.unlink()
+        restes = []
+        for absorbe in autres:
+            try:
+                absorbe.chemin.unlink()
+            except OSError:
+                restes.append(absorbe)
         depot.ouvrir(dossier, garde.nom)
-        de_plus = len(deposes - siens)
-        suite = (
-            f" Il contient aussi {_noms(p for p, _ in autres)}, qu'il remplace."
-            if autres
-            else ""
-        )
+        suite = ""
+        effaces = [p for p in autres if p not in restes]
+        if effaces:
+            suite += f" Il contient aussi {_noms(effaces)}, qu'il remplace."
+        if restes:
+            suite += (
+                f" Il contient aussi {_noms(restes)}, dont le fichier n'a pas pu être effacé "
+                "(ouvert ailleurs ?) : supprimez-le depuis « Détail de la lecture »."
+            )
+        de_plus = len(deposes - garde.identifiants)
         return Reception(
             True,
             f"« {garde.nom} » est mis à jour : {_lignes_de_plus(de_plus)}{periode}.{suite}",
             garde.chemin,
             "Mis à jour",
-        )
-
-    if liens[Lien.CONTENU]:
-        recent, siens = liens[Lien.CONTENU][0]
-        return Reception(
-            True,
-            f"« {nom} » est une version plus ancienne du portefeuille « {recent.nom} », qui "
-            f"contient déjà toutes ses lignes et {len(siens - deposes)} de plus : rien n'a changé.",
-            etiquette="Plus ancien",
         )
 
     cible = dossier / f"{depot.nom_libre(dossier, _nom_souhaite(nom, bool(existants)))}.csv"
@@ -146,12 +178,23 @@ def _ranger(
     )
     if liens[Lien.RECOUPE]:
         message += (
-            f" Il a des opérations en commun avec {_noms(p for p, _ in liens[Lien.RECOUPE])} "
-            "sans le contenir : ce sont sans doute deux exports partiels du même compte. "
-            "Pastory ne les assemble pas : exportez « toutes les transactions », le fichier "
-            "obtenu les remplacera tous les deux."
+            f" Il a des opérations en commun avec {_noms(liens[Lien.RECOUPE])} sans le "
+            "contenir : ce sont sans doute deux exports partiels du même compte. Pastory ne "
+            "les assemble pas : exportez « toutes les transactions », le fichier obtenu les "
+            "remplacera tous les deux."
+        )
+    else:
+        # Aucune opération commune : un autre compte — ou le même, sur une autre période, ce
+        # que rien dans le fichier ne permet de distinguer.
+        message += (
+            " Si c'est le même compte sur une autre période, Pastory ne les assemble pas : "
+            "exportez « toutes les transactions »."
         )
     return Reception(True, message, cible, "Nouveau portefeuille")
+
+
+BROUILLON_DU_NAVIGATEUR = re.compile(r" ?\(\d+\)$")
+"""« (2) », « (3) » : ce qu'un navigateur ajoute au nom d'un fichier téléchargé deux fois."""
 
 
 def _nom_souhaite(nom: str, deja_des_portefeuilles: bool) -> str:
@@ -159,14 +202,22 @@ def _nom_souhaite(nom: str, deja_des_portefeuilles: bool) -> str:
 
     Le premier garde le nom de son fichier, comme avant D-109. Ensuite, le nom de la banque —
     le même pour tous ses exports — ne distinguerait rien : « Portefeuille », que l'on renomme.
-    Un fichier que l'utilisateur a nommé lui-même garde son nom.
+    Un fichier que l'utilisateur a nommé lui-même, ne serait-ce qu'en y ajoutant un mot, garde
+    son nom.
+
+    Fragilité assumée (règle 4) : le nom de la banque est un **libellé**, celui de l'application
+    en français. Dans une autre langue, il ne sera pas reconnu, et le portefeuille gardera ce
+    nom-là suivi d'un numéro. Seul un nom d'affichage en dépend, aucun chiffre.
     """
     souhaite = Path(nom).stem if nom.lower().endswith(".csv") else nom
     try:
         souhaite = depot.nom_valide(souhaite)
     except depot.NomRefuse:
         return depot.NOM_D_UN_NOUVEAU_PORTEFEUILLE
-    if deja_des_portefeuilles and souhaite.casefold().startswith(NOM_DE_LA_BANQUE.casefold()):
+    de_la_banque = (
+        BROUILLON_DU_NAVIGATEUR.sub("", souhaite).casefold() == NOM_DE_LA_BANQUE.casefold()
+    )
+    if deja_des_portefeuilles and de_la_banque:
         return depot.NOM_D_UN_NOUVEAU_PORTEFEUILLE
     return souhaite
 
@@ -185,4 +236,8 @@ def _lignes_de_plus(nombre: int) -> str:
 
 
 def _noms(portefeuilles) -> str:
-    return ", ".join(f"« {portefeuille.nom} »" for portefeuille in portefeuilles)
+    return _guillemets(portefeuille.nom for portefeuille in portefeuilles)
+
+
+def _guillemets(noms) -> str:
+    return ", ".join(f"« {nom} »" for nom in noms)

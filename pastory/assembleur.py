@@ -139,6 +139,7 @@ def reglages(rapport: Rapport, hors_ligne: bool = False, tiers: bool = False) ->
         config_fiscalite.ConfigurationFiscale(premier_versement_pea=du_pea.date),
         duree_avant_retrait_libre=int(duree),
         corrections_ecartees=du_pea.ecartees,
+        actifs_des_autres=depot.actifs_des_autres,
     )
 
 

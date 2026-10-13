@@ -94,6 +94,11 @@ sur GitHub, vérifiée par le propriétaire (il reste de son [cahier](verificati
 - **Ce que devient un dépôt** est décidé dans `vues/reception.py`, sur les identifiants
   d'opération. L'écran est dans `vues/portefeuilles.py` ; `Chiffres.inventaire()` rend `None`
   là où l'on ne choisit pas (un tiers, la démonstration).
+- **Le dossier se modifie aussi à la main** (le bouton « Ouvrir le dossier » y invite) : toute
+  règle qui ne vit que dans le dépôt par l'écran est contournable. C'est `depot.inventaire`
+  qui doit voir l'état du dossier — d'où `Inventaire.meme_compte` et le portefeuille « périmé ».
+- **Un fichier illisible n'est pas un fichier absent** : `Inventaire.inaccessibles` compte
+  parmi les portefeuilles. L'oublier, c'est dire « Votre livre » sur les chiffres d'un autre.
 - **Pour le bloc 9.5** : une correction d'actif vaut pour tous les portefeuilles (elle décrit
   un titre) ; une correction fiscale vaut pour **un** portefeuille
   (`[portefeuille."Nom".pea]`), et un écran qui renomme un portefeuille devra renommer cette

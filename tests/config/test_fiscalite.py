@@ -143,3 +143,28 @@ class TestParPortefeuille:
 
     def test_le_modele_montre_la_forme_par_portefeuille(self):
         assert '[portefeuille."Camille".pea]' in MODELE
+
+
+class TestCeQueLaRelectureATrouve:
+    @pytest.mark.parametrize(
+        "mal_ecrit",
+        [
+            '[portefeuille."Camille"]\npremier_versement = 2021-03-01\n',
+            '[portefeuille."Camille".plan]\npremier_versement = 2021-03-01\n',
+            '[portefeuille]\nCamille = 2021-03-01\n',
+        ],
+    )
+    def test_une_date_ecrite_au_mauvais_endroit_ne_passe_pas_inapercue(self, tmp_path, mal_ecrit):
+        """Lue comme « rien n'est corrigé », elle laissait l'utilisateur croire sa date en
+        vigueur, alors que l'impôt du PEA prenait celle de l'export."""
+        with pytest.raises(ConfigurationInvalide, match="s'écrit sous"):
+            charger(ecrire(tmp_path, mal_ecrit))
+
+    def test_un_portefeuille_ecrit_deux_fois_a_la_casse_pres_est_refuse(self, tmp_path):
+        fichier = ecrire(
+            tmp_path,
+            '[portefeuille."Camille".pea]\npremier_versement = 2021-03-01\n\n'
+            '[portefeuille."camille".pea]\npremier_versement = 2019-06-15\n',
+        )
+        with pytest.raises(ConfigurationInvalide, match="deux fois"):
+            charger(fichier)

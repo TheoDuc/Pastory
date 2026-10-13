@@ -193,3 +193,84 @@ class TestCeQuiNeChangePas:
         deposer(dossier, compte[:1])
         deposer(dossier, [fictif.achat_crypto()])
         assert not [p for p in dossier.iterdir() if p.suffix == EXTENSION_PROVISOIRE]
+
+
+class TestCeQueLaRelectureATrouve:
+    def test_un_fichier_deja_contenu_ne_remplace_pas_un_export_partiel(self, dossier, compte):
+        """Un fichier qui contient un export partiel, mais que contient déjà un portefeuille plus
+        complet, n'apporte rien : le ranger à la place du partiel ferait lire un historique
+        incomplet à côté du complet."""
+        deposer(dossier, compte[:1], nom="Partiel.csv")
+        export_fictif_complet = fictif.texte_csv(compte).encode("utf-8")
+        (dossier / "Complet.csv").write_bytes(export_fictif_complet)
+        depot.ouvrir(dossier, "Complet")
+
+        reception = deposer(dossier, compte[:2])
+
+        assert "version plus ancienne du portefeuille « Complet »" in reception.message
+        assert reception.fichier is None
+        assert ouvert(dossier) == "Complet"
+        assert len(depot.lire(dossier / "Partiel.csv").lignes) == 1
+
+    def test_un_portefeuille_ouvert_ailleurs_ne_fait_pas_echouer_le_depot_en_silence(
+        self, dossier, compte, monkeypatch
+    ):
+        """Sous Windows, on ne remplace pas un fichier qu'un autre programme tient ouvert. Avant,
+        l'erreur remontait sans un mot, et l'utilisateur croyait son export déposé."""
+        deposer(dossier, compte[:2])
+
+        def refuser(self, cible):
+            raise PermissionError("le fichier est utilisé par un autre processus")
+
+        monkeypatch.setattr(type(dossier), "replace", refuser)
+        reception = deposer(dossier, compte)
+
+        assert reception.accepte is False
+        assert "ouvert dans un autre programme" in reception.message
+        assert len(depot.lire(dossier).lignes) == 2
+        assert not [p for p in dossier.iterdir() if p.suffix == EXTENSION_PROVISOIRE]
+
+    def test_sans_pouvoir_lire_un_portefeuille_on_ne_range_rien(
+        self, dossier, compte, monkeypatch
+    ):
+        """Faute de pouvoir le comparer, le fichier déposé serait pris pour un nouveau compte :
+        un doublon du même."""
+        deposer(dossier, compte[:2], nom="Mon compte.csv")
+        vraie_lecture = depot.fichier.lire
+
+        def lecture(chemin):
+            if chemin.name == "Mon compte.csv":
+                raise PermissionError("accès refusé")
+            return vraie_lecture(chemin)
+
+        monkeypatch.setattr(depot.fichier, "lire", lecture)
+        reception = deposer(dossier, compte)
+
+        assert reception.accepte is False
+        assert "« Mon compte » ne peut pas être lu" in reception.message
+        assert [p.name for p in dossier.glob("*.csv")] == ["Mon compte.csv"]
+
+    def test_un_nouveau_portefeuille_rappelle_qu_une_autre_periode_n_est_pas_assemblee(
+        self, dossier, compte
+    ):
+        deposer(dossier, compte)
+        reception = deposer(dossier, [fictif.achat_crypto()])
+        assert "même compte sur une autre période" in reception.message
+
+    @pytest.mark.parametrize(
+        ("depose", "attendu"),
+        [
+            ("Exportation de transactions.csv", "Portefeuille"),
+            ("Exportation de transactions (2).csv", "Portefeuille"),
+            ("Exportation de transactions Camille.csv", "Exportation de transactions Camille"),
+            ("Camille.csv", "Camille"),
+        ],
+    )
+    def test_seul_le_nom_de_la_banque_tel_quel_est_remplace(
+        self, dossier, compte, depose, attendu
+    ):
+        """Un fichier que l'on a nommé soi-même, ne serait-ce qu'en ajoutant un mot au nom de
+        la banque, garde son nom : c'est souvent le seul indice de son propriétaire."""
+        deposer(dossier, compte, nom="Mon compte.csv")
+        reception = deposer(dossier, [fictif.achat_crypto()], nom=depose)
+        assert reception.fichier.stem == attendu

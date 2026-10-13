@@ -44,7 +44,9 @@ def champ_du_nom(nom: str) -> dict[str, str]:
 
 
 def plusieurs(inventaire: Inventaire | None) -> bool:
-    return inventaire is not None and len(inventaire.portefeuilles) > 1
+    # Un portefeuille dont le fichier n'a pas pu être ouvert compte aussi : sans lui, l'écran
+    # dirait « Votre livre » sur les chiffres d'un autre.
+    return inventaire is not None and inventaire.nombre > 1
 
 
 def choix_du_portefeuille(inventaire: Inventaire) -> html.Div:
@@ -200,18 +202,19 @@ def agir(chiffres: Chiffres, action: str, nom: str, saisie: str | None = None) -
     if chiffres.inventaire() is None:
         return _refus("On ne change pas de portefeuille ici.")
     dossier = chiffres.dossier()
+    ouvert = chiffres.inventaire().ouvert
     try:
         match action:
             case "ouvrir":
+                if ouvert is not None and ouvert.nom == nom:
+                    return None  # déjà ouvert : rien à relire
                 depot.ouvrir(dossier, nom)
                 message = None
             case "renommer":
+                if depot.nom_valide(saisie or "") == nom:
+                    return None  # le même nom : rien à faire, rien à relire
                 nouveau = depot.renommer(dossier, nom, saisie or "").nom
-                message = (
-                    None
-                    if nouveau == nom
-                    else _fait("Renommé", f"« {nom} » s'appelle désormais « {nouveau} ».")
-                )
+                message = _fait("Renommé", f"« {nom} » s'appelle désormais « {nouveau} ».")
             case "supprimer":
                 depot.supprimer(dossier, nom)
                 restant = depot.inventaire(dossier).ouvert

@@ -31,6 +31,8 @@ def test_il_nomme_le_portefeuille_lu_et_ceux_qui_ne_le_sont_pas(tmp_path):
 
     assert "Portefeuille lu : Camille" in texte
     assert "1 autre(s) portefeuille(s)" in texte and "Alix" in texte
+    # Avec --export, la couverture ne propose aucun choix : le message dit aussi l'autre voie.
+    assert "--export" in texte
     assert "du 2026-04-10 au 2026-04-10" in texte
 
 

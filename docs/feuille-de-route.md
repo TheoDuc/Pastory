@@ -825,6 +825,12 @@ Le propriétaire avait d'abord envisagé un dossier par personne, puis l'a écar
 idée plus simple, qui est la sienne. Avec un seul portefeuille, **aucun chiffre ni aucun écran
 ne change** — relevé sur ses données, nombre par nombre.
 
+**La relecture indépendante a rendu dix remarques, toutes traitées.** La plus instructive : la
+règle du dépôt ne voyait que les fichiers déposés **par l'écran**. Un export copié à la main
+dans le dossier — geste que Pastory propose lui-même — devenait un second portefeuille du même
+compte, et l'on continuait à lire l'ancien. Un portefeuille périmé se dit désormais dès la
+couverture.
+
 **Une conséquence à connaître :** l'export d'une autre personne, une fois déposé, est
 valorisé comme un autre — ses titres sont donc cherchés en ligne. La lecture sans réseau
 reste possible depuis un terminal (`--export`).

@@ -10,6 +10,7 @@ import pytest
 
 from pastory import demonstration
 from pastory.adaptateurs.trade_republic import depot
+from pastory.config import actifs as config_actifs
 from pastory.vues import application, bandeau, ecrans, portefeuilles
 from pastory.vues import etat as etat_ecran
 from pastory.vues.chiffres import Chiffres
@@ -230,3 +231,73 @@ def test_l_application_ecoute_les_boutons_des_portefeuilles(chiffres):
     """Le rappel existe : sans lui, les boutons de la couverture ne feraient rien."""
     rappels = application.creer(chiffres).callback_map.values()
     assert any(portefeuilles.CHAMP in str(rappel.get("inputs")) for rappel in rappels)
+
+
+class TestCeQueLaRelectureATrouve:
+    def test_une_correction_qui_sert_a_un_autre_portefeuille_n_est_pas_dite_inutile(
+        self, chiffres, avec_un_proche
+    ):
+        """Dite « sans actif » dans le portefeuille qui ne détient pas le titre, elle invitait à
+        la retirer — et cassait le réglage du voisin. Une correction d'actif vaut pour tous."""
+        fichier = config_actifs.chemin()
+        fichier.parent.mkdir(parents=True, exist_ok=True)
+        fichier.write_text(
+            "[actifs]\n"
+            f'"{TITRE_DU_PROCHE}" = {{ ticker = "PROCHE.DE", devise = "EUR" }}\n'
+            '"XX0000000077" = { ticker = "PERSONNE.DE", devise = "EUR" }\n',
+            encoding="utf-8",
+        )
+        chiffres.relire()
+
+        assert chiffres.base().reglages.orphelines == ("XX0000000077",)
+
+    def test_un_portefeuille_perime_se_dit_des_la_couverture(self, chiffres, dossier):
+        """Un export plus récent copié à la main à côté de l'ancien : on lirait le périmé."""
+        export_fictif.deposer(
+            dossier,
+            [*fictifs.lignes(), export_fictif.achat_ordre_cto(symbol=TITRE_DU_PROCHE)],
+            nom="Plus récent.csv",
+        )
+        depot.ouvrir(dossier, LE_MIEN)
+        chiffres.relire()
+
+        corps = rendu(chiffres, onglet=bandeau.ACCUEIL)[4]
+        lu = texte(corps)
+        assert "Périmé" in lu
+        assert "« Plus récent » contient toutes ses opérations" in lu
+        # Une alerte ne se replie jamais : elle est hors du volet du détail.
+        (volet,) = [n for n in noeuds(corps) if getattr(n, "className", "") == "volet"]
+        assert "contient toutes ses opérations" not in texte(volet)
+
+        portefeuilles.agir(chiffres, "ouvrir", "Plus récent")
+        assert "Périmé" not in texte(rendu(chiffres, onglet=bandeau.ACCUEIL)[4])
+
+    def test_un_geste_sans_effet_ne_fait_pas_tout_recalculer(self, chiffres, avec_un_proche):
+        chiffres.base()
+        avant = chiffres.version
+
+        assert portefeuilles.agir(chiffres, "ouvrir", LE_MIEN) is None
+        assert portefeuilles.agir(chiffres, "renommer", "Camille", " Camille ") is None
+        assert chiffres.version == avant
+
+        portefeuilles.agir(chiffres, "ouvrir", "Camille")
+        assert chiffres.version == avant + 1
+
+    def test_un_portefeuille_illisible_ne_fait_pas_dire_votre_livre(
+        self, chiffres, avec_un_proche, monkeypatch
+    ):
+        """Le mien verrouillé un instant : Pastory lit celui du proche, mais ne le présente pas
+        comme « Votre livre » — il porte son nom, et le fichier illisible est cité."""
+        vraie_lecture = depot.fichier.lire
+
+        def lecture(chemin):
+            if chemin.stem == LE_MIEN:
+                raise PermissionError("accès refusé")
+            return vraie_lecture(chemin)
+
+        monkeypatch.setattr(depot.fichier, "lire", lecture)
+        chiffres.relire()
+
+        lu = texte(rendu(chiffres, onglet=bandeau.ACCUEIL)[4])
+        assert "Votre livre" not in lu
+        assert "Camille" in lu and "pas pu être ouvert" in lu

@@ -253,8 +253,9 @@ def creer(chiffres: Chiffres, veille: Veille | None = None) -> Dash:
             recevoir(nom, contenu, dossier)
             for nom, contenu in zip(noms, contenus, strict=True)
         ]
-        if any(r.fichier is not None for r in receptions):
-            chiffres.relire()
+        # Toujours relire : un dépôt refusé en chemin a pu toucher au dossier, et l'écran
+        # doit montrer ce qui s'y trouve, pas ce qui s'y trouvait.
+        chiffres.relire()
         return {
             **etat,
             "onglet": bandeau.ACCUEIL,

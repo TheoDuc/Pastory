@@ -101,9 +101,33 @@ Tu n'as pas de `fiscalite.toml` aujourd'hui : rien à vérifier, sauf si tu en �
 
 ---
 
-## 5. Les tests
+## 5. La relecture indépendante
 
-1 422 tests, tous au vert, soit 82 de plus qu'à la fin de l'étape 10 (ceux du cumul sont
+Un agent qui n'avait pas écrit le code l'a relu. Dix remarques, toutes traitées, chacune gardée
+par un test :
+
+| Ce qui a été trouvé | Ce qui a été fait |
+|---|---|
+| Un dépôt échouait sans un mot si le fichier du portefeuille était ouvert ailleurs | il dit pourquoi, et quoi faire |
+| Une correction d'actif était dite « sans actif » dans le portefeuille qui ne détient pas le titre : la retirer cassait le réglage de l'autre | elle n'est dite sans actif que si aucun portefeuille ne détient le titre |
+| Un fichier déjà contenu dans un portefeuille pouvait en remplacer un autre, partiel | une version plus ancienne se reconnaît d'abord, et rien ne change |
+| Un nouveau portefeuille ne disait pas qu'une autre période du même compte n'est pas assemblée | le message le dit |
+| Une date de PEA écrite au mauvais endroit du fichier était ignorée en silence | elle est refusée, avec la bonne forme |
+| Un portefeuille illisible un instant sortait de la liste : Pastory basculait sur un autre sans le dire | il compte toujours, et aucun dépôt n'est rangé tant qu'il est illisible |
+| Le rapport renvoyait à la couverture pour changer de portefeuille, même avec `--export` | il donne les deux voies |
+| Un export copié à la main dans le dossier échappait à la règle du dépôt | un portefeuille périmé se dit dès la couverture |
+| Chaque geste relisait tout le dossier plusieurs fois | un geste sans effet ne recalcule plus rien |
+| Un fichier nommé « Exportation de transactions Camille » perdait son nom | seul le nom de la banque tel quel est remplacé |
+
+### À vérifier par toi
+
+- [ ] Copie **à la main** un de tes anciens exports dans le dossier (« Ouvrir le dossier »,
+  dans le détail de la lecture), puis ouvre-le dans Pastory : la couverture doit dire
+  **« Périmé »**, et nommer le portefeuille à jour. Supprime-le ensuite.
+
+## 6. Les tests
+
+1 441 tests, tous au vert, soit 101 de plus qu'à la fin de l'étape 10 (ceux du cumul sont
 réécrits) : la liste des portefeuilles et celui qui est ouvert ;
 les quatre cas d'un dépôt ; le renommage et ses noms refusés ; la suppression et sa confirmation ;
 l'écran avec un et avec deux portefeuilles ; la date du PEA par portefeuille ; et, de bout en

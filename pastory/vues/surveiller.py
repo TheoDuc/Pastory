@@ -15,6 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from pastory import assembleur
+from pastory.adaptateurs.trade_republic.depot import PORTEFEUILLE_PERIME
 from pastory.adaptateurs.trade_republic.rapport import LIMITE_DES_DIVIDENDES
 from pastory.donnees_externes import composition as composition_externe
 from pastory.vues import format as f
@@ -72,6 +73,14 @@ def _lecture(construit: assembleur.Construit) -> list[Point]:
         )
     for signalement in rapport.signalements:
         liste.append(Point(signalement.categorie, signalement.message, signalement.ou))
+    if depot.plus_a_jour:
+        liste.append(
+            Point(
+                "Portefeuille périmé",
+                PORTEFEUILLE_PERIME.format(noms=", ".join(depot.plus_a_jour))
+                + " Ouvrez-le sur la couverture, puis supprimez celui-ci.",
+            )
+        )
     for nom, raison in depot.fichiers_ignores:
         liste.append(Point("Fichier ignoré", f"{nom} : {raison}."))
     if depot.sans_identifiant:

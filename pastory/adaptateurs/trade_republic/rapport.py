@@ -16,7 +16,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 
 from pastory.adaptateurs.trade_republic.classement import Categorie, Classement
-from pastory.adaptateurs.trade_republic.depot import Depot
+from pastory.adaptateurs.trade_republic.depot import PORTEFEUILLE_PERIME, Depot
 from pastory.config.actifs import TypeActif
 from pastory.pivot.operation import Operation, Poche, Provenance, TypeOperation
 from pastory.pivot.validation import Anomalie
@@ -143,6 +143,8 @@ class Rapport:
         """
         depot = self.depot
         reserves = []
+        if depot.plus_a_jour:
+            reserves.append("un portefeuille périmé (un autre fichier le contient)")
         if depot.fichiers_ignores:
             reserves.append(f"{len(depot.fichiers_ignores)} fichier(s) ignoré(s)")
         if depot.sans_identifiant:
@@ -286,8 +288,16 @@ class Rapport:
             lignes.extend(
                 envelopper(
                     f"{len(depot.autres)} autre(s) portefeuille(s) dans le dossier, non lu(s) "
-                    f"ici : {', '.join(depot.autres)}. On change de portefeuille sur la "
-                    "couverture de Pastory."
+                    f"ici : {', '.join(depot.autres)}. Pour en lire un autre : ouvrez-le sur "
+                    "la couverture de Pastory, ou désignez son fichier avec --export."
+                )
+            )
+        if depot.plus_a_jour:
+            lignes.extend(
+                envelopper(
+                    "ATTENTION - "
+                    + PORTEFEUILLE_PERIME.format(noms=", ".join(depot.plus_a_jour))
+                    + " Lisez plutôt celui-là, et supprimez celui-ci."
                 )
             )
         for lu in depot.fichiers:
