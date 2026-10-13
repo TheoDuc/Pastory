@@ -138,7 +138,13 @@ class Reglages:
     """`None` : sans objet, aucun actif n'est détenu sur un PEA."""
 
     orphelines: tuple[str, ...] = ()
-    """Les actifs corrigés dans `actifs.toml` qu'aucun export ne contient."""
+    """Les actifs corrigés dans `actifs.toml` qu'**aucun** portefeuille ne contient — ni celui
+    qu'on lit, ni les autres du dossier : une correction d'actif vaut pour tous (D-109)."""
+
+    corrections_ecartees: tuple[str, ...] = ()
+    """Les corrections fiscales écrites mais **non appliquées** à ce portefeuille, chacune
+    avec sa raison (D-109) : une date de PEA sans nom alors qu'il y a plusieurs
+    portefeuilles, ou écrite pour un portefeuille qui n'existe plus."""
 
     retraits_pea: tuple[Date, ...] = ()
     """Les sorties d'espèces du PEA depuis son ouverture : chacune contredit l'hypothèse
@@ -182,6 +188,8 @@ def assembler(
     corrections: Configuration,
     fiscalite: ConfigurationFiscale | None = None,
     duree_avant_retrait_libre: int = 5,
+    corrections_ecartees: tuple[str, ...] = (),
+    actifs_des_autres: frozenset[str] = frozenset(),
 ) -> Reglages:
     """Le réglage retenu pour chaque actif de l'export, et pour la date d'ouverture du PEA.
 
@@ -201,8 +209,13 @@ def assembler(
     return Reglages(
         actifs=actifs,
         premier_versement_pea=date_pea,
-        orphelines=tuple(sorted(corrections.actifs_declares - set(banque.poches))),
+        # Une correction qui ne sert pas à ce portefeuille peut servir à un autre : la dire
+        # « sans actif » inviterait à la retirer, et casserait le réglage du voisin.
+        orphelines=tuple(
+            sorted(corrections.actifs_declares - set(banque.poches) - actifs_des_autres)
+        ),
         retraits_pea=retraits,
+        corrections_ecartees=corrections_ecartees,
     )
 
 

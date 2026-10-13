@@ -314,13 +314,17 @@ def _etat_des_reglages(reglages: Reglages) -> list[str]:
     suffit qu'aucun trou ne passe inaperçu (D-80, règle 3).
     """
     trous = reglages.trous()
-    if not trous and not reglages.orphelines:
+    if not trous and not reglages.orphelines and not reglages.corrections_ecartees:
         return []
     morceaux = []
     if trous:
         morceaux.append(f"{len(trous)} réglage(s) introuvable(s)")
     if reglages.orphelines:
         morceaux.append(f"{len(reglages.orphelines)} correction(s) sans actif")
+    if reglages.corrections_ecartees:
+        morceaux.append(
+            f"{len(reglages.corrections_ecartees)} correction(s) fiscale(s) non appliquée(s)"
+        )
     return textwrap.wrap(
         "Réglages : " + ", ".join(morceaux) + f". « {NOM} actifs » dit lesquels et pourquoi ; "
         "le reste est compté.",
@@ -920,9 +924,10 @@ def construire_analyseur() -> argparse.ArgumentParser:
             "--export",
             type=Path,
             default=None,
-            metavar="DOSSIER",
-            help="dossier contenant l'export, au lieu du dossier de dépôt de Pastory "
-            "(pour examiner l'export de quelqu'un d'autre sans le copier dans le projet)",
+            metavar="EXPORT",
+            help="un export (le fichier, ou le dossier qui le contient) à lire à la place du "
+            "portefeuille ouvert dans Pastory : pour examiner l'export de quelqu'un d'autre "
+            "sans le déposer, et sans aucun appel réseau",
         )
         if nom in avec_date:
             sous_analyseur.add_argument(
@@ -998,8 +1003,9 @@ def construire_analyseur() -> argparse.ArgumentParser:
         "--export",
         type=Path,
         default=None,
-        metavar="DOSSIER",
-        help="lire les exports de ce dossier, sans aucun appel réseau (l'export d'un tiers)",
+        metavar="EXPORT",
+        help="lire cet export (le fichier, ou le dossier qui le contient), sans aucun appel "
+        "réseau et sans le déposer",
     )
     ouvrir.add_argument(
         "--hors-ligne",

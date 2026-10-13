@@ -16,7 +16,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 
 from pastory.adaptateurs.trade_republic.classement import Categorie, Classement
-from pastory.adaptateurs.trade_republic.depot import Depot
+from pastory.adaptateurs.trade_republic.depot import PORTEFEUILLE_PERIME, Depot
 from pastory.config.actifs import TypeActif
 from pastory.pivot.operation import Operation, Poche, Provenance, TypeOperation
 from pastory.pivot.validation import Anomalie
@@ -138,13 +138,13 @@ class Rapport:
         """Ce qui, dans le dossier de dépôt, peut faire manquer des opérations aux chiffres.
 
         Ces réserves doivent suivre les chiffres partout où ils s'affichent, pas seulement
-        dans le rapport de lecture : un trou entre deux exports ne produit aucune anomalie,
-        et rien d'autre ne dirait qu'il manque peut-être des achats.
+        dans le rapport de lecture : une ligne écartée ne produit aucune anomalie, et rien
+        d'autre ne dirait qu'il manque peut-être des achats.
         """
         depot = self.depot
         reserves = []
-        if depot.trous():
-            reserves.append(f"{len(depot.trous())} période(s) qu'aucun export ne couvre")
+        if depot.plus_a_jour:
+            reserves.append("un portefeuille périmé (un autre fichier le contient)")
         if depot.fichiers_ignores:
             reserves.append(f"{len(depot.fichiers_ignores)} fichier(s) ignoré(s)")
         if depot.sans_identifiant:
@@ -281,7 +281,25 @@ class Rapport:
 
     def _exports(self, lignes: list[str], titre) -> None:
         depot = self.depot
-        titre(f"Exports lus : {len(depot.fichiers)}")
+        titre(f"Portefeuille lu : {depot.portefeuille or len(depot.fichiers)}")
+        if depot.autres:
+            # Un fichier, un portefeuille (D-109) : les autres ne sont pas lus, et le dire
+            # évite de croire que ces chiffres les comprennent.
+            lignes.extend(
+                envelopper(
+                    f"{len(depot.autres)} autre(s) portefeuille(s) dans le dossier, non lu(s) "
+                    f"ici : {', '.join(depot.autres)}. Pour en lire un autre : ouvrez-le sur "
+                    "la couverture de Pastory, ou désignez son fichier avec --export."
+                )
+            )
+        if depot.plus_a_jour:
+            lignes.extend(
+                envelopper(
+                    "ATTENTION - "
+                    + PORTEFEUILLE_PERIME.format(noms=", ".join(depot.plus_a_jour))
+                    + " Lisez plutôt celui-là, et supprimez celui-ci."
+                )
+            )
         for lu in depot.fichiers:
             periode = (
                 f"du {lu.premier_jour} au {lu.dernier_jour}"
@@ -293,16 +311,9 @@ class Rapport:
         if depot.premier_jour is not None:
             lignes.append(f"  Période couverte : du {depot.premier_jour} au {depot.dernier_jour}")
             lignes.extend(envelopper(PERIODE_A_VERIFIER))
-        for trou in depot.trous():
-            lignes.extend(
-                envelopper(
-                    f"ATTENTION - aucun fichier ne couvre la période du {trou.du} au {trou.au} : "
-                    "des opérations peuvent y manquer. Déposez un export qui la couvre."
-                )
-            )
         if depot.doublons:
             lignes.append(
-                f"  {depot.doublons} ligne(s) présente(s) dans plusieurs fichiers, "
+                f"  {depot.doublons} ligne(s) écrite(s) deux fois dans le fichier, "
                 "comptée(s) une seule fois."
             )
         for nom, raison in depot.fichiers_ignores:

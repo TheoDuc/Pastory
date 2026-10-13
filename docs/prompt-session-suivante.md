@@ -7,7 +7,8 @@ commencer.
 > **À mettre à jour par l'instance qui termine une étape**, avant la fusion dans `main`. La
 > dernière section dit comment.
 >
-> Dernière mise à jour : **2026-10-13**, à la fin de la session de l'étape 10 (branche `etape-10`).
+> Dernière mise à jour : **2026-10-13**, à la fin de la session des étapes 10 et 10 bis, toutes
+> deux fusionnées dans `main`.
 
 ---
 
@@ -15,14 +16,20 @@ commencer.
 
 ```
 Lis CLAUDE.md puis docs/feuille-de-route.md, et docs/prompt-session-suivante.md.
-On attaque le bloc 9.5 : les écrans de correction — qu'on puisse corriger une valeur trouvée
-(cotation, type, frais courants, contenu, date du PEA) sans ouvrir de fichier.
+Mon ami a essayé Pastory. Voici son retour : […]
+Ensuite, on attaque l'étape 11 : la publication du dépôt.
 ```
 
-*Le propriétaire choisit l'ordre.* Deux autres suites sont prêtes, et ce fichier vaut pour les
-trois : **finir l'étape 10** (l'installation par un tiers, le raccourci Mac, les messages d'erreur,
-le guide d'adaptateur — voir la [feuille de route](feuille-de-route.md)), ou **l'étape 11**, la
-publication.
+**C'est l'ordre choisi par le propriétaire le 2026-10-13** : d'abord le retour de son ami, qui
+essaie Pastory avec son propre export — c'est aussi le premier essai par quelqu'un d'autre que
+lui —, puis **l'étape 11**. Si l'ami **installe** Pastory sur sa machine, c'est le test du
+fichier d'installation qui manquait à l'étape 10 : noter chaque blocage. Restent ouverts, sans
+ordre imposé : le bloc 9.5 (les écrans de correction) et la fin de l'étape 10.
+
+**Avant de publier (étape 11)** : le dossier `data_*/` d'un tiers est toujours dans le dossier
+du projet, gardé volontairement par le propriétaire. Il est exclu de git ; vérifier qu'aucun
+nom réel n'est entré dans l'historique (`git log --all -p | grep -i <nom>`) fait partie de la
+recherche de données personnelles de cette étape.
 
 ---
 
@@ -38,6 +45,8 @@ publication.
 - **Pastory s'ouvre comme un logiciel** (étape 10, cette session) : une icône, une fenêtre à part,
   l'arrêt à la fermeture ([D-106](decisions.md)) ; un portefeuille de démonstration
   ([D-107](decisions.md)) ; et le ménage ([D-108](decisions.md)).
+- **Un fichier déposé est un portefeuille** (étape 10 bis, [D-109](decisions.md)) : les exports
+  ne se cumulent plus, Pastory n'en lit qu'un à la fois, et la couverture propose le choix.
 
 **Ce qui reste, dans l'ordre que le propriétaire choisira :**
 
@@ -51,11 +60,14 @@ publication.
 **Questions ouvertes** : **Q-54** (actions gratuites puis « migration ») et **Q-60** (le contenu du
 monétaire, des multi-actifs, de l'immobilier). Aucune ne bloque.
 
-**À la fin de la session du 2026-10-13**, la relecture `/code-review` était faite et ses dix
-remarques traitées. Il restait, avec l'accord du propriétaire : sa vérification par le
-[cahier de l'étape 10](verification/etape-10.md) — dont **l'essai d'une fenêtre réduite pendant une
-heure ou deux**, seul point non mesuré —, puis la fusion d'`etape-10` dans `main` et l'envoi sur
-GitHub. **Vérifier `git branch` et `git log` avant de supposer que c'est fait.**
+**À la fin de la session du 2026-10-13** : l'étape 10 est **fusionnée dans `main` et envoyée**
+sur GitHub, vérifiée par le propriétaire (il reste de son [cahier](verification/etape-10.md)
+**l'essai d'une fenêtre réduite pendant une heure ou deux**, seul point non mesuré). L'étape
+10 bis est **fusionnée dans `main`**, avec son accord, après qu'il a lui-même trouvé son
+dernier défaut (un nom de portefeuille accentué). Il reste de son
+[cahier](verification/etape-10-bis.md) ce qui demande du temps : son **export du mois
+prochain**, qui doit mettre son portefeuille à jour et non en créer un second. **Vérifier
+`git branch` et `git log` avant de supposer quoi que ce soit.**
 
 ---
 
@@ -79,6 +91,38 @@ GitHub. **Vérifier `git branch` et `git log` avant de supposer que c'est fait.*
   `%LOCALAPPDATA%\Pastory\configuration\actifs.toml`, avec **une** correction (les frais courants
   d'un ETF). C'est le premier cas réel pour les écrans de correction du bloc 9.5 — et il a été
   écrit à la main, ce que ces écrans doivent rendre inutile.
+
+## Ce que l'étape 10 bis laisse en main
+
+- **Le dossier de dépôt est une liste de portefeuilles** (`adaptateurs/trade_republic/depot.py`) :
+  `inventaire`, `ouvrir`, `lire`, `comparer`, `renommer`, `supprimer`. Le nom d'un
+  portefeuille est celui de son fichier ; celui qui est ouvert est retenu dans
+  `.portefeuille-ouvert`. **`depot.lire(source)` ne lit qu'un fichier** : ne pas réintroduire
+  un cumul.
+- **Ce que devient un dépôt** est décidé dans `vues/reception.py`, sur les identifiants
+  d'opération. L'écran est dans `vues/portefeuilles.py` ; `Chiffres.inventaire()` rend `None`
+  là où l'on ne choisit pas (un tiers, la démonstration).
+- **Jamais un texte de l'utilisateur dans l'identifiant d'un bouton.** Quand un identifiant
+  Dash porte un caractère accentué, la valeur du clic arrive vide, et la garde contre les
+  « boutons qui viennent d'apparaître » l'ignore : un portefeuille nommé « Zoé » ne s'ouvrait pas.
+  Les boutons portent une clé (`portefeuilles.cle`), et un test vérifie qu'aucun identifiant
+  d'aucun écran n'a d'accent. **Leçon de méthode :** ce défaut a passé 1 441 tests et un essai
+  en navigateur, parce que tous utilisaient des noms sans accent et qu'aucun test ne passait
+  par Dash. Un écran qui reçoit un texte libre s'essaie avec des accents, et ses rappels se
+  testent par `/_dash-update-component` (voir `cliquer`, `tests/vues/test_portefeuilles.py`).
+- **Le dossier se modifie aussi à la main** (le bouton « Ouvrir le dossier » y invite) : toute
+  règle qui ne vit que dans le dépôt par l'écran est contournable. C'est `depot.inventaire`
+  qui doit voir l'état du dossier — d'où `Inventaire.meme_compte` et le portefeuille « périmé ».
+- **Un fichier illisible n'est pas un fichier absent** : `Inventaire.inaccessibles` compte
+  parmi les portefeuilles. L'oublier, c'est dire « Votre livre » sur les chiffres d'un autre.
+- **Pour le bloc 9.5** : une correction d'actif vaut pour tous les portefeuilles (elle décrit
+  un titre) ; une correction fiscale vaut pour **un** portefeuille
+  (`[portefeuille."Nom".pea]`), et un écran qui renomme un portefeuille devra renommer cette
+  section avec lui — aujourd'hui, elle devient une correction sans objet, signalée.
+- **Les tests qui veulent plus de lignes réécrivent l'export** (`ajouter_a_l_export`,
+  `tests/test_cli.py`) : déposer un second fichier ferait un second portefeuille.
+- **Sous Windows, deux chemins qui ne diffèrent que par la casse sont égaux** : comparer des
+  noms de fichier, pas des chemins, quand la casse compte (le renommage).
 
 ## Les pièges de l'étape 10
 

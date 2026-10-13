@@ -1920,6 +1920,112 @@ img.fanion {
   margin-top: 4px;
 }
 
+/* LES PORTEFEUILLES (D-109). Sur l'étiquette, au-dessus du titre : un bouton par portefeuille,
+   accolés comme le choix de lecture des Projections — celui qui est ouvert en encre, les autres
+   en papier. Ils n'apparaissent qu'à partir de deux. */
+.portefeuilles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-2) var(--espace-3);
+  margin: 0 0 var(--espace-3);
+  color: var(--texte-secondaire);
+}
+
+.portefeuilles__choix {
+  display: inline-flex;
+  flex-wrap: wrap;
+  border: 1px solid var(--contour);
+  border-radius: var(--rayon);
+  overflow: hidden;
+}
+
+.portefeuilles__choix button {
+  font: inherit;
+  font-size: var(--taille-petite);
+  color: var(--texte-secondaire);
+  background: var(--fond-page);
+  border: 0;
+  padding: 5px 11px 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.portefeuilles__choix button + button {
+  border-left: 1px solid var(--contour);
+}
+
+.portefeuilles__choix button:hover {
+  color: var(--texte);
+}
+
+.portefeuilles__choix button[aria-pressed="true"] {
+  background: var(--texte);
+  color: var(--fond-page);
+  font-weight: 600;
+}
+
+/* Dans le volet du détail : chaque portefeuille, ce qu'il couvre, et de quoi le renommer ou
+   le supprimer. Une ligne de liste range ses éléments côte à côte ; celle-ci les empile —
+   le nom et la période, puis les actions dessous. */
+.liste-parts .portefeuille {
+  display: block;
+  padding: var(--espace-2) 0;
+}
+
+.portefeuille__entete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2px var(--espace-3);
+}
+
+.portefeuille__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-2);
+  margin-top: var(--espace-2);
+}
+
+.portefeuille__question {
+  flex: 1 1 100%;
+  font-size: var(--taille-petite);
+}
+
+/* Le champ de Dash (un conteneur et son <input>), comme ceux des Projections. */
+.portefeuille__nom {
+  flex: 1 1 12em;
+  min-width: 0;
+}
+
+.portefeuille__nom .dash-input-element {
+  width: 100%;
+  padding: 4px 8px 5px;
+  border: 1px solid var(--contour);
+  border-radius: var(--rayon);
+  background: var(--fond-page);
+  font: inherit;
+  font-size: var(--taille-petite);
+  color: var(--texte);
+}
+
+/* Le nom du portefeuille ouvert, à droite de la navigation de chaque chapitre : dans un filet,
+   comme la mention de démonstration, mais à l'encre claire de la reliure — c'est un nom, pas
+   un avertissement. */
+.entete .nom-du-portefeuille {
+  padding: 2px var(--espace-2);
+  border: 1px solid var(--reliure-filet);
+  border-radius: var(--rayon);
+  color: var(--sur-reliure);
+  font-size: var(--taille-petite);
+  white-space: nowrap;
+  max-width: 16em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* LE VOLET de l'étiquette : le détail de la lecture, replié pour que la couverture tienne sur
    un écran. Les alertes, elles, ne sont jamais dedans. */
 .volet {

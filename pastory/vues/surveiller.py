@@ -15,6 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from pastory import assembleur
+from pastory.adaptateurs.trade_republic.depot import PORTEFEUILLE_PERIME
 from pastory.adaptateurs.trade_republic.rapport import LIMITE_DES_DIVIDENDES
 from pastory.donnees_externes import composition as composition_externe
 from pastory.vues import format as f
@@ -72,13 +73,12 @@ def _lecture(construit: assembleur.Construit) -> list[Point]:
         )
     for signalement in rapport.signalements:
         liste.append(Point(signalement.categorie, signalement.message, signalement.ou))
-    for trou in depot.trous():
+    if depot.plus_a_jour:
         liste.append(
             Point(
-                "Période non couverte",
-                f"Aucun export ne couvre la période du {f.date_courte(trou.du)} au "
-                f"{f.date_courte(trou.au)} : des opérations peuvent y manquer. Déposez un "
-                "export qui la couvre.",
+                "Portefeuille périmé",
+                PORTEFEUILLE_PERIME.format(noms=", ".join(depot.plus_a_jour))
+                + " Ouvrez-le sur la couverture, puis supprimez celui-ci.",
             )
         )
     for nom, raison in depot.fichiers_ignores:
@@ -88,7 +88,7 @@ def _lecture(construit: assembleur.Construit) -> list[Point]:
             Point(
                 "Ligne sans identifiant",
                 f"{len(depot.sans_identifiant)} ligne(s) sans identifiant d'opération : "
-                "impossibles à dédoublonner entre deux exports, elles ne sont pas lues.",
+                "impossibles à reconnaître d'un export à l'autre, elles ne sont pas lues.",
             )
         )
     for gardee, _ in depot.conflits:
@@ -169,6 +169,8 @@ def _reglages(construit: assembleur.Construit) -> list[Point]:
         )
         for actif, nom, trou in reglages.trous()
     ]
+    for ecartee in reglages.corrections_ecartees:
+        liste.append(Point("Correction non appliquée", ecartee))
     for actif in reglages.orphelines:
         liste.append(
             Point(

@@ -46,8 +46,11 @@ les transactions »** pour Pastory — puis *Créer*. On reçoit un fichier CSV 
 - ✅ Les lignes **ne sont pas triées** par date : il faut trier à la lecture.
 - ✅ **Point décimal partout**, sans séparateur de milliers. Le piège n° 1 de pytr — deux écritures
   des nombres dans un même export ([inventaire §11.1](inventaire-donnees.md)) — n'existe pas ici.
-- ✅ `transaction_id` est unique sur chacun des deux fichiers : il sert à dédoublonner quand
-  plusieurs exports se recouvrent.
+- ✅ `transaction_id` est unique sur chacun des deux fichiers, et **stable d'un export à
+  l'autre** : les 46 identifiants d'un export se retrouvent tous dans celui du même compte fait
+  une semaine plus tard (vérifié sur les identifiants ; le contenu des lignes n'a pas été
+  comparé). C'est ce qui permet de reconnaître, au dépôt, le même
+  compte plus récent — ou un autre compte ([D-109](decisions.md)).
 
 ## 3. Les colonnes ✅
 
@@ -218,7 +221,7 @@ lisait dans le détail de l'événement.
 | **Actions gratuites, puis « migration »** | sur le seul cas vu, elles s'annulent exactement, et la fraction est payée le jour même par un `CASH / MANUAL` sans ISIN, aujourd'hui ignoré | [Q-54](questions-ouvertes.md) : choisir le traitement ; un second cas, en compte-titres ordinaire |
 | **Les autres pays de dividende** | la retenue néerlandaise est perdue ; la suisse, l'allemande, l'espagnole ? | des dividendes de ces pays, comparés à leur relevé PDF |
 | **Les types du §4.2** | parts qui entrent ou sortent | un export qui en contient |
-| **Un export partiel** | une période qui ne commence pas à l'ouverture du compte donne une histoire incomplète ([D-45](decisions.md)) | rien dans le fichier ne le dit : Pastory affiche la période couverte, et signale un trou entre deux fichiers |
+| **Un export partiel** | une période qui ne commence pas à l'ouverture du compte donne une histoire incomplète ([D-45](decisions.md)) | rien dans le fichier ne le dit : Pastory affiche la période couverte. Deux exports partiels ne sont **pas assemblés** : chacun est un portefeuille, et Pastory le dit au dépôt ([D-109](decisions.md)) |
 | **La variante point-virgule** | lue par nom, jamais vue chez nous | un fichier de ce format |
 
 ## 8. Les données personnelles du fichier

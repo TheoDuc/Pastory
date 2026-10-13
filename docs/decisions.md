@@ -1956,3 +1956,56 @@ frais courants, reporté dans le fichier de corrections du nouveau dossier.
 **Gardé volontairement :** les documents de l'époque pytr ([inventaire-donnees.md](inventaire-donnees.md),
 le cahier de l'étape 2) — leurs pièges expliquent des décisions ; l'export officiel du tiers, seule
 pièce de [Q-54](questions-ouvertes.md) ; les relevés de vérification locaux du propriétaire.
+
+### D-109 · 2026-10-13 · Un fichier, un portefeuille · Validée
+**Décision :** dans le dossier de dépôt, **chaque export est un portefeuille**, et Pastory n'en
+lit qu'un à la fois : celui qui est **ouvert**. Les exports ne se cumulent plus.
+- **Le nom d'un portefeuille est celui de son fichier.** La couverture propose le choix dès
+  qu'il y en a plusieurs, le nom de celui qu'on lit reste affiché sur chaque chapitre, et chaque
+  portefeuille se renomme et se supprime à l'écran.
+- **Ce que devient un fichier déposé se décide sur ses identifiants d'opération**
+  (`transaction_id`), comparés à ceux des portefeuilles déjà là — jamais sur son nom, que la
+  banque donne identique à tous :
+  - il contient toutes les opérations d'un portefeuille : le même compte, plus récent. Le
+    portefeuille est **mis à jour** et garde son nom ;
+  - il est tout entier dans un portefeuille : une version plus ancienne, qui n'est pas rangée ;
+  - il le recoupe sans le contenir : deux exports partiels, qui restent deux portefeuilles, et
+    Pastory le dit ;
+  - aucune opération commune : un **nouveau portefeuille**.
+- **Tout portefeuille déposé est valorisé normalement**, y compris celui d'une autre personne :
+  ses titres sont cherchés en ligne comme les autres (codes et noms seulement). La lecture sans
+  réseau reste possible avec `--export`, qui désigne un fichier sans le déposer.
+- **Les cours, les compositions et les réglages trouvés restent communs** : ils décrivent des
+  titres, pas des personnes. Une **date de PEA corrigée à la main**, elle, est celle d'une
+  personne : elle peut viser un portefeuille (`[portefeuille."Nom".pea]`), et la date sans nom
+  n'est appliquée que s'il n'y a qu'un portefeuille — sinon elle est écartée, en le disant.
+**Raison :** le propriétaire a déposé l'export d'un proche à côté du sien, et Pastory a affiché la
+somme des deux comptes sans rien dire ; rien à l'écran ne permettait de défaire ce dépôt. C'est
+son idée : « chaque csv serait un portefeuille, et on aurait le choix sur la page de garde ».
+**Ce que cela révise :** le cumul des exports ([D-80](#d-80)) ; « rien n'est jamais écrasé »
+([D-95](#d-95)) — un export est remplacé quand le nouveau le contient **en entier**, donc sans
+rien perdre ; le signalement d'un trou entre deux fichiers ([D-45](#d-45)), qui n'a plus d'objet.
+Le reste de ces décisions tient : l'utilisateur dépose l'export, et c'est tout.
+**Écarte :** un dossier par personne, avec son cache et ses corrections (plus lourd, et le
+propriétaire l'a jugé superflu) ; garder le cumul en demandant à l'utilisateur de faire attention
+(c'est ce qui venait d'échouer) ; assembler deux exports partiels (un export complet est toujours
+possible, et il les remplace tous les deux) ; une vue d'ensemble de plusieurs portefeuilles
+(additionner deux personnes est le mélange qu'on écarte).
+**Précisée le même jour, par la relecture indépendante :**
+- un fichier **copié à la main** dans le dossier échappe à la règle du dépôt. Si le
+  portefeuille ouvert est contenu en entier dans un autre, il est **périmé**, et Pastory le dit
+  dès la couverture ;
+- une **version plus ancienne** se reconnaît avant tout : un fichier que contient déjà un
+  portefeuille n'en remplace aucun, même s'il contient lui-même un export partiel ;
+- un portefeuille dont le fichier **ne peut pas être ouvert** (verrouillé, pas encore
+  téléchargé) compte toujours parmi les portefeuilles, et tant qu'il est illisible aucun
+  dépôt n'est rangé : faute de pouvoir comparer, on ferait un doublon du même compte ;
+- une correction d'actif n'est dite « sans actif » que si **aucun** portefeuille du dossier
+  ne détient le titre ;
+- un dépôt qui ne peut pas s'écrire (fichier ouvert ailleurs) **le dit**, au lieu d'échouer
+  sans un mot.
+**Limites connues :** chaque portefeuille est calculé comme celui d'une personne seule — pour un
+couple qui déclare ensemble, le seuil d'exonération de la crypto et les pertes du compte-titres
+sont partagés, et l'impôt estimé de chacun est alors un peu faux ; l'écran le dit. Une correction
+d'actif (`actifs.toml`) vaut pour tous les portefeuilles qui détiennent ce titre. Supprimer un
+portefeuille n'efface pas les cours gardés en mémoire pour ses titres.

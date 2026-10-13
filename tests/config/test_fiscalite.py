@@ -7,7 +7,7 @@ from datetime import date
 import pytest
 
 from pastory.config import ConfigurationInvalide
-from pastory.config.fiscalite import MODELE, charger
+from pastory.config.fiscalite import MODELE, CorrectionDuPea, charger
 
 
 def ecrire(tmp_path, contenu):
@@ -64,3 +64,107 @@ def test_le_message_donne_la_date_a_ecrire(tmp_path):
 
     with pytest.raises(ConfigurationInvalide, match="2024-03-15"):
         charger(fichier)
+
+
+class TestParPortefeuille:
+    """L'ancienneté d'un PEA est celle d'une personne (D-109) : une date corrigée à la main ne
+    s'applique jamais au portefeuille d'une autre."""
+
+    LA_MIENNE = date(2021, 3, 1)
+    CELLE_DE_CAMILLE = date(2019, 6, 15)
+
+    def configuration(self, tmp_path, contenu):
+        return charger(ecrire(tmp_path, contenu))
+
+    def test_une_date_peut_viser_un_portefeuille(self, tmp_path):
+        fiscale = self.configuration(
+            tmp_path,
+            "[pea]\npremier_versement = 2021-03-01\n\n"
+            '[portefeuille."Camille".pea]\npremier_versement = 2019-06-15\n',
+        )
+        assert fiscale.premier_versement_pea == self.LA_MIENNE
+        assert dict(fiscale.par_portefeuille) == {"Camille": self.CELLE_DE_CAMILLE}
+
+    def test_seul_la_date_sans_nom_s_applique_comme_avant(self, tmp_path):
+        fiscale = self.configuration(tmp_path, "[pea]\npremier_versement = 2021-03-01\n")
+        correction = fiscale.pour("Exportation de transactions")
+        assert (correction.date, correction.ecartees) == (self.LA_MIENNE, ())
+
+    def test_a_plusieurs_la_date_sans_nom_n_est_appliquee_a_aucun(self, tmp_path):
+        """Le cas qui donnerait un impôt faux sans rien dire : ma date, sur le PEA d'un proche."""
+        fiscale = self.configuration(tmp_path, "[pea]\npremier_versement = 2021-03-01\n")
+        for ouvert, autre in (("Alix", "Camille"), ("Camille", "Alix")):
+            correction = fiscale.pour(ouvert, [autre])
+            assert correction.date is None
+            (raison,) = correction.ecartees
+            assert "sans dire pour quel portefeuille" in raison
+            assert f'[portefeuille."{ouvert}".pea]' in raison
+
+    def test_la_date_d_un_portefeuille_ne_sert_qu_a_lui(self, tmp_path):
+        fiscale = self.configuration(
+            tmp_path, '[portefeuille."Camille".pea]\npremier_versement = 2019-06-15\n'
+        )
+        assert fiscale.pour("Camille", ["Alix"]) == CorrectionDuPea(self.CELLE_DE_CAMILLE)
+        assert fiscale.pour("camille", ["Alix"]).date == self.CELLE_DE_CAMILLE
+        assert fiscale.pour("Alix", ["Camille"]) == CorrectionDuPea(None)
+
+    def test_la_date_nommee_l_emporte_sur_la_date_sans_nom(self, tmp_path):
+        fiscale = self.configuration(
+            tmp_path,
+            "[pea]\npremier_versement = 2021-03-01\n\n"
+            '[portefeuille."Camille".pea]\npremier_versement = 2019-06-15\n',
+        )
+        assert fiscale.pour("Camille", ["Alix"]).date == self.CELLE_DE_CAMILLE
+
+    def test_une_date_pour_un_portefeuille_disparu_est_signalee_jamais_reportee(self, tmp_path):
+        fiscale = self.configuration(
+            tmp_path, '[portefeuille."Ancien nom".pea]\npremier_versement = 2019-06-15\n'
+        )
+        correction = fiscale.pour("Camille", ["Alix"])
+        assert correction.date is None
+        (raison,) = correction.ecartees
+        assert "« Ancien nom », qui n'existe pas" in raison
+
+    def test_rien_de_tout_cela_ne_vaut_pour_l_export_d_un_tiers(self, tmp_path):
+        fiscale = self.configuration(
+            tmp_path,
+            "[pea]\npremier_versement = 2021-03-01\n\n"
+            '[portefeuille."Camille".pea]\npremier_versement = 2019-06-15\n',
+        )
+        correction = fiscale.pour("Camille", tiers=True)
+        assert correction.date is None
+        (raison,) = correction.ecartees
+        assert "ne s'applique pas à l'export d'un tiers" in raison
+
+    def test_une_date_mal_ecrite_pour_un_portefeuille_dit_ou(self, tmp_path):
+        fichier = ecrire(tmp_path, '[portefeuille."Camille".pea]\npremier_versement = "hier"\n')
+        with pytest.raises(ConfigurationInvalide, match="AAAA-MM-JJ"):
+            charger(fichier)
+
+    def test_le_modele_montre_la_forme_par_portefeuille(self):
+        assert '[portefeuille."Camille".pea]' in MODELE
+
+
+class TestCeQueLaRelectureATrouve:
+    @pytest.mark.parametrize(
+        "mal_ecrit",
+        [
+            '[portefeuille."Camille"]\npremier_versement = 2021-03-01\n',
+            '[portefeuille."Camille".plan]\npremier_versement = 2021-03-01\n',
+            '[portefeuille]\nCamille = 2021-03-01\n',
+        ],
+    )
+    def test_une_date_ecrite_au_mauvais_endroit_ne_passe_pas_inapercue(self, tmp_path, mal_ecrit):
+        """Lue comme « rien n'est corrigé », elle laissait l'utilisateur croire sa date en
+        vigueur, alors que l'impôt du PEA prenait celle de l'export."""
+        with pytest.raises(ConfigurationInvalide, match="s'écrit sous"):
+            charger(ecrire(tmp_path, mal_ecrit))
+
+    def test_un_portefeuille_ecrit_deux_fois_a_la_casse_pres_est_refuse(self, tmp_path):
+        fichier = ecrire(
+            tmp_path,
+            '[portefeuille."Camille".pea]\npremier_versement = 2021-03-01\n\n'
+            '[portefeuille."camille".pea]\npremier_versement = 2019-06-15\n',
+        )
+        with pytest.raises(ConfigurationInvalide, match="deux fois"):
+            charger(fichier)

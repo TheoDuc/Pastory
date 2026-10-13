@@ -69,6 +69,12 @@ def _deposer_export(dossier):
     return fictifs.deposer(dossier)
 
 
+def ajouter_a_l_export(dossier, *lignes):
+    """Réécrit l'export avec des lignes de plus. Un fichier est un portefeuille (D-109) :
+    déposer un second fichier ne compléterait pas le premier, il en ferait un autre."""
+    export_fictif.deposer(dossier, [*fictifs.lignes(), *lignes])
+
+
 @pytest.fixture(autouse=True)
 def avec_les_titres_recus(monkeypatch):
     """Ajoute à chaque lecture les deux titres reçus que l'export officiel ne produit pas
@@ -249,19 +255,38 @@ class TestPositions:
         assert fictifs.ACTIF_ACTION in affichage
         assert "PEA" in affichage and "crypto" in affichage
 
-    def test_un_trou_entre_deux_exports_est_dit_en_tete_des_chiffres(self, export, capsys):
-        # Un trou ne produit aucune anomalie : sans cette réserve, des achats pourraient
-        # manquer aux chiffres sans que rien ne le dise en dehors de « pastory lire ».
-        plus_tard = export_fictif.paiement_carte(
-            datetime="2027-06-01T12:00:00.000Z", date="2027-06-01"
-        )
-        export_fictif.deposer(export, [plus_tard], nom="plus tard.csv")
+    def test_une_ligne_ecartee_est_dite_en_tete_des_chiffres(self, export, capsys):
+        # Une ligne écartée ne produit aucune anomalie : sans cette réserve, des achats
+        # pourraient manquer aux chiffres sans que rien ne le dise hors de « pastory lire ».
+        ajouter_a_l_export(export, export_fictif.achat_plan_epargne(transaction_id=""))
 
         cli.main(["positions", "--hors-ligne"])
         affichage = " ".join(capsys.readouterr().out.split())
 
-        assert "période(s) qu'aucun export ne couvre" in affichage
+        assert "1 ligne(s) sans identifiant" in affichage
         assert "pastory lire" in affichage
+
+    def test_un_second_fichier_est_un_autre_portefeuille_pas_un_complement(
+        self, export, capsys
+    ):
+        """D-109 : déposé à côté du premier, l'export d'un proche n'entre pas dans ses
+        chiffres. C'est le mélange que le cumul d'avant produisait."""
+        from pastory.adaptateurs.trade_republic import depot
+
+        cli.main(["positions", "--hors-ligne"])
+        seul = capsys.readouterr().out
+        export_fictif.deposer(
+            export,
+            [export_fictif.achat_ordre_cto(symbol="XX0000000099", name="Titre d'un autre")],
+            nom="Un proche.csv",
+        )
+        depot.ouvrir(export, "Exportation de transactions")
+
+        cli.main(["positions", "--hors-ligne"])
+        a_deux = capsys.readouterr().out
+
+        assert "XX0000000099" not in a_deux
+        assert a_deux == seul
 
     def test_le_rapport_previent_qu_un_type_est_inconnu(self, export, capsys):
         # L'export fictif en contient un : aucun chiffre ne peut être tenu pour complet
@@ -1046,14 +1071,11 @@ class TestCoutsEstimesEtValeurReelle:
         versement que montre l'export prouve que le plan est plus ancien : la date n'est pas
         retenue, et rien n'est inventé à sa place (D-80)."""
         self.preparer()
-        export_fictif.deposer(
+        ajouter_a_l_export(
             export,
-            [
-                export_fictif.achat_plan_epargne(
-                    datetime="2026-01-05T09:15:00.000Z", date="2026-01-05"
-                )
-            ],
-            nom="plus ancien.csv",
+            export_fictif.achat_plan_epargne(
+                datetime="2026-01-05T09:15:00.000Z", date="2026-01-05"
+            ),
         )
 
         cli.main(["positions", "--hors-ligne", "--au", "2026-02-28"])
@@ -1064,10 +1086,9 @@ class TestCoutsEstimesEtValeurReelle:
 
     def test_la_date_du_pea_trouvee_dans_l_export_se_dit(self, export, capsys):
         self.preparer()
-        export_fictif.deposer(
+        ajouter_a_l_export(
             export,
-            [export_fictif.versement_pea(datetime="2026-01-02T07:00:00.000Z", date="2026-01-02")],
-            nom="versement.csv",
+            export_fictif.versement_pea(datetime="2026-01-02T07:00:00.000Z", date="2026-01-02"),
         )
 
         cli.main(["positions", "--hors-ligne", "--au", "2026-02-28"])
@@ -1075,6 +1096,44 @@ class TestCoutsEstimesEtValeurReelle:
         affichage = " ".join(capsys.readouterr().out.split())
         assert "premier versement le 2026-01-02, trouvée dans votre export" in affichage
         assert "transféré" in affichage
+
+    def test_ma_date_de_pea_ne_s_applique_pas_au_portefeuille_d_un_proche(
+        self, export, capsys
+    ):
+        """D-109 : avec deux portefeuilles, une date de PEA écrite sans nom n'est appliquée
+        à aucun — on ne sait pas à qui elle est — et les chiffres le disent en tête. Écrite
+        pour un portefeuille, elle ne sert qu'à lui."""
+        from pastory.adaptateurs.trade_republic import depot
+
+        self.preparer()
+        declarer_le_pea("2020-01-15")
+        cli.main(["positions", "--hors-ligne", "--au", "2026-02-28"])
+        seul = " ".join(capsys.readouterr().out.split())
+        assert "2020-01-15" in seul
+
+        export_fictif.deposer(
+            export, [export_fictif.achat_crypto()], nom="Un proche.csv"
+        )
+        depot.ouvrir(export, "Exportation de transactions")
+        cli.main(["positions", "--hors-ligne", "--au", "2026-02-28"])
+        a_deux = " ".join(capsys.readouterr().out.split())
+        assert "2020-01-15" not in a_deux
+        assert "1 correction(s) fiscale(s) non appliquée(s)" in a_deux
+
+        cli.main(["actifs", "--hors-ligne"])
+        detail = " ".join(capsys.readouterr().out.split())
+        assert "correction non appliquée" in detail
+        assert "sans dire pour quel portefeuille" in detail
+
+        config_fiscalite.chemin().write_text(
+            '[portefeuille."Exportation de transactions".pea]\n'
+            "premier_versement = 2020-01-15\n",
+            encoding="utf-8",
+        )
+        cli.main(["positions", "--hors-ligne", "--au", "2026-02-28"])
+        nommee = " ".join(capsys.readouterr().out.split())
+        assert "2020-01-15" in nommee
+        assert "non appliquée" not in nommee
 
     def test_une_date_de_pea_mal_ecrite_est_expliquee_sans_trace(self, export, capsys):
         self.preparer()

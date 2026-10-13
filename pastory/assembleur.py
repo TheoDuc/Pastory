@@ -51,7 +51,8 @@ from pastory.reglages.recherche import Recherche
 
 
 def dossier_de_lecture(dossier_export: Path | None) -> Path:
-    """Le dossier où lire les exports : celui indiqué par `--export`, ou le dossier de dépôt.
+    """Où lire : ce qu'indique `--export` (un dossier, ou directement un fichier), ou le
+    dossier de dépôt.
 
     Le dossier de dépôt est créé s'il n'existe pas encore : c'est là que l'utilisateur doit
     déposer son export (D-80), et le message qui l'y invite doit désigner un dossier réel.
@@ -64,8 +65,9 @@ def dossier_de_lecture(dossier_export: Path | None) -> Path:
 
 
 def lire(dossier: Path) -> Rapport:
-    """Lecture commune à tout : tous les exports du dossier (D-80)."""
-    return Lecteur().lire(depot_export.lire_dossier(dossier))
+    """Lecture commune à tout : **un** portefeuille — le fichier désigné, ou le
+    portefeuille ouvert du dossier (D-109)."""
+    return Lecteur().lire(depot_export.lire(dossier))
 
 
 # --- Les sources : le seul endroit qui les nomme --------------------------------------
@@ -124,12 +126,20 @@ def reglages(rapport: Rapport, hors_ligne: bool = False, tiers: bool = False) ->
     banque = rapport.ce_que_dit_la_banque()
     duree = parametres_fiscalite.charger().pea_duree_exoneration_ir.valeur
     corrections = config_actifs.charger()
+    # Une date de PEA corrigée à la main est celle d'une personne : elle ne vaut que pour
+    # le portefeuille qu'elle désigne (D-109).
+    depot = rapport.depot
+    du_pea = config_fiscalite.charger().pour(
+        depot.portefeuille, [*depot.autres], tiers=tiers
+    )
     return assemblage_reglages.assembler(
         banque,
         recherche.trouver(banque, rapport.operations, corrections),
         corrections,
-        config_fiscalite.charger(),
+        config_fiscalite.ConfigurationFiscale(premier_versement_pea=du_pea.date),
         duree_avant_retrait_libre=int(duree),
+        corrections_ecartees=du_pea.ecartees,
+        actifs_des_autres=depot.actifs_des_autres,
     )
 
 

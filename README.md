@@ -66,8 +66,20 @@ première opération.
 La première ouverture interroge les sources de cours et de composition : elle demande Internet et
 peut prendre une minute. Ensuite, tout est gardé sur votre ordinateur.
 
-**Fermer la fenêtre arrête Pastory.** Pour un export plus récent, déposez-le de la même façon : il
-s'ajoute aux précédents, et une opération présente dans deux fichiers n'est comptée qu'une fois.
+**Fermer la fenêtre arrête Pastory.** Pour un export plus récent, déposez-le de la même façon :
+Pastory reconnaît le même compte à ses opérations, et **met votre portefeuille à jour**.
+
+## Plusieurs portefeuilles
+
+**Un fichier déposé est un portefeuille**, et deux fichiers ne se mélangent jamais. Si vous
+déposez l'export d'un autre compte — celui d'un proche, par exemple —, il devient un **second
+portefeuille** : la couverture propose alors de choisir lequel ouvrir, et son nom reste affiché
+pendant toute la lecture. Chaque portefeuille se renomme et se supprime depuis la couverture,
+dans « Détail de la lecture ».
+
+Chacun est calculé seul, comme celui d'une seule personne : il n'y a pas de vue d'ensemble, et
+l'impôt estimé de l'un ne tient pas compte des autres. Pastory n'assemble pas non plus deux
+exports partiels d'un même compte : exportez toujours **toutes les transactions**.
 
 Si Pastory ne s'ouvre pas, un message le dit, et le détail est écrit dans le fichier `journal.txt`
 de son dossier personnel (`%LOCALAPPDATA%\Pastory` sous Windows).
