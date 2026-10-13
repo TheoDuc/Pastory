@@ -1,4 +1,7 @@
+:; exec sh "$(dirname "$0")/installer-pastory.sh" #
 @echo off
+rem La ligne ci-dessus ne sert que hors de Windows : pour cmd, c'est une etiquette, donc
+rem rien ; pour le "sh" de Linux ou de macOS, c'est l'ordre de lancer le bon fichier.
 rem Installation de Pastory : un double-clic sur ce fichier, et rien d'autre.
 rem   1. trouve l'outil "uv", ou l'installe s'il manque ;
 rem   2. installe Python et les bibliotheques de Pastory, dans ce dossier (.venv) ;

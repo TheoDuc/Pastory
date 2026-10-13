@@ -946,8 +946,15 @@ banques, D-26), passer le dépôt en public sur GitHub (Settings → Danger Zone
 dépôt (qui porte l'historique d'avant la réécriture), créer un dépôt `Pastory` neuf, y envoyer le
 code, le rendre public. Le [cahier](verification/etape-11.md) donne les gestes.
 
+**Le jour même, un second testeur, sous Linux** ([D-117](decisions.md)) : il a lancé
+`Installer Pastory.cmd`, le seul fichier qui s'appelle « Installer », et chaque ligne lui a
+répondu « commande inconnue ». Pastory a désormais un installateur pour Linux et macOS
+(`installer-pastory.sh`), une entrée dans le menu des applications, et le fichier de Windows
+passe de lui-même la main au bon quand on le lance hors de Windows. **Rien de cela n'a pu être
+essayé sur un vrai Linux ni un vrai Mac** : c'est vérifié par des tests, pièce par pièce.
+
 **Ce qui reste ouvert après la publication** — rien de tout cela ne l'empêchait : les écrans de
-correction (bloc 9.5), l'icône pour Mac, une installation par un tiers rejouée de bout en bout,
+correction (bloc 9.5), l'essai sur un vrai Linux et un vrai Mac, une installation par un tiers rejouée de bout en bout,
 le guide « écrire un adaptateur pour une autre banque », et les questions
 [Q-54](questions-ouvertes.md) et [Q-60](questions-ouvertes.md).
 

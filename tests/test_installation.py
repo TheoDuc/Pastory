@@ -6,7 +6,10 @@ automatique (`tests/garde_fous.py`) : aucun test n'écrit sur le vrai bureau.
 
 from __future__ import annotations
 
+import shutil
+import subprocess
 import sys
+from pathlib import Path, PurePosixPath
 
 import pytest
 
@@ -24,7 +27,10 @@ def ecrits(monkeypatch):
         demandes.append((raccourci, cible))
         raccourci.chemin.write_bytes(b"raccourci")
 
-    monkeypatch.setattr(installation, "_ecrire", ecrire)
+    # Les trois façons d'écrire un raccourci, pour que ces tests ne dépendent pas du système
+    # sur lequel ils tournent.
+    for ecrivain in ("_ecrire", "_ecrire_une_entree_de_menu", "_ecrire_une_commande"):
+        monkeypatch.setattr(installation, ecrivain, ecrire)
     return demandes
 
 
@@ -33,12 +39,12 @@ def python_present(tmp_path, monkeypatch):
     python = tmp_path / "environnement" / "pythonw.exe"
     python.parent.mkdir()
     python.write_bytes(b"")
-    monkeypatch.setattr(installation, "python_sans_fenetre", lambda: python)
+    monkeypatch.setattr(installation, "python_sans_fenetre", lambda plateforme=None: python)
     return python
 
 
 def test_pastory_sur_le_bureau_et_au_menu_la_demonstration_au_menu_seulement(tmp_path):
-    prevus = installation.raccourcis(tmp_path / "bureau", tmp_path / "menu")
+    prevus = installation.raccourcis(tmp_path / "bureau", tmp_path / "menu", "win32")
     assert [r.chemin.relative_to(tmp_path).as_posix() for r in prevus] == [
         "bureau/Pastory.lnk",
         "menu/Pastory/Pastory.lnk",
@@ -47,7 +53,7 @@ def test_pastory_sur_le_bureau_et_au_menu_la_demonstration_au_menu_seulement(tmp
 
 
 def test_chaque_raccourci_appelle_le_lanceur_et_jamais_uv(tmp_path):
-    prevus = installation.raccourcis(tmp_path / "bureau", tmp_path / "menu")
+    prevus = installation.raccourcis(tmp_path / "bureau", tmp_path / "menu", "win32")
     assert [r.arguments for r in prevus] == [
         "-m pastory.lanceur",
         "-m pastory.lanceur",
@@ -56,36 +62,38 @@ def test_chaque_raccourci_appelle_le_lanceur_et_jamais_uv(tmp_path):
 
 
 def test_installer_cree_les_trois_raccourcis(tmp_path, ecrits, python_present):
-    crees = installation.installer()
+    crees = installation.installer("win32")
     assert len(crees) == 3
     assert all(raccourci.chemin.is_file() for raccourci in crees)
     assert {cible for _, cible in ecrits} == {python_present}
 
 
 def test_installer_deux_fois_remplace_sans_doubler(tmp_path, ecrits, python_present):
-    installation.installer()
-    installation.installer()
+    installation.installer("win32")
+    installation.installer("win32")
     assert len(list(tmp_path.rglob("*.lnk"))) == 3
 
 
 def test_sans_environnement_installe_le_message_le_dit(tmp_path, ecrits, monkeypatch):
     monkeypatch.setattr(
-        installation, "python_sans_fenetre", lambda: tmp_path / "absent" / "pythonw.exe"
+        installation,
+        "python_sans_fenetre",
+        lambda plateforme=None: tmp_path / "absent" / "pythonw.exe",
     )
     with pytest.raises(installation.InstallationImpossible, match="n'est pas installé"):
-        installation.installer()
+        installation.installer("win32")
     assert ecrits == []
 
 
 def test_retirer_defait_tout_et_seulement_cela(tmp_path, ecrits, python_present):
-    installation.installer()
+    installation.installer("win32")
     autre = tmp_path / "bureau" / "Autre chose.lnk"
     autre.write_bytes(b"")
 
-    assert len(installation.retirer()) == 3
+    assert len(installation.retirer("win32")) == 3
     assert list(tmp_path.rglob("*.lnk")) == [autre]
     assert not (tmp_path / "menu" / "Pastory").exists()
-    assert installation.retirer() == []
+    assert installation.retirer("win32") == []
 
 
 def test_le_logo_des_raccourcis_existe():
@@ -100,7 +108,9 @@ class TestLaCommande:
     def test_installer_dit_ou_sont_les_raccourcis(self, tmp_path, ecrits, python_present, capsys):
         assert cli.main(["installer"]) == 0
         affichage = capsys.readouterr().out
-        assert str(tmp_path / "bureau" / "Pastory.lnk") in affichage
+        prevus = installation.raccourcis(tmp_path / "bureau", tmp_path / "menu")
+        assert all(str(prevu.chemin) in affichage for prevu in prevus)
+        assert installation.ou_les_trouver() in affichage
         assert "déplacé ou renommé" in affichage
         affichage.encode("cp1252")
 
@@ -108,7 +118,8 @@ class TestLaCommande:
         cli.main(["installer"])
         capsys.readouterr()
         assert cli.main(["installer", "--retirer"]) == 0
-        assert "3 raccourci(s) retiré(s)" in capsys.readouterr().out
+        prevus = installation.raccourcis(Path("bureau"), Path("menu"))
+        assert f"{len(prevus)} raccourci(s) retiré(s)" in capsys.readouterr().out
 
     def test_une_installation_impossible_s_explique(self, ecrits, monkeypatch, capsys):
         def refuser():
@@ -272,3 +283,300 @@ class TestLaVersionDePython:
         texte = (self.RACINE / "Installer Pastory.cmd").read_bytes().decode("ascii")
         assert "--python" not in texte and "UV_PYTHON=" not in texte
         assert ".python-version" in texte
+
+
+class TestLesRaccourcisDeLinuxEtDeMacOS:
+    """D-117 : le second testeur était sous Linux. Hors de Windows, un raccourci est un simple
+    fichier texte : il s'écrit et se vérifie ici, quel que soit le système qui lance les tests.
+    Ce que ces tests ne disent pas : qu'un bureau Linux ou un Mac l'accepte tel quel."""
+
+    @pytest.fixture
+    def projet(self, tmp_path, monkeypatch):
+        """Un dossier de projet dont le chemin porte une espace, un accent et un `$`."""
+        dossier = tmp_path / "dossier général" / "Mon $Pastory"
+        dossier.mkdir(parents=True)
+        monkeypatch.setattr(installation, "dossier_du_projet", lambda: dossier)
+        return dossier
+
+    @pytest.fixture
+    def python(self, projet, monkeypatch):
+        chemin = projet / ".venv" / "bin" / "python"
+        chemin.parent.mkdir(parents=True)
+        chemin.write_bytes(b"")
+        monkeypatch.setattr(installation, "python_sans_fenetre", lambda plateforme=None: chemin)
+        return chemin
+
+    def test_sous_linux_tout_va_au_menu_des_applications(self, tmp_path):
+        prevus = installation.raccourcis(tmp_path / "bureau", tmp_path / "menu", "linux")
+        assert [r.chemin.relative_to(tmp_path).as_posix() for r in prevus] == [
+            "menu/pastory.desktop",
+            "menu/pastory-demonstration.desktop",
+        ]
+
+    def test_sous_macos_pastory_est_sur_le_bureau(self, tmp_path):
+        prevus = installation.raccourcis(tmp_path / "bureau", tmp_path / "menu", "darwin")
+        assert [r.chemin.relative_to(tmp_path).as_posix() for r in prevus] == [
+            "bureau/Pastory.command",
+            "menu/Pastory (démonstration).command",
+        ]
+
+    def test_une_entree_de_menu_dit_quoi_lancer_et_d_ou(self, tmp_path, projet, python):
+        installation.installer("linux")
+
+        entree = (tmp_path / "menu" / "pastory.desktop").read_bytes()
+        assert b"\r" not in entree
+        champs = dict(
+            ligne.split("=", 1) for ligne in entree.decode("utf-8").splitlines()[1:]
+        )
+        assert entree.startswith(b"[Desktop Entry]\n")
+        assert champs["Type"] == "Application"
+        assert champs["Name"] == "Pastory"
+        assert champs["Terminal"] == "false"
+        assert champs["Path"] == str(projet)
+        assert champs["Exec"].endswith('" -m pastory.lanceur')
+        assert Path(champs["Icon"]).is_file() and champs["Icon"].endswith(".svg")
+
+    def test_la_demonstration_a_son_entree_et_son_nom(self, tmp_path, projet, python):
+        installation.installer("linux")
+
+        entree = (tmp_path / "menu" / "pastory-demonstration.desktop").read_text("utf-8")
+        assert "Name=Pastory (démonstration)\n" in entree
+        assert entree.count("-m pastory.lanceur --demonstration\n") == 1
+
+    def test_un_chemin_avec_espace_accent_et_dollar_reste_un_seul_argument(
+        self, tmp_path, projet, python
+    ):
+        r"""La ligne `Exec` a ses propres règles : le chemin entre guillemets, `$` et `\`
+        protégés. Sans cela, « dossier général » ferait deux arguments."""
+        installation.installer("linux")
+
+        ligne = next(
+            ligne
+            for ligne in (tmp_path / "menu" / "pastory.desktop").read_text("utf-8").splitlines()
+            if ligne.startswith("Exec=")
+        )
+        attendu = str(python).replace("\\", "\\\\").replace("$", "\\$")
+        assert ligne == f'Exec="{attendu}" -m pastory.lanceur'
+
+    def test_un_pour_cent_est_double(self):
+        chemin = PurePosixPath("/opt/100%/python")
+        assert installation._pour_exec(chemin) == '"/opt/100%%/python"'
+
+    def test_une_commande_de_macos_entre_dans_le_dossier_puis_lance(
+        self, tmp_path, projet, python
+    ):
+        installation.installer("darwin")
+
+        commande = (tmp_path / "bureau" / "Pastory.command").read_bytes()
+        assert commande.startswith(b"#!/bin/sh\n") and b"\r" not in commande
+        derniere = commande.decode("utf-8").splitlines()[-1]
+        assert derniere == f"cd '{projet}' && exec '{python}' -m pastory.lanceur"
+
+    def test_une_apostrophe_dans_le_chemin_ne_casse_pas_la_commande(
+        self, tmp_path, monkeypatch
+    ):
+        dossier = tmp_path / "l'ordinateur de Zoé"
+        dossier.mkdir()
+        python = dossier / "python"
+        python.write_bytes(b"")
+        monkeypatch.setattr(installation, "dossier_du_projet", lambda: dossier)
+        monkeypatch.setattr(installation, "python_sans_fenetre", lambda plateforme=None: python)
+
+        installation.installer("darwin")
+
+        commande = (tmp_path / "bureau" / "Pastory.command").read_text("utf-8")
+        assert "l'\\''ordinateur de Zoé" in commande
+
+    @pytest.mark.parametrize("plateforme", ["linux", "darwin"])
+    def test_retirer_defait_tout(self, tmp_path, projet, python, plateforme):
+        crees = installation.installer(plateforme)
+        assert all(raccourci.chemin.is_file() for raccourci in crees)
+
+        assert len(installation.retirer(plateforme)) == len(crees) == 2
+        assert installation.retirer(plateforme) == []
+        assert not list(tmp_path.rglob("*.desktop")) and not list(tmp_path.rglob("*.command"))
+
+    def test_le_message_dit_ou_trouver_pastory_avec_les_mots_du_systeme(self):
+        assert "menu Démarrer" in installation.ou_les_trouver("win32")
+        assert "menu des applications" in installation.ou_les_trouver("linux")
+        assert "bureau" in installation.ou_les_trouver("darwin")
+
+    def test_hors_de_windows_le_python_est_celui_de_l_environnement(self):
+        assert installation.python_sans_fenetre("linux") == Path(sys.executable)
+        assert installation.python_sans_fenetre("win32").name == "pythonw.exe"
+
+
+SH = shutil.which("sh")
+AVEC_SH = pytest.mark.skipif(SH is None, reason="pas d'interpréteur sh sur cette machine")
+
+FAUX_UV = """#!/bin/sh
+echo "uv $*" >> appels.txt
+mkdir -p .venv/bin
+printf '#!/bin/sh\\necho "python $*" >> appels.txt\\n' > .venv/bin/python
+chmod +x .venv/bin/python
+"""
+
+
+def _outil(dossier: Path, nom: str, contenu: str) -> None:
+    dossier.mkdir(parents=True, exist_ok=True)
+    fichier = dossier / nom
+    fichier.write_bytes(contenu.encode("utf-8"))
+    fichier.chmod(0o755)
+
+
+def _lancer_sh(dossier: Path, commande: str, entree: str = "") -> subprocess.CompletedProcess:
+    """Lance `commande` par sh dans `dossier`, avec pour seuls outils ceux du système et ceux
+    de `dossier/outils` : ni le vrai uv, ni le vrai dossier personnel."""
+    return subprocess.run(
+        [SH, "-c", f'PATH="$PWD/outils:/usr/bin:/bin" HOME="$PWD/maison" {commande}'],
+        cwd=dossier,
+        input=entree.encode("utf-8"),
+        capture_output=True,
+        timeout=120,
+        check=False,
+    )
+
+
+class TestLInstallateurDeLinuxEtDeMacOS:
+    """`installer-pastory.sh` : le pendant du fichier de Windows. Joué ici avec de faux outils
+    (un faux `uv`, un faux Python) : c'est son enchaînement qui est vérifié, pas une vraie
+    installation."""
+
+    FICHIER = installation.dossier_du_projet() / "installer-pastory.sh"
+
+    @pytest.fixture
+    def dossier(self, tmp_path):
+        shutil.copyfile(self.FICHIER, tmp_path / self.FICHIER.name)
+        (tmp_path / "pyproject.toml").write_text("x", encoding="utf-8")
+        _outil(tmp_path / "outils", "uname", "#!/bin/sh\necho Linux\n")
+        (tmp_path / "maison").mkdir()
+        return tmp_path
+
+    def test_il_garde_ses_fins_de_ligne_et_reste_sans_accents(self):
+        """Avec des fins de ligne Windows, sh échoue dès la première ligne."""
+        contenu = self.FICHIER.read_bytes()
+        assert contenu.startswith(b"#!/bin/sh\n")
+        assert b"\r" not in contenu
+        assert contenu.decode("ascii")
+        attributs = (self.FICHIER.parent / ".gitattributes").read_text(encoding="utf-8")
+        assert "*.sh text eol=lf" in attributs
+
+    def test_il_installe_uv_par_la_methode_de_son_editeur_apres_avoir_prevenu(self):
+        texte = self.FICHIER.read_text(encoding="ascii")
+        assert "https://astral.sh/uv/install.sh" in texte
+        assert texte.index("read -r") < texte.index("install.sh | sh")
+        assert '"$UV" sync' in texte
+
+    @AVEC_SH
+    def test_avec_uv_il_synchronise_puis_cree_les_raccourcis(self, dossier):
+        _outil(dossier / "outils", "uv", FAUX_UV)
+
+        resultat = _lancer_sh(dossier, "sh installer-pastory.sh")
+
+        sortie = resultat.stdout.decode("ascii")
+        assert resultat.returncode == 0, sortie + resultat.stderr.decode("utf-8", "replace")
+        assert "deja installe" in sortie and "Pastory est installe" in sortie
+        assert (dossier / "appels.txt").read_text().splitlines() == [
+            "uv sync",
+            "python -m pastory.cli installer",
+        ]
+
+    @AVEC_SH
+    def test_sans_uv_il_previent_l_installe_puis_le_retrouve_hors_du_chemin(self, dossier):
+        """Le cas du premier testeur, côté Linux : `uv` vient d'être installé dans le dossier
+        personnel, que le terminal ouvert ne connaît pas encore."""
+        if any(Path(d, "uv").exists() for d in ("/usr/bin", "/bin")):
+            pytest.skip("un uv du système serait trouvé avant l'essai")
+        (dossier / "faux-uv").write_bytes(FAUX_UV.encode("utf-8"))
+        _outil(
+            dossier / "outils",
+            "curl",
+            "#!/bin/sh\n"
+            "echo 'mkdir -p \"$HOME/.local/bin\" && cp faux-uv \"$HOME/.local/bin/uv\" "
+            "&& chmod +x \"$HOME/.local/bin/uv\"'\n",
+        )
+
+        resultat = _lancer_sh(dossier, "sh installer-pastory.sh", entree="\n")
+
+        sortie = resultat.stdout.decode("ascii")
+        assert resultat.returncode == 0, sortie + resultat.stderr.decode("utf-8", "replace")
+        assert "Appuyez sur Entree" in sortie
+        assert (dossier / "maison" / ".local" / "bin" / "uv").is_file()
+        assert (dossier / "appels.txt").read_text().splitlines()[0] == "uv sync"
+
+    @AVEC_SH
+    def test_sans_reponse_il_n_installe_rien(self, dossier):
+        _outil(dossier / "outils", "curl", "#!/bin/sh\necho 'touch installe-quand-meme'\n")
+
+        resultat = _lancer_sh(dossier, "sh installer-pastory.sh")
+
+        if any(Path(d, "uv").exists() for d in ("/usr/bin", "/bin")):
+            pytest.skip("un uv du système serait trouvé avant l'essai")
+        assert resultat.returncode == 1
+        assert not (dossier / "installe-quand-meme").exists()
+
+    @AVEC_SH
+    def test_si_la_synchronisation_echoue_il_le_dit_et_s_arrete(self, dossier):
+        _outil(dossier / "outils", "uv", "#!/bin/sh\necho 'uv a echoue'\nexit 2\n")
+
+        resultat = _lancer_sh(dossier, "sh installer-pastory.sh")
+
+        sortie = resultat.stdout.decode("ascii")
+        assert resultat.returncode == 1
+        assert "L'installation des bibliotheques a echoue" in sortie
+        assert "3/3" not in sortie
+
+    @AVEC_SH
+    def test_hors_du_dossier_de_pastory_il_le_dit(self, dossier):
+        (dossier / "pyproject.toml").unlink()
+        _outil(dossier / "outils", "uv", FAUX_UV)
+
+        resultat = _lancer_sh(dossier, "sh installer-pastory.sh")
+
+        assert resultat.returncode == 1
+        assert "n'est pas dans le dossier de Pastory" in resultat.stdout.decode("ascii")
+        assert not (dossier / "appels.txt").exists()
+
+    @AVEC_SH
+    def test_si_les_raccourcis_echouent_il_dit_comment_ouvrir_pastory_quand_meme(self, dossier):
+        _outil(
+            dossier / "outils",
+            "uv",
+            "#!/bin/sh\nmkdir -p .venv/bin\n"
+            "printf '#!/bin/sh\\nexit 1\\n' > .venv/bin/python\nchmod +x .venv/bin/python\n",
+        )
+
+        resultat = _lancer_sh(dossier, "sh installer-pastory.sh")
+
+        sortie = resultat.stdout.decode("ascii")
+        assert resultat.returncode == 1
+        assert ".venv/bin/python -m pastory.lanceur" in sortie
+
+
+class TestLeFichierDeWindowsLanceHorsDeWindows:
+    """Ce qu'a fait le second testeur : lancer `Installer Pastory.cmd` sous Linux. Chaque
+    ligne y était une commande inconnue. La première ligne du fichier est désormais lue des
+    deux côtés : une étiquette sans effet pour Windows, l'ordre de lancer le bon fichier
+    pour `sh`."""
+
+    FICHIER = installation.dossier_du_projet() / "Installer Pastory.cmd"
+
+    def test_sa_premiere_ligne_renvoie_a_l_installateur_de_linux(self):
+        premiere = self.FICHIER.read_bytes().split(b"\r\n", 1)[0].decode("ascii")
+        assert premiere.startswith(":;")
+        assert "installer-pastory.sh" in premiere
+        # Le « # » final met la fin de ligne de Windows en commentaire, pour sh.
+        assert premiere.endswith("#")
+
+    @AVEC_SH
+    def test_lance_par_sh_il_passe_la_main_au_bon_fichier(self, tmp_path):
+        shutil.copyfile(self.FICHIER, tmp_path / self.FICHIER.name)
+        _outil(tmp_path, "installer-pastory.sh", "#!/bin/sh\necho 'le bon installateur'\n")
+
+        resultat = subprocess.run(
+            [SH, self.FICHIER.name], cwd=tmp_path, capture_output=True, timeout=60, check=False
+        )
+
+        assert resultat.returncode == 0
+        assert resultat.stdout.decode("ascii").strip() == "le bon installateur"
+        assert b"not found" not in resultat.stderr

@@ -76,7 +76,7 @@ def ouvrir_le_journal() -> Path | None:
     Lancé depuis un terminal, il garde son écran : c'est là qu'on regarde quand on cherche une
     panne.
     """
-    if sys.stderr is not None and sys.stdout is not None:
+    if not sans_ecran():
         return None
     dossier = emplacements.dossier_personnel()
     dossier.mkdir(parents=True, exist_ok=True)
@@ -92,6 +92,21 @@ def ouvrir_le_journal() -> Path | None:
     return chemin
 
 
+def sans_ecran(plateforme: str | None = None) -> bool:
+    """Vrai si ce que le programme écrit ne sera lu par personne.
+
+    Sous Windows, `pythonw` n'a ni sortie ni erreur. Sous Linux et macOS, lancé par le menu ou
+    par un double-clic, il en a, mais elles ne mènent à aucun terminal (D-117)."""
+    if sys.stderr is None or sys.stdout is None:
+        return True
+    if (plateforme or sys.platform) == "win32":
+        return False
+    try:
+        return not sys.stderr.isatty()
+    except (AttributeError, ValueError):
+        return True
+
+
 def avertir(message: str) -> None:
     """Dit une panne de démarrage à l'utilisateur, qui n'a pas de terminal sous les yeux."""
     print(message, file=sys.stderr)
@@ -100,6 +115,32 @@ def avertir(message: str) -> None:
 
         icone_d_erreur = 0x10
         ctypes.windll.user32.MessageBoxW(None, message, NOM, icone_d_erreur)
+        return
+    commande = boite_de_message(message)
+    if commande is not None:
+        # Au mieux : sans outil pour afficher une boîte, le journal reste la seule trace.
+        with contextlib.suppress(OSError, ValueError):
+            subprocess.Popen(  # noqa: S603 - un outil du système, des arguments fixes
+                commande,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+
+
+def boite_de_message(message: str, plateforme: str | None = None) -> list[str] | None:
+    """La commande qui affiche une boîte de message hors de Windows, ou `None` si le système
+    n'en offre aucune : `osascript` sous macOS, `zenity` ou `notify-send` sous Linux."""
+    plateforme = plateforme or sys.platform
+    if plateforme == "darwin":
+        outil = shutil.which("osascript")
+        texte = message.replace("\\", "\\\\").replace('"', '\\"')
+        return [outil, "-e", f'display alert "{NOM}" message "{texte}"'] if outil else None
+    outil = shutil.which("zenity")
+    if outil:
+        return [outil, "--error", f"--title={NOM}", f"--text={message}", "--no-markup"]
+    outil = shutil.which("notify-send")
+    return [outil, NOM, message] if outil else None
 
 
 # --- Le port ------------------------------------------------------------------------------

@@ -20,11 +20,13 @@ réels.*
 | **On dépose l'export, et c'est tout** : les cours, les frais des fonds et leur composition sont trouvés seuls. | **Où se trouve l'argent**, en regardant à l'intérieur des fonds — pays, zones, secteurs, classes d'actifs. |
 
 > **Où en est le projet.** Pastory fonctionne de bout en bout sous Windows et s'ouvre comme un
-> logiciel. Restent à faire : les écrans pour corriger à la main une valeur trouvée (aujourd'hui,
-> un fichier), et l'icône pour Mac. Le détail est dans
+> logiciel ; il s'installe aussi sous Linux et macOS, où il reste à éprouver. Reste à faire :
+> les écrans pour corriger à la main une valeur trouvée (aujourd'hui, un fichier). Le détail est dans
 > [docs/feuille-de-route.md](docs/feuille-de-route.md).
 
-## Installer Pastory (Windows)
+## Installer Pastory
+
+### Sous Windows
 
 Deux étapes, une seule fois. Aucune commande à taper.
 
@@ -59,8 +61,28 @@ téléchargez Pastory de nouveau.
 Si vous déplacez ou renommez le dossier de Pastory, relancez `Installer Pastory.cmd` : les icônes
 pointent sur lui.
 
-**Sur Mac ou Linux**, il n'y a pas encore d'icône : après `uv sync`, Pastory s'ouvre par
-`uv run pastory ouvrir`.
+### Sous Linux et macOS
+
+Le fichier `Installer Pastory.cmd` est celui de Windows. Ici, c'est `installer-pastory.sh` :
+
+1. **Téléchargez Pastory** et décompressez l'archive (ou `git clone`).
+2. **Dans un terminal, depuis ce dossier :**
+
+   ```
+   sh installer-pastory.sh
+   ```
+
+Il fait la même chose que sous Windows : il installe `uv` s'il manque (après vous l'avoir dit),
+puis l'environnement de Pastory dans ce dossier, puis il ajoute **Pastory au menu des
+applications** (Linux) ou pose un fichier **`Pastory.command` sur le bureau** (macOS). Il faut
+`curl` ou `wget` ; pour que Pastory s'ouvre dans sa propre fenêtre, Chrome, Chromium ou Edge —
+sans eux, il s'ouvre dans un onglet de votre navigateur habituel.
+
+Pastory s'ouvre aussi sans raccourci, depuis ce dossier : `.venv/bin/python -m pastory.lanceur`.
+
+> **Essayé seulement pièce par pièce.** Pastory est développé sous Windows : cet installateur et
+> ces raccourcis ont été vérifiés par des tests, pas sur un vrai Linux ni un vrai Mac. Si
+> quelque chose ne marche pas chez vous, [dites-le](https://github.com/TheoDuc/Pastory/issues) avec le message affiché.
 
 ## Obtenir l'export de vos transactions
 

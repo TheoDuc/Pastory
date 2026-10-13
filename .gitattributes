@@ -1,3 +1,6 @@
 # Un fichier de commandes Windows doit garder ses fins de ligne Windows, y compris dans
 # l'archive ZIP que GitHub propose en téléchargement : sans elles, il peut échouer.
 *.cmd text eol=crlf
+# Et un fichier de commandes de Linux ou de macOS, les siennes : avec des fins de ligne
+# Windows, il echoue des sa premiere ligne.
+*.sh text eol=lf

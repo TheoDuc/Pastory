@@ -422,3 +422,67 @@ class TestLeLancement:
         monkeypatch.setattr(lanceur, "avertir", messages.append)
         assert lanceur.main([]) == 1
         assert "8050 à 8059" in messages[0]
+
+
+class TestHorsDeWindows:
+    """D-117 : sous Linux et macOS, lancé par le menu, le programme a bien une sortie — mais
+    elle ne mène à aucun terminal. Ce qu'il écrit doit aller au journal, et une panne de
+    démarrage s'afficher par l'outil du système, s'il en a un."""
+
+    def test_sous_windows_seule_l_absence_de_sortie_compte(self, monkeypatch):
+        import io
+
+        monkeypatch.setattr(sys, "stderr", io.StringIO())
+        assert lanceur.sans_ecran("win32") is False
+
+    def test_ailleurs_une_sortie_qui_ne_mene_a_aucun_terminal_est_sans_ecran(self, monkeypatch):
+        import io
+
+        monkeypatch.setattr(sys, "stderr", io.StringIO())
+        assert lanceur.sans_ecran("linux") is True
+
+    def test_ailleurs_un_terminal_garde_son_ecran(self, monkeypatch):
+        import io
+
+        class Terminal(io.StringIO):
+            def isatty(self) -> bool:
+                return True
+
+        monkeypatch.setattr(sys, "stderr", Terminal())
+        assert lanceur.sans_ecran("linux") is False
+
+    def test_sans_sortie_du_tout_il_n_y_a_d_ecran_nulle_part(self, monkeypatch):
+        monkeypatch.setattr(sys, "stdout", None)
+        assert lanceur.sans_ecran("win32") is True
+        assert lanceur.sans_ecran("darwin") is True
+
+    @staticmethod
+    def outils(monkeypatch, *presents: str) -> None:
+        monkeypatch.setattr(
+            lanceur.shutil, "which", lambda nom: f"/usr/bin/{nom}" if nom in presents else None
+        )
+
+    def test_sous_linux_la_panne_s_affiche_par_zenity_s_il_est_la(self, monkeypatch):
+        self.outils(monkeypatch, "zenity", "notify-send")
+        commande = lanceur.boite_de_message("Pastory n'a pas pu s'ouvrir.", "linux")
+        assert commande[:2] == ["/usr/bin/zenity", "--error"]
+        assert "--text=Pastory n'a pas pu s'ouvrir." in commande
+        # Le message n'est pas du balisage : un « & » ou un « < » doit s'afficher tel quel.
+        assert "--no-markup" in commande
+
+    def test_a_defaut_par_une_notification(self, monkeypatch):
+        self.outils(monkeypatch, "notify-send")
+        assert lanceur.boite_de_message("Panne.", "linux") == [
+            "/usr/bin/notify-send", lanceur.NOM, "Panne.",
+        ]
+
+    def test_sans_aucun_outil_le_journal_reste_la_seule_trace(self, monkeypatch):
+        self.outils(monkeypatch)
+        assert lanceur.boite_de_message("Panne.", "linux") is None
+        assert lanceur.boite_de_message("Panne.", "darwin") is None
+
+    def test_sous_macos_le_message_ne_peut_pas_sortir_de_ses_guillemets(self, monkeypatch):
+        self.outils(monkeypatch, "osascript")
+        commande = lanceur.boite_de_message('Le dossier "Pastory" manque.', "darwin")
+        assert commande[:2] == ["/usr/bin/osascript", "-e"]
+        assert 'message "Le dossier \\"Pastory\\" manque."' in commande[2]

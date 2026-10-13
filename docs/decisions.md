@@ -2268,3 +2268,37 @@ d'affichage » : ni les unes ni les autres ne s'en servent plus.
 **Écarte :** garder pandas « au cas où » (c'est la règle que `pyproject.toml` s'interdit en
 tête de sa liste) ; ne déclarer `tzdata` que pour Windows (une condition de plus, pour quelques
 centaines de kilo-octets ailleurs).
+
+### D-117 · 2026-10-13 · Pastory s'installe aussi sous Linux et macOS · À valider
+**Décision :** Linux et macOS ont leur installateur, `installer-pastory.sh`, pendant de celui de
+Windows : il trouve `uv` ou l'installe (après l'avoir dit), installe l'environnement, puis crée
+les raccourcis.
+- **Un raccourci, hors de Windows, est un fichier texte** : sous Linux, une entrée du menu des
+  applications (un fichier `.desktop`, la convention commune à tous les bureaux) ; sous macOS, un
+  fichier `.command` sur le bureau. `pastory installer` écrit l'un ou l'autre selon le système.
+- **Le fichier de Windows passe la main de lui-même.** Sa première ligne est lue des deux
+  côtés : une étiquette sans effet pour Windows, l'ordre de lancer `installer-pastory.sh` pour
+  le `sh` de Linux ou de macOS. Qui se trompe de fichier arrive quand même au bon.
+- **Hors de Windows, le lanceur écrit dans son journal** dès qu'aucun terminal ne le lit (lancé
+  par le menu), et une panne de démarrage s'affiche par l'outil du système s'il en a un
+  (`zenity`, une notification, `osascript`) : un double-clic qui ne fait rien reste la panne à
+  éviter ([D-106](#d-106)).
+**Raison :** le second testeur était sous Linux. Il a lancé `Installer Pastory.cmd` — le seul
+fichier qui s'appelle « Installer » — et chaque ligne lui a répondu « commande inconnue ». Le
+README disait bien que ce fichier était celui de Windows, et donnait deux commandes pour les
+autres : personne ne lit un README avant de lancer un fichier qui s'appelle « Installer ». C'est
+la même leçon que [D-112](#d-112), une seconde fois.
+**Ce qui a été vérifié :** l'enchaînement de l'installateur, joué par un vrai `sh` avec de faux
+outils (`uv` présent, absent puis installé hors du chemin de recherche, en échec ; raccourcis en
+échec ; hors du dossier de Pastory) ; le contenu des fichiers `.desktop` et `.command`, y compris
+pour un chemin qui porte une espace, un accent, un `$` ou une apostrophe ; et les deux sens du
+fichier de Windows, par `sh` et par `cmd`.
+**Ce qui ne l'a pas été — et c'est l'essentiel :** rien de tout cela n'a tourné sur un vrai
+Linux ni un vrai Mac. Ni l'installation réelle, ni l'apparition de l'entrée dans un menu, ni le
+lanceur lui-même hors de Windows (la fenêtre à part, l'arrêt à la fermeture). Le README le dit,
+et demande un retour.
+**Écarte :** un raccourci posé sur le bureau sous Linux (chaque bureau exige sa propre façon de
+l'« autoriser ») ; une application `.app` sous macOS (un dossier à construire et à signer, pour
+un gain faible sur un fichier `.command`) ; s'en tenir à deux commandes dans le README (c'est ce
+qui vient d'échouer) ; renommer le fichier de Windows pour y écrire « Windows » (il resterait le
+premier fichier qu'on lance : mieux vaut qu'il mène au bon).

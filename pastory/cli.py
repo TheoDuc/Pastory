@@ -885,7 +885,7 @@ def commande_installer(retirer: bool) -> int:
     for raccourci in concernes:
         print(f"  {raccourci.chemin}")
     print(
-        "\nPastory s'ouvre désormais par son icône, sur le bureau ou dans le menu Démarrer,\n"
+        f"\nPastory s'ouvre désormais par son icône, {installation.ou_les_trouver()},\n"
         "et s'arrête quand on ferme sa fenêtre. Si ce dossier est déplacé ou renommé,\n"
         "relancez l'installation : les raccourcis pointent sur lui."
     )
