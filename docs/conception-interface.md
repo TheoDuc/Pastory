@@ -473,7 +473,15 @@ anneaux, puis les carrés découpés essayés à leur place, ont été retirés)
   rapportées à la **même base**, jamais renormalisées ([D-69](decisions.md)). Au-delà de 15
   postes, les autres se déplient (« Afficher les N autres ») ;
 - en dessous, **ce qui n'entre pas dans cette répartition** (non attribué, non couvert, hors
-  actions) sur **une seule ligne qui se déplie** pour montrer le détail par actif.
+  actions) sur **une seule ligne qui se déplie** pour montrer le détail ;
+- **chaque ligne se déplie vers les actifs qui la composent** ([D-111](decisions.md), retour du
+  premier testeur) : sous « États-Unis », les fonds et les actions du portefeuille qui y sont
+  investis, chacun avec son montant et sa part — rapportée à la **même base** que la ligne. Une
+  zone s'ouvre sur ses pays, qui s'ouvrent sur leurs actifs ; les restes aussi disent d'où ils
+  viennent. **La somme des actifs d'une ligne est son montant, au centime** : c'est ce qui permet
+  de la refaire à la main. Fermées par défaut ; ce n'est pas un filtre, et ce ne sont jamais les
+  sociétés qu'un fonds détient ([D-63](decisions.md)). Une phrase au-dessus du classement dit
+  que les lignes se déplient.
 
 Puis, **repliée**, « ce qu'il faut savoir de ces chiffres » : les réserves qui rendent la
 lecture honnête (origines des données, fonds synthétiques, contenus déclarés, fonds non
@@ -600,6 +608,19 @@ Distinguer trois choses que l'utilisateur confondra si on ne l'aide pas :
 **La règle qui les réunit :** un trou signalé vaut mieux qu'un chiffre crédible et faux. C'est la
 phrase qui revient le plus souvent dans les décisions de ce projet, et c'est elle qui arbitre quand
 aucune autre ne tranche.
+
+### 5.4 bis En attente — la lecture est en cours
+
+Ce n'est pas un état des chiffres, mais c'est le premier que voit un nouvel utilisateur
+([D-110](decisions.md), retour du premier testeur). Pendant une lecture, la page dit **l'étape en
+cours**, **combien d'actifs y sont traités** (« Étape 2 sur 3 · 4 actifs sur 8 ») et montre une
+barre. Trois règles :
+
+- **la barre compte des actifs, jamais des secondes** : elle n'annonce pas un temps restant
+  qu'elle ne connaît pas ;
+- **hors d'une lecture** — un changement de période — elle reste cachée, avec sa note : on ne lit
+  que « Calcul des chiffres… » ;
+- **elle ne retarde rien** : elle disparaît dès que les chiffres sont là.
 
 ### 5.5 Ce qu'aucun état n'autorise
 

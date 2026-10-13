@@ -34,6 +34,10 @@ from pastory.donnees_externes.cours import Cours
 
 NOM_DOSSIER = "cours"
 
+NOM_DES_REPRISES = "_series_reprises.txt"
+"""Le registre des séries reprises en entier (D-113) : un actif par ligne. Ce n'est pas un
+fichier de cours — il ne finit pas en `.csv`, et aucun actif ne peut porter ce nom."""
+
 COLONNES = ("date", "cours", "devise", "place", "ticker", "source", "recupere_le")
 """Les colonnes du fichier, dans l'ordre où on les lit : le jour décrit, le cours, puis tout
 ce qui permet de savoir d'où il vient."""
@@ -116,6 +120,29 @@ class Cache:
             place=dernier.place,
             source=dernier.source,
         )
+
+    # --- Les séries reprises (D-113) -----------------------------------------------------
+
+    def serie_reprise(self, actif: str) -> bool:
+        """Vrai si la série de cet actif a déjà été reprise en entier à la source."""
+        return actif in self._reprises()
+
+    def noter_la_reprise(self, actif: str) -> None:
+        """Retient que la série de cet actif est reprise : on n'y reviendra pas."""
+        reprises = self._reprises()
+        if actif in reprises:
+            return
+        self.dossier.mkdir(parents=True, exist_ok=True)
+        (self.dossier / NOM_DES_REPRISES).write_text(
+            "".join(f"{un}\n" for un in sorted(reprises | {actif})), encoding="utf-8"
+        )
+
+    def _reprises(self) -> set[str]:
+        registre = self.dossier / NOM_DES_REPRISES
+        if not registre.exists():
+            return set()
+        lignes = registre.read_text(encoding="utf-8").splitlines()
+        return {ligne.strip() for ligne in lignes if ligne.strip()}
 
     # --- Écriture -----------------------------------------------------------------------
 

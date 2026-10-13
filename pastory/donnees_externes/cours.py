@@ -171,6 +171,10 @@ class CacheDeCours(Protocol):
 
     def ecrire(self, actif: str, cours: Iterable[Cours]) -> int: ...
 
+    def serie_reprise(self, actif: str) -> bool: ...
+
+    def noter_la_reprise(self, actif: str) -> None: ...
+
 
 def dernier_jour_cote(
     serie: Mapping[Date, Cours], date: Date, recul: timedelta = RECUL_MAXIMAL
@@ -293,6 +297,12 @@ class FournisseurDeCours:
         # la contenir. Demander le jour même ne rapporterait donc rien, et l'absence de réponse
         # ressemblerait à une panne.
         fin = min(fin, self.aujourd_hui - UN_JOUR)
+        if fin < debut:
+            # La période ne contenait que la séance du jour : il n'y a rien à demander. Sans
+            # cet arrêt, la réduction ci-dessous rendait la période à l'envers — donc de
+            # nouveau « valide » — et un cache à jour jusqu'à hier coûtait quand même un appel
+            # par actif à chaque ouverture (trouvé en mesurant l'attente, D-110).
+            return 0
 
         debut, fin = self._ce_qui_manque(actif, debut, fin)
         if fin < debut or self._deja_demande(actif, debut, fin):
@@ -327,6 +337,68 @@ class FournisseurDeCours:
         self._series.pop(actif, None)
         self._jours_tries.pop(actif, None)
         return ecrits
+
+    def reprendre(self, actif: str, debut: Date, fin: Date) -> bool:
+        """Redemande **une fois** toute la série d'un actif, et comble ce qui y manquait
+        (D-113). Rend `True` si la reprise a eu lieu : il n'y a alors plus rien à demander.
+
+        Avant D-110, les cours arrivaient par petites fenêtres, et quelques jours pouvaient
+        manquer entre deux d'entre elles : trop peu pour être vus comme un trou, assez pour
+        qu'une valeur s'y lise sur un cours vieux d'une semaine. Rien dans un cache ne dit
+        s'il a été construit ainsi ; chaque série est donc reprise une fois, puis le cache
+        retient que c'est fait.
+
+        **Aucun cours gardé n'est réécrit** (D-50) : seuls les jours absents sont ajoutés.
+
+        La reprise ne dit rien et ne refuse rien. Si la source est en panne, on réessaiera à
+        la prochaine ouverture ; si elle répond que ce ticker ou cette période n'existent
+        pas — un titre vendu puis retiré de la cote —, il n'y a rien à combler, et on n'y
+        revient pas. Dans les deux cas l'appelant poursuit par le chemin habituel, qui sait,
+        lui, s'il faut le signaler.
+        """
+        declaration = self.configuration.declaration(actif)
+        if (
+            declaration is None
+            or declaration.ticker is None
+            or self.source is None
+            or self.hors_ligne
+            or actif in self._en_panne
+            or self.cache.serie_reprise(actif)
+        ):
+            return False
+        fin = min(fin, self.aujourd_hui - UN_JOUR)
+        if fin < debut:
+            return False
+
+        # Les cours d'une ancienne cotation sont écartés d'abord, comme pour toute lecture.
+        self._serie(actif)
+        try:
+            recus = self.source.serie(actif, declaration, debut, fin)
+        except (TickerInconnu, PeriodeSansCours):
+            self.cache.noter_la_reprise(actif)
+            return False
+        except ErreurDeSource:
+            return False
+        if not recus:
+            return False
+
+        self.cache.ecrire(actif, recus)
+        self._series.pop(actif, None)
+        self._jours_tries.pop(actif, None)
+        self._demandes.setdefault(actif, []).append((debut, fin))
+        self.cache.noter_la_reprise(actif)
+        return True
+
+    def jours_connus(self, actif: str) -> tuple[Date, Date] | None:
+        """Le premier et le dernier jour gardés pour cet actif, ou `None` s'il n'y en a aucun.
+
+        Sert à ne demander que ce qui peut encore manquer : ni ce qui précède le premier jour
+        coté — la source n'a rien avant, et le redemander à chaque ouverture ne rapporterait
+        rien —, ni la suite d'un titre vendu (D-110)."""
+        serie = self._serie(actif)
+        if not serie:
+            return None
+        return min(serie), max(serie)
 
     @property
     def nom_source(self) -> str:

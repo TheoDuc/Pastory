@@ -32,7 +32,7 @@ couvert, le camembert ne fait pas 100 %, et cela se voit.
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date as Date
 from decimal import ROUND_HALF_UP, Decimal
 from enum import StrEnum
@@ -156,6 +156,22 @@ class OrigineDUnActif:
 
 
 @dataclass(frozen=True)
+class Contribution:
+    """Ce qu'**un** actif du portefeuille apporte à une ligne d'une répartition (D-111).
+
+    C'est la réponse à « quels actifs sont dans ce pays, dans ce secteur ? » : la valeur de
+    l'actif, multipliée par le poids que sa composition donne à ce poste. Rien de plus n'est lu
+    — toujours les **agrégats** d'un fonds, jamais ses lignes détenues (D-63).
+
+    **La somme des contributions d'une ligne est le montant de la ligne, au centime** : chaque
+    contribution est arrondie avant d'être cumulée, et c'est ce cumul qui fait le montant.
+    """
+
+    actif: str
+    montant: Decimal
+
+
+@dataclass(frozen=True)
 class Poste:
     """Une ligne d'une répartition : un pays, un secteur ou une classe d'actifs."""
 
@@ -177,6 +193,9 @@ class Poste:
     zone_rang: int | None = None
     rang: int | None = None
     """L'ordre voulu par le référentiel, pour les classes d'actifs."""
+
+    contributions: tuple[Contribution, ...] = ()
+    """Les actifs qui font ce montant, du plus lourd au plus léger (D-111)."""
 
 
 @dataclass(frozen=True)
@@ -214,6 +233,13 @@ class Repartition:
     actifs_non_couverts: tuple[str, ...] = ()
     actifs_synthetiques: tuple[str, ...] = ()
     """Les fonds dont la répartition est celle de l'**indice** et non des titres détenus (D-64)."""
+
+    non_attribue_par_actif: tuple[Contribution, ...] = ()
+    hors_classification_par_actif: tuple[Contribution, ...] = ()
+    non_couvert_par_actif: tuple[Contribution, ...] = ()
+    """Ce que chaque actif apporte aux trois restes (D-111). Comme pour un poste, leur somme
+    est le montant du reste, au centime. Le détail du hors périmètre est porté par ses postes
+    (`hors_perimetre_postes`)."""
 
     @property
     def attribue(self) -> Decimal:
@@ -311,6 +337,14 @@ class Diversification:
 # --- Le calcul -------------------------------------------------------------------------
 
 
+_POSTE = "poste"
+_HORS_PERIMETRE = "hors périmètre"
+_NON_ATTRIBUE = "non attribué"
+_HORS_CLASSIFICATION = "hors classification"
+_NON_COUVERT = "non couvert"
+"""Les cinq sortes de cases où un euro peut être rangé."""
+
+
 @dataclass
 class _Cumul:
     """Un accumulateur de travail : les montants par code, et les restes."""
@@ -320,17 +354,49 @@ class _Cumul:
     non_attribue: Decimal = ZERO
     hors_classification: Decimal = ZERO
     non_couvert: Decimal = ZERO
+    par_actif: dict[tuple[str, str], dict[str, Decimal]] = field(default_factory=dict)
+    """Ce que chaque actif apporte à chaque case : `(nature de la case, code) → actif →
+    montant`. Chaque euro cumulé plus haut y est noté une seconde fois, avec son origine : c'est
+    ce qui garantit que les contributions d'une ligne somment à son montant (D-111)."""
 
     @classmethod
     def vide(cls) -> _Cumul:
         return cls(montants={}, hors_perimetre_par_classe={})
 
-    def ajouter(self, code: str, montant: Decimal) -> None:
-        self.montants[code] = self.montants.get(code, ZERO) + montant
+    def _noter(self, case: tuple[str, str], actif: str, montant: Decimal) -> None:
+        apports = self.par_actif.setdefault(case, {})
+        apports[actif] = apports.get(actif, ZERO) + montant
 
-    def ajouter_hors_perimetre(self, cle: str, montant: Decimal) -> None:
+    def ajouter(self, code: str, montant: Decimal, actif: str) -> None:
+        self.montants[code] = self.montants.get(code, ZERO) + montant
+        self._noter((_POSTE, code), actif, montant)
+
+    def ajouter_hors_perimetre(self, cle: str, montant: Decimal, actif: str) -> None:
         courant = self.hors_perimetre_par_classe.get(cle, ZERO)
         self.hors_perimetre_par_classe[cle] = courant + montant
+        self._noter((_HORS_PERIMETRE, cle), actif, montant)
+
+    def ajouter_non_attribue(self, montant: Decimal, actif: str) -> None:
+        self.non_attribue += montant
+        self._noter((_NON_ATTRIBUE, ""), actif, montant)
+
+    def ajouter_hors_classification(self, montant: Decimal, actif: str) -> None:
+        self.hors_classification += montant
+        self._noter((_HORS_CLASSIFICATION, ""), actif, montant)
+
+    def ajouter_non_couvert(self, montant: Decimal, actif: str) -> None:
+        self.non_couvert += montant
+        self._noter((_NON_COUVERT, ""), actif, montant)
+
+    def contributions(self, nature: str, code: str = "") -> tuple[Contribution, ...]:
+        """Les apports à une case, du plus lourd au plus léger ; un apport nul n'est pas une
+        contribution."""
+        apports = self.par_actif.get((nature, code), {})
+        return tuple(
+            Contribution(actif=actif, montant=montant)
+            for actif, montant in sorted(apports.items(), key=lambda a: (-a[1], a[0]))
+            if montant != ZERO
+        )
 
     @property
     def hors_perimetre(self) -> Decimal:
@@ -403,12 +469,12 @@ def _repartir(
             # actif numérique n'est ni une action, ni une obligation, ni une liquidité de fonds.
             # Le mettre en « non couvert » le ferait passer pour une donnée manquante, et le
             # ranger dans une classe inventerait une catégorie que personne ne publie.
-            cumul.hors_classification += valeur
+            cumul.ajouter_hors_classification(valeur, position.actif)
             continue
 
         composition = source.composition(position.actif)
         if composition is None:
-            cumul.non_couvert += valeur
+            cumul.ajouter_non_couvert(valeur, position.actif)
             non_couverts.append(position.actif)
             continue
 
@@ -418,10 +484,10 @@ def _repartir(
         parts = _parts(composition, rubrique)
 
         if rubrique is Rubrique.CLASSE:
-            attribue = _accumuler(cumul, parts, valeur, rubrique, referentiels)
+            attribue = _accumuler(cumul, parts, valeur, rubrique, referentiels, position.actif)
             reste = _arrondi(valeur - attribue)
             if reste >= ZERO:
-                cumul.non_attribue += reste
+                cumul.ajouter_non_attribue(reste, position.actif)
             elif -reste > ECART_TOLERE:
                 # La source attribue plus que la valeur de l'actif. On ne rabote pas (D-69) : la
                 # somme de cette répartition dépassera donc la valeur du portefeuille, et c'est
@@ -438,12 +504,14 @@ def _repartir(
         # valeur du portefeuille — en ruinant justement l'invariant que le CSV promet.
         hors_actions, valeur_actions = _hors_actions(composition, referentiels, valeur)
         for cle, montant in hors_actions.items():
-            cumul.ajouter_hors_perimetre(cle, montant)
+            cumul.ajouter_hors_perimetre(cle, montant, position.actif)
 
         # Ce que la répartition par classes n'attribue ni aux actions ni à une autre classe : on
         # ne sait pas ce que c'est, donc « non attribué », et non « hors périmètre ».
         somme_hors_actions = sum(hors_actions.values(), ZERO)
-        cumul.non_attribue += max(ZERO, _arrondi(valeur - valeur_actions - somme_hors_actions))
+        cumul.ajouter_non_attribue(
+            max(ZERO, _arrondi(valeur - valeur_actions - somme_hors_actions)), position.actif
+        )
 
         if not parts and valeur_actions > ZERO:
             # La composition ne publie **rien** pour cette rubrique : c'est le cas de la source
@@ -451,14 +519,14 @@ def _repartir(
             # pas « non attribuée » — cette case est celle des liquidités et des dérivés que le
             # fonds lui-même ne classe pas — elle est **non couverte** ici, et seulement ici : le
             # fonds garde ses pays (conception-interface §5.2).
-            cumul.non_couvert += valeur_actions
+            cumul.ajouter_non_couvert(valeur_actions, position.actif)
             non_couverts.append(position.actif)
             continue
 
-        attribue = _accumuler(cumul, parts, valeur, rubrique, referentiels)
+        attribue = _accumuler(cumul, parts, valeur, rubrique, referentiels, position.actif)
         reste = _arrondi(valeur_actions - attribue)
         if reste >= ZERO:
-            cumul.non_attribue += reste
+            cumul.ajouter_non_attribue(reste, position.actif)
         elif -reste > ECART_TOLERE:
             # La composition attribue plus que la part actions annoncée. Deux causes connues :
             # le prêt de titres, qui fait légitimement dépasser 100 % ; ou une source qui
@@ -513,6 +581,7 @@ def _accumuler(
     valeur: Decimal,
     rubrique: Rubrique,
     referentiels: Referentiels,
+    actif: str,
 ) -> Decimal:
     """Range les montants d'une position, et rend ce qui a été attribué."""
     attribue = ZERO
@@ -522,7 +591,7 @@ def _accumuler(
             # Un poste à 0,00 € n'apporte rien et allongerait la liste : on le laisse tomber
             # dans le non attribué, où il pèse zéro. Aucun euro n'est perdu.
             continue
-        cumul.ajouter(_cle(part.code, rubrique, referentiels), montant)
+        cumul.ajouter(_cle(part.code, rubrique, referentiels), montant, actif)
         attribue += montant
     return attribue
 
@@ -568,6 +637,7 @@ def _postes(
                     zone=zone.cle,
                     zone_libelle=zone.libelle,
                     zone_rang=zone.rang,
+                    contributions=cumul.contributions(_POSTE, code),
                 )
             )
         elif rubrique is Rubrique.SECTEUR:
@@ -578,6 +648,7 @@ def _postes(
                     libelle=connu.libelle if connu is not None else code,
                     montant=montant,
                     reconnu=connu is not None,
+                    contributions=cumul.contributions(_POSTE, code),
                 )
             )
         else:
@@ -589,6 +660,7 @@ def _postes(
                     montant=montant,
                     reconnu=classe is not None,
                     rang=classe.rang if classe is not None else None,
+                    contributions=cumul.contributions(_POSTE, code),
                 )
             )
 
@@ -619,6 +691,7 @@ def _postes_hors_perimetre(
                 montant=montant,
                 reconnu=classe is not None,
                 rang=classe.rang if classe is not None else None,
+                contributions=cumul.contributions(_HORS_PERIMETRE, cle),
             )
         )
     return tuple(
@@ -649,6 +722,9 @@ def repartir(
         non_couvert=_arrondi(cumul.non_couvert),
         actifs_non_couverts=tuple(sorted(set(non_couverts))),
         actifs_synthetiques=tuple(sorted(set(synthetiques))),
+        non_attribue_par_actif=cumul.contributions(_NON_ATTRIBUE),
+        hors_classification_par_actif=cumul.contributions(_HORS_CLASSIFICATION),
+        non_couvert_par_actif=cumul.contributions(_NON_COUVERT),
     )
     return repartition, signalements
 

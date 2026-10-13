@@ -26,7 +26,7 @@ from dash import ALL, Dash, Input, Output, State, ctx, dcc, html, no_update
 from dash.exceptions import PreventUpdate
 from flask import jsonify, request
 
-from pastory.vues import bandeau, ecrans, portefeuilles, projections
+from pastory.vues import attente, bandeau, ecrans, portefeuilles, projections
 from pastory.vues import etat as etat_ecran
 from pastory.vues.chiffres import Chiffres, Echec, poches_du
 from pastory.vues.reception import recevoir
@@ -209,6 +209,7 @@ def creer(chiffres: Chiffres, veille: Veille | None = None) -> Dash:
     application.index_string = INDEX
     application.layout = _mise_en_page(chiffres.demonstration)
     _brancher_la_vie(application, veille, chiffres.demonstration)
+    _brancher_l_attente(application, chiffres)
 
     @application.callback(
         Output("etat", "data"),
@@ -375,15 +376,31 @@ def _brancher_la_vie(application: Dash, veille: Veille | None, demonstration: bo
     if veille is None:
         return
 
+    # Ni un signe de vie ni une question sur l'avancement ne sont un travail : ils ne
+    # tiennent pas Pastory ouvert.
+    sans_travail = (CHEMIN_DE_VIE, attente.CHEMIN)
+
     @serveur.before_request
     def commencer():
-        if request.path != CHEMIN_DE_VIE:
+        if request.path not in sans_travail:
             veille.commencer_un_travail()
 
     @serveur.teardown_request
     def finir(_erreur):
-        if request.path != CHEMIN_DE_VIE:
+        if request.path not in sans_travail:
             veille.finir_un_travail()
+
+
+def _brancher_l_attente(application: Dash, chiffres: Chiffres) -> None:
+    """L'adresse où la page demande où en est la lecture en cours (D-110). Elle ne touche pas
+    aux chiffres et n'attend aucun verrou : elle répond pendant que le calcul tourne. Sa
+    réponse ne porte que des comptes d'actifs, jamais un nom ni un montant."""
+
+    @application.server.route(attente.CHEMIN, methods=["GET"])
+    def avancement():
+        reponse = jsonify(**attente.etat(chiffres.suivi))
+        reponse.headers["Cache-Control"] = "no-store"
+        return reponse
 
 
 def _mise_en_page(demonstration: bool = False) -> html.Div:
@@ -417,12 +434,8 @@ def _mise_en_page(demonstration: bool = False) -> html.Div:
             html.Main(
                 dcc.Loading(
                     html.Div(id="corps"),
-                    custom_spinner=html.P(
-                        "Lecture de vos exports et calcul des chiffres… La première ouverture "
-                        "interroge les sources de cours et de composition : elle peut prendre "
-                        "une minute.",
-                        className="chargement",
-                    ),
+                    # L'attente dit où en est la lecture, actif par actif (D-110).
+                    custom_spinner=attente.brique(),
                     delay_show=400,
                 ),
                 className="page",

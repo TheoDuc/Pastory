@@ -1631,6 +1631,33 @@ img.fanion {
   padding-left: 14px;
 }
 
+/* Un pays déplié sous sa zone : en retrait comme une ligne, et ses actifs un cran plus loin. */
+.deroulant > .deroulant {
+  padding-left: 14px;
+}
+
+/* UN POSTE QUI SE DÉPLIE VERS SES ACTIFS (D-111) : sous « États-Unis », les fonds et les
+   actions du portefeuille qui y sont investis. Leur barre est plus fine : ce sont des parts
+   de la ligne du dessus, mesurées sur la même base qu'elle (D-69). */
+.deroulant--actifs[open] {
+  border-bottom: 1px solid var(--separateur);
+}
+
+.rang--actif .rang__texte {
+  color: var(--texte-secondaire);
+}
+
+.rang--actif .rang__piste {
+  height: 4px;
+}
+
+.classement__mode-d-emploi {
+  margin: 0 0 var(--espace-2);
+  font-size: var(--taille-petite);
+  font-style: italic;
+  color: var(--texte-secondaire);
+}
+
 /* ============================================================================
    « À SURVEILLER », LE TEXTE COURANT, LES REPLIS
    ========================================================================== */
@@ -1721,14 +1748,79 @@ img.fanion {
 
 /* --- Le chargement, et le filet de sécurité d'un écran --- */
 
-.chargement {
-  max-width: 60ch;
-  margin: var(--espace-6) auto;
+/* L'ATTENTE (D-110) : ce que la page montre pendant une longue lecture. L'étape en cours, en
+   italique ; puis un filet qui s'encre de gauche à droite, un losange à sa pointe — le fleuron
+   du livre, qui avance. La barre compte des actifs traités, jamais des secondes. */
+.attente {
+  /* Au milieu de la fenêtre, quelle que soit la hauteur de la page qu'elle remplace : au
+     premier affichage cette page est encore vide, et un bloc centré sur une hauteur nulle
+     sortait à moitié par le haut de l'écran. */
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(60ch, calc(100vw - 2 * var(--gouttiere-etroite)));
   color: var(--texte-secondaire);
+  text-align: center;
+}
+
+.attente__etape {
+  margin: 0 0 var(--espace-3);
+  color: var(--texte);
   font-family: var(--serif);
   font-style: italic;
   font-size: 17px;
-  text-align: center;
+}
+
+.attente__piste {
+  position: relative;
+  height: 11px;
+  max-width: 420px;
+  margin: 0 auto var(--espace-2);
+}
+
+.attente__piste::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 1px solid var(--contour);
+}
+
+.attente__barre {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 0;
+  height: 3px;
+  margin-top: -1px;
+  background: var(--texte);
+  transition: width var(--duree-chapitre) linear;
+}
+
+.attente__barre::after {
+  content: "";
+  position: absolute;
+  right: -4px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin-top: -4px;
+  background: var(--ornement);
+  outline: 1px solid var(--texte);
+  transform: rotate(45deg);
+}
+
+.attente__detail {
+  min-height: 1.4em;
+  margin: 0 0 var(--espace-3);
+  font-size: var(--taille-petite);
+}
+
+.attente__note {
+  margin: 0;
+  font-size: var(--taille-petite);
 }
 
 .trace {
@@ -2354,6 +2446,10 @@ img.fanion {
 
   .voile-d-ouverture {
     animation: effacer var(--duree-fondu) linear forwards;
+  }
+
+  .attente__barre {
+    transition: none;
   }
 }
 

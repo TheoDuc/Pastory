@@ -594,6 +594,56 @@
   });
 
   // ==========================================================================
+  // L'ATTENTE (D-110)
+  // Pendant une longue lecture, la page demande au serveur où il en est, et pose sa réponse
+  // dans le bloc d'attente : l'étape, le détail, et la largeur de la barre. Les textes
+  // arrivent DÉJÀ ÉCRITS par Python (`vues/attente.py`) : rien n'est mis en forme ici. Hors
+  // d'une lecture — un simple recalcul — la barre et la note restent cachées.
+  // ==========================================================================
+
+  let attenteEnVol = false;
+
+  function montrerLAttente(attente, etat) {
+    const etape = attente.querySelector(".attente__etape");
+    const piste = attente.querySelector(".attente__piste");
+    const barre = attente.querySelector(".attente__barre");
+    const detail = attente.querySelector(".attente__detail");
+    const note = attente.querySelector(".attente__note");
+    if (!etape || !piste || !barre || !detail || !note) return;
+    if (!etat.en_cours) {
+      etape.textContent = attente.getAttribute("data-repos");
+      detail.textContent = "";
+      piste.hidden = true;
+      note.hidden = true;
+      return;
+    }
+    etape.textContent = etat.etape;
+    detail.textContent = etat.detail;
+    piste.hidden = false;
+    note.hidden = false;
+    barre.style.width = etat.part + "%";
+    piste.setAttribute("aria-valuenow", String(Math.round(etat.part)));
+    piste.setAttribute("aria-valuetext", etat.detail);
+  }
+
+  function suivreLAttente() {
+    const attente = document.querySelector(".attente");
+    // Sans bloc d'attente à l'écran, aucune question n'est posée.
+    if (!attente || !attente.getClientRects().length || attenteEnVol || !window.fetch) return;
+    attenteEnVol = true;
+    fetch(attente.getAttribute("data-adresse"), { cache: "no-store" })
+      .then(function (reponse) { return reponse.ok ? reponse.json() : null; })
+      .then(function (etat) {
+        const present = document.querySelector(".attente");
+        if (etat && present) montrerLAttente(present, etat);
+      })
+      .catch(function () {})
+      .then(function () { attenteEnVol = false; });
+  }
+
+  window.setInterval(suivreLAttente, 400);
+
+  // ==========================================================================
   // LES BULLES « ? »
   // Posées en `position: fixed`, avec des coordonnées calculées depuis le bouton puis
   // RAMENÉES DANS L'ÉCRAN : la correction d'un défaut vu à l'étape 8, où la moitié du

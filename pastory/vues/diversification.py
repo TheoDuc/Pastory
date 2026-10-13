@@ -11,6 +11,12 @@ zones, les pays, les secteurs. Chacun montre la même chose deux fois, comme la 
 - **l'anneau**, à droite : la même chose d'un coup d'œil. Il ne fait pas foi et ne porte aucun
   chiffre ; ce qui manque y est hachuré, et le cercle ne se ferme pas sur les seuls postes.
 
+**Chaque ligne se déplie vers les actifs qui la composent** (D-111) : sous « États-Unis », les
+fonds et les actions du portefeuille qui y sont investis, et pour combien. C'est une question
+du premier testeur, et c'est ce qui rend une ligne vérifiable : la somme de ses actifs est son
+montant, au centime. Ce sont les actifs **du portefeuille** qui sont listés, jamais les sociétés
+qu'un fonds détient (D-63).
+
 Puis, pleine largeur, **ce qu'il faut savoir de ces chiffres** : la source et la règle de pays
 de chaque actif quand elles diffèrent (D-72), les fonds synthétiques, les actifs non couverts et
 pourquoi, la nomenclature, la date des compositions.
@@ -22,13 +28,14 @@ que les ranger et les écrire.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
 
 from dash import html
 
-from pastory.moteur.diversification import Diversification, Poste, Repartition
+from pastory.moteur.diversification import Contribution, Diversification, Poste, Repartition
 from pastory.vues import actifs as actifs_vue
 from pastory.vues import format as f
 from pastory.vues.briques import (
@@ -105,7 +112,10 @@ class Ligne:
     rang: int = 0
     """La place canonique du poste, pour un ordre stable entre deux affichages."""
     sous_lignes: tuple[Ligne, ...] = ()
-    """Ce que la ligne regroupe — les pays d'une zone — montré quand on la déplie."""
+    """Ce que la ligne regroupe, montré quand on la déplie : les pays d'une zone, ou les actifs
+    qui font un poste (D-111)."""
+    actif: bool = False
+    """Vrai pour la ligne d'un actif du portefeuille, sous le poste auquel il contribue."""
 
 
 def ecran(vue: Vue, rubrique: str = "classes", deplie: bool = False) -> html.Div:
@@ -131,7 +141,9 @@ def ecran(vue: Vue, rubrique: str = "classes", deplie: bool = False) -> html.Div
         )
         return html.Div(page)
 
-    titre, note, cle_aide, lignes, restes, base = _rubrique(diversification, rubrique)
+    titre, note, cle_aide, lignes, restes, base = _rubrique(
+        diversification, rubrique, _noms(vue)
+    )
     # Les restes des pays et des secteurs tiennent sur une ligne, dépliable : c'est l'arbitrage
     # du propriétaire (étape 9). Le montant reste visible, et rien n'est ramené à 100 % (D-69).
     # Les classes d'actifs, elles, gardent leur détail : c'est leur sujet.
@@ -165,7 +177,31 @@ def ecran(vue: Vue, rubrique: str = "classes", deplie: bool = False) -> html.Div
 # --- Les lignes de chaque rubrique ------------------------------------------------------
 
 
-def _rubrique(d: Diversification, rubrique: str):
+def _noms(vue: Vue) -> dict[str, str]:
+    """Le nom de chaque actif, tel que la banque le donne ; à défaut, son code."""
+    positions = vue.construit.synthese.valorisation.positions
+    return {p.actif: (p.position.nom_actif or p.actif) for p in positions}
+
+
+def _apports(
+    contributions: Iterable[Contribution], r: Repartition, noms: Mapping[str, str]
+) -> tuple[Ligne, ...]:
+    """Les actifs qui font une ligne, chacun avec son montant et sa part de **la même base**
+    que toutes les autres lignes (D-69, D-111). Aucun chiffre n'est calculé ici : les montants
+    sont ceux du moteur, et leur somme est le montant de la ligne."""
+    return tuple(
+        Ligne(
+            noms.get(c.actif, c.actif),
+            c.montant,
+            r.pour_cent(c.montant),
+            ("picto", ""),
+            actif=True,
+        )
+        for c in contributions
+    )
+
+
+def _rubrique(d: Diversification, rubrique: str, noms: Mapping[str, str]):
     """`(titre, note, aide, postes, restes, base)` pour la rubrique choisie."""
     if rubrique == "classes":
         r = d.classes
@@ -176,6 +212,7 @@ def _rubrique(d: Diversification, rubrique: str):
                 r.pour_cent(p.montant),
                 ("picto", PICTO_DE_CLASSE.get(p.code, "")),
                 rang=p.rang or 50,
+                sous_lignes=_apports(p.contributions, r, noms),
             )
             for p in r.postes
         ]
@@ -189,6 +226,7 @@ def _rubrique(d: Diversification, rubrique: str):
                     ("picto", "numeriques"),
                     cle_aide="numeriques",
                     rang=99,
+                    sous_lignes=_apports(r.hors_classification_par_actif, r, noms),
                 )
             )
         return (
@@ -196,7 +234,7 @@ def _rubrique(d: Diversification, rubrique: str):
             f"base {f.montant(r.base)}",
             "pasCent",
             lignes,
-            _restes(r, classes=True),
+            _restes(r, noms, classes=True),
             r.base,
         )
     if rubrique == "zones":
@@ -215,6 +253,7 @@ def _rubrique(d: Diversification, rubrique: str):
                         r.pour_cent(p.montant),
                         ("drapeau", p.code),
                         cle_aide=None if p.reconnu else "codeNonReconnu",
+                        sous_lignes=_apports(p.contributions, r, noms),
                     )
                     for p in postes
                 ),
@@ -226,7 +265,7 @@ def _rubrique(d: Diversification, rubrique: str):
             "convention datée et sourcée",
             "zones",
             lignes,
-            _restes(r),
+            _restes(r, noms),
             r.base,
         )
     if rubrique == "pays":
@@ -240,10 +279,11 @@ def _rubrique(d: Diversification, rubrique: str):
                 ("drapeau", p.code),
                 cle_aide=None if p.reconnu else "codeNonReconnu",
                 rang=codes.index(p.code),
+                sous_lignes=_apports(p.contributions, r, noms),
             )
             for p in r.postes
         ]
-        return "Par pays", _note_des_regles(d), "regleDePays", lignes, _restes(r), r.base
+        return "Par pays", _note_des_regles(d), "regleDePays", lignes, _restes(r, noms), r.base
     r = d.secteurs
     lignes = [
         Ligne(
@@ -253,10 +293,11 @@ def _rubrique(d: Diversification, rubrique: str):
             ("picto", PICTO_DE_SECTEUR.get(p.code, "")),
             cle_aide=None if p.reconnu else "codeNonReconnu",
             rang=int(p.code) if p.code.isdigit() else 999,
+            sous_lignes=_apports(p.contributions, r, noms),
         )
         for p in r.postes
     ]
-    return "Par secteur", "secteurs Morningstar", "secteurs", lignes, _restes(r), r.base
+    return "Par secteur", "secteurs Morningstar", "secteurs", lignes, _restes(r, noms), r.base
 
 
 def _libelle(poste: Poste) -> str:
@@ -265,9 +306,10 @@ def _libelle(poste: Poste) -> str:
     return poste.libelle if poste.reconnu else f"{poste.code} (code non reconnu)"
 
 
-def _restes(r: Repartition, classes: bool = False) -> list[Ligne]:
+def _restes(r: Repartition, noms: Mapping[str, str], classes: bool = False) -> list[Ligne]:
     """Ce qui n'entre pas dans la répartition, à sa vraie taille (D-69). Un reste nul n'est pas
-    affiché : une ligne « non couvert : 0,00 € » ferait douter pour rien."""
+    affiché : une ligne « non couvert : 0,00 € » ferait douter pour rien. Chaque reste se
+    déplie lui aussi vers ses actifs (D-111)."""
     restes: list[Ligne] = []
     if not classes:
         for p in r.hors_perimetre_postes:
@@ -280,6 +322,7 @@ def _restes(r: Repartition, classes: bool = False) -> list[Ligne]:
                         ("picto", PICTO_DE_CLASSE.get(p.code, "")),
                         "horsActions",
                         absent=True,
+                        sous_lignes=_apports(p.contributions, r, noms),
                     )
                 )
         if r.hors_classification > ZERO:
@@ -291,6 +334,7 @@ def _restes(r: Repartition, classes: bool = False) -> list[Ligne]:
                     ("picto", "numeriques"),
                     "numeriques",
                     absent=True,
+                    sous_lignes=_apports(r.hors_classification_par_actif, r, noms),
                 )
             )
     if r.non_attribue > ZERO:
@@ -302,6 +346,7 @@ def _restes(r: Repartition, classes: bool = False) -> list[Ligne]:
                 ("picto", ""),
                 "nonAttribue",
                 absent=True,
+                sous_lignes=_apports(r.non_attribue_par_actif, r, noms),
             )
         )
     if r.non_couvert > ZERO:
@@ -313,6 +358,7 @@ def _restes(r: Repartition, classes: bool = False) -> list[Ligne]:
                 ("picto", ""),
                 "nonCouvert",
                 absent=True,
+                sous_lignes=_apports(r.non_couvert_par_actif, r, noms),
             )
         )
     return restes
@@ -348,7 +394,16 @@ def _classement(
         # Cacher une seule ligne derrière un bouton coûterait plus qu'elle.
         caches = []
     visibles = triees[: len(triees) - len(caches)]
-    enfants = [_ligne_ou_groupe(ligne, maxi) for ligne in visibles]
+    enfants: list = []
+    if any(ligne.sous_lignes for ligne in lignes + restes):
+        enfants.append(
+            html.P(
+                "Chaque ligne se déplie : elle montre les actifs de votre portefeuille qui la "
+                "composent, et pour combien.",
+                className="classement__mode-d-emploi",
+            )
+        )
+    enfants += [_ligne_ou_groupe(ligne, maxi) for ligne in visibles]
     if caches:
         part_cachee = sum((ligne.part or ZERO for ligne in caches), ZERO)
         enfants.append(
@@ -386,7 +441,7 @@ def _classement(
             )
         )
         detail = [
-            _ligne_mesuree(ligne, maxi)
+            _ligne_ou_groupe(ligne, maxi)
             for ligne in sorted(restes, key=lambda ligne: ligne.montant, reverse=True)
         ]
         if resume_des_restes is None or len(restes) < 2:
@@ -400,22 +455,26 @@ def _classement(
 
 
 def _ligne_ou_groupe(ligne: Ligne, maxi: Decimal):
-    """Une ligne simple, ou, si elle regroupe d'autres lignes, une ligne qui se déplie."""
+    """Une ligne simple, ou, si elle regroupe d'autres lignes, une ligne qui se déplie — et
+    ses sous-lignes de même : une zone s'ouvre sur ses pays, un pays sur ses actifs."""
     if not ligne.sous_lignes:
         return _ligne_mesuree(ligne, maxi)
     detail = [
-        _ligne_mesuree(sous, maxi)
+        _ligne_ou_groupe(sous, maxi)
         for sous in sorted(ligne.sous_lignes, key=lambda s: s.montant, reverse=True)
     ]
-    return _deroulant(ligne, detail, maxi)
+    return _deroulant(ligne, detail, maxi, vers_des_actifs=all(s.actif for s in ligne.sous_lignes))
 
 
-def _deroulant(ligne: Ligne, detail: list, maxi: Decimal) -> html.Details:
+def _deroulant(
+    ligne: Ligne, detail: list, maxi: Decimal, vers_des_actifs: bool = False
+) -> html.Details:
     """Une ligne de classement qui se déplie d'un clic : une zone vers ses pays, « Sans pays »
-    vers ce qu'elle réunit. Toutes les barres restent rapportées à la même base (D-69)."""
+    vers ce qu'elle réunit, un poste vers ses actifs (`vers_des_actifs`, D-111). Toutes les
+    barres restent rapportées à la même base (D-69)."""
     return html.Details(
         [html.Summary(_ligne_mesuree(ligne, maxi), className="deroulant__titre"), *detail],
-        className="deroulant",
+        className="deroulant deroulant--actifs" if vers_des_actifs else "deroulant",
     )
 
 
@@ -455,7 +514,9 @@ def _ligne_mesuree(ligne: Ligne, maxi: Decimal) -> html.Div:
             html.Span(f.montant(ligne.montant), className="rang__montant nb"),
             html.Span(f.pour_cent(ligne.part), className="rang__part nb"),
         ],
-        className="rang" + (" rang--absent" if ligne.absent else ""),
+        className="rang"
+        + (" rang--absent" if ligne.absent else "")
+        + (" rang--actif" if ligne.actif else ""),
     )
 
 
@@ -558,8 +619,7 @@ def _chiffres_cles(d: Diversification, rubrique: str, lignes: list[Ligne], reste
 
 
 def _a_savoir(vue: Vue, d: Diversification) -> html.Ul:
-    positions = vue.construit.synthese.valorisation.positions
-    noms = {p.actif: (p.position.nom_actif or p.actif) for p in positions}
+    noms = _noms(vue)
 
     def nom(actif: str) -> str:
         return noms.get(actif, actif)

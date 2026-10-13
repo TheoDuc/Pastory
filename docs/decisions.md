@@ -2009,3 +2009,196 @@ couple qui déclare ensemble, le seuil d'exonération de la crypto et les pertes
 sont partagés, et l'impôt estimé de chacun est alors un peu faux ; l'écran le dit. Une correction
 d'actif (`actifs.toml`) vaut pour tous les portefeuilles qui détiennent ce titre. Supprimer un
 portefeuille n'efface pas les cours gardés en mémoire pour ses titres.
+
+### D-110 · 2026-10-13 · L'attente dit où en est la lecture, et les cours se demandent une fois par actif · À valider
+**Décision :** pendant une longue lecture, la page montre **l'étape en cours, combien d'actifs y
+sont traités, et une barre** — à la place d'un texte immobile.
+- **La barre compte des actifs, pas des secondes.** Trois étapes de même poids — la cotation et
+  les frais de chaque actif, ses cours, sa composition —, chacune avançant au rythme de ses
+  actifs : « Étape 2 sur 3 · 4 actifs sur 8 ». Personne ne sait combien de temps mettra une source
+  à répondre ; on sait combien d'actifs sont traités, et c'est tout ce que la barre affirme.
+- **Trois morceaux, chacun à sa place :** l'assembleur compte (`pastory/avancement.py`, qui ne
+  connaît ni l'écran ni les sources) ; `vues/attente.py` écrit les mots et répond à l'adresse
+  locale `/pastory/avancement` ; `assets/dessin.js` pose la réponse dans la page sans mettre aucun
+  chiffre en forme ([D-93](#d-93)). La réponse ne porte que des comptes d'actifs : ni nom, ni
+  montant.
+- **Hors d'une lecture** — un changement de période, un recalcul — la barre et la note restent
+  cachées : on ne lit que « Calcul des chiffres… ».
+- **Les cours se demandent une fois par actif**, de sa première opération à hier, avant tout
+  calcul (`assembleur.remplir_les_cours`) : c'est ce que faisait déjà `pastory cours`, et ce dont
+  la courbe a besoin. **Un titre qui n'est plus détenu n'est demandé que jusqu'à sa vente**, et
+  rien n'est redemandé avant le premier jour déjà gardé.
+**Raison :** le premier testeur a trouvé la première ouverture longue, et a demandé une barre de
+chargement. En cherchant où poser cette barre, la mesure a montré **où partait le temps** : sur la
+démonstration, dossier vide, 78 des 93 secondes passaient dans les cours, demandés à la source
+**par petites fenêtres**, une par date d'opération. Demandés d'un coup : 2 secondes, et **18
+secondes en tout** au lieu de 93. Une barre posée sur l'ancienne attente aurait bien habillé un
+défaut.
+**Ce que la mesure a trouvé d'autre, et qui est corrigé :**
+- **une semaine restait sans cours entre deux fenêtres voisines** (du 7 au 11 septembre, sur les
+  huit titres de la démonstration) : sept jours, trop peu pour être vus comme un trou (il en faut
+  plus de dix), assez pour qu'une valeur s'y lise sur un cours vieux d'une semaine — un point de
+  la courbe, mais aussi la valeur de départ d'une période (« 1 mois ») ou la valeur du
+  portefeuille la veille d'un versement, dont le TWRR se sert. Demandée d'un coup, la série n'a
+  plus de trou. Tous les cours communs aux deux méthodes sont **identiques**, un par un ;
+- **un cache à jour jusqu'à hier coûtait quand même un appel par actif à chaque ouverture** : la
+  période « du lendemain du dernier cours à aujourd'hui », vide puisque la séance du jour n'est pas
+  close, ressortait à l'envers de la réduction au cache, donc valide (`FournisseurDeCours.remplir`).
+**Ce qui ne change pas :** un cours gardé n'est ni redemandé ni réécrit ([D-50](#d-50)) ; hors
+ligne et pour l'export d'un tiers, rien n'est demandé (règle 2) ; les compositions sont demandées
+dans l'ordre même où la répartition les demandait. **Sur le portefeuille du propriétaire, relevé
+hors ligne avant et après sur la même copie : aucun nombre n'a changé** — son cache, rempli par
+`pastory cours`, n'avait pas de trou. Hors ligne, cette comparaison ne dit rien du chemin en
+ligne : lui a été vérifié sur la démonstration, cours par cours.
+**Ce que cela peut changer chez un nouvel utilisateur, et c'est voulu :** une série sans trou
+donne des valeurs intermédiaires plus justes qu'une série trouée. Entre deux premières ouvertures,
+l'une avant et l'autre après cette décision, un TWRR ou un gain « sur 1 mois » peut donc différer
+légèrement (l'écart n'a pas été mesuré). C'est une correction, pas une régression.
+**Précisée le même jour, par la relecture indépendante :** demandé jusqu'à hier comme les autres,
+un titre **vendu** puis retiré de la cote aurait levé à chaque ouverture une alerte sur un actif
+qu'on ne détient plus ; et un titre acheté **à son introduction** aurait fait revenir tout son
+historique à chaque ouverture, la source n'ayant rien avant. D'où les deux bornes ci-dessus.
+**Écarte :** une barre « de temps », qui avance à l'horloge (elle mentirait dès qu'une source
+tarde) ; une roue qui tourne (elle ne dit pas si l'on en est au début ou à la fin) ; le nom de
+l'actif en cours de recherche dans la page (une information de plus à faire transiter, pour un
+gain faible) ; garder les petites fenêtres en se contentant de les compter.
+**Limite connue :** un cache déjà construit par petites fenêtres — celui de quiconque a ouvert
+Pastory pour la première fois avant cette décision, dont le premier testeur — **garde ses trous
+courts** : c'était [Q-62](questions-ouvertes.md), tranchée par [D-113](#d-113), qui les comble.
+Et l'étape des compositions compte les actifs **valorisés**, sans les cryptos : son total peut être plus petit
+que celui des deux premières.
+
+### D-111 · 2026-10-13 · Chaque ligne d'une répartition se déplie vers les actifs qui la composent · À valider
+**Décision :** dans la Diversification, chaque ligne — un pays, un secteur, une classe d'actifs, et
+chacun des restes (non couvert, non attribué, hors actions, actifs numériques) — **s'ouvre d'un
+clic sur les actifs du portefeuille qui la composent**, avec le montant et la part de chacun. Une
+zone s'ouvre sur ses pays, qui s'ouvrent sur leurs actifs.
+- **C'est le moteur qui le dit** (`Poste.contributions`, `Contribution`) : la valeur de l'actif
+  multipliée par le poids que sa composition donne au poste. L'écran ne calcule rien.
+- **La somme des actifs d'une ligne est le montant de la ligne, au centime** : chaque apport est
+  arrondi avant d'être cumulé, et c'est ce cumul qui fait le montant. Un test le tient pour chaque
+  poste et chaque reste des trois répartitions.
+- **Les parts sont rapportées à la même base que toutes les autres lignes** ([D-69](#d-69)) : dans
+  le portefeuille fictif de la démonstration, sous « États-Unis 57,61 % », trois actifs à 26,78 %,
+  21,45 % et 9,38 %.
+- **Dans l'autre sens, à un euro près seulement :** additionner ce qu'un fonds apporte à chaque
+  pays redonne sa valeur à quelques centimes près, pas toujours au centime — chaque part est
+  arrondie, et un écart de moins d'un euro n'est pas signalé (c'était déjà la règle,
+  `ECART_TOLERE`).
+- **Ce sont les actifs du portefeuille, jamais les sociétés qu'un fonds détient** : on lit toujours
+  les agrégats d'un fonds ([D-63](#d-63), [D-64](#d-64)).
+- **Fermées par défaut**, et ce n'est pas un filtre : la règle « aucun filtre sur une répartition »
+  ([conception-interface.md](conception-interface.md) §4) tient.
+**Raison :** le premier testeur s'est demandé, devant la Diversification, « quels actifs sont dans
+tel secteur, dans tel pays ». Et c'est ce qui manquait pour **refaire une ligne à la main** : un
+total par pays dont on ne voit pas les termes se croit, il ne se vérifie pas.
+**Écarte :** lister les sociétés détenues par chaque fonds (ce serait lire les lignes d'un fonds,
+qu'un ETF synthétique ne détient pas — [D-64](#d-64)) ; un filtre « n'afficher que tel actif »
+(une répartition est la photo d'un tout) ; un tableau croisé actifs × pays (illisible dès vingt
+pays) ; des parts rapportées à la ligne et non à la base (deux bases sur un même écran).
+**Non fait :** le rapport texte (`pastory positions`) et les CSV de répartition ne portent pas
+encore ce détail.
+
+### D-112 · 2026-10-13 · Le fichier d'installation installe `uv` lui-même · À valider
+**Décision :** `Installer Pastory.cmd` est **le seul geste** d'un nouvel utilisateur : télécharger,
+décompresser, double-cliquer. Il n'y a plus d'outil à installer d'abord.
+- **`uv` manque : le fichier l'installe**, par la méthode officielle de son éditeur (la même ligne
+  que demandait le README), après l'avoir dit et attendu une touche — fermer la fenêtre n'installe
+  rien.
+- **`uv` est cherché là où son installateur le range** (`%USERPROFILE%\.local\bin`, entre autres),
+  et pas seulement dans le chemin de recherche de Windows : un `uv` tout juste installé n'y figure
+  pas encore pour les fenêtres ouvertes ensuite, et le fichier répondait « introuvable » à qui
+  venait de l'installer.
+- **Lancé depuis l'archive ZIP non décompressée**, le fichier le dit et s'arrête : Windows ne lance
+  alors que lui, seul, depuis un dossier temporaire.
+- **Dans un dossier synchronisé** (OneDrive — et le bureau l'est souvent), les bibliothèques sont
+  copiées plutôt que liées, et l'installation est essayée une seconde fois avant de conclure à un
+  échec.
+**Raison :** le premier testeur a double-cliqué sur le fichier avant d'avoir installé `uv` — ce que
+fera tout le monde : c'est le seul fichier qui s'appelle « Installer ». Après avoir installé `uv`,
+il n'a pas réussi à repartir sans l'aide d'une IA. Demander deux gestes dans un ordre précis, dont
+une ligne à coller dans PowerShell, était une marche de trop ([D-80](#d-80) : l'utilisateur dépose
+l'export, et c'est tout).
+**Essayé (2026-10-13), sur une copie hors du projet :** le refus hors du dossier de Pastory ; `uv`
+absent du chemin de Windows mais présent dans le dossier personnel (trouvé) ; `uv` absent partout
+(téléchargé et installé pour de vrai, dans un dossier jetable, puis trouvé).
+**Non essayé :** l'installation des bibliothèques elle-même (`uv sync`), que l'antivirus de la
+machine du propriétaire bloque toujours.
+**La cause de la panne du testeur, connue depuis :** « failed to build pandas ». Aucune des trois
+causes couvertes ici n'était la bonne ; c'est [D-114](#d-114) qui la traite.
+**Écarte :** un exécutable empaqueté ([D-106](#d-106)) ; joindre `uv` au dépôt (un binaire de
+soixante mégaoctets à tenir à jour) ; installer `uv` sans le dire.
+**Précisée le même jour, par la relecture indépendante :** `uv` est lancé par `call`, pour que le
+fichier reprenne la main si `uv` est lui-même un fichier de commandes (une enveloppe posée par un
+autre outil) — sans quoi la fenêtre se fermait après l'installation des bibliothèques, sans créer
+les raccourcis ni rien dire ; et le fichier entre dans son dossier par `pushd`, qui sait aussi
+ouvrir un dossier partagé sur le réseau.
+
+### D-113 · 2026-10-13 · Chaque série de cours est reprise une fois en entier · Validée
+**Décision :** à la première ouverture en ligne après cette décision, Pastory **redemande une fois
+toute la série de chaque actif**, de sa première opération à hier, sans regarder ce que le cache
+en sait déjà ; puis le cache **retient que c'est fait**, et l'on n'y revient plus.
+- **Aucun cours déjà gardé n'est réécrit** ([D-50](#d-50)) : seuls les jours absents sont ajoutés.
+  La reprise comble, elle ne corrige pas.
+- **Ce que le cache retient** : un registre à côté des fichiers de cours
+  (`cache/cours/_series_reprises.txt`, un actif par ligne). Effacer les cours d'un actif n'efface
+  pas sa ligne, et c'est juste : une série redemandée de zéro l'est d'un coup, donc sans trou.
+- **La reprise ne dit rien et ne refuse rien.** Source en panne : elle sera retentée à
+  l'ouverture suivante. Source qui répond que le titre ou la période n'existent pas — un titre
+  vendu puis retiré de la cote — : il n'y a rien à combler, on n'y revient pas, et aucune alerte
+  n'est levée. Dans les deux cas le chemin habituel prend la suite, et c'est lui qui signale ce
+  qui doit l'être.
+- **Pour un dossier neuf, elle ne coûte rien** : la première demande d'un actif *est* la reprise.
+**Raison :** c'est la réponse du propriétaire à [Q-62](questions-ouvertes.md), option (c). Avant
+[D-110](#d-110), les cours arrivaient par petites fenêtres, et quelques jours pouvaient manquer
+entre deux d'entre elles — trop peu pour être vus comme un trou (il en faut plus de dix). Une
+valeur lue un de ces jours-là l'était sur un cours vieux d'une semaine au plus : un point de la
+courbe, la valeur de départ d'une période, ou la valeur du portefeuille la veille d'un versement,
+dont le TWRR se sert. **Rien dans un cache ne dit s'il a été construit ainsi** : d'où une reprise
+pour tous, une fois.
+**Mesuré (2026-10-13) :**
+- sur le cache de la démonstration construit par petites fenêtres : **42 séances comblées** sur
+  les 8 titres, aucun cours gardé modifié, et le cache obtenu est **identique, ligne à ligne**, à
+  un cache neuf. La seconde ouverture ne demande plus rien ;
+- sur une copie du cache du propriétaire, qu'on croyait sans trou : **7 séances comblées** sur 6
+  actifs — des jours isolés. Les 60 relevés de ses écrans sont **identiques** avant et après : ces
+  jours-là ne servaient à aucun chiffre affiché. Les points de la courbe, eux, ne sont pas dans ce
+  relevé.
+**Ce que cela peut changer :** là où un trou tombait sur une date qui compte, un TWRR ou un gain
+« sur 1 mois » peut bouger légèrement à la première ouverture. C'est une correction.
+**Écarte :** ne rien faire et demander au premier testeur d'effacer un dossier (option a : la
+recommandation, que le propriétaire n'a pas suivie — un TWRR un peu faux sans rien qui le signale
+est ce que ce projet s'interdit) ; abaisser à cinq jours le seuil du trou (option b : un titre
+réellement suspendu ferait redemander toute sa suite à chaque ouverture) ; effacer le cache pour
+le reconstruire (les cours gardés sont définitifs, [D-50](#d-50)).
+
+### D-114 · 2026-10-13 · La version de Python est fixée · À valider
+**Décision :** le fichier `.python-version`, à la racine, fixe **Python 3.12** — la version sur
+laquelle Pastory est développé et testé. `uv` l'installe de lui-même s'il manque.
+- **Un test garde le fichier de verrouillage** (`TestLaVersionDePython`) : pour ce Python, sous
+  Windows 64 bits, chaque bibliothèque de `uv.lock` doit exister **toute prête**. Mettre à jour
+  une bibliothèque sans que ce test passe, c'est refaire la panne.
+- **Le fichier d'installation donne à chaque version d'`uv` son réglage des certificats** : il a
+  changé de nom (`UV_NATIVE_TLS`, puis `UV_SYSTEM_CERTS`), et l'ancien nom fait désormais afficher
+  un avertissement.
+**Raison :** chez le premier testeur, l'installation a échoué sur **« failed to build pandas »**.
+Sans version fixée, `uv` choisit le Python le plus récent que le projet accepte (`>=3.12`) : sur
+une machine sans Python, le 2026-10-13, c'est **Python 3.15.0**, sorti ce mois-là — vérifié en
+rejouant l'installation de l'ancienne version comme sur une machine neuve. Or pandas, à la version
+verrouillée, n'existe tout prêt que pour Python 3.12, 3.13 et 3.14 : `uv` tente alors de le
+**fabriquer**, ce qui demande un compilateur que personne n'a. Le même fichier ZIP, téléchargé six
+mois plus tôt, se serait installé sans histoire.
+**Ce qui a été vérifié :** sans le fichier, `uv` va chercher `cpython-3.15.0` ; avec lui,
+`cpython-3.12.15`. **Ce qui ne l'a pas été :** l'échec de fabrication lui-même et l'installation
+complète, l'antivirus de la machine du propriétaire bloquant les téléchargements d'`uv`. La cause
+est donc **établie par le mécanisme et le message**, pas par une reproduction de bout en bout.
+**Écarte :** borner `requires-python` par le haut (il faudrait régénérer le fichier de
+verrouillage, et la borne serait à relever à chaque sortie de Python) ; imposer le Python
+téléchargé par `uv` même quand la machine en a un qui convient (il recréerait l'environnement d'un
+développeur) ; attendre que pandas publie pour 3.15 (la panne reviendrait avec 3.16).
+**Constat fait en chemin, à trancher à l'étape 11 :** **pandas n'est plus importé nulle part**
+dans Pastory — il ne reste que dans `pyproject.toml`, avec sa justification de l'étape 1
+([D-33](#d-33)). La bibliothèque qui a fait échouer l'installation ne sert donc à rien. La retirer
+allège l'installation d'une dizaine de mégaoctets ; ce n'est pas fait ici, parce que modifier
+`pyproject.toml` demande une synchronisation que l'antivirus du propriétaire bloque
+([architecture-notes.md](architecture-notes.md)).

@@ -797,8 +797,9 @@ que le fichier explique ; la création des raccourcis, elle, a été essayée pa
 fichier appelle.
 
 **Reste de l'étape 10 :**
-- **l'installation par un tiers**, en suivant le seul README : c'est le vrai test du fichier
-  d'installation, et il n'a pas encore eu lieu ;
+- ~~**l'installation par un tiers**, en suivant le seul README~~ : elle a eu lieu le 2026-10-13,
+  et elle a buté — voir « Le retour du premier testeur », plus bas. Une **seconde** installation
+  par un tiers, avec le fichier corrigé, reste à faire ;
 - **le raccourci pour Mac** ([D-62](decisions.md)) : le lanceur ne dépend pas de Windows, mais rien
   n'a pu être essayé sur un Mac ;
 - la **relecture des messages d'erreur** (un fichier qui n'est pas un export, des colonnes
@@ -846,6 +847,67 @@ lieu d'en créer un second.
 
 **La suite, décidée le 2026-10-13 :** l'ami du propriétaire essaie Pastory avec son propre
 export ; son retour d'abord, puis l'étape 11.
+
+## Le retour du premier testeur 🔜 (à vérifier par le propriétaire)
+**But :** lever ce sur quoi a buté la première personne à essayer Pastory sans avoir suivi sa
+construction.
+
+**Son retour (2026-10-13) :** « tout était assez clair ». Trois choses pourtant :
+
+1. il a double-cliqué sur `Installer Pastory.cmd` **avant** d'avoir installé `uv`, puis n'a pas
+   réussi à repartir sans l'aide d'une IA ;
+2. la première ouverture est longue, et rien ne dit où elle en est : il a proposé une barre de
+   chargement ;
+3. devant la Diversification, il s'est demandé **quels actifs** étaient dans tel secteur, dans tel
+   pays.
+
+**Fait, sur la branche `retour-du-premier-testeur`** — cinq décisions
+([D-110](decisions.md) à [D-114](decisions.md)), une question posée puis tranchée
+([Q-62](questions-ouvertes.md)), et le [cahier](verification/retour-du-premier-testeur.md) :
+
+- **L'installation** ([D-112](decisions.md)) : le fichier installe `uv` lui-même, le retrouve là
+  où son installateur le range, et refuse de partir de l'archive non décompressée. Le README passe
+  de trois étapes à deux, sans aucune commande à taper.
+- **L'attente** ([D-110](decisions.md)) : la page dit l'étape, le compte d'actifs traités, et
+  montre une barre aux couleurs du livre. **En cherchant où la poser, la mesure a trouvé pourquoi
+  l'attente était longue** : les cours étaient demandés par petites fenêtres, une par date
+  d'opération. Demandés une fois par actif, la première ouverture de la démonstration passe de
+  **93 secondes à 15**.
+- **Le détail par actif** ([D-111](decisions.md)) : chaque ligne de la Diversification se déplie
+  vers les actifs qui la composent, et leur somme est le montant de la ligne, au centime.
+- **La réparation des séries de cours** ([D-113](decisions.md), la réponse du propriétaire à
+  Q-62) : chaque série est reprise une fois en entier, pour combler les jours qu'un cache
+  construit par petites fenêtres avait laissés de côté. Elle a comblé 42 séances sur le cache de
+  la démonstration — et **7 sur celui du propriétaire, qu'on croyait sans trou**.
+- **La vraie cause de la panne d'installation** ([D-114](decisions.md)) : « failed to build
+  pandas ». `uv` prenait le Python le plus récent — la 3.15, sortie ce mois-ci —, pour lequel
+  pandas n'existait pas encore tout prêt. La version est désormais fixée (3.12), et un test
+  vérifie que chaque bibliothèque existe toute prête pour elle. **Aucune des trois causes
+  d'abord supposées n'était la bonne : c'est le message du testeur qui a donné la réponse.**
+
+**Aucun chiffre n'a changé** : 60 relevés sur les données du propriétaire, hors ligne, identiques
+avant et après.
+
+**La relecture indépendante a rendu neuf remarques, toutes traitées**, aucune ne touchant un
+chiffre affiché. La plus utile : un titre **vendu** était redemandé jusqu'à hier comme les autres,
+et, retiré de la cote depuis, aurait levé une alerte à chaque ouverture. La plus instructive : la
+première rédaction de [Q-62](questions-ouvertes.md) disait le TWRR à l'abri d'une semaine sans
+cours ; il ne l'est pas, et la relecture l'a reproduit. **Un défaut qu'on vient de trouver se
+minimise facilement : c'est justement lui qu'il faut faire relire.**
+
+**Ce que la mesure a trouvé au passage, et qui vaut d'être retenu :** une demande de
+fonctionnalité (« une barre ») cachait un défaut (« pourquoi est-ce long ? »). Une barre posée sur
+l'ancienne attente aurait bien habillé 78 secondes inutiles. **Avant d'habiller une attente, la
+mesurer.**
+
+**Toi :**
+- suivre le [cahier](verification/retour-du-premier-testeur.md) : la barre sur la démonstration,
+  une ligne de la Diversification additionnée à la main ;
+- ✅ le message de ton ami (« failed to build pandas ») et ta réponse à Q-62 : traités ;
+- si ton ami veut bien **réinstaller** avec la nouvelle version : c'est le seul essai qui prouvera
+  la correction de bout en bout, l'antivirus de ta machine empêchant de la jouer ici ;
+- dire si l'on retire **pandas**, qui n'est plus importé nulle part ([D-114](decisions.md)) ;
+- donner ton accord pour la fusion dans `main`.
 
 ## Étape 11 · Publication ⏳
 **But :** rendre le dépôt public sans risque.

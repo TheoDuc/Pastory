@@ -213,3 +213,29 @@ class TestNomDeFichier:
     def test_un_identifiant_vide_est_refuse(self, cache):
         with pytest.raises(ValueError, match="inutilisable"):
             cache.chemin("   ")
+
+
+class TestLesSeriesReprises:
+    """D-113 : le cache retient quelles séries ont été reprises en entier, pour n'y revenir
+    jamais."""
+
+    def test_rien_n_est_repris_au_depart(self, cache):
+        assert not cache.serie_reprise(ACTIF)
+
+    def test_une_reprise_notee_se_retrouve_a_l_ouverture_suivante(self, cache, tmp_path):
+        cache.noter_la_reprise(ACTIF)
+        cache.noter_la_reprise(CRYPTO)
+        cache.noter_la_reprise(ACTIF)
+
+        relu = Cache(dossier=tmp_path)
+        assert relu.serie_reprise(ACTIF) and relu.serie_reprise(CRYPTO)
+        assert not relu.serie_reprise("XX0000000009")
+
+    def test_le_registre_n_est_pas_pris_pour_un_actif(self, cache):
+        """Il vit à côté des fichiers de cours : ni listé, ni effacé avec eux."""
+        cache.ecrire(ACTIF, [cours(Date(2026, 3, 6), "128.885")])
+        cache.noter_la_reprise(ACTIF)
+
+        assert cache.actifs() == [ACTIF]
+        assert cache.oublier() == [ACTIF]
+        assert cache.serie_reprise(ACTIF)

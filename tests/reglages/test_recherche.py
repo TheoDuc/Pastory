@@ -612,3 +612,32 @@ class TestNomSimplifie:
         assert _nom_simplifie("Fictive") is None
         assert _nom_simplifie("SA") is None
         assert _nom_simplifie("(B)") is None
+
+
+class TestLaRechercheDitOuElleEnEst:
+    """D-110 : la barre d'attente avance d'un cran par actif recherché."""
+
+    def test_un_appel_par_actif_une_fois_l_actif_traite(self, tmp_path):
+        autre = "XX0000000002"
+        la_banque = CeQueDitLaBanque(
+            source="export de test",
+            date=AUJOURD_HUI,
+            types={ETF: frozenset({TypeActif.ETF}), autre: frozenset({TypeActif.ETF})},
+            poches={ETF: frozenset({Poche.CTO}), autre: frozenset({Poche.CTO})},
+            noms={ETF: "ETF Monde Fictif", autre: "Autre ETF Fictif"},
+        )
+        source = Cotations({ETF: [("AAAA.DE", "ETF Monde")]}, {"AAAA.DE": ("EUR", "100.50")})
+        traites: list[int] = []
+
+        trouves = recherche(tmp_path, source).trouver(
+            la_banque, achats(), apres_chaque_actif=lambda: traites.append(len(traites))
+        )
+
+        assert len(traites) == len(trouves) == 2
+
+    def test_sans_personne_a_prevenir_la_recherche_est_la_meme(self, tmp_path):
+        source = Cotations({ETF: [("AAAA.DE", "ETF Monde")]}, {"AAAA.DE": ("EUR", "100.50")})
+
+        cotation = recherche(tmp_path, source).trouver(banque(), achats())[ETF].cotation
+
+        assert isinstance(cotation, Trouvee)

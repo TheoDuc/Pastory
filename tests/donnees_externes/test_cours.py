@@ -306,6 +306,21 @@ class TestRemplir:
         assert fournisseur(source, cache=cache).remplir(ACTIF, VENDREDI, LUNDI) == 0
         assert source.appels == []
 
+    def test_un_cache_a_jour_jusqu_a_hier_ne_coute_aucun_appel_pour_aujourd_hui(self):
+        """Trouvé en mesurant l'attente (D-110) : la séance du jour n'étant pas close, la
+        période « de demain du dernier cours à aujourd'hui » est vide. Elle ressortait pourtant
+        à l'envers de la réduction au cache, donc valide, et chaque ouverture coûtait un appel
+        par actif pour un cours déjà connu."""
+        hier = Date(2026, 9, 25)
+        cache = CacheEnMemoire()
+        cache.ecrire(ACTIF, [cours(Date(2026, 9, 24), "100.00"), cours(hier, "101.00")])
+        source = SourceFictive({ACTIF: [cours(hier, "101.00")]})
+
+        trouve = fournisseur(source, cache=cache).cours(ACTIF, AUJOURD_HUI)
+
+        assert trouve.date == hier
+        assert source.appels == []
+
     def test_seule_la_suite_manquante_est_demandee(self):
         cache = CacheEnMemoire()
         cache.ecrire(ACTIF, [cours(VENDREDI, "100.00")])
