@@ -369,8 +369,21 @@ s'ouvre sur elle**. La navigation et le colophon y sont masqués. Une étiquette
 - **sans export** : quel fichier déposer et où l'obtenir, puis la zone de dépôt (§5.1) ;
 - **avec un export** : la période couverte, la dernière opération lue (l'export ne porte pas sa
   date de création), le nombre de fichiers, l'alerte s'il y a des types inconnus, puis **« Ouvrir le
-  livre »** et **« Déposer un export plus récent »** — qui s'ajoute aux précédents
-  ([D-95](decisions.md)).
+  livre »** et **« Déposer un export »**, dont la zone dit ce qu'il deviendra : plus récent, il
+  met ce portefeuille à jour ; d'un autre compte, il devient un autre portefeuille
+  ([D-109](decisions.md)).
+
+**Avec plusieurs portefeuilles** ([D-109](decisions.md)), l'étiquette s'ouvre sur le **choix** —
+un bouton par portefeuille, celui qui est ouvert enfoncé — et porte le **nom** de celui qu'elle
+décrit à la place de « Votre livre ». Dans le volet du détail, chaque portefeuille se **renomme**
+et se **supprime** ; supprimer demande deux clics, parce qu'un fichier est effacé, et le volet
+s'ouvre alors sur la question. Une phrase y dit que chaque portefeuille est calculé seul. Avec
+un seul portefeuille, rien de cela n'apparaît, sauf de quoi le renommer et le supprimer.
+
+**Ce que dit un dépôt** : « Déposé », « Mis à jour » (le même compte, plus récent : combien de
+lignes de plus), « Nouveau portefeuille » (aucune opération commune), « Plus ancien » ou « Déjà
+là » (rien n'a changé), « Refusé » (ce n'est pas un export). Deux exports partiels du même compte
+ne sont pas assemblés, et le message le dit.
 
 La couverture **tient sur un écran** ([D-101](decisions.md)) : les fichiers lus, ce que la
 lecture a trouvé et le dossier des exports sont dans un **volet replié** de l'étiquette ; les
@@ -407,6 +420,10 @@ qui permet de dire « ces chiffres sont d'hier ».
 
 Chaque chapitre **s'ouvre** sur son numéro romain, son titre et une phrase qui dit ce qu'il montre
 (charte §4.2).
+
+**Le nom du portefeuille ouvert** ([D-109](decisions.md)) est écrit à droite de la navigation de
+chaque chapitre, dès qu'il y en a plusieurs : un chiffre lu sans savoir à qui il est ne vaut rien.
+On en change sur la couverture.
 
 **Si le serveur ne répond plus** ([D-106](decisions.md)) — Pastory a été arrêté alors que la page
 est restée ouverte —, un avis se colle au bas de la fenêtre : « Pastory est arrêté : cette page ne

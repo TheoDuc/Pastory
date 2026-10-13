@@ -101,7 +101,11 @@ ce que l'étape en a fait :
   nature (plan d'épargne, ordre ponctuel) est lue dans la `description`, marquée `texte`.
 - **La poche est une donnée** — `comptes.toml` et l'assistant ont disparu, corrections de poche
   comprises.
-- **Plusieurs fichiers, une histoire** — `depot.py` lit tous les CSV du dossier, dédoublonne par
+- **Un fichier, un portefeuille** ([D-109](decisions.md), étape 10 bis) — *ce point a été
+  renversé* : les fichiers du dossier ne se cumulent plus, `depot.py` n'en lit qu'un, celui
+  qui est ouvert. Le cumul mélangeait deux comptes dès qu'un proche déposait son export. Ce
+  qui en reste vaut **à l'intérieur d'un fichier**. *Texte de l'étape 8 ter :* `depot.py` lit
+  tous les CSV du dossier, dédoublonne par
   `transaction_id`, et quand une même ligne revient **modifiée**, garde la première et l'affiche
   (aucun cas réel encore). La correction de dividende, elle, n'arrive pas modifiée mais en
   **extourne** suivie d'une nouvelle ligne : c'est le refus des formes jamais vues qui la couvre.

@@ -806,6 +806,32 @@ fichier appelle.
   repassés un à un ;
 - le guide **« écrire un adaptateur pour une autre banque »**.
 
+## Étape 10 bis · Un fichier, un portefeuille ✅
+**But :** que deux comptes ne puissent plus se mélanger, et qu'on puisse défaire un dépôt.
+
+**D'où elle vient :** en vérifiant l'étape 10, le propriétaire a déposé l'export d'un proche à
+côté du sien. Pastory a affiché la somme des deux comptes, sans rien dire, et rien à l'écran
+ne permettait de revenir en arrière. C'était le cumul des exports de l'étape 8 ter, fait pour
+qu'un export récent s'ajoute aux précédents.
+
+**Fait (2026-10-13)**, sur la branche `etape-10-bis` ([D-109](decisions.md),
+[cahier](verification/etape-10-bis.md)) : chaque fichier du dossier de dépôt est un
+portefeuille, et Pastory n'en lit qu'un à la fois. La couverture propose le choix, le nom du
+portefeuille ouvert reste affiché, et chacun se renomme et se supprime à l'écran. Un export
+plus récent du même compte est reconnu **à ses opérations** et met le portefeuille à jour ; un
+export sans opération commune devient un autre portefeuille.
+
+Le propriétaire avait d'abord envisagé un dossier par personne, puis l'a écarté pour cette
+idée plus simple, qui est la sienne. Avec un seul portefeuille, **aucun chiffre ni aucun écran
+ne change** — relevé sur ses données, nombre par nombre.
+
+**Une conséquence à connaître :** l'export d'une autre personne, une fois déposé, est
+valorisé comme un autre — ses titres sont donc cherchés en ligne. La lecture sans réseau
+reste possible depuis un terminal (`--export`).
+
+**Toi :** suivre le [cahier](verification/etape-10-bis.md) ; et le mois prochain, vérifier que
+ton nouvel export **met à jour** ton portefeuille au lieu d'en créer un second.
+
 ## Étape 11 · Publication ⏳
 **But :** rendre le dépôt public sans risque.
 

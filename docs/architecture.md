@@ -39,7 +39,7 @@ choix dans [decisions.md](decisions.md) ; le détail du contrat entre couches da
            ▼
    ┌───────────────────────────────────────────────────────────┐
    │  ADAPTATEUR  trade_republic/                              │
-   │  lire le dossier · dédoublonner · classer · lire les      │
+   │  lire le portefeuille ouvert · classer · lire les         │
    │  colonnes · refuser les formes jamais vues                │
    └───────────────────────┬───────────────────────────────────┘
                            │  opérations + ce qui n'a pas été compris
@@ -214,7 +214,8 @@ pastory/
 │   └── trade_republic/        l'export officiel des transactions (D-79)
 │       ├── fichier.py         lire un fichier, ses deux variantes, sans rien garder d'une
 │       │                      ligne d'espèces que son type
-│       ├── depot.py           tous les fichiers du dossier, dédoublonnés, et leur période
+│       ├── depot.py           le dossier de dépôt : un fichier, un portefeuille (D-109) ;
+│       │                      celui qui est ouvert, sa période, et comparer deux exports
 │       ├── classement.py      trois catégories, sur (category, type), aucune par défaut (D-08)
 │       ├── lecture.py         le cœur : une ligne devient une opération pivot, ou un refus
 │       └── rapport.py         tout ce qui n'a pas été compris, et ce que le fichier ne dit pas
@@ -275,7 +276,9 @@ pastory/
     ├── briques.py             bloc, tuile, bulle, groupe de boutons, emplacement de dessin
     ├── bandeau.py             la manchette, les filtres, l'état des données
     ├── accueil.py             où trouver l'export, où le déposer, ce que la lecture a trouvé
-    ├── reception.py           un export déposé : vérifié sur place, rangé, jamais écrasé (D-95)
+    ├── reception.py           un export déposé : vérifié sur place, puis mis à jour, nouveau
+    │                          portefeuille ou version ancienne, selon ses opérations (D-109)
+    ├── portefeuilles.py       sur la couverture : en ouvrir un, le renommer, le supprimer
     ├── surveiller.py          « à surveiller » : tout ce que chaque couche signale
     ├── synthese.py            les tuiles, la courbe, les poches, les cartes d'actifs
     ├── actifs.py              le tableau des actifs, filtrable et triable, et sa remarque par ligne
@@ -326,15 +329,16 @@ découpée en conséquence.
 | Module | Ce qu'il fait | Pourquoi il est séparé |
 |---|---|---|
 | `fichier.py` | Lit un fichier, virgule ou point-virgule, colonnes repérées **par leur nom** ; une ligne d'espèces y perd tout sauf son type, ses dates et son identifiant | Les données personnelles ne passent pas cette porte ([export-officiel.md §8](export-officiel.md)) |
-| `depot.py` | Lit tous les fichiers du dossier, dédoublonne par `transaction_id`, dit la période couverte et les trous | L'utilisateur dépose ses exports, et c'est tout ([D-80](decisions.md)) ; un export partiel ne se voit que par sa période ([D-45](decisions.md)) |
+| `depot.py` | Tient la liste des portefeuilles du dossier — **un fichier, un portefeuille** ([D-109](decisions.md)) —, lit celui qui est ouvert, dit sa période, et compare deux exports par leurs `transaction_id` | L'utilisateur dépose ses exports, et c'est tout ([D-80](decisions.md)) ; un export partiel ne se voit que par sa période ([D-45](decisions.md)) |
 | `classement.py` | Range chaque couple `(category, type)` en `TRAITE`, `HORS_PERIMETRE` ou `INCONNU` | Liste explicite, aucun classement par défaut ([D-08](decisions.md), règle 5 de CLAUDE.md) |
 | `lecture.py` | Fait d'une ligne traitée une `Operation`, ou la refuse | C'est le seul module qui décide du **sens** d'une ligne, et le seul qui refuse une **forme** jamais vue |
 | `rapport.py` | Accumule tout ce qui n'a pas été compris | Un défaut de lecture doit ressortir à l'écran, pas disparaître |
 
 **La chaîne d'une lecture**, dans l'ordre :
 
-1. `depot.lire_dossier()` lit chaque `.csv` du dossier ; un fichier qui n'est pas un export est
-   cité et écarté, une opération présente dans deux fichiers n'est gardée qu'une fois ;
+1. `depot.lire()` lit **un** portefeuille : le fichier désigné, ou celui qui est ouvert dans le
+   dossier. Les autres fichiers ne sont pas lus ; un fichier qui n'est pas un export est cité
+   et écarté ;
 2. `classement.classer()` range la ligne. `INCONNU` → elle est comptée et affichée, avec ce que
    l'on sait du type ; une ligne d'espèces n'est que comptée ;
 3. `lecture.Lecteur` vérifie que la ligne a **la forme vue sur de vrais fichiers** : une quantité
@@ -646,7 +650,8 @@ Six règles ne sont la propriété d'aucune couche, et se retrouvent dans toutes
 | Quoi | Où | Dans git ? |
 |---|---|---|
 | Le code, la documentation, les tests | Dossier du projet (OneDrive) | oui |
-| Exports officiels (`Exportation de transactions.csv`) | Dossier personnel → `exports/`, le dossier de dépôt | **non** |
+| Exports officiels : **un fichier par portefeuille** ([D-109](decisions.md)) | Dossier personnel → `exports/`, le dossier de dépôt | **non** |
+| Le portefeuille ouvert, pour le lancement suivant (`.portefeuille-ouvert`) | Dossier de dépôt | **non** |
 | Cours, compositions, et les réglages trouvés (`reglages.csv`) | Dossier personnel → `cache/` | **non** |
 | Les corrections de l'utilisateur (`actifs.toml`, `fiscalite.toml`) | Dossier personnel → `configuration/` | **non** |
 | Ce que Pastory aurait écrit à l'écran, lancé par son raccourci (`journal.txt`) | Dossier personnel | **non** |

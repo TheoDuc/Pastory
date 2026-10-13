@@ -55,6 +55,9 @@ lisible et vérifiable à la main.
      automatiquement, contrôlée et affichée avec sa source. Une correction à la main est possible,
      jamais nécessaire ; ce qui ne se trouve pas de façon fiable est un trou affiché, jamais une
      question ni une valeur par défaut ;
+   - **un fichier déposé est un portefeuille** (D-109) : les exports ne se cumulent jamais, et
+     Pastory n'en lit qu'un à la fois. Deux exports se comparent par leurs identifiants
+     d'opération, jamais par leur nom ;
    - les cours sont **bruts** (jamais retraités des dividendes) et leur **devise est vérifiée**,
      jamais convertie (D-48, D-51). Aucun cours ne passe par Trade Republic (D-49) ;
    - **un taux estimé (spread, TER, impôt) porte sa valeur, sa date et sa source**, dans un

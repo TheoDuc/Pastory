@@ -7,7 +7,8 @@ commencer.
 > **À mettre à jour par l'instance qui termine une étape**, avant la fusion dans `main`. La
 > dernière section dit comment.
 >
-> Dernière mise à jour : **2026-10-13**, à la fin de la session de l'étape 10 (branche `etape-10`).
+> Dernière mise à jour : **2026-10-13**, à la fin de la session des étapes 10 (fusionnée et
+> envoyée) et 10 bis (branche `etape-10-bis`).
 
 ---
 
@@ -38,6 +39,8 @@ publication.
 - **Pastory s'ouvre comme un logiciel** (étape 10, cette session) : une icône, une fenêtre à part,
   l'arrêt à la fermeture ([D-106](decisions.md)) ; un portefeuille de démonstration
   ([D-107](decisions.md)) ; et le ménage ([D-108](decisions.md)).
+- **Un fichier déposé est un portefeuille** (étape 10 bis, [D-109](decisions.md)) : les exports
+  ne se cumulent plus, Pastory n'en lit qu'un à la fois, et la couverture propose le choix.
 
 **Ce qui reste, dans l'ordre que le propriétaire choisira :**
 
@@ -51,11 +54,12 @@ publication.
 **Questions ouvertes** : **Q-54** (actions gratuites puis « migration ») et **Q-60** (le contenu du
 monétaire, des multi-actifs, de l'immobilier). Aucune ne bloque.
 
-**À la fin de la session du 2026-10-13**, la relecture `/code-review` était faite et ses dix
-remarques traitées. Il restait, avec l'accord du propriétaire : sa vérification par le
-[cahier de l'étape 10](verification/etape-10.md) — dont **l'essai d'une fenêtre réduite pendant une
-heure ou deux**, seul point non mesuré —, puis la fusion d'`etape-10` dans `main` et l'envoi sur
-GitHub. **Vérifier `git branch` et `git log` avant de supposer que c'est fait.**
+**À la fin de la session du 2026-10-13** : l'étape 10 est **fusionnée dans `main` et envoyée**
+sur GitHub, vérifiée par le propriétaire (il reste de son [cahier](verification/etape-10.md)
+**l'essai d'une fenêtre réduite pendant une heure ou deux**, seul point non mesuré). L'étape
+10 bis est sur la branche `etape-10-bis` : il reste sa vérification par le
+[cahier](verification/etape-10-bis.md), puis la fusion et l'envoi, avec son accord. **Vérifier
+`git branch` et `git log` avant de supposer que c'est fait.**
 
 ---
 
@@ -79,6 +83,25 @@ GitHub. **Vérifier `git branch` et `git log` avant de supposer que c'est fait.*
   `%LOCALAPPDATA%\Pastory\configuration\actifs.toml`, avec **une** correction (les frais courants
   d'un ETF). C'est le premier cas réel pour les écrans de correction du bloc 9.5 — et il a été
   écrit à la main, ce que ces écrans doivent rendre inutile.
+
+## Ce que l'étape 10 bis laisse en main
+
+- **Le dossier de dépôt est une liste de portefeuilles** (`adaptateurs/trade_republic/depot.py`) :
+  `inventaire`, `ouvrir`, `lire`, `comparer`, `renommer`, `supprimer`. Le nom d'un
+  portefeuille est celui de son fichier ; celui qui est ouvert est retenu dans
+  `.portefeuille-ouvert`. **`depot.lire(source)` ne lit qu'un fichier** : ne pas réintroduire
+  un cumul.
+- **Ce que devient un dépôt** est décidé dans `vues/reception.py`, sur les identifiants
+  d'opération. L'écran est dans `vues/portefeuilles.py` ; `Chiffres.inventaire()` rend `None`
+  là où l'on ne choisit pas (un tiers, la démonstration).
+- **Pour le bloc 9.5** : une correction d'actif vaut pour tous les portefeuilles (elle décrit
+  un titre) ; une correction fiscale vaut pour **un** portefeuille
+  (`[portefeuille."Nom".pea]`), et un écran qui renomme un portefeuille devra renommer cette
+  section avec lui — aujourd'hui, elle devient une correction sans objet, signalée.
+- **Les tests qui veulent plus de lignes réécrivent l'export** (`ajouter_a_l_export`,
+  `tests/test_cli.py`) : déposer un second fichier ferait un second portefeuille.
+- **Sous Windows, deux chemins qui ne diffèrent que par la casse sont égaux** : comparer des
+  noms de fichier, pas des chemins, quand la casse compte (le renommage).
 
 ## Les pièges de l'étape 10
 
