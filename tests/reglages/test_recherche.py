@@ -16,7 +16,7 @@ from pastory.donnees_externes.cours import Cours, DeviseInattendue, ErreurDeSour
 from pastory.pivot.operation import Operation, Poche, Provenance, TypeOperation
 from pastory.reglages import CeQueDitLaBanque, Origine, Trou, Trouvee
 from pastory.reglages.cache import CacheDesReglages, Champ
-from pastory.reglages.recherche import Recherche, seuil
+from pastory.reglages.recherche import Recherche, _nom_simplifie, seuil
 
 ETF = "XX0000000001"
 CRYPTO = "XYZ"
@@ -510,3 +510,105 @@ class TestCeQueLaRelectureATrouve:
         )[ETF].ter
 
         assert ter == ancien
+
+
+class TestParLeNomSimplifie:
+    """Trouvé sur le premier export d'un autre utilisateur : une action américaine très courante
+    restait sans cours. Par l'ISIN, la source ne donne que New York, en dollars ; par les noms
+    exacts — « FICTIVE, Inc. » pour elle, « Fictive (B) » pour la banque — aucune cotation en
+    euros. Seul le nom qu'on dirait, « Fictive », les lui fait trouver."""
+
+    ACTION_US = "US0000000002"
+
+    def banque(self):
+        return CeQueDitLaBanque(
+            source="export de test",
+            date=AUJOURD_HUI,
+            types={self.ACTION_US: frozenset({TypeActif.ACTION})},
+            poches={self.ACTION_US: frozenset({Poche.CTO})},
+            noms={self.ACTION_US: "Fictive (B)"},
+        )
+
+    def source(self, **series):
+        return Cotations(
+            {
+                self.ACTION_US: [("FCT", "FICTIVE, Inc.")],
+                "FICTIVE, Inc.": [("FCT", "FICTIVE, Inc."), ("AUTRE", "Autre Société, Inc.")],
+                "Fictive (B)": [],
+                "FICTIVE": [("FCT", None), ("FCT.DE", None), ("FCT.F", None), ("FCT.SA", None)],
+            },
+            {
+                "FCT": ("USD", "116"),  # 116 $ / 1,16 = 100 €
+                "AUTRE": ("USD", "40"),
+                "EURUSD=X": ("USD", "1.16"),
+                "FCT.DE": ("EUR", "100.2"),
+                "FCT.F": ("EUR", "100.1"),
+                "FCT.SA": ("BRL", "600"),
+                **series,
+            },
+        )
+
+    def cotation(self, tmp_path, source):
+        return recherche(tmp_path, source).trouver(
+            self.banque(), achats("100.00", self.ACTION_US)
+        )[self.ACTION_US].cotation
+
+    def test_la_cotation_en_euros_est_trouvee_par_le_nom_simplifie(self, tmp_path):
+        source = self.source()
+        cotation = self.cotation(tmp_path, source)
+
+        assert cotation.valeur.ticker == "FCT.F"  # D-88 : Francfort pour une action américaine
+        assert "par son nom" in cotation.origine.controle
+        assert "FCT (USD)" in cotation.origine.controle
+        assert "recherche:FICTIVE" in source.appels
+
+    def test_les_deux_ecritures_d_un_meme_nom_ne_font_qu_une_demande(self, tmp_path):
+        source = self.source()
+        self.cotation(tmp_path, source)
+        assert [a for a in source.appels if a.casefold() == "recherche:fictive"] == [
+            "recherche:FICTIVE"
+        ]
+
+    def test_le_nom_simplifie_n_est_demande_qu_en_second_recours(self, tmp_path):
+        """Tant que les noms exacts suffisent, rien de plus n'est demandé à la source : rien ne
+        change pour les actifs que Pastory trouvait déjà."""
+        source = self.source()
+        source.recherches["FICTIVE, Inc."] = [("FCT", None), ("FCT.F", None)]
+
+        cotation = self.cotation(tmp_path, source)
+
+        assert cotation.valeur.ticker == "FCT.F"
+        assert "recherche:FICTIVE, Inc." in source.appels
+        assert "recherche:FICTIVE" not in source.appels
+
+    def test_une_autre_societe_au_nom_voisin_n_est_pas_retenue(self, tmp_path):
+        """Le nom ne sert qu'à demander des candidats. Une société homonyme qui cote par hasard
+        au prix payé ne suit pas, une fois convertie, la cotation trouvée par l'ISIN."""
+        source = self.source(**{"FCT.DE": ("EUR", "130"), "FCT.F": ("EUR", "130")})
+        source.recherches["FICTIVE"] = [("HOMONYME.DE", None)]
+        source.series["HOMONYME.DE"] = ("EUR", "100.3")
+        source.series["FCT"] = ("USD", "150")  # la vraie vaut 129 € : l'homonyme n'en est pas
+
+        cotation = self.cotation(tmp_path, source)
+        assert isinstance(cotation, Trou)
+
+    def test_sans_cotation_en_euros_nulle_part_le_trou_reste_un_trou(self, tmp_path):
+        source = self.source()
+        source.recherches["FICTIVE"] = [("FCT", None), ("FCT.SA", None)]
+        cotation = self.cotation(tmp_path, source)
+
+        assert isinstance(cotation, Trou)
+        assert "aucune en euros" in cotation.motif
+
+
+class TestNomSimplifie:
+    def test_ce_qui_est_retire(self):
+        assert _nom_simplifie("FICTIVE, Inc.") == "FICTIVE"
+        assert _nom_simplifie("Fictive (B)") == "Fictive"
+        assert _nom_simplifie("Fictive Corporation") == "Fictive"
+        assert _nom_simplifie("Fictive Holding N.V.") == "Fictive Holding"
+
+    def test_ce_qui_ne_se_simplifie_pas(self):
+        assert _nom_simplifie("Fictive") is None
+        assert _nom_simplifie("SA") is None
+        assert _nom_simplifie("(B)") is None

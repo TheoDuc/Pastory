@@ -29,6 +29,7 @@ service extérieur, ce serait divulguer ce qu'il détient.
 
 from __future__ import annotations
 
+import re
 import statistics
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
@@ -355,26 +356,48 @@ class Recherche:
             (candidat for candidat in par_isin if candidat.ticker in self._autres_devises),
             None,
         )
-        noms = [candidat.nom for candidat in par_isin[:1] if candidat.nom] + [nom]
-        verdicts_nom: list[Verdict] = []
-        for un_nom in dict.fromkeys(un for un in noms if un):
-            verdicts_nom += self._controler_tous(
-                actif, self.cotations.candidats(un_nom), prix, essayes
+        noms = list(
+            dict.fromkeys(
+                un for un in [*(c.nom for c in par_isin[:1]), nom] if un
             )
-        retenus = []
-        for verdict in verdicts_nom:
-            if not verdict.dans_la_tolerance(type_actif):
-                continue
-            if reference is not None:
-                verdict = self._controler_le_change(actif, verdict, reference)
-                if (
-                    verdict.ecart_de_change is None
-                    or verdict.ecart_de_change > ECART_DE_CHANGE_MAXIMAL
-                ):
+        )
+        # En second recours seulement, les mêmes noms **simplifiés** : la recherche de la
+        # source est littérale, et « Société, Inc. » ou « Société (B) » ne lui font pas trouver les
+        # cotations en euros que « Société » lui fait trouver. Tant que les noms exacts
+        # suffisent, rien de plus n'est demandé, et rien ne change pour les actifs déjà
+        # trouvés.
+        simplifies: list[str] = []
+        for un in noms:
+            court = _nom_simplifie(un)
+            # « SOCIÉTÉ » et « Société » sont la même demande : une seule suffit.
+            if court and court.casefold() not in {n.casefold() for n in [*noms, *simplifies]}:
+                simplifies.append(court)
+        verdicts_nom: list[Verdict] = []
+        for recours, maximum in ((noms, 2), (simplifies, 3)):
+            verdicts: list[Verdict] = []
+            for un_nom in recours:
+                verdicts += self._controler_tous(
+                    actif,
+                    self.cotations.candidats(un_nom),
+                    prix,
+                    essayes,
+                    maximum * NOMBRE_MAXIMAL_DE_CANDIDATS,
+                )
+            verdicts_nom += verdicts
+            retenus = []
+            for verdict in verdicts:
+                if not verdict.dans_la_tolerance(type_actif):
                     continue
-            retenus.append(verdict)
-        if retenus:
-            return self._retenir(_meilleur(retenus, actif), type_actif, "son nom")
+                if reference is not None:
+                    verdict = self._controler_le_change(actif, verdict, reference)
+                    if (
+                        verdict.ecart_de_change is None
+                        or verdict.ecart_de_change > ECART_DE_CHANGE_MAXIMAL
+                    ):
+                        continue
+                retenus.append(verdict)
+            if retenus:
+                return self._retenir(_meilleur(retenus, actif), type_actif, "son nom")
 
         return Trou(_motif_sans_cotation(verdicts_isin + verdicts_nom, type_actif, len(essayes)))
 
@@ -384,10 +407,11 @@ class Recherche:
         candidats: Sequence[Proposition],
         prix: list[PrixPaye],
         essayes: set[str],
+        maximum: int = 2 * NOMBRE_MAXIMAL_DE_CANDIDATS,
     ) -> list[Verdict]:
         verdicts = []
         for candidat in candidats:
-            if candidat.ticker in essayes or len(essayes) >= 2 * NOMBRE_MAXIMAL_DE_CANDIDATS:
+            if candidat.ticker in essayes or len(essayes) >= maximum:
                 continue
             essayes.add(candidat.ticker)
             verdict = self._controler(actif, candidat, prix)
@@ -797,6 +821,30 @@ def _rang_de_place(ticker: str, actif: str) -> int:
         if ticker.upper().endswith(suffixe):
             return rang
     return len(preference)
+
+
+FORMES_SOCIALES = frozenset(
+    {"inc", "corp", "corporation", "co", "company", "ltd", "limited", "plc", "sa", "se", "ag", "nv"}
+)
+"""Ce qui suit le nom d'une société sans en faire partie, d'une bourse à l'autre."""
+
+
+def _nom_simplifie(nom: str) -> str | None:
+    """Le nom tel qu'on le dirait : sans ce qui est entre parenthèses (« (B) », la classe de
+    l'action), sans ce qui suit une virgule, sans forme sociale. `None` s'il n'y a rien à
+    simplifier.
+
+    C'est un texte, et il ne sert qu'à **demander des candidats** à la source (règle 4) :
+    aucun n'est retenu sur son nom. Chacun doit retomber sur le prix payé, et suivre la
+    cotation trouvée par l'ISIN une fois convertie en euros — deux contrôles chiffrés, que
+    ne passe pas une autre société au nom voisin.
+    """
+    court = re.sub(r"\([^)]*\)", " ", nom).split(",")[0]
+    mots = court.split()
+    while len(mots) > 1 and mots[-1].replace(".", "").casefold() in FORMES_SOCIALES:
+        mots.pop()
+    court = " ".join(mots)
+    return court if len(court) >= 3 and court.casefold() != nom.casefold() else None
 
 
 def _motif_sans_cotation(verdicts: list[Verdict], type_actif: TypeActif, essayes: int) -> str:
