@@ -797,8 +797,9 @@ que le fichier explique ; la création des raccourcis, elle, a été essayée pa
 fichier appelle.
 
 **Reste de l'étape 10 :**
-- **l'installation par un tiers**, en suivant le seul README : c'est le vrai test du fichier
-  d'installation, et il n'a pas encore eu lieu ;
+- ~~**l'installation par un tiers**, en suivant le seul README~~ : elle a eu lieu le 2026-10-13,
+  et elle a buté — voir « Le retour du premier testeur », plus bas. Une **seconde** installation
+  par un tiers, avec le fichier corrigé, reste à faire ;
 - **le raccourci pour Mac** ([D-62](decisions.md)) : le lanceur ne dépend pas de Windows, mais rien
   n'a pu être essayé sur un Mac ;
 - la **relecture des messages d'erreur** (un fichier qui n'est pas un export, des colonnes
@@ -846,6 +847,51 @@ lieu d'en créer un second.
 
 **La suite, décidée le 2026-10-13 :** l'ami du propriétaire essaie Pastory avec son propre
 export ; son retour d'abord, puis l'étape 11.
+
+## Le retour du premier testeur 🔜 (à vérifier par le propriétaire)
+**But :** lever ce sur quoi a buté la première personne à essayer Pastory sans avoir suivi sa
+construction.
+
+**Son retour (2026-10-13) :** « tout était assez clair ». Trois choses pourtant :
+
+1. il a double-cliqué sur `Installer Pastory.cmd` **avant** d'avoir installé `uv`, puis n'a pas
+   réussi à repartir sans l'aide d'une IA ;
+2. la première ouverture est longue, et rien ne dit où elle en est : il a proposé une barre de
+   chargement ;
+3. devant la Diversification, il s'est demandé **quels actifs** étaient dans tel secteur, dans tel
+   pays.
+
+**Fait, sur la branche `retour-du-premier-testeur`** — trois décisions
+([D-110](decisions.md) à [D-112](decisions.md)), une question ouverte
+([Q-62](questions-ouvertes.md)), et le [cahier](verification/retour-du-premier-testeur.md) :
+
+- **L'installation** ([D-112](decisions.md)) : le fichier installe `uv` lui-même, le retrouve là
+  où son installateur le range, et refuse de partir de l'archive non décompressée. Le README passe
+  de trois étapes à deux, sans aucune commande à taper.
+- **L'attente** ([D-110](decisions.md)) : la page dit l'étape, le compte d'actifs traités, et
+  montre une barre aux couleurs du livre. **En cherchant où la poser, la mesure a trouvé pourquoi
+  l'attente était longue** : les cours étaient demandés par petites fenêtres, une par date
+  d'opération. Demandés une fois par actif, la première ouverture de la démonstration passe de
+  **93 secondes à 15**.
+- **Le détail par actif** ([D-111](decisions.md)) : chaque ligne de la Diversification se déplie
+  vers les actifs qui la composent, et leur somme est le montant de la ligne, au centime.
+
+**Aucun chiffre n'a changé** : 60 relevés sur les données du propriétaire, hors ligne, identiques
+avant et après.
+
+**Ce que la mesure a trouvé au passage, et qui vaut d'être retenu :** une demande de
+fonctionnalité (« une barre ») cachait un défaut (« pourquoi est-ce long ? »). Une barre posée sur
+l'ancienne attente aurait bien habillé 78 secondes inutiles. **Avant d'habiller une attente, la
+mesurer.**
+
+**Toi :**
+- suivre le [cahier](verification/retour-du-premier-testeur.md) : la barre sur la démonstration,
+  une ligne de la Diversification additionnée à la main ;
+- demander à ton ami **quel message** il a eu après avoir installé `uv` : sa panne exacte n'est
+  pas connue, seules ses causes plausibles sont couvertes ;
+- trancher [Q-62](questions-ouvertes.md) (les semaines sans cours d'un cache déjà construit —
+  celui de ton ami en a sans doute) ;
+- donner ton accord pour la fusion dans `main`.
 
 ## Étape 11 · Publication ⏳
 **But :** rendre le dépôt public sans risque.

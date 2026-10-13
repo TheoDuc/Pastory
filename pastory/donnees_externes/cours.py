@@ -293,6 +293,12 @@ class FournisseurDeCours:
         # la contenir. Demander le jour même ne rapporterait donc rien, et l'absence de réponse
         # ressemblerait à une panne.
         fin = min(fin, self.aujourd_hui - UN_JOUR)
+        if fin < debut:
+            # La période ne contenait que la séance du jour : il n'y a rien à demander. Sans
+            # cet arrêt, la réduction ci-dessous rendait la période à l'envers — donc de
+            # nouveau « valide » — et un cache à jour jusqu'à hier coûtait quand même un appel
+            # par actif à chaque ouverture (trouvé en mesurant l'attente, D-110).
+            return 0
 
         debut, fin = self._ce_qui_manque(actif, debut, fin)
         if fin < debut or self._deja_demande(actif, debut, fin):

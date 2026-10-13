@@ -2009,3 +2009,101 @@ couple qui déclare ensemble, le seuil d'exonération de la crypto et les pertes
 sont partagés, et l'impôt estimé de chacun est alors un peu faux ; l'écran le dit. Une correction
 d'actif (`actifs.toml`) vaut pour tous les portefeuilles qui détiennent ce titre. Supprimer un
 portefeuille n'efface pas les cours gardés en mémoire pour ses titres.
+
+### D-110 · 2026-10-13 · L'attente dit où en est la lecture, et les cours se demandent une fois par actif · À valider
+**Décision :** pendant une longue lecture, la page montre **l'étape en cours, combien d'actifs y
+sont traités, et une barre** — à la place d'un texte immobile.
+- **La barre compte des actifs, pas des secondes.** Trois étapes de même poids — la cotation et
+  les frais de chaque actif, ses cours, sa composition —, chacune avançant au rythme de ses
+  actifs : « Étape 2 sur 3 · 4 actifs sur 8 ». Personne ne sait combien de temps mettra une source
+  à répondre ; on sait combien d'actifs sont traités, et c'est tout ce que la barre affirme.
+- **Trois morceaux, chacun à sa place :** l'assembleur compte (`pastory/avancement.py`, qui ne
+  connaît ni l'écran ni les sources) ; `vues/attente.py` écrit les mots et répond à l'adresse
+  locale `/pastory/avancement` ; `assets/dessin.js` pose la réponse dans la page sans mettre aucun
+  chiffre en forme ([D-93](#d-93)). La réponse ne porte que des comptes d'actifs : ni nom, ni
+  montant.
+- **Hors d'une lecture** — un changement de période, un recalcul — la barre et la note restent
+  cachées : on ne lit que « Calcul des chiffres… ».
+- **Les cours se demandent une fois par actif**, de sa première opération à hier, avant tout
+  calcul (`assembleur.remplir_les_cours`) : c'est ce que faisait déjà `pastory cours`, et ce dont
+  la courbe a besoin de toute façon.
+**Raison :** le premier testeur a trouvé la première ouverture longue, et a demandé une barre de
+chargement. En cherchant où poser cette barre, la mesure a montré **où partait le temps** : sur la
+démonstration, dossier vide, 78 des 93 secondes passaient dans les cours, demandés à la source
+**par petites fenêtres**, une par date d'opération. Demandés d'un coup : 2 secondes, et **18
+secondes en tout** au lieu de 93. Une barre posée sur l'ancienne attente aurait bien habillé un
+défaut.
+**Ce que la mesure a trouvé d'autre, et qui est corrigé :**
+- **une semaine restait sans cours entre deux fenêtres voisines** (du 7 au 11 septembre, sur les
+  huit titres de la démonstration) : sept jours, trop peu pour être vus comme un trou (il en faut
+  plus de dix), assez pour que la courbe s'y fige sur un cours périmé. Demandée d'un coup, la série
+  n'a plus de trou. Tous les cours communs aux deux méthodes sont **identiques**, un par un ;
+- **un cache à jour jusqu'à hier coûtait quand même un appel par actif à chaque ouverture** : la
+  période « du lendemain du dernier cours à aujourd'hui », vide puisque la séance du jour n'est pas
+  close, ressortait à l'envers de la réduction au cache, donc valide (`FournisseurDeCours.remplir`).
+**Ce qui ne change pas :** un cours gardé n'est ni redemandé ni réécrit ([D-50](#d-50)) ; hors
+ligne et pour l'export d'un tiers, rien n'est demandé (règle 2) ; les compositions sont demandées
+dans l'ordre même où la répartition les demandait. **Sur le portefeuille du propriétaire, relevé
+hors ligne avant et après sur la même copie : aucun nombre n'a changé.**
+**Écarte :** une barre « de temps », qui avance à l'horloge (elle mentirait dès qu'une source
+tarde) ; une roue qui tourne (elle ne dit pas si l'on en est au début ou à la fin) ; le nom de
+l'actif en cours de recherche dans la page (une information de plus à faire transiter, pour un
+gain faible) ; garder les petites fenêtres en se contentant de les compter.
+**Limite connue :** un cache déjà construit par petites fenêtres — celui de quiconque a ouvert
+Pastory pour la première fois avant cette décision, dont le premier testeur — **garde ses trous
+courts**, et rien ne les comble : c'est [Q-62](questions-ouvertes.md).
+
+### D-111 · 2026-10-13 · Chaque ligne d'une répartition se déplie vers les actifs qui la composent · À valider
+**Décision :** dans la Diversification, chaque ligne — un pays, un secteur, une classe d'actifs, et
+chacun des restes (non couvert, non attribué, hors actions, actifs numériques) — **s'ouvre d'un
+clic sur les actifs du portefeuille qui la composent**, avec le montant et la part de chacun. Une
+zone s'ouvre sur ses pays, qui s'ouvrent sur leurs actifs.
+- **C'est le moteur qui le dit** (`Poste.contributions`, `Contribution`) : la valeur de l'actif
+  multipliée par le poids que sa composition donne au poste. L'écran ne calcule rien.
+- **La somme des actifs d'une ligne est le montant de la ligne, au centime** : chaque apport est
+  arrondi avant d'être cumulé, et c'est ce cumul qui fait le montant. Un test le tient pour chaque
+  poste et chaque reste des trois répartitions.
+- **Les parts sont rapportées à la même base que toutes les autres lignes** ([D-69](#d-69)) : sous
+  « États-Unis 57,61 % », trois actifs à 26,78 %, 21,45 % et 9,38 %.
+- **Ce sont les actifs du portefeuille, jamais les sociétés qu'un fonds détient** : on lit toujours
+  les agrégats d'un fonds ([D-63](#d-63), [D-64](#d-64)).
+- **Fermées par défaut**, et ce n'est pas un filtre : la règle « aucun filtre sur une répartition »
+  ([conception-interface.md](conception-interface.md) §4) tient.
+**Raison :** le premier testeur s'est demandé, devant la Diversification, « quels actifs sont dans
+tel secteur, dans tel pays ». Et c'est ce qui manquait pour **refaire une ligne à la main** : un
+total par pays dont on ne voit pas les termes se croit, il ne se vérifie pas.
+**Écarte :** lister les sociétés détenues par chaque fonds (ce serait lire les lignes d'un fonds,
+qu'un ETF synthétique ne détient pas — [D-64](#d-64)) ; un filtre « n'afficher que tel actif »
+(une répartition est la photo d'un tout) ; un tableau croisé actifs × pays (illisible dès vingt
+pays) ; des parts rapportées à la ligne et non à la base (deux bases sur un même écran).
+**Non fait :** le rapport texte (`pastory positions`) et les CSV de répartition ne portent pas
+encore ce détail.
+
+### D-112 · 2026-10-13 · Le fichier d'installation installe `uv` lui-même · À valider
+**Décision :** `Installer Pastory.cmd` est **le seul geste** d'un nouvel utilisateur : télécharger,
+décompresser, double-cliquer. Il n'y a plus d'outil à installer d'abord.
+- **`uv` manque : le fichier l'installe**, par la méthode officielle de son éditeur (la même ligne
+  que demandait le README), après l'avoir dit et attendu une touche — fermer la fenêtre n'installe
+  rien.
+- **`uv` est cherché là où son installateur le range** (`%USERPROFILE%\.local\bin`, entre autres),
+  et pas seulement dans le chemin de recherche de Windows : un `uv` tout juste installé n'y figure
+  pas encore pour les fenêtres ouvertes ensuite, et le fichier répondait « introuvable » à qui
+  venait de l'installer.
+- **Lancé depuis l'archive ZIP non décompressée**, le fichier le dit et s'arrête : Windows ne lance
+  alors que lui, seul, depuis un dossier temporaire.
+- **Dans un dossier synchronisé** (OneDrive — et le bureau l'est souvent), les bibliothèques sont
+  copiées plutôt que liées, et l'installation est essayée une seconde fois avant de conclure à un
+  échec.
+**Raison :** le premier testeur a double-cliqué sur le fichier avant d'avoir installé `uv` — ce que
+fera tout le monde : c'est le seul fichier qui s'appelle « Installer ». Après avoir installé `uv`,
+il n'a pas réussi à repartir sans l'aide d'une IA. Demander deux gestes dans un ordre précis, dont
+une ligne à coller dans PowerShell, était une marche de trop ([D-80](#d-80) : l'utilisateur dépose
+l'export, et c'est tout).
+**Essayé (2026-10-13), sur une copie hors du projet :** le refus hors du dossier de Pastory ; `uv`
+absent du chemin de Windows mais présent dans le dossier personnel (trouvé) ; `uv` absent partout
+(téléchargé et installé pour de vrai, dans un dossier jetable, puis trouvé).
+**Non essayé :** l'installation des bibliothèques elle-même (`uv sync`), que l'antivirus de la
+machine du propriétaire bloque toujours ; et **la cause exacte de la panne du testeur n'est pas
+connue** — les trois causes plausibles sont couvertes, pas une cause constatée.
+**Écarte :** un exécutable empaqueté ([D-106](#d-106)) ; joindre `uv` au dépôt (un binaire de
+soixante mégaoctets à tenir à jour) ; installer `uv` sans le dire.

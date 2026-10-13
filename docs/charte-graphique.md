@@ -360,6 +360,9 @@ défaut d'une bibliothèque : il n'y en a pas — les graphiques sont dessinés 
   (`--graphique-eventail`) — des lignes seules, l'éventail n'est pas rempli.
 - **Ce qui manque** (non couvert, non attribué) : hachures `--filet-fort` sur papier, pour ne
   jamais se confondre avec un poste réel.
+- **Les actifs sous une ligne de répartition** ([D-111](decisions.md)) : en retrait, le nom en
+  `--texte-secondaire`, et une **barre plus fine** (4 px au lieu de 10) — ce sont des parts de la
+  ligne du dessus, mesurées sur la même base qu'elle.
 
 ---
 
@@ -374,8 +377,14 @@ défaut d'une bibliothèque : il n'y en a pas — les graphiques sont dessinés 
   courbe. Un changement de filtre n'est pas un changement de chapitre : rien ne bouge.
 - **Les cartes d'actifs, d'une page à l'autre** : un glissement très court (170 ms), dans le sens
   où l'on feuillette.
+- **L'attente** ([D-110](decisions.md)) : pendant une longue lecture, au milieu de la fenêtre,
+  l'étape en cours en italique (EB Garamond), puis **un filet qui s'encre de gauche à droite, un
+  losange d'or à sa pointe** — le fleuron du livre, qui avance —, le compte des actifs traités, et
+  une note. Le filet est en `--contour`, l'encre en `--texte`, le losange en `--ornement` : de l'or
+  en ornement, jamais en texte (§2.4). La barre glisse d'une position à la suivante (260 ms) ; ce
+  n'est pas une animation en boucle, elle ne bouge que quand un actif de plus est traité.
 - **`prefers-reduced-motion`** : si l'utilisateur a demandé moins d'animations à son système, tout
-  est remplacé par un simple fondu.
+  est remplacé par un simple fondu, et la barre d'attente saute d'une position à la suivante.
 - **Une transition ne retarde jamais l'affichage des données ni ne bloque un clic** : les données
   sont dessinées tout de suite, l'animation ne fait que les accompagner, et le voile de l'ouverture
   ne capte pas la souris.

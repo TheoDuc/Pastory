@@ -191,6 +191,8 @@ nombres, et il vit à la racine pour qu'aucun export n'invente ses propres conve
 pastory/
 ├── cli.py                     la ligne de commande : les messages et les fichiers écrits
 ├── assembleur.py              le seul assembleur, pour la ligne de commande et l'interface
+├── avancement.py              où en est une longue lecture : un compteur d'actifs traités,
+│                              que l'assembleur fait avancer et que l'écran lit (D-110)
 ├── tableur.py                 comment on écrit un nombre (CSV et phrases)
 ├── lanceur.py                 ce que fait le raccourci : la fenêtre à part, le port pris
 │                              d'avance, le journal, l'arrêt quand on la ferme (D-106)
@@ -268,6 +270,8 @@ pastory/
     ├── application.py         la page, les trois rappels (choisir, rendre, déposer), le lancement,
     │                          l'adresse de vie et le signe de vie de la page (D-106)
     ├── veille.py              qui est encore là : Pastory s'arrête avec sa dernière page (D-106)
+    ├── attente.py             ce que la page montre pendant une lecture : l'étape, le compte
+    │                          d'actifs, la barre — et l'adresse où elle le demande (D-110)
     ├── chiffres.py            l'assembleur appelé une fois, la période et les poches recalculées
     ├── ecrans.py              quel écran pour quel état
     ├── etat.py                ce que l'utilisateur a choisi : l'onglet, la période, les poches…
@@ -282,7 +286,8 @@ pastory/
     ├── surveiller.py          « à surveiller » : tout ce que chaque couche signale
     ├── synthese.py            les tuiles, la courbe, les poches, les cartes d'actifs
     ├── actifs.py              le tableau des actifs, filtrable et triable, et sa remarque par ligne
-    ├── diversification.py     les quatre rubriques : chiffres clés, classement, restes repliés
+    ├── diversification.py     les quatre rubriques : chiffres clés, classement, restes repliés,
+    │                          et chaque ligne dépliable vers ses actifs (D-111)
     ├── frais.py               les trois niveaux : prélevé, détention, sortie
     ├── detail.py              la page discrète « Détail des calculs », et « à surveiller » en bas
     └── assets/                pastory.css (la feuille de la maquette), les polices, dessin.js,
@@ -292,7 +297,8 @@ scripts/
 ├── inventaire_structure.py    relevé structurel d'un export officiel, sans aucune valeur (D-05)
 └── releve_de_demonstration.py écrit `demonstration/clotures.py` : à relancer si le scénario change
 
-Installer Pastory.cmd          un double-clic : l'environnement, puis les raccourcis (D-106)
+Installer Pastory.cmd          un double-clic : `uv` s'il manque, l'environnement, puis les
+                               raccourcis (D-106, D-112)
 
 tests/                         même arborescence que pastory/, données fictives (D-38)
 ```
@@ -451,6 +457,13 @@ Deux propriétés le rendent vérifiable : **tout pourcentage se rapporte à la 
 actifs valorisés**, jamais à la somme des postes ; et **la somme des postes et des restes vaut
 exactement cette valeur**, ce que les trois CSV permettent de contrôler dans un tableur.
 
+Une troisième, depuis [D-111](decisions.md) : **chaque poste et chaque reste nomme les actifs qui
+le font** (`Poste.contributions`, et `non_attribue_par_actif`, `non_couvert_par_actif`,
+`hors_classification_par_actif` sur la répartition), et **leur somme est son montant, au
+centime**. Ce n'est pas un second calcul : chaque euro rangé dans une case y est noté avec son
+actif d'origine, au moment même où il est cumulé (`_Cumul`). L'écran les montre en dépliant la
+ligne.
+
 **Le contrôle des quantités n'est plus dans le moteur.** Le rapprochement avec la photo du
 portefeuille de la banque est parti avec pytr ([D-81](decisions.md)). Le rapport de `positions`
 se termine désormais par une invitation à comparer chaque quantité à l'écran de l'application :
@@ -519,6 +532,19 @@ PEA, son origine, sa réserve, et l'alerte d'un retrait ([D-87](decisions.md)).
 `classes_d_actifs()` et `registre_cfi()` sont les seuls endroits qui nomment ces sources — et
 ceux que les tests remplacent (`tests/garde_fous.py`, actifs pour toute la suite), pour qu'aucun
 ne sorte de la machine.
+
+**Les trois temps longs d'une lecture, et qui les compte** ([D-110](decisions.md)). `construire()`
+reçoit un `Suivi` (`pastory/avancement.py`) et y dit où il en est, actif par actif : les réglages
+(`reglages()`, par `Recherche.trouver`), les cours (`remplir_les_cours()`), les compositions.
+`avancement.py` ne connaît ni l'écran ni les sources : il compte. C'est `vues/attente.py` qui
+écrit les mots et répond à la page. Deux choses à ne pas défaire :
+
+- **`remplir_les_cours()` passe avant tout calcul**, et demande à la source **une fois par
+  actif**, de sa première opération à hier. Sans lui, `FournisseurDeCours.cours()` remplit le
+  cache par petites fenêtres, une par date d'opération : cinq fois plus lent sur un dossier vide,
+  et quelques jours sans cours entre deux fenêtres ;
+- **les compositions sont demandées dans l'ordre où `diversifier()` les demanderait** : le
+  fournisseur garde ses réponses, et l'ordre des refus affichés ne change pas.
 
 ### 5.6 bis `lanceur.py`, `installation.py`, `demonstration/` — ouvrir Pastory comme un logiciel
 

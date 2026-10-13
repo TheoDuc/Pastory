@@ -16,12 +16,15 @@ Sorti de `cli.py` à l'étape 9, sans changer une ligne de calcul.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
+from datetime import date as Date
 from pathlib import Path
 
 from pastory.adaptateurs.trade_republic import depot as depot_export
 from pastory.adaptateurs.trade_republic.lecture import Lecteur
 from pastory.adaptateurs.trade_republic.rapport import Rapport
+from pastory.avancement import Etape, Suivi
 from pastory.config import actifs as config_actifs
 from pastory.config import emplacements
 from pastory.config import fiscalite as config_fiscalite
@@ -32,7 +35,7 @@ from pastory.donnees_externes import composition as composition_externe
 from pastory.donnees_externes.cache import Cache
 from pastory.donnees_externes.cache_compositions import CacheDeCompositions
 from pastory.donnees_externes.completion import Completion
-from pastory.donnees_externes.cours import FournisseurDeCours
+from pastory.donnees_externes.cours import MARGE_AVANT, FournisseurDeCours
 from pastory.donnees_externes.yahoo import Yahoo
 from pastory.moteur import couts as couts_moteur
 from pastory.moteur import diversification as diversification_moteur
@@ -43,6 +46,7 @@ from pastory.parametres import contenus as parametres_contenus
 from pastory.parametres import couts as parametres_couts
 from pastory.parametres import fiscalite as parametres_fiscalite
 from pastory.parametres import referentiels as parametres_referentiels
+from pastory.pivot.operation import Operation, Poche
 from pastory.reglages import Trouvee
 from pastory.reglages import assemblage as assemblage_reglages
 from pastory.reglages.assemblage import Reglages
@@ -104,7 +108,12 @@ def registre_cfi() -> firds.RegistreFirds:
     return firds.RegistreFirds()
 
 
-def reglages(rapport: Rapport, hors_ligne: bool = False, tiers: bool = False) -> Reglages:
+def reglages(
+    rapport: Rapport,
+    hors_ligne: bool = False,
+    tiers: bool = False,
+    suivi: Suivi | None = None,
+) -> Reglages:
     """Tout ce que l'application trouve seule, contrôle et montre (D-80).
 
     Ce que dit la banque, ce que les sources trouvent — gardé dans `cache/reglages.csv` — et
@@ -113,6 +122,8 @@ def reglages(rapport: Rapport, hors_ligne: bool = False, tiers: bool = False) ->
 
     Les sources de TER sont rangées **par ordre de confiance** : l'émetteur, qui publie le
     chiffre de son document d'information clé, puis la liste de Xetra, parfois en retard.
+
+    `suivi` : à qui dire où en est la recherche, actif par actif (D-110).
     """
     recherche = Recherche(
         CacheDesReglages(),
@@ -124,6 +135,8 @@ def reglages(rapport: Rapport, hors_ligne: bool = False, tiers: bool = False) ->
         tiers=tiers,
     )
     banque = rapport.ce_que_dit_la_banque()
+    if suivi is not None:
+        suivi.etape(Etape.REGLAGES, len(banque.poches))
     duree = parametres_fiscalite.charger().pea_duree_exoneration_ir.valeur
     corrections = config_actifs.charger()
     # Une date de PEA corrigée à la main est celle d'une personne : elle ne vaut que pour
@@ -134,7 +147,12 @@ def reglages(rapport: Rapport, hors_ligne: bool = False, tiers: bool = False) ->
     )
     return assemblage_reglages.assembler(
         banque,
-        recherche.trouver(banque, rapport.operations, corrections),
+        recherche.trouver(
+            banque,
+            rapport.operations,
+            corrections,
+            apres_chaque_actif=suivi.avancer if suivi is not None else None,
+        ),
         corrections,
         config_fiscalite.ConfigurationFiscale(premier_versement_pea=du_pea.date),
         duree_avant_retrait_libre=int(duree),
@@ -158,6 +176,39 @@ def fournisseur_de_cours(
         None if hors_ligne else Yahoo(),
         hors_ligne=hors_ligne,
     )
+
+
+def remplir_les_cours(
+    operations: Iterable[Operation],
+    fournisseur: FournisseurDeCours,
+    suivi: Suivi | None = None,
+) -> None:
+    """Demande **une fois par actif** les cours dont toute la suite aura besoin (D-110).
+
+    De la première opération sur l'actif à hier : c'est ce que fait `pastory cours`, et ce
+    dont la courbe a besoin de toute façon. Sans ce passage, les cours sont demandés à la
+    source **par petites fenêtres**, une par date d'opération : sur un dossier vide, mesuré
+    sur la démonstration, 78 secondes d'attente au lieu de 2, et la semaine qui tombait entre
+    deux fenêtres restait sans cours.
+
+    Ce qui est déjà gardé n'est ni redemandé ni réécrit (D-50) : avec un cache déjà rempli,
+    seule la suite — les derniers jours — est demandée, comme avant. Hors ligne et pour
+    l'export d'un tiers, rien n'est demandé du tout.
+    """
+    premieres: dict[str, Date] = {}
+    for operation in operations:
+        connue = premieres.get(operation.actif)
+        if connue is None or operation.date < connue:
+            premieres[operation.actif] = operation.date
+    if suivi is not None:
+        suivi.etape(Etape.COURS, len(premieres))
+    for actif in sorted(premieres):
+        # On commence **avant** la première opération : des titres reçus un dimanche sont
+        # valorisés au cours du vendredi, qui précède donc toute opération sur l'actif.
+        if not fournisseur.hors_ligne:
+            fournisseur.remplir(actif, premieres[actif] - MARGE_AVANT, fournisseur.aujourd_hui)
+        if suivi is not None:
+            suivi.avancer()
 
 
 def parametres_des_couts(reglages: Reglages) -> couts_moteur.ParametresDeCouts:
@@ -273,6 +324,7 @@ def construire(
     periode: rendements_moteur.Periode,
     hors_ligne: bool = False,
     tiers: bool = False,
+    suivi: Suivi | None = None,
 ) -> Construit:
     """Lecture, complétion des prix, rejeu, puis valorisation et rendements.
 
@@ -280,15 +332,19 @@ def construire(
     pivot : le moteur ne gagne pas une ligne et ne sait rien des cours (D-26). La
     valorisation, elle, reçoit le fournisseur de cours **en paramètre** : le moteur déclare
     ce dont il a besoin, et c'est ici, et seulement ici, qu'on le lui donne.
+
+    `suivi` : à qui dire où en est la lecture, pour l'écran qui attend (D-110). Les trois
+    temps longs — les réglages, les cours, les compositions — y avancent actif par actif.
     """
     rapport = lire(dossier)
     # L'export d'un tiers : aucun appel réseau, ni recherche, ni cours, ni composition. Envoyer
     # ses ISIN à un service extérieur, ce serait divulguer ce qu'il détient (règle 2).
     hors_ligne = hors_ligne or tiers
-    trouves = reglages(rapport, hors_ligne, tiers)
+    trouves = reglages(rapport, hors_ligne, tiers, suivi)
     configuration = trouves.configuration()
 
     fournisseur = fournisseur_de_cours(configuration, hors_ligne)
+    remplir_les_cours(rapport.operations, fournisseur, suivi)
     completion = completion_cours.completer_les_prix(rapport.operations, fournisseur)
 
     portefeuille = Portefeuille.construire(completion.operations).au(periode.fin)
@@ -308,6 +364,19 @@ def construire(
     # La répartition part de la **même** valorisation que tout le reste : c'est elle qui fournit
     # les poids, et deux valorisations du même jour pourraient différer d'un centime.
     compositions = fournisseur_de_compositions(configuration, hors_ligne)
+    # Les compositions sont demandées ici, une à une, dans l'ordre même où la répartition les
+    # demanderait : le fournisseur garde ses réponses, et le suivi peut dire où l'on en est.
+    a_composer = [
+        position.actif
+        for position in synthese.valorisation.valorisees
+        if position.poche is not Poche.CRYPTO
+    ]
+    if suivi is not None:
+        suivi.etape(Etape.COMPOSITIONS, len(a_composer))
+    for actif in a_composer:
+        compositions.composition(actif)
+        if suivi is not None:
+            suivi.avancer()
     diversification = diversification_moteur.diversifier(
         synthese.valorisation, compositions, referentiels()
     )

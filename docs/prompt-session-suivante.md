@@ -7,8 +7,9 @@ commencer.
 > **À mettre à jour par l'instance qui termine une étape**, avant la fusion dans `main`. La
 > dernière section dit comment.
 >
-> Dernière mise à jour : **2026-10-13**, à la fin de la session des étapes 10 et 10 bis, toutes
-> deux fusionnées dans `main`.
+> Dernière mise à jour : **2026-10-13**, à la fin de la session du retour du premier testeur,
+> sur la branche `retour-du-premier-testeur` — **pas encore fusionnée** : elle attend la
+> vérification du propriétaire.
 
 ---
 
@@ -16,15 +17,19 @@ commencer.
 
 ```
 Lis CLAUDE.md puis docs/feuille-de-route.md, et docs/prompt-session-suivante.md.
-Mon ami a essayé Pastory. Voici son retour : […]
-Ensuite, on attaque l'étape 11 : la publication du dépôt.
+J'ai vérifié le retour du premier testeur : […]
+On attaque l'étape 11 : la publication du dépôt. On finira par un petit post LinkedIn.
 ```
 
-**C'est l'ordre choisi par le propriétaire le 2026-10-13** : d'abord le retour de son ami, qui
-essaie Pastory avec son propre export — c'est aussi le premier essai par quelqu'un d'autre que
-lui —, puis **l'étape 11**. Si l'ami **installe** Pastory sur sa machine, c'est le test du
-fichier d'installation qui manquait à l'étape 10 : noter chaque blocage. Restent ouverts, sans
-ordre imposé : le bloc 9.5 (les écrans de correction) et la fin de l'étape 10.
+**C'est l'ordre choisi par le propriétaire le 2026-10-13** : le retour de son ami (fait, à
+vérifier), puis **l'étape 11**, et pour finir **un court post LinkedIn** qui présente le projet.
+Restent ouverts, sans ordre imposé : le bloc 9.5 (les écrans de correction) et la fin de
+l'étape 10.
+
+**Avant toute chose : `git branch` et `git log`.** Si `retour-du-premier-testeur` n'est pas
+fusionnée, demander au propriétaire où il en est de son
+[cahier](verification/retour-du-premier-testeur.md), et s'il a tranché
+[Q-62](questions-ouvertes.md).
 
 **Avant de publier (étape 11)** : le dossier `data_*/` d'un tiers est toujours dans le dossier
 du projet, gardé volontairement par le propriétaire. Il est exclu de git ; vérifier qu'aucun
@@ -57,8 +62,14 @@ recherche de données personnelles de cette étape.
 | **Fin de l'étape 10** : installation par un tiers, raccourci Mac, messages d'erreur, guide d'adaptateur | [feuille-de-route.md](feuille-de-route.md), « Reste de l'étape 10 » |
 | **Étape 11** : la publication | [feuille-de-route.md](feuille-de-route.md) |
 
-**Questions ouvertes** : **Q-54** (actions gratuites puis « migration ») et **Q-60** (le contenu du
-monétaire, des multi-actifs, de l'immobilier). Aucune ne bloque.
+- **Le retour du premier testeur est traité** (cette session, [D-110](decisions.md) à
+  [D-112](decisions.md)) : le fichier d'installation installe `uv` lui-même ; l'attente dit où en
+  est la lecture, et la première ouverture est cinq fois plus courte ; chaque ligne de la
+  Diversification se déplie vers ses actifs.
+
+**Questions ouvertes** : **Q-54** (actions gratuites puis « migration »), **Q-60** (le contenu du
+monétaire, des multi-actifs, de l'immobilier) et **Q-62** (les semaines sans cours d'un cache
+construit avant D-110). Aucune ne bloque.
 
 **À la fin de la session du 2026-10-13** : l'étape 10 est **fusionnée dans `main` et envoyée**
 sur GitHub, vérifiée par le propriétaire (il reste de son [cahier](verification/etape-10.md)
@@ -70,6 +81,50 @@ prochain**, qui doit mettre son portefeuille à jour et non en créer un second.
 `git branch` et `git log` avant de supposer quoi que ce soit.**
 
 ---
+
+## Ce que le retour du premier testeur laisse en main
+
+- **Le compteur de l'attente** (`pastory/avancement.py`) ne connaît ni l'écran ni les sources.
+  L'assembleur le fait avancer (`construire(..., suivi=)`), `vues/attente.py` écrit les mots et
+  répond à `/pastory/avancement`, `dessin.js` pose la réponse. **Une étape nouvelle et longue
+  dans `construire` se déclare dans `Etape`** — sans quoi la barre s'arrête pendant qu'elle tourne.
+- **`assembleur.remplir_les_cours` passe avant tout calcul**, une demande par actif. Ne pas le
+  retirer « pour simplifier » : sans lui les cours reviennent par petites fenêtres, cinq fois
+  plus lentement, avec des jours manquants entre deux fenêtres ([D-110](decisions.md)).
+- **Chaque euro rangé par la répartition est noté avec son actif** (`_Cumul._noter`,
+  `moteur/diversification.py`). Toute nouvelle case de la répartition doit passer par une
+  méthode `ajouter_…` du cumul, jamais par un `+=` direct : un test vérifie que les apports d'une
+  ligne somment à son montant, et c'est ce que l'écran promet ([D-111](decisions.md)).
+- **Deux sortes de lignes dépliables** dans la Diversification : `deroulant` (un groupe : une
+  zone, « Sans pays ») et `deroulant deroulant--actifs` (une ligne vers ses actifs). Les tests
+  les distinguent par leur classe exacte.
+- **`Installer Pastory.cmd` s'essaie sur une copie, jamais dans le projet**, et sa dernière étape
+  **écrit de vrais raccourcis sur le bureau** : pour l'essayer, en faire une copie où la ligne
+  `pastory.cli installer` est remplacée par un `echo`. Pour essayer l'installation de `uv` sans
+  toucher à celui de la machine : `UV_INSTALL_DIR` vers un dossier jetable, `UV_NO_MODIFY_PATH=1`,
+  et `USERPROFILE`, `LOCALAPPDATA`, `APPDATA` détournés (le reçu de l'installation s'y écrit).
+  Lancer le fichier par PowerShell (`cmd /c ".\fichier.cmd"`) : Git Bash abîme le chemin.
+- **Le fichier `.cmd` écrit par un outil d'édition perd ses fins de ligne Windows** : les lui
+  rendre (`unix2dos`) avant de l'essayer, sans quoi ses `goto` et ses `call :étiquette` échouent.
+
+## Les pièges de cette session
+
+- **Une demande de fonctionnalité peut cacher un défaut.** « Une barre de chargement » : la mesure
+  a montré que 78 des 93 secondes d'attente étaient inutiles. Mesurer avant d'habiller.
+- **Mesurer une première ouverture** : un dossier jetable dont le nom finit par `-demonstration`
+  (c'est le dossier qui dit si c'en est une), `PASTORY_DOSSIER` pointé dessus, l'export fictif
+  écrit par `demonstration.ecrire`, puis chaque appel de `assembleur.construire` chronométré un à
+  un. Le script vivait dans le dossier temporaire de la session : à réécrire.
+- **Sur cette machine, une page sur dix se charge mal** (l'antivirus, voir plus bas) : pendant un
+  essai en navigateur sans fenêtre, la page est restée vide vingt secondes puis s'est rechargée
+  seule. Ce n'est pas le code : le journal du serveur le montre (aucune demande `_dash-layout`).
+- **Un scénario de capture ne se découpe pas sur les points-virgules** : le JavaScript en
+  contient. Une instruction par ligne, dans un fichier.
+- **`"uv" not in sortie` est vrai dans « ouvrez »** : chercher un mot court dans un texte
+  français demande ses guillemets ou ses limites.
+- **Comparer avant / après sans afficher une valeur** : le relevé écrit un fichier JSON, et la
+  comparaison ne dit que le nom des rubriques qui diffèrent. Quand un écran **gagne** des lignes,
+  comparer les nombres comme un multi-ensemble : aucun nombre d'avant ne doit avoir disparu.
 
 ## Ce que l'étape 10 laisse en main
 

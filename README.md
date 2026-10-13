@@ -14,29 +14,31 @@ clients.
 
 ## Installer Pastory (Windows)
 
-Trois étapes, une seule fois.
+Deux étapes, une seule fois. Aucune commande à taper.
 
-1. **Installez `uv`**, l'outil qui installera Python et les bibliothèques dont Pastory a besoin.
-   Ouvrez PowerShell (menu Démarrer → tapez « PowerShell »), collez cette ligne, validez :
+1. **Téléchargez Pastory** (sur GitHub : *Code* → *Download ZIP*), puis **décompressez
+   l'archive** : clic droit sur le fichier ZIP → *Extraire tout*. Rangez le dossier obtenu où
+   vous voulez le garder — **de préférence hors de OneDrive** (donc pas sur le bureau s'il est
+   synchronisé), par exemple dans `C:\Pastory`.
 
-   ```
-   powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-   ```
+2. **Double-cliquez sur `Installer Pastory.cmd`**, dans ce dossier. Une fenêtre noire s'ouvre et
+   fait tout :
+   - elle installe **`uv`**, l'outil libre qui installera Python et les bibliothèques, s'il n'est
+     pas déjà sur votre ordinateur — elle vous le dit et attend que vous appuyiez sur une touche
+     ([sa méthode officielle](https://docs.astral.sh/uv/getting-started/installation/)) ;
+   - elle installe l'environnement de Pastory, dans ce dossier (quelques minutes la première
+     fois) ;
+   - elle crée l'icône **Pastory** sur le bureau et dans le menu Démarrer.
 
-   C'est la méthode officielle ([documentation de uv](https://docs.astral.sh/uv/getting-started/installation/)).
-   Fermez ensuite PowerShell : vous n'en aurez plus besoin.
+Si Windows affiche un avertissement au lancement du fichier (« Windows a protégé votre
+ordinateur »), c'est parce qu'il vient d'être téléchargé : *Informations complémentaires* →
+*Exécuter quand même*.
 
-2. **Téléchargez Pastory** (sur GitHub : *Code* → *Download ZIP*) et décompressez le dossier où
-   vous voulez le garder — **de préférence hors de OneDrive**, qui gêne l'installation.
-
-3. **Double-cliquez sur `Installer Pastory.cmd`**, dans ce dossier. Il installe l'environnement
-   (quelques minutes la première fois), puis crée l'icône **Pastory** sur le bureau et dans le menu
-   Démarrer.
-
-Si l'installation échoue, la fenêtre dit pourquoi. Les deux causes rencontrées jusqu'ici : un
-**antivirus qui inspecte les connexions sécurisées** (message « invalid peer certificate » :
-suspendez son analyse HTTPS le temps de l'installation) et un dossier rangé dans **OneDrive**
-(message « Accès refusé »).
+Si l'installation échoue, la fenêtre dit pourquoi, et il suffit de **relancer le fichier** une fois
+la cause levée. Les causes rencontrées jusqu'ici : le fichier lancé **depuis l'archive ZIP**, sans
+l'avoir décompressée ; un **antivirus qui inspecte les connexions sécurisées** (message « invalid
+peer certificate » : suspendez son analyse HTTPS le temps de l'installation) ; un dossier rangé
+dans **OneDrive** (message « Accès refusé » : déplacez-le).
 
 Si vous déplacez ou renommez le dossier de Pastory, relancez `Installer Pastory.cmd` : les icônes
 pointent sur lui.
@@ -63,8 +65,10 @@ première opération.
    valeur dit d'où elle vient ;
 2. **ouvrez le livre** : synthèse, actifs, diversification, frais et taxes, projections.
 
-La première ouverture interroge les sources de cours et de composition : elle demande Internet et
-peut prendre une minute. Ensuite, tout est gardé sur votre ordinateur.
+La première lecture d'un export interroge les sources de cours et de composition : elle demande
+Internet et dure de quelques secondes à une minute, selon le nombre d'actifs. **Une barre dit où
+elle en est**, actif par actif. Ensuite, tout est gardé sur votre ordinateur, et seuls les derniers
+cours sont redemandés.
 
 **Fermer la fenêtre arrête Pastory.** Pour un export plus récent, déposez-le de la même façon :
 Pastory reconnaît le même compte à ses opérations, et **met votre portefeuille à jour**.

@@ -302,6 +302,85 @@ class TestLesLongsClassements:
 
 
 def test_ce_qu_il_faut_savoir_est_replie_par_defaut(chiffres):
-    repli = next(n for n in noeuds(corps(chiffres)) if type(n).__name__ == "Details")
+    repli = next(n for n in noeuds(corps(chiffres)) if getattr(n, "className", "") == "repli")
     assert not getattr(repli, "open", False)
     assert "Ce qu'il faut savoir de ces chiffres" in texte(repli)
+
+
+class TestChaqueLigneSeDeplieVersSesActifs:
+    """D-111, une question du premier testeur : « quels actifs sont dans ce pays, dans ce
+    secteur ? ». Chaque ligne s'ouvre sur les actifs du portefeuille qui la composent ; leurs
+    montants sont ceux du moteur, et leur somme est le montant de la ligne."""
+
+    @staticmethod
+    def vers_des_actifs(page) -> list:
+        return [
+            n
+            for n in noeuds(page)
+            if getattr(n, "className", "") == "deroulant deroulant--actifs"
+        ]
+
+    @pytest.mark.parametrize("rubrique", ["classes", "pays", "secteurs"])
+    def test_chaque_poste_montre_ses_actifs_et_leurs_montants(self, chiffres, rubrique):
+        base = chiffres.base()
+        d = base.diversification
+        r = {"classes": d.classes, "pays": d.pays, "secteurs": d.secteurs}[rubrique]
+        noms = {
+            p.actif: p.position.nom_actif or p.actif
+            for p in base.synthese.valorisation.positions
+        }
+        def libelle(repli) -> str:
+            return next(
+                texte(n)
+                for n in noeuds(repli.children[0])
+                if getattr(n, "className", "") == "rang__texte"
+            )
+
+        replis = {libelle(n): texte(n) for n in self.vers_des_actifs(corps(chiffres, rubrique))}
+        assert r.postes
+        for poste in r.postes:
+            ligne = replis[diversification._libelle(poste)]
+            for apport in poste.contributions:
+                assert noms[apport.actif] in ligne
+                assert f.montant(apport.montant) in ligne
+                assert f.pour_cent(r.pour_cent(apport.montant)) in ligne
+
+    def test_une_zone_s_ouvre_sur_ses_pays_qui_s_ouvrent_sur_leurs_actifs(self, chiffres):
+        page = corps(chiffres, "zones")
+        zones = [n for n in noeuds(page) if getattr(n, "className", "") == "deroulant"]
+        europe = next(z for z in zones if "Europe" in texte(z.children[0]))
+        pays = self.vers_des_actifs(europe)
+        assert pays and "France" in texte(pays[0].children[0])
+        assert "Action Exemple SA" in texte(pays[0])
+
+    def test_un_reste_dit_aussi_d_ou_il_vient(self, chiffres):
+        """« Actifs numériques » s'ouvre sur la crypto détenue, « Non attribué » sur les fonds
+        dont la composition ne somme pas à 100 %."""
+        base = chiffres.base()
+        nom = next(
+            p.position.nom_actif
+            for p in base.synthese.valorisation.positions
+            if p.actif == fictifs.ACTIF_CRYPTO
+        )
+        replis = self.vers_des_actifs(corps(chiffres, "classes"))
+        numeriques = next(n for n in replis if "Actifs numériques" in texte(n.children[0]))
+        assert nom in texte(numeriques)
+
+    def test_la_ligne_d_un_actif_se_reconnait(self, chiffres):
+        page = corps(chiffres, "pays")
+        apports = [
+            n
+            for n in noeuds(page)
+            if "rang--actif" in (getattr(n, "className", "") or "").split()
+        ]
+        assert apports
+        assert all(n.className.split()[0] == "rang" for n in apports)
+
+    def test_l_ecran_dit_que_les_lignes_se_deplient(self, chiffres):
+        assert "Chaque ligne se déplie" in texte(corps(chiffres, "secteurs"))
+
+    def test_fermees_par_defaut(self, chiffres):
+        """Soixante pays ouverts d'un coup noieraient le classement."""
+        assert not any(
+            getattr(n, "open", False) for n in self.vers_des_actifs(corps(chiffres, "pays"))
+        )

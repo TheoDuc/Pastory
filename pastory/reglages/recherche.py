@@ -249,12 +249,16 @@ class Recherche:
         banque: CeQueDitLaBanque,
         operations: Iterable[Operation],
         corrections: Configuration | None = None,
+        apres_chaque_actif: Callable[[], None] | None = None,
     ) -> dict[str, EnLigne]:
         """Ce que les sources trouvent pour chaque actif de l'export.
 
         Le type qui guide la recherche — quelle tolérance, faut-il un TER — est celui que
         l'utilisateur a corrigé s'il l'a fait, sinon celui de la banque : une correction
         l'emporte partout, pas seulement sur le spread.
+
+        `apres_chaque_actif` est appelé une fois par actif traité : c'est ce qui fait avancer
+        la barre d'attente de l'écran (D-110).
         """
         prix = _prix_payes(operations)
         resultat: dict[str, EnLigne] = {}
@@ -271,6 +275,8 @@ class Recherche:
                 ter=self._ter(actif) if type_actif is TypeActif.ETF else None,
                 contenu=self._contenu(actif) if type_actif is TypeActif.ETF else None,
             )
+            if apres_chaque_actif is not None:
+                apres_chaque_actif()
         return resultat
 
     # --- La cotation ----------------------------------------------------------------------

@@ -696,3 +696,101 @@ class TestUneRubriqueAbsenteDeLaCompositionEstNonCouverte:
 
         assert resultat.secteurs.non_couvert == Decimal("0")
         assert resultat.secteurs.actifs_non_couverts == ()
+
+
+class TestCeQueChaqueActifApporte:
+    """D-111 : chaque ligne dit quels actifs la composent, et pour combien. La propriété qui
+    compte : **la somme des apports d'une ligne est son montant, au centime** — sans elle, le
+    détail affiché sous une ligne ne permettrait pas de la refaire à la main."""
+
+    def _portefeuille(self):
+        # 1 000 EUR d'ETF monde (60 % US, 30 % FR, 10 % JP), 500 EUR d'une action francaise,
+        # 500 EUR d'obligataire, 200 EUR de crypto, 300 EUR d'un actif sans composition.
+        valorisation = _valorisation(
+            _achat(ETF, "10", "100.00"),
+            _achat(ACTION, "5", "100.00"),
+            _achat(OBLIG, "5", "100.00"),
+            _achat(CRYPTO, "2", "100.00", poche=Poche.CRYPTO),
+            _achat(INCONNU, "3", "100.00"),
+            cours={
+                ETF: "100.00", ACTION: "100.00", OBLIG: "100.00", CRYPTO: "100.00",
+                INCONNU: "100.00",
+            },
+        )
+        source = SourceDeCompositionFictive(
+            {ETF: etf_monde(), ACTION: action_en_direct(), OBLIG: etf_obligataire()}
+        )
+        return valorisation, source
+
+    def test_un_pays_nomme_ses_actifs_et_leurs_montants(self, referentiels):
+        valorisation, source = self._portefeuille()
+
+        pays = dv.diversifier(valorisation, source, referentiels).pays
+        france = next(p for p in pays.postes if p.code == "FR")
+        etats_unis = next(p for p in pays.postes if p.code == "US")
+
+        # France : l'action entiere (500,00) et 30 % de l'ETF (300,00), la plus lourde d'abord.
+        assert france.montant == Decimal("800.00")
+        assert france.contributions == (
+            dv.Contribution(ACTION, Decimal("500.00")),
+            dv.Contribution(ETF, Decimal("300.00")),
+        )
+        assert etats_unis.contributions == (dv.Contribution(ETF, Decimal("600.00")),)
+
+    def test_la_somme_des_apports_est_le_montant_de_chaque_ligne(self, referentiels):
+        valorisation, source = self._portefeuille()
+
+        resultat = dv.diversifier(valorisation, source, referentiels)
+
+        def somme(contributions):
+            return sum((c.montant for c in contributions), Decimal("0"))
+
+        for r in resultat.repartitions:
+            for poste in (*r.postes, *r.hors_perimetre_postes):
+                assert poste.contributions, (r.rubrique, poste.code)
+                assert somme(poste.contributions) == poste.montant, (r.rubrique, poste.code)
+            assert somme(r.non_attribue_par_actif) == r.non_attribue, r.rubrique
+            assert somme(r.hors_classification_par_actif) == r.hors_classification, r.rubrique
+            assert somme(r.non_couvert_par_actif) == r.non_couvert, r.rubrique
+
+    def test_les_restes_nomment_aussi_leurs_actifs(self, referentiels):
+        valorisation, source = self._portefeuille()
+
+        pays = dv.diversifier(valorisation, source, referentiels).pays
+
+        assert pays.non_couvert_par_actif == (dv.Contribution(INCONNU, Decimal("300.00")),)
+        assert pays.hors_classification_par_actif == (
+            dv.Contribution(CRYPTO, Decimal("200.00")),
+        )
+        obligations = pays.hors_perimetre_postes[0]
+        assert obligations.contributions == (dv.Contribution(OBLIG, Decimal("500.00")),)
+
+    def test_un_poids_que_la_source_ne_donne_pas_reste_au_non_attribue_de_l_actif(
+        self, referentiels
+    ):
+        # 95 % attribues : les 5 % manquants sont le non attribue de CET actif, et de lui seul.
+        valorisation = _valorisation(
+            _achat(ETF, "10", "100.00"),
+            _achat(ETF_2, "10", "100.00"),
+            cours={ETF: "100.00", ETF_2: "100.00"},
+        )
+        incomplet = CompositionFictive(pays=parts(US="95"), classes=parts(stock="100"))
+        source = SourceDeCompositionFictive({ETF: incomplet, ETF_2: etf_monde()})
+
+        pays = dv.diversifier(valorisation, source, referentiels).pays
+
+        assert pays.non_attribue_par_actif == (dv.Contribution(ETF, Decimal("50.00")),)
+
+    def test_un_meme_titre_dans_deux_poches_ne_fait_qu_un_apport(self, referentiels):
+        # Le meme ETF au PEA et au compte-titres : une ligne, la somme des deux positions.
+        valorisation = _valorisation(
+            _achat(ETF, "10", "100.00", poche=Poche.PEA),
+            _achat(ETF, "5", "100.00", poche=Poche.CTO),
+            cours={ETF: "100.00"},
+        )
+        source = SourceDeCompositionFictive({ETF: etf_monde()})
+
+        pays = dv.diversifier(valorisation, source, referentiels).pays
+        japon = next(p for p in pays.postes if p.code == "JP")
+
+        assert japon.contributions == (dv.Contribution(ETF, Decimal("150.00")),)

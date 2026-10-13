@@ -143,3 +143,76 @@ class TestAvecLeVraiWindows:
         assert "pythonw.exe".encode("utf-16-le") in contenu
         assert "-m pastory.lanceur".encode("utf-16-le") in contenu
         assert "dossier_général".encode("utf-16-le") in contenu
+
+
+class TestLeFichierDInstallation:
+    """`Installer Pastory.cmd` : le seul geste d'un nouvel utilisateur. Le premier testeur l'a
+    lancé avant d'avoir installé `uv`, puis n'a pas réussi à repartir sans aide : le fichier
+    installe désormais `uv` lui-même, et le retrouve là où son installateur le range."""
+
+    FICHIER = installation.dossier_du_projet() / "Installer Pastory.cmd"
+
+    @pytest.fixture
+    def texte(self) -> str:
+        return self.FICHIER.read_bytes().decode("ascii")
+
+    def test_il_est_ecrit_sans_accents(self):
+        """La fenêtre de commandes ne les affiche pas de la même façon partout : `decode`
+        échouerait au premier accent."""
+        assert self.FICHIER.read_bytes().decode("ascii")
+
+    def test_il_installe_uv_lui_meme_par_la_methode_de_son_editeur(self, texte):
+        assert "https://astral.sh/uv/install.ps1" in texte
+        assert "call :installer_uv" in texte
+
+    def test_il_previent_avant_d_installer_quoi_que_ce_soit(self, texte):
+        installer = texte.split(":installer_uv", 2)[2]
+        assert installer.index("pause >nul") < installer.index("install.ps1")
+        assert "fermez cette fenetre pour ne rien installer" in installer
+
+    def test_il_cherche_uv_la_ou_son_installateur_le_range(self, texte):
+        r"""Un `uv` tout juste installé n'est pas encore dans le chemin de recherche de
+        Windows : s'en tenir à `where uv` répondait « introuvable » à qui venait de
+        l'installer."""
+        assert r"%USERPROFILE%\.local\bin" in texte
+        assert '"%UV%" sync' in texte
+        assert "\nuv sync" not in texte
+
+    def test_il_refuse_de_partir_de_l_archive_non_decompressee(self, texte):
+        assert texte.index('if not exist "pyproject.toml"') < texte.index("call :trouver_uv")
+
+    def test_aucun_echec_ne_ferme_la_fenetre_sans_laisser_lire(self, texte):
+        """Un double-clic dont la fenêtre se referme aussitôt est la pire des pannes."""
+        lignes = [ligne.strip() for ligne in texte.splitlines()]
+        for rang, ligne in enumerate(lignes):
+            if ligne == "exit /b 1":
+                assert lignes[rang - 1] == "pause", f"ligne {rang + 1}"
+
+    def test_il_se_contente_de_copies_dans_un_dossier_synchronise(self, texte):
+        assert "set UV_LINK_MODE=copy" in texte
+        assert "set UV_NATIVE_TLS=1" in texte
+
+    @SOUS_WINDOWS
+    def test_lance_hors_du_dossier_de_pastory_il_le_dit_et_n_installe_rien(self, tmp_path):
+        """Le vrai fichier, dans un dossier vide : c'est ce qui arrive quand on double-clique
+        dessus dans l'archive ZIP sans l'avoir décompressée."""
+        import shutil
+        import subprocess
+
+        copie = tmp_path / self.FICHIER.name
+        shutil.copyfile(self.FICHIER, copie)
+
+        resultat = subprocess.run(
+            ["cmd", "/c", copie.name],
+            cwd=tmp_path,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            timeout=60,
+            check=False,
+        )
+
+        sortie = resultat.stdout.decode("ascii", errors="replace")
+        assert resultat.returncode == 1
+        assert "Decompressez d'abord l'archive" in sortie
+        assert '"uv"' not in sortie and "astral" not in sortie
+        assert list(tmp_path.iterdir()) == [copie]

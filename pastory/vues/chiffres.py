@@ -27,6 +27,7 @@ from pathlib import Path
 from pastory import assembleur
 from pastory.adaptateurs.trade_republic import depot
 from pastory.adaptateurs.trade_republic.depot import ExportIntrouvable
+from pastory.avancement import Suivi
 from pastory.config import ConfigurationInvalide, emplacements
 from pastory.donnees_externes.cache import CacheIllisible
 from pastory.moteur import rendements as rendements_moteur
@@ -124,6 +125,8 @@ class Chiffres:
         self._vues: dict[tuple[str, tuple[Poche, ...]], Vue] = {}
         self._evolutions: dict[tuple[Poche, ...], list[valorisation_moteur.PointEvolution]] = {}
         self._inventaire: depot.Inventaire | None = None
+        self.suivi = Suivi()
+        """Où en est la lecture en cours : ce que montre la barre d'attente (D-110)."""
         self.version = 0
         """Change à chaque relecture : l'écran s'en sert pour savoir qu'il doit se redessiner."""
 
@@ -164,12 +167,14 @@ class Chiffres:
 
     def _calculer_la_base(self) -> assembleur.Construit | Echec:
         construire = self._construire or assembleur.construire
+        self.suivi.commencer()
         try:
             return construire(
                 self.dossier(),
                 rendements_moteur.Periode(fin=self._aujourd_hui()),
                 self.hors_ligne,
                 tiers=self.tiers,
+                suivi=self.suivi,
             )
         except ExportIntrouvable as erreur:
             return Echec("aucun-export", str(erreur))
@@ -177,6 +182,8 @@ class Chiffres:
             return Echec("fichier-a-corriger", str(erreur))
         except CacheIllisible as erreur:
             return Echec("memoire-illisible", str(erreur))
+        finally:
+            self.suivi.terminer()
 
     def vue(self, periode: str, poches: Sequence[str] | None = None) -> Vue | Echec:
         """La synthèse pour une période et des poches. `poches=None` : toutes."""

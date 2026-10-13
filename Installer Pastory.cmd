@@ -1,8 +1,9 @@
 @echo off
-rem Installation de Pastory : un double-clic sur ce fichier.
-rem   1. installe Python et les bibliotheques de Pastory, dans ce dossier (.venv) ;
-rem   2. cree les raccourcis du bureau et du menu Demarrer.
-rem Rien n'est installe ailleurs. A relancer si ce dossier est deplace ou renomme.
+rem Installation de Pastory : un double-clic sur ce fichier, et rien d'autre.
+rem   1. trouve l'outil "uv", ou l'installe s'il manque ;
+rem   2. installe Python et les bibliotheques de Pastory, dans ce dossier (.venv) ;
+rem   3. cree les raccourcis du bureau et du menu Demarrer.
+rem A relancer si ce dossier est deplace ou renomme.
 rem
 rem Ce fichier est ecrit sans accents : la fenetre de commandes de Windows ne les affiche
 rem pas de la meme facon d'un ordinateur a l'autre.
@@ -15,13 +16,30 @@ echo   Installation de Pastory
 echo   -----------------------
 echo.
 
-where uv >nul 2>nul
-if errorlevel 1 (
-    echo   L'outil "uv" est introuvable. C'est lui qui installe Python et les
-    echo   bibliotheques dont Pastory a besoin.
+rem Un double-clic dans l'archive ZIP, sans l'avoir decompressee, ne lance que ce fichier,
+rem seul, depuis un dossier temporaire : le reste de Pastory n'y est pas.
+if not exist "pyproject.toml" (
+    echo   Ce fichier n'est pas dans le dossier de Pastory : il a sans doute ete lance
+    echo   depuis l'archive ZIP, sans la decompresser.
     echo.
-    echo   Installez-le d'abord, en suivant le fichier README.md de ce dossier
-    echo   ^(https://docs.astral.sh/uv/getting-started/installation/^),
+    echo   Decompressez d'abord l'archive ^(clic droit sur le fichier ZIP, puis
+    echo   "Extraire tout"^), ouvrez le dossier obtenu, et relancez ce fichier de la.
+    echo.
+    pause
+    exit /b 1
+)
+
+call :trouver_uv
+if defined UV echo   1/3  L'outil "uv" : deja installe.
+if defined UV echo.
+if not defined UV call :installer_uv
+if not defined UV (
+    echo.
+    echo   L'outil "uv" n'a pas pu etre installe : le message ci-dessus dit pourquoi.
+    echo   Verifiez la connexion a Internet, puis relancez ce fichier.
+    echo.
+    echo   Si cela echoue encore, installez-le a la main en suivant
+    echo   https://docs.astral.sh/uv/getting-started/installation/
     echo   puis relancez ce fichier.
     echo.
     pause
@@ -31,10 +49,21 @@ if errorlevel 1 (
 rem Les certificats de Windows plutot que ceux d'uv : un antivirus qui inspecte les
 rem connexions securisees (Norton, Avast...) fait sinon echouer les telechargements.
 set UV_NATIVE_TLS=1
+rem Des copies plutot que des liens : dans un dossier synchronise (OneDrive), les liens
+rem echouent.
+set UV_LINK_MODE=copy
 
-echo   1/2  Python et les bibliotheques ^(quelques minutes la premiere fois^)...
+echo   2/3  Python et les bibliotheques ^(quelques minutes la premiere fois^)...
 echo.
-uv sync
+"%UV%" sync
+if errorlevel 1 (
+    rem Dans un dossier synchronise, le premier essai peut buter sur un fichier que la
+    rem synchronisation tient encore : le second passe.
+    echo.
+    echo   Premier essai interrompu : nouvel essai...
+    echo.
+    "%UV%" sync
+)
 if errorlevel 1 (
     echo.
     echo   L'installation des bibliotheques a echoue : le message ci-dessus dit pourquoi.
@@ -42,14 +71,15 @@ if errorlevel 1 (
     echo     - pas de connexion a Internet ;
     echo     - "invalid peer certificate" : un antivirus inspecte les connexions securisees.
     echo       Suspendez son analyse HTTPS le temps de l'installation, puis relancez ;
-    echo     - "Acces refuse" : ce dossier est range dans OneDrive. Deplacez-le ailleurs.
+    echo     - "Acces refuse" : ce dossier est range dans OneDrive. Deplacez-le ailleurs,
+    echo       par exemple dans C:\Pastory, puis relancez ce fichier de la.
     echo.
     pause
     exit /b 1
 )
 
 echo.
-echo   2/2  Les raccourcis...
+echo   3/3  Les raccourcis...
 echo.
 ".venv\Scripts\python.exe" -m pastory.cli installer
 if errorlevel 1 (
@@ -61,6 +91,41 @@ if errorlevel 1 (
 )
 
 echo.
-echo   Pastory est installe. Vous pouvez fermer cette fenetre.
+echo   Pastory est installe : son icone est sur le bureau et dans le menu Demarrer.
+echo   Vous pouvez fermer cette fenetre.
 echo.
 pause
+exit /b 0
+
+
+rem --- Trouver uv ---------------------------------------------------------------------
+rem Dans le chemin de recherche de Windows d'abord, puis la ou son installateur le range.
+rem Un uv tout juste installe n'est pas encore dans le chemin de recherche des fenetres
+rem deja ouvertes, ni toujours dans celui des suivantes : le chercher a son emplacement
+rem evite de repondre "introuvable" a quelqu'un qui vient de l'installer.
+:trouver_uv
+set "UV="
+for /f "delims=" %%U in ('where uv 2^>nul') do if not defined UV set "UV=%%U"
+if defined UV exit /b 0
+for %%D in ("%UV_INSTALL_DIR%" "%XDG_BIN_HOME%" "%USERPROFILE%\.local\bin" "%USERPROFILE%\.cargo\bin") do (
+    if not defined UV if not "%%~D"=="" if exist "%%~D\uv.exe" set "UV=%%~D\uv.exe"
+)
+exit /b 0
+
+
+rem --- Installer uv -------------------------------------------------------------------
+rem Par la methode officielle de son editeur, la meme que celle du fichier README.md.
+:installer_uv
+echo   1/3  L'outil "uv"
+echo.
+echo   Pastory a besoin de "uv", un outil libre qui installe Python et les bibliotheques.
+echo   Il n'est pas encore sur cet ordinateur. Ce fichier va le telecharger sur le site
+echo   de son editeur ^(astral.sh^) et l'installer dans votre dossier personnel.
+echo.
+echo   Appuyez sur une touche pour continuer, ou fermez cette fenetre pour ne rien installer.
+pause >nul
+echo.
+powershell -NoProfile -ExecutionPolicy ByPass -Command "irm https://astral.sh/uv/install.ps1 | iex"
+echo.
+call :trouver_uv
+exit /b 0
