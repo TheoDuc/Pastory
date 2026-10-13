@@ -139,10 +139,19 @@ class TestLeBlocDAttente:
         assert classes(attente.brique()) <= definies
 
     def test_le_script_ne_pose_que_des_textes_deja_ecrits(self):
-        """Aucun chiffre n'est mis en forme dans le navigateur (D-93)."""
+        """Aucun chiffre n'est mis en forme dans le navigateur (D-93) : les deux textes
+        affichés sont posés tels que Python les a écrits, et rien d'autre n'est écrit."""
         script = (DOSSIER_DES_ASSETS / "dessin.js").read_text(encoding="utf-8")
-        assert "etat.etape" in script and "etat.detail" in script
-        assert "toFixed" not in script.split("L'ATTENTE")[1].split("LES BULLES")[0]
+        attente_js = script.split("L'ATTENTE")[1].split("LES BULLES")[0]
+        poses = re.findall(r"(\w+)\.textContent = ([^;]+);", attente_js)
+        assert sorted(poses) == [
+            ("detail", '""'),
+            ("detail", "etat.detail"),
+            ("etape", 'attente.getAttribute("data-repos")'),
+            ("etape", "etat.etape"),
+        ]
+        for interdit in ("toFixed", "toLocaleString", "Intl.", "innerHTML"):
+            assert interdit not in attente_js
 
     def test_c_est_lui_que_la_page_montre_en_attendant(self):
         page = application._mise_en_page()
@@ -177,22 +186,30 @@ class TestLAdresse:
             fil = threading.Thread(target=demander)
             fil.start()
             fil.join(timeout=5)
-        assert reponses == [{"en_cours": False}]
+            assert reponses == [{"en_cours": False}]
 
     def test_une_question_sur_l_avancement_n_est_pas_un_travail(self, dossier_personnel):
         """Elle ne doit pas tenir Pastory ouvert après la fermeture de sa fenêtre (D-106)."""
 
         class VeilleQuiCompte(Veille):
-            travaux_commences = 0
+            commences = 0
+            finis = 0
 
             def commencer_un_travail(self) -> None:
-                self.travaux_commences += 1
+                self.commences += 1
                 super().commencer_un_travail()
+
+            def finir_un_travail(self) -> None:
+                self.finis += 1
+                super().finir_un_travail()
 
         veille = VeilleQuiCompte()
         client = application.creer(Chiffres(hors_ligne=True), veille).server.test_client()
         client.get(attente.CHEMIN)
-        assert veille.travaux_commences == 0
+        assert (veille.commences, veille.finis) == (0, 0)
+        # Une vraie demande, elle, compte — et se termine.
+        client.get("/_dash-layout")
+        assert (veille.commences, veille.finis) == (1, 1)
 
 
 class TestLaLectureDitOuElleEnEst:

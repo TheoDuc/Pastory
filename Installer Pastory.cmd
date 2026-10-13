@@ -8,7 +8,8 @@ rem
 rem Ce fichier est ecrit sans accents : la fenetre de commandes de Windows ne les affiche
 rem pas de la meme facon d'un ordinateur a l'autre.
 setlocal
-cd /d "%~dp0"
+rem pushd, et non cd : il sait aussi entrer dans un dossier partage sur le reseau.
+pushd "%~dp0"
 title Installation de Pastory
 
 echo.
@@ -55,14 +56,15 @@ set UV_LINK_MODE=copy
 
 echo   2/3  Python et les bibliotheques ^(quelques minutes la premiere fois^)...
 echo.
-"%UV%" sync
+rem "call" : si uv est lui-meme un fichier de commandes, ce fichier-ci doit reprendre la main.
+call "%UV%" sync
 if errorlevel 1 (
     rem Dans un dossier synchronise, le premier essai peut buter sur un fichier que la
     rem synchronisation tient encore : le second passe.
     echo.
     echo   Premier essai interrompu : nouvel essai...
     echo.
-    "%UV%" sync
+    call "%UV%" sync
 )
 if errorlevel 1 (
     echo.

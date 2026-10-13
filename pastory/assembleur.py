@@ -35,7 +35,7 @@ from pastory.donnees_externes import composition as composition_externe
 from pastory.donnees_externes.cache import Cache
 from pastory.donnees_externes.cache_compositions import CacheDeCompositions
 from pastory.donnees_externes.completion import Completion
-from pastory.donnees_externes.cours import MARGE_AVANT, FournisseurDeCours
+from pastory.donnees_externes.cours import MARGE_APRES, MARGE_AVANT, FournisseurDeCours
 from pastory.donnees_externes.yahoo import Yahoo
 from pastory.moteur import couts as couts_moteur
 from pastory.moteur import diversification as diversification_moteur
@@ -185,30 +185,59 @@ def remplir_les_cours(
 ) -> None:
     """Demande **une fois par actif** les cours dont toute la suite aura besoin (D-110).
 
-    De la première opération sur l'actif à hier : c'est ce que fait `pastory cours`, et ce
-    dont la courbe a besoin de toute façon. Sans ce passage, les cours sont demandés à la
-    source **par petites fenêtres**, une par date d'opération : sur un dossier vide, mesuré
-    sur la démonstration, 78 secondes d'attente au lieu de 2, et la semaine qui tombait entre
-    deux fenêtres restait sans cours.
+    De la première opération sur l'actif à hier — ou, pour un titre qui n'est plus détenu, à
+    sa dernière opération : c'est ce dont la courbe a besoin. Sans ce passage, les cours sont
+    demandés à la source **par petites fenêtres**, une par date d'opération : sur un dossier
+    vide, mesuré sur la démonstration, 78 secondes d'attente au lieu de 2, et la semaine qui
+    tombait entre deux fenêtres restait sans cours.
 
-    Ce qui est déjà gardé n'est ni redemandé ni réécrit (D-50) : avec un cache déjà rempli,
-    seule la suite — les derniers jours — est demandée, comme avant. Hors ligne et pour
-    l'export d'un tiers, rien n'est demandé du tout.
+    Trois précautions, pour ne demander que ce qui peut manquer :
+
+    - ce qui est déjà gardé n'est ni redemandé ni réécrit (D-50) ;
+    - **un titre vendu n'est plus demandé après sa vente** : personne ne lit ses cours
+      au-delà, et un titre retiré de la cote depuis lèverait à chaque ouverture une alerte
+      sur un actif qu'on ne détient plus (trouvé par la relecture) ;
+    - **rien n'est redemandé avant le premier jour gardé** : si la source n'a rien avant —
+      un titre acheté à son introduction —, elle n'aura rien de plus la prochaine fois.
+
+    Hors ligne et pour l'export d'un tiers, rien n'est demandé du tout.
     """
+    operations = list(operations)
     premieres: dict[str, Date] = {}
+    dernieres: dict[str, Date] = {}
     for operation in operations:
-        connue = premieres.get(operation.actif)
-        if connue is None or operation.date < connue:
-            premieres[operation.actif] = operation.date
+        actif = operation.actif
+        premieres[actif] = min(premieres.get(actif, operation.date), operation.date)
+        dernieres[actif] = max(dernieres.get(actif, operation.date), operation.date)
+    # Ce qui est encore détenu se lit par le moteur, pas par un second calcul des quantités :
+    # une lecture avant complétion des prix suffit, les quantités n'en dépendent pas.
+    aujourd_hui = Portefeuille.construire(operations).au(fournisseur.aujourd_hui)
+    detenus = {position.actif for position in aujourd_hui.positions_detenues}
     if suivi is not None:
         suivi.etape(Etape.COURS, len(premieres))
     for actif in sorted(premieres):
-        # On commence **avant** la première opération : des titres reçus un dimanche sont
-        # valorisés au cours du vendredi, qui précède donc toute opération sur l'actif.
         if not fournisseur.hors_ligne:
-            fournisseur.remplir(actif, premieres[actif] - MARGE_AVANT, fournisseur.aujourd_hui)
+            _remplir_un_actif(
+                fournisseur, actif, premieres[actif], dernieres[actif], actif in detenus
+            )
         if suivi is not None:
             suivi.avancer()
+
+
+def _remplir_un_actif(
+    fournisseur: FournisseurDeCours, actif: str, premiere: Date, derniere: Date, detenu: bool
+) -> None:
+    # On commence **avant** la première opération : des titres reçus un dimanche sont
+    # valorisés au cours du vendredi, qui précède donc toute opération sur l'actif.
+    debut = premiere - MARGE_AVANT
+    connus = fournisseur.jours_connus(actif)
+    if connus is not None:
+        premier_connu, dernier_connu = connus
+        if not detenu and dernier_connu >= derniere:
+            return
+        debut = max(debut, premier_connu)
+    fin = fournisseur.aujourd_hui if detenu else derniere + MARGE_APRES
+    fournisseur.remplir(actif, debut, fin)
 
 
 def parametres_des_couts(reglages: Reglages) -> couts_moteur.ParametresDeCouts:
@@ -366,11 +395,14 @@ def construire(
     compositions = fournisseur_de_compositions(configuration, hors_ligne)
     # Les compositions sont demandées ici, une à une, dans l'ordre même où la répartition les
     # demanderait : le fournisseur garde ses réponses, et le suivi peut dire où l'on en est.
-    a_composer = [
-        position.actif
-        for position in synthese.valorisation.valorisees
-        if position.poche is not Poche.CRYPTO
-    ]
+    # Un titre tenu dans deux poches n'est qu'un actif : il ne compte qu'une fois.
+    a_composer = list(
+        dict.fromkeys(
+            position.actif
+            for position in synthese.valorisation.valorisees
+            if position.poche is not Poche.CRYPTO
+        )
+    )
     if suivi is not None:
         suivi.etape(Etape.COMPOSITIONS, len(a_composer))
     for actif in a_composer:

@@ -2026,7 +2026,8 @@ sont traités, et une barre** — à la place d'un texte immobile.
   cachées : on ne lit que « Calcul des chiffres… ».
 - **Les cours se demandent une fois par actif**, de sa première opération à hier, avant tout
   calcul (`assembleur.remplir_les_cours`) : c'est ce que faisait déjà `pastory cours`, et ce dont
-  la courbe a besoin de toute façon.
+  la courbe a besoin. **Un titre qui n'est plus détenu n'est demandé que jusqu'à sa vente**, et
+  rien n'est redemandé avant le premier jour déjà gardé.
 **Raison :** le premier testeur a trouvé la première ouverture longue, et a demandé une barre de
 chargement. En cherchant où poser cette barre, la mesure a montré **où partait le temps** : sur la
 démonstration, dossier vide, 78 des 93 secondes passaient dans les cours, demandés à la source
@@ -2036,22 +2037,36 @@ défaut.
 **Ce que la mesure a trouvé d'autre, et qui est corrigé :**
 - **une semaine restait sans cours entre deux fenêtres voisines** (du 7 au 11 septembre, sur les
   huit titres de la démonstration) : sept jours, trop peu pour être vus comme un trou (il en faut
-  plus de dix), assez pour que la courbe s'y fige sur un cours périmé. Demandée d'un coup, la série
-  n'a plus de trou. Tous les cours communs aux deux méthodes sont **identiques**, un par un ;
+  plus de dix), assez pour qu'une valeur s'y lise sur un cours vieux d'une semaine — un point de
+  la courbe, mais aussi la valeur de départ d'une période (« 1 mois ») ou la valeur du
+  portefeuille la veille d'un versement, dont le TWRR se sert. Demandée d'un coup, la série n'a
+  plus de trou. Tous les cours communs aux deux méthodes sont **identiques**, un par un ;
 - **un cache à jour jusqu'à hier coûtait quand même un appel par actif à chaque ouverture** : la
   période « du lendemain du dernier cours à aujourd'hui », vide puisque la séance du jour n'est pas
   close, ressortait à l'envers de la réduction au cache, donc valide (`FournisseurDeCours.remplir`).
 **Ce qui ne change pas :** un cours gardé n'est ni redemandé ni réécrit ([D-50](#d-50)) ; hors
 ligne et pour l'export d'un tiers, rien n'est demandé (règle 2) ; les compositions sont demandées
 dans l'ordre même où la répartition les demandait. **Sur le portefeuille du propriétaire, relevé
-hors ligne avant et après sur la même copie : aucun nombre n'a changé.**
+hors ligne avant et après sur la même copie : aucun nombre n'a changé** — son cache, rempli par
+`pastory cours`, n'avait pas de trou. Hors ligne, cette comparaison ne dit rien du chemin en
+ligne : lui a été vérifié sur la démonstration, cours par cours.
+**Ce que cela peut changer chez un nouvel utilisateur, et c'est voulu :** une série sans trou
+donne des valeurs intermédiaires plus justes qu'une série trouée. Entre deux premières ouvertures,
+l'une avant et l'autre après cette décision, un TWRR ou un gain « sur 1 mois » peut donc différer
+légèrement (l'écart n'a pas été mesuré). C'est une correction, pas une régression.
+**Précisée le même jour, par la relecture indépendante :** demandé jusqu'à hier comme les autres,
+un titre **vendu** puis retiré de la cote aurait levé à chaque ouverture une alerte sur un actif
+qu'on ne détient plus ; et un titre acheté **à son introduction** aurait fait revenir tout son
+historique à chaque ouverture, la source n'ayant rien avant. D'où les deux bornes ci-dessus.
 **Écarte :** une barre « de temps », qui avance à l'horloge (elle mentirait dès qu'une source
 tarde) ; une roue qui tourne (elle ne dit pas si l'on en est au début ou à la fin) ; le nom de
 l'actif en cours de recherche dans la page (une information de plus à faire transiter, pour un
 gain faible) ; garder les petites fenêtres en se contentant de les compter.
 **Limite connue :** un cache déjà construit par petites fenêtres — celui de quiconque a ouvert
 Pastory pour la première fois avant cette décision, dont le premier testeur — **garde ses trous
-courts**, et rien ne les comble : c'est [Q-62](questions-ouvertes.md).
+courts**, et rien ne les comble : c'est [Q-62](questions-ouvertes.md). Et l'étape des
+compositions compte les actifs **valorisés**, sans les cryptos : son total peut être plus petit
+que celui des deux premières.
 
 ### D-111 · 2026-10-13 · Chaque ligne d'une répartition se déplie vers les actifs qui la composent · À valider
 **Décision :** dans la Diversification, chaque ligne — un pays, un secteur, une classe d'actifs, et
@@ -2063,8 +2078,13 @@ zone s'ouvre sur ses pays, qui s'ouvrent sur leurs actifs.
 - **La somme des actifs d'une ligne est le montant de la ligne, au centime** : chaque apport est
   arrondi avant d'être cumulé, et c'est ce cumul qui fait le montant. Un test le tient pour chaque
   poste et chaque reste des trois répartitions.
-- **Les parts sont rapportées à la même base que toutes les autres lignes** ([D-69](#d-69)) : sous
-  « États-Unis 57,61 % », trois actifs à 26,78 %, 21,45 % et 9,38 %.
+- **Les parts sont rapportées à la même base que toutes les autres lignes** ([D-69](#d-69)) : dans
+  le portefeuille fictif de la démonstration, sous « États-Unis 57,61 % », trois actifs à 26,78 %,
+  21,45 % et 9,38 %.
+- **Dans l'autre sens, à un euro près seulement :** additionner ce qu'un fonds apporte à chaque
+  pays redonne sa valeur à quelques centimes près, pas toujours au centime — chaque part est
+  arrondie, et un écart de moins d'un euro n'est pas signalé (c'était déjà la règle,
+  `ECART_TOLERE`).
 - **Ce sont les actifs du portefeuille, jamais les sociétés qu'un fonds détient** : on lit toujours
   les agrégats d'un fonds ([D-63](#d-63), [D-64](#d-64)).
 - **Fermées par défaut**, et ce n'est pas un filtre : la règle « aucun filtre sur une répartition »
@@ -2107,3 +2127,8 @@ machine du propriétaire bloque toujours ; et **la cause exacte de la panne du t
 connue** — les trois causes plausibles sont couvertes, pas une cause constatée.
 **Écarte :** un exécutable empaqueté ([D-106](#d-106)) ; joindre `uv` au dépôt (un binaire de
 soixante mégaoctets à tenir à jour) ; installer `uv` sans le dire.
+**Précisée le même jour, par la relecture indépendante :** `uv` est lancé par `call`, pour que le
+fichier reprenne la main si `uv` est lui-même un fichier de commandes (une enveloppe posée par un
+autre outil) — sans quoi la fenêtre se fermait après l'installation des bibliothèques, sans créer
+les raccourcis ni rien dire ; et le fichier entre dans son dossier par `pushd`, qui sait aussi
+ouvrir un dossier partagé sur le réseau.

@@ -13,9 +13,17 @@ from datetime import timedelta
 
 from pastory import assembleur
 from pastory.avancement import Etape, Point, Suivi
+from pastory.config import actifs as config_actifs
 from pastory.config.actifs import Declaration
-from pastory.donnees_externes.cours import MARGE_AVANT, FournisseurDeCours
+from pastory.donnees_externes.cours import (
+    MARGE_APRES,
+    MARGE_AVANT,
+    FournisseurDeCours,
+    PeriodeSansCours,
+)
+from pastory.moteur import rendements
 from pastory.pivot.operation import TypeOperation
+from tests.adaptateurs.trade_republic import export_ligne_de_commande as fictifs
 from tests.donnees_externes.cours_fictifs import (
     ACTIF,
     AUJOURD_HUI,
@@ -35,6 +43,16 @@ PREMIER_ACHAT = Date(2026, 3, 2)
 def achat(jour: Date, actif: str = ACTIF):
     return operation(
         TypeOperation.ACHAT,
+        horodatage=f"{jour.isoformat()} 09:00",
+        actif=actif,
+        quantite="1",
+        prix_unitaire="100.00",
+    )
+
+
+def vente(jour: Date, actif: str = ACTIF):
+    return operation(
+        TypeOperation.VENTE,
         horodatage=f"{jour.isoformat()} 09:00",
         actif=actif,
         quantite="1",
@@ -85,18 +103,35 @@ class TestUneDemandeParActif:
         assert len(source.appels) == 1
 
     def test_aucune_semaine_ne_reste_sans_cours(self):
-        """Le trou que laissaient deux fenêtres voisines : sept jours entre la fin de l'une et
-        le début de l'autre, trop court pour être vu comme un trou, assez long pour que la
-        courbe s'y fige sur un cours périmé."""
-        source = SourceFictive({ACTIF: jours_cotes(Date(2026, 1, 1), HIER)})
-        cache = CacheEnMemoire()
+        """Le trou que laissaient deux fenêtres voisines, reproduit puis évité : deux
+        opérations à quarante jours d'écart, et sept jours qui ne tombent ni dans la fenêtre
+        de l'une (jusqu'à J + 3) ni dans celle de l'autre (depuis J − 30). Trop court pour
+        être vu comme un trou, assez long pour qu'une valeur s'y lise sur un cours périmé."""
+        seconde = PREMIER_ACHAT + timedelta(days=40)
+        operations = [achat(PREMIER_ACHAT), achat(seconde)]
 
-        assembleur.remplir_les_cours(
-            [achat(PREMIER_ACHAT), achat(Date(2026, 9, 1))], fournisseur(source, cache)
+        def plus_grand_ecart(cache) -> int:
+            connus = [
+                jour for jour in sorted(cache.lire(ACTIF)) if PREMIER_ACHAT <= jour <= seconde
+            ]
+            return max((b - a).days for a, b in zip(connus, connus[1:], strict=False))
+
+        par_fenetres = CacheEnMemoire()
+        a_l_ancienne = fournisseur(
+            SourceFictive({ACTIF: jours_cotes(Date(2026, 1, 1), HIER)}), par_fenetres
         )
+        # La valorisation lit la date la plus tardive d'abord, puis remonte : c'est dans cet
+        # ordre que deux fenêtres laissent un vide entre elles.
+        for une in reversed(operations):
+            a_l_ancienne.cours(ACTIF, une.date)
+        assert plus_grand_ecart(par_fenetres) == 7
 
-        connus = sorted(cache.lire(ACTIF))
-        assert max(b - a for a, b in zip(connus, connus[1:], strict=False)).days <= 3
+        d_un_coup = CacheEnMemoire()
+        assembleur.remplir_les_cours(
+            operations,
+            fournisseur(SourceFictive({ACTIF: jours_cotes(Date(2026, 1, 1), HIER)}), d_un_coup),
+        )
+        assert plus_grand_ecart(d_un_coup) <= 3
 
     def test_un_cache_deja_rempli_ne_redemande_que_la_suite(self):
         """D-50 : un cours gardé n'est ni redemandé ni réécrit."""
@@ -144,6 +179,101 @@ class TestUneDemandeParActif:
         assembleur.remplir_les_cours([achat(PREMIER_ACHAT)], fournisseur(None))
 
         assert source.appels == []
+
+
+class TestUnTitreVendu:
+    """Trouvé par la relecture : demandé jusqu'à hier comme les autres, un titre vendu puis
+    retiré de la cote levait à chaque ouverture une alerte sur un actif qu'on ne détient plus."""
+
+    VENTE = Date(2026, 6, 3)
+
+    def operations(self):
+        return [achat(PREMIER_ACHAT), vente(self.VENTE)]
+
+    def test_il_n_est_demande_que_jusqu_a_sa_vente(self):
+        source = SourceFictive({ACTIF: jours_cotes(Date(2026, 1, 1), HIER)})
+
+        assembleur.remplir_les_cours(self.operations(), fournisseur(source))
+
+        assert source.appels == [(ACTIF, PREMIER_ACHAT - MARGE_AVANT, self.VENTE + MARGE_APRES)]
+
+    def test_une_fois_sa_detention_couverte_il_n_est_plus_jamais_demande(self):
+        cache = CacheEnMemoire()
+        cache.ecrire(ACTIF, jours_cotes(Date(2026, 2, 1), self.VENTE))
+        source = SourceFictive(erreur=PeriodeSansCours("ce titre ne cote plus"))
+        le_fournisseur = fournisseur(source, cache)
+
+        assembleur.remplir_les_cours(self.operations(), le_fournisseur)
+
+        assert source.appels == []
+        assert le_fournisseur.refus == []
+
+    def test_un_titre_rachete_depuis_est_de_nouveau_suivi_jusqu_a_hier(self):
+        source = SourceFictive({ACTIF: jours_cotes(Date(2026, 1, 1), HIER)})
+
+        assembleur.remplir_les_cours(
+            [*self.operations(), achat(Date(2026, 8, 3))], fournisseur(source)
+        )
+
+        assert source.appels == [(ACTIF, PREMIER_ACHAT - MARGE_AVANT, HIER)]
+
+
+class TestUnTitreQuiNeCotaitPasEncore:
+    """Trouvé par la relecture : la source n'a rien avant l'introduction d'un titre. Redemander
+    chaque fois « depuis trente jours avant l'achat » faisait revenir tout l'historique à
+    chaque ouverture, pour rien."""
+
+    def test_la_seconde_ouverture_ne_redemande_pas_ce_qui_n_existe_pas(self):
+        introduction = PREMIER_ACHAT - timedelta(days=2)
+        cache = CacheEnMemoire()
+        source = SourceFictive({ACTIF: jours_cotes(introduction, HIER)})
+
+        assembleur.remplir_les_cours([achat(PREMIER_ACHAT)], fournisseur(source, cache))
+        assembleur.remplir_les_cours([achat(PREMIER_ACHAT)], fournisseur(source, cache))
+
+        assert source.appels == [(ACTIF, PREMIER_ACHAT - MARGE_AVANT, HIER)]
+
+    def test_un_trou_au_milieu_du_cache_reste_comble(self):
+        """Ne plus rien demander avant le premier jour gardé ne doit pas empêcher de
+        combler un vrai trou plus loin (étape 9)."""
+        cache = CacheEnMemoire()
+        cache.ecrire(
+            ACTIF,
+            jours_cotes(Date(2026, 2, 2), Date(2026, 4, 30))
+            + jours_cotes(Date(2026, 7, 1), HIER),
+        )
+        source = SourceFictive({ACTIF: jours_cotes(Date(2026, 1, 1), HIER)})
+
+        assembleur.remplir_les_cours([achat(PREMIER_ACHAT)], fournisseur(source, cache))
+
+        assert source.appels == [(ACTIF, Date(2026, 5, 1), HIER)]
+
+
+class TestLaPlaceDansLaLecture:
+    def test_les_cours_sont_demandes_avant_tout_calcul(self, dossier_personnel, monkeypatch):
+        """Demandés après la valorisation, ils reviendraient par petites fenêtres : la
+        première demande faite à la source doit être la grande, et rester la seule."""
+        fictifs.deposer(dossier_personnel / "exports")
+        fichier = config_actifs.chemin()
+        fichier.parent.mkdir(parents=True, exist_ok=True)
+        fichier.write_text(
+            f'[actifs]\n"{fictifs.ACTIF_ETF}" = {{ ticker = "T1.DE", devise = "EUR" }}\n',
+            encoding="utf-8",
+        )
+        source = SourceFictive({})
+        monkeypatch.setattr(assembleur, "Yahoo", lambda *arguments, **options: source)
+        aujourd_hui = Date.today()
+
+        construit = assembleur.construire(
+            assembleur.dossier_de_lecture(None), rendements.Periode(fin=aujourd_hui)
+        )
+
+        premiere = min(
+            une.date for une in construit.rapport.operations if une.actif == fictifs.ACTIF_ETF
+        )
+        assert source.appels == [
+            (fictifs.ACTIF_ETF, premiere - MARGE_AVANT, aujourd_hui - timedelta(days=1))
+        ]
 
 
 class TestLeSuiviDesCours:

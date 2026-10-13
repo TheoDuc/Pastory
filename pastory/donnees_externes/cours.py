@@ -334,6 +334,17 @@ class FournisseurDeCours:
         self._jours_tries.pop(actif, None)
         return ecrits
 
+    def jours_connus(self, actif: str) -> tuple[Date, Date] | None:
+        """Le premier et le dernier jour gardés pour cet actif, ou `None` s'il n'y en a aucun.
+
+        Sert à ne demander que ce qui peut encore manquer : ni ce qui précède le premier jour
+        coté — la source n'a rien avant, et le redemander à chaque ouverture ne rapporterait
+        rien —, ni la suite d'un titre vendu (D-110)."""
+        serie = self._serie(actif)
+        if not serie:
+            return None
+        return min(serie), max(serie)
+
     @property
     def nom_source(self) -> str:
         """Le nom de la source réellement utilisée, pour les rapports.

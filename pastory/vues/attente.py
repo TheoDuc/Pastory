@@ -38,8 +38,8 @@ LIBELLES = {
 }
 
 NOTE = (
-    "La première lecture d'un export interroge les sources de cours et de composition : elle "
-    "peut prendre une minute. Les suivantes ne redemandent que les derniers cours."
+    "La première lecture d'un export interroge les sources de cours et de composition, et peut "
+    "prendre une minute. Les suivantes ne redemandent que les derniers cours : quelques secondes."
 )
 
 

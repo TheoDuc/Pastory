@@ -55,19 +55,40 @@ Une première ouverture de la démonstration (8 actifs), sur un dossier vide, en
 | Recherche des cotations et des frais | 10 à 12 s | 10 à 12 s (inchangée) |
 | Cours, et la valorisation qui les lit | 78 s | 3 s |
 | Compositions, et la courbe | 2 s | 2 s |
-| **En tout** | **93 s** | **15 s** (18 s par la fenêtre) |
+| **En tout** | **93 s** | **15 à 19 s** selon le réseau |
+
+Une ouverture **suivante**, le cache rempli : 3 à 4 secondes.
 
 Les cours sont demandés **une fois par actif** au lieu d'une fois par date d'opération. Les
 séries obtenues ont été comparées ligne à ligne : **tous les cours communs sont identiques**, et
 la nouvelle série contient en plus cinq séances (du 7 au 11 septembre) que l'ancienne méthode
-laissait de côté — voir [Q-62](../questions-ouvertes.md).
+laissait de côté — voir [Q-62](../questions-ouvertes.md), qui dit ce que ce trou pouvait fausser.
+
+### Ce que la relecture indépendante a trouvé
+
+Neuf remarques, aucune ne touchant un chiffre affiché ; toutes traitées. Les deux qui comptaient :
+
+- **un titre vendu était redemandé jusqu'à hier**, comme les autres. Retiré de la cote depuis, il
+  aurait levé à chaque ouverture une alerte « période sans cours » sur un actif qu'on ne détient
+  plus. Il n'est désormais demandé que jusqu'à sa vente, et plus du tout une fois sa détention
+  couverte ;
+- **la première rédaction de [Q-62](../questions-ouvertes.md) minimisait le défaut** : elle
+  disait le TWRR et les périodes partielles à l'abri d'un trou d'une semaine. Ils ne le sont pas,
+  et la relecture l'a reproduit. La question est corrigée.
+
+Les autres : un historique redemandé en entier à chaque ouverture pour un titre acheté à son
+introduction ; le fichier d'installation qui ne reprenait pas la main si `uv` était lui-même un
+fichier de commandes ; un même titre compté deux fois à l'étape 3 s'il est dans deux poches ; le
+second contrôle de la section 3, promis « au centime » alors qu'il ne tient qu'à quelques
+centimes près ; et trois tests qui prouvaient moins qu'ils ne disaient.
 
 ### À vérifier par toi
 
 - [ ] Dans le menu Démarrer, ouvre **« Pastory (démonstration) »** après avoir effacé son dossier
   (`%LOCALAPPDATA%\Pastory-demonstration`) : la barre apparaît, passe par les trois étapes, et la
   couverture s'affiche en moins d'une demi-minute.
-- [ ] Rouvre-la aussitôt : l'attente est brève, et ne promet plus « une minute ».
+- [ ] Rouvre-la aussitôt : l'attente ne dure que quelques secondes (3 à 4 mesurées), et la barre
+  a tout juste le temps de passer.
 - [ ] Essaie les deux lectures, de jour et de nuit : le filet s'encre, le losange est en or.
 - [ ] Change de période dans la synthèse : aucune barre ne doit apparaître.
 
@@ -101,9 +122,12 @@ La répartition **par pays**, et ce que montre chaque ligne quand on la déplie 
 
 Deux contrôles, à faire sur n'importe quelle ligne :
 
-1. **la somme des actifs d'une ligne est son montant** (France : 500,00 + 300,00 = 800,00) ;
-2. **la somme des lignes d'un même actif est sa valeur** (ETF Monde : 300,00 + 600,00 + 100,00 =
-   1 000,00).
+1. **la somme des actifs d'une ligne est son montant, au centime** (France : 500,00 + 300,00 =
+   800,00). C'est garanti, et tenu par un test ;
+2. **la somme des lignes d'un même actif redonne sa valeur, à quelques centimes près** (ETF
+   Monde : 300,00 + 600,00 + 100,00 = 1 000,00). Ici le compte tombe juste ; sur un vrai fonds
+   à cinquante pays, chaque part est arrondie au centime, et la somme peut s'écarter de la valeur
+   de quelques centimes. Au-delà d'un euro, Pastory le signale.
 
 Ce cas est un test (`tests/moteur/test_diversification.py`, `TestCeQueChaqueActifApporte`), et un
 autre vérifie le contrôle 1 pour chaque poste et chaque reste des trois répartitions.
@@ -117,7 +141,8 @@ pas le nom d'un fabricant de téléphones.
 - [ ] Chapitre III, rubrique **Pays** : clique sur ton premier pays. Additionne les montants de
   ses actifs : tu dois retrouver le montant de la ligne, au centime.
 - [ ] Prends un de tes fonds, et additionne ce qu'il apporte à chaque pays, plus ce qu'il laisse
-  dans « Sans pays » : tu dois retrouver sa valeur, celle du chapitre II.
+  dans « Sans pays » : tu dois retrouver sa valeur, celle du chapitre II, à quelques centimes
+  près.
 - [ ] Rubrique **Zone géographique** : une zone s'ouvre sur ses pays, un pays sur ses actifs.
 - [ ] Rubrique **Secteur** : un fonds servi par la source de secours n'apparaît sous aucun
   secteur, et se retrouve sous « Sans secteur → Non couvert ».

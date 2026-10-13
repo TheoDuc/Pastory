@@ -879,6 +879,13 @@ construction.
 **Aucun chiffre n'a changé** : 60 relevés sur les données du propriétaire, hors ligne, identiques
 avant et après.
 
+**La relecture indépendante a rendu neuf remarques, toutes traitées**, aucune ne touchant un
+chiffre affiché. La plus utile : un titre **vendu** était redemandé jusqu'à hier comme les autres,
+et, retiré de la cote depuis, aurait levé une alerte à chaque ouverture. La plus instructive : la
+première rédaction de [Q-62](questions-ouvertes.md) disait le TWRR à l'abri d'une semaine sans
+cours ; il ne l'est pas, et la relecture l'a reproduit. **Un défaut qu'on vient de trouver se
+minimise facilement : c'est justement lui qu'il faut faire relire.**
+
 **Ce que la mesure a trouvé au passage, et qui vaut d'être retenu :** une demande de
 fonctionnalité (« une barre ») cachait un défaut (« pourquoi est-ce long ? »). Une barre posée sur
 l'ancienne attente aurait bien habillé 78 secondes inutiles. **Avant d'habiller une attente, la
