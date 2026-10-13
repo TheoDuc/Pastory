@@ -2064,8 +2064,8 @@ l'actif en cours de recherche dans la page (une information de plus à faire tra
 gain faible) ; garder les petites fenêtres en se contentant de les compter.
 **Limite connue :** un cache déjà construit par petites fenêtres — celui de quiconque a ouvert
 Pastory pour la première fois avant cette décision, dont le premier testeur — **garde ses trous
-courts**, et rien ne les comble : c'est [Q-62](questions-ouvertes.md). Et l'étape des
-compositions compte les actifs **valorisés**, sans les cryptos : son total peut être plus petit
+courts** : c'était [Q-62](questions-ouvertes.md), tranchée par [D-113](#d-113), qui les comble.
+Et l'étape des compositions compte les actifs **valorisés**, sans les cryptos : son total peut être plus petit
 que celui des deux premières.
 
 ### D-111 · 2026-10-13 · Chaque ligne d'une répartition se déplie vers les actifs qui la composent · À valider
@@ -2123,8 +2123,9 @@ l'export, et c'est tout).
 absent du chemin de Windows mais présent dans le dossier personnel (trouvé) ; `uv` absent partout
 (téléchargé et installé pour de vrai, dans un dossier jetable, puis trouvé).
 **Non essayé :** l'installation des bibliothèques elle-même (`uv sync`), que l'antivirus de la
-machine du propriétaire bloque toujours ; et **la cause exacte de la panne du testeur n'est pas
-connue** — les trois causes plausibles sont couvertes, pas une cause constatée.
+machine du propriétaire bloque toujours.
+**La cause de la panne du testeur, connue depuis :** « failed to build pandas ». Aucune des trois
+causes couvertes ici n'était la bonne ; c'est [D-114](#d-114) qui la traite.
 **Écarte :** un exécutable empaqueté ([D-106](#d-106)) ; joindre `uv` au dépôt (un binaire de
 soixante mégaoctets à tenir à jour) ; installer `uv` sans le dire.
 **Précisée le même jour, par la relecture indépendante :** `uv` est lancé par `call`, pour que le
@@ -2132,3 +2133,72 @@ fichier reprenne la main si `uv` est lui-même un fichier de commandes (une enve
 autre outil) — sans quoi la fenêtre se fermait après l'installation des bibliothèques, sans créer
 les raccourcis ni rien dire ; et le fichier entre dans son dossier par `pushd`, qui sait aussi
 ouvrir un dossier partagé sur le réseau.
+
+### D-113 · 2026-10-13 · Chaque série de cours est reprise une fois en entier · Validée
+**Décision :** à la première ouverture en ligne après cette décision, Pastory **redemande une fois
+toute la série de chaque actif**, de sa première opération à hier, sans regarder ce que le cache
+en sait déjà ; puis le cache **retient que c'est fait**, et l'on n'y revient plus.
+- **Aucun cours déjà gardé n'est réécrit** ([D-50](#d-50)) : seuls les jours absents sont ajoutés.
+  La reprise comble, elle ne corrige pas.
+- **Ce que le cache retient** : un registre à côté des fichiers de cours
+  (`cache/cours/_series_reprises.txt`, un actif par ligne). Effacer les cours d'un actif n'efface
+  pas sa ligne, et c'est juste : une série redemandée de zéro l'est d'un coup, donc sans trou.
+- **La reprise ne dit rien et ne refuse rien.** Source en panne : elle sera retentée à
+  l'ouverture suivante. Source qui répond que le titre ou la période n'existent pas — un titre
+  vendu puis retiré de la cote — : il n'y a rien à combler, on n'y revient pas, et aucune alerte
+  n'est levée. Dans les deux cas le chemin habituel prend la suite, et c'est lui qui signale ce
+  qui doit l'être.
+- **Pour un dossier neuf, elle ne coûte rien** : la première demande d'un actif *est* la reprise.
+**Raison :** c'est la réponse du propriétaire à [Q-62](questions-ouvertes.md), option (c). Avant
+[D-110](#d-110), les cours arrivaient par petites fenêtres, et quelques jours pouvaient manquer
+entre deux d'entre elles — trop peu pour être vus comme un trou (il en faut plus de dix). Une
+valeur lue un de ces jours-là l'était sur un cours vieux d'une semaine au plus : un point de la
+courbe, la valeur de départ d'une période, ou la valeur du portefeuille la veille d'un versement,
+dont le TWRR se sert. **Rien dans un cache ne dit s'il a été construit ainsi** : d'où une reprise
+pour tous, une fois.
+**Mesuré (2026-10-13) :**
+- sur le cache de la démonstration construit par petites fenêtres : **42 séances comblées** sur
+  les 8 titres, aucun cours gardé modifié, et le cache obtenu est **identique, ligne à ligne**, à
+  un cache neuf. La seconde ouverture ne demande plus rien ;
+- sur une copie du cache du propriétaire, qu'on croyait sans trou : **7 séances comblées** sur 6
+  actifs — des jours isolés. Les 60 relevés de ses écrans sont **identiques** avant et après : ces
+  jours-là ne servaient à aucun chiffre affiché. Les points de la courbe, eux, ne sont pas dans ce
+  relevé.
+**Ce que cela peut changer :** là où un trou tombait sur une date qui compte, un TWRR ou un gain
+« sur 1 mois » peut bouger légèrement à la première ouverture. C'est une correction.
+**Écarte :** ne rien faire et demander au premier testeur d'effacer un dossier (option a : la
+recommandation, que le propriétaire n'a pas suivie — un TWRR un peu faux sans rien qui le signale
+est ce que ce projet s'interdit) ; abaisser à cinq jours le seuil du trou (option b : un titre
+réellement suspendu ferait redemander toute sa suite à chaque ouverture) ; effacer le cache pour
+le reconstruire (les cours gardés sont définitifs, [D-50](#d-50)).
+
+### D-114 · 2026-10-13 · La version de Python est fixée · À valider
+**Décision :** le fichier `.python-version`, à la racine, fixe **Python 3.12** — la version sur
+laquelle Pastory est développé et testé. `uv` l'installe de lui-même s'il manque.
+- **Un test garde le fichier de verrouillage** (`TestLaVersionDePython`) : pour ce Python, sous
+  Windows 64 bits, chaque bibliothèque de `uv.lock` doit exister **toute prête**. Mettre à jour
+  une bibliothèque sans que ce test passe, c'est refaire la panne.
+- **Le fichier d'installation donne à chaque version d'`uv` son réglage des certificats** : il a
+  changé de nom (`UV_NATIVE_TLS`, puis `UV_SYSTEM_CERTS`), et l'ancien nom fait désormais afficher
+  un avertissement.
+**Raison :** chez le premier testeur, l'installation a échoué sur **« failed to build pandas »**.
+Sans version fixée, `uv` choisit le Python le plus récent que le projet accepte (`>=3.12`) : sur
+une machine sans Python, le 2026-10-13, c'est **Python 3.15.0**, sorti ce mois-là — vérifié en
+rejouant l'installation de l'ancienne version comme sur une machine neuve. Or pandas, à la version
+verrouillée, n'existe tout prêt que pour Python 3.12, 3.13 et 3.14 : `uv` tente alors de le
+**fabriquer**, ce qui demande un compilateur que personne n'a. Le même fichier ZIP, téléchargé six
+mois plus tôt, se serait installé sans histoire.
+**Ce qui a été vérifié :** sans le fichier, `uv` va chercher `cpython-3.15.0` ; avec lui,
+`cpython-3.12.15`. **Ce qui ne l'a pas été :** l'échec de fabrication lui-même et l'installation
+complète, l'antivirus de la machine du propriétaire bloquant les téléchargements d'`uv`. La cause
+est donc **établie par le mécanisme et le message**, pas par une reproduction de bout en bout.
+**Écarte :** borner `requires-python` par le haut (il faudrait régénérer le fichier de
+verrouillage, et la borne serait à relever à chaque sortie de Python) ; imposer le Python
+téléchargé par `uv` même quand la machine en a un qui convient (il recréerait l'environnement d'un
+développeur) ; attendre que pandas publie pour 3.15 (la panne reviendrait avec 3.16).
+**Constat fait en chemin, à trancher à l'étape 11 :** **pandas n'est plus importé nulle part**
+dans Pastory — il ne reste que dans `pyproject.toml`, avec sa justification de l'étape 1
+([D-33](#d-33)). La bibliothèque qui a fait échouer l'installation ne sert donc à rien. La retirer
+allège l'installation d'une dizaine de mégaoctets ; ce n'est pas fait ici, parce que modifier
+`pyproject.toml` demande une synchronisation que l'antivirus du propriétaire bloque
+([architecture-notes.md](architecture-notes.md)).

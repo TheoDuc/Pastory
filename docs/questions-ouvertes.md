@@ -116,50 +116,6 @@ part.
 multi-actifs reste un trou ; l'immobilier compté en actions, comme le fait l'émetteur. Rien ne
 presse : aucun des deux portefeuilles connus n'en détient.
 
-### Q-62 · Les semaines sans cours d'un cache déjà construit : faut-il les combler ?
-*Ouverte le 2026-10-13, en mesurant l'attente de la première ouverture (D-110).*
-
-**Le constat.** Jusqu'à D-110, une première ouverture par la fenêtre demandait les cours par
-petites fenêtres, une par date d'opération. Entre deux fenêtres voisines, quelques jours pouvaient
-rester sans cours : mesuré sur la démonstration, **du 7 au 11 septembre**, sur les huit titres.
-Sur ces jours-là, toute valeur est lue au dernier cours connu, vieux d'une semaine au plus. Ce
-que cela touche, du plus visible au plus discret :
-
-- **la courbe** : elle est plate, puis saute ;
-- **la valeur de départ d'une période** (« 1 mois », « 6 mois »…), quand ce départ tombe dans un
-  trou : le gain, le TRI et le TWRR de cette période partent alors d'une valeur un peu périmée ;
-- **le TWRR**, même sur « Tout » : il valorise tout le portefeuille la veille de chaque
-  versement, et le cours d'un *autre* actif peut alors être lu dans un trou.
-
-**Ne sont pas touchés** : la valeur d'aujourd'hui, le gain et le TRI depuis l'origine, les
-quantités, les frais, l'impôt estimé. *(La première rédaction de cette question disait à tort
-que le TWRR et les périodes partielles ne l'étaient pas non plus : la relecture indépendante l'a
-reproduit.)*
-
-Depuis D-110, un cache neuf n'a plus ce trou. Mais un cache **déjà construit** le garde : Pastory
-ne redemande une période que si plus de **dix jours** séparent deux cours connus, parce qu'un
-écart plus court peut être un vrai pont (du jeudi au mardi de Pâques : cinq jours). Sont
-concernés ceux qui ont ouvert Pastory pour la première fois par la fenêtre avant le 2026-10-13 —
-le premier testeur. Le cache du propriétaire, rempli par `pastory cours`, ne l'est pas.
-
-**Options :**
-- **(a) Ne rien faire.** Le défaut touche très peu de gens, pour des écarts de l'ordre du
-  mouvement d'un cours sur une semaine, et il disparaît en effaçant le dossier `cache/cours` (les
-  cours sont alors redemandés d'un coup) ;
-- **(b) Abaisser le seuil du trou à cinq jours.** Les trous existants se comblent seuls à la
-  prochaine ouverture. Le prix : un titre réellement suspendu plus de cinq jours ferait
-  redemander toute sa suite à **chaque** ouverture, sans jamais la combler ;
-- **(c) Combler une fois** : à la première ouverture après la mise à jour, redemander la série
-  entière de chaque actif, puis ne plus y revenir. Demande de retenir que c'est fait.
-
-**Recommandation (pas une décision) :** **(a)**, parce qu'avant la publication une seule personne
-est concernée, et qu'un geste suffit chez elle : dire au premier testeur d'effacer son dossier
-`%LOCALAPPDATA%\Pastory\cache\cours`, puis de rouvrir Pastory. Si d'autres l'ont installé avant
-le 2026-10-13, alors **(c)** : un TWRR un peu faux sans rien qui le signale est exactement ce que
-ce projet s'interdit. (b) change une règle qui protège la source, pour un défaut passé. **L'ampleur
-de l'écart n'a pas été mesurée** : elle dépend de ce qu'a fait chaque cours pendant sa semaine
-manquante.
-
 ---
 
 ## Tranchées
@@ -389,3 +345,59 @@ historique**, seulement que la dispersion grandisse avec le taux visé — « le
 taux faible et sont peu risquées, le bitcoin un rendement plus important mais des performances bien
 plus aléatoires ». Parmi trois règles chiffrées, il a retenu la plus simple : volatilité = deux
 fois le taux.
+
+### Lot 14 (2026-10-13) — les semaines sans cours d'un cache déjà construit
+
+| Question | Réponse | Retenu | Décision |
+|---|---|---|---|
+| Q-62 Faut-il combler les trous courts d'un cache construit avant D-110 ? | c | **Combler une fois** : chaque série est reprise en entier à la première ouverture, puis le cache retient que c'est fait | D-113 |
+
+Le propriétaire n'a pas suivi la recommandation (a, ne rien coder et faire effacer un dossier au
+seul utilisateur concerné) : il a demandé la réparation automatique. Elle a montré qu'il avait
+raison au-delà du cas prévu — **son propre cache, qu'on croyait sans trou, en avait sept**.
+
+La question, telle qu'elle était posée :
+
+> ### Q-62 · Les semaines sans cours d'un cache déjà construit : faut-il les combler ?
+> *Ouverte le 2026-10-13, en mesurant l'attente de la première ouverture (D-110).*
+>
+> **Le constat.** Jusqu'à D-110, une première ouverture par la fenêtre demandait les cours par
+> petites fenêtres, une par date d'opération. Entre deux fenêtres voisines, quelques jours pouvaient
+> rester sans cours : mesuré sur la démonstration, **du 7 au 11 septembre**, sur les huit titres.
+> Sur ces jours-là, toute valeur est lue au dernier cours connu, vieux d'une semaine au plus. Ce
+> que cela touche, du plus visible au plus discret :
+>
+> - **la courbe** : elle est plate, puis saute ;
+> - **la valeur de départ d'une période** (« 1 mois », « 6 mois »…), quand ce départ tombe dans un
+>   trou : le gain, le TRI et le TWRR de cette période partent alors d'une valeur un peu périmée ;
+> - **le TWRR**, même sur « Tout » : il valorise tout le portefeuille la veille de chaque
+>   versement, et le cours d'un *autre* actif peut alors être lu dans un trou.
+>
+> **Ne sont pas touchés** : la valeur d'aujourd'hui, le gain et le TRI depuis l'origine, les
+> quantités, les frais, l'impôt estimé. *(La première rédaction de cette question disait à tort
+> que le TWRR et les périodes partielles ne l'étaient pas non plus : la relecture indépendante l'a
+> reproduit.)*
+>
+> Depuis D-110, un cache neuf n'a plus ce trou. Mais un cache **déjà construit** le garde : Pastory
+> ne redemande une période que si plus de **dix jours** séparent deux cours connus, parce qu'un
+> écart plus court peut être un vrai pont (du jeudi au mardi de Pâques : cinq jours). Sont
+> concernés ceux qui ont ouvert Pastory pour la première fois par la fenêtre avant le 2026-10-13 —
+> le premier testeur. Le cache du propriétaire, rempli par `pastory cours`, ne l'est pas.
+>
+> **Options :**
+> - **(a) Ne rien faire.** Le défaut touche très peu de gens, pour des écarts de l'ordre du
+>   mouvement d'un cours sur une semaine, et il disparaît en effaçant le dossier `cache/cours` (les
+>   cours sont alors redemandés d'un coup) ;
+> - **(b) Abaisser le seuil du trou à cinq jours.** Les trous existants se comblent seuls à la
+>   prochaine ouverture. Le prix : un titre réellement suspendu plus de cinq jours ferait
+>   redemander toute sa suite à **chaque** ouverture, sans jamais la combler ;
+> - **(c) Combler une fois** : à la première ouverture après la mise à jour, redemander la série
+>   entière de chaque actif, puis ne plus y revenir. Demande de retenir que c'est fait.
+>
+> **Recommandation (pas une décision) :** **(a)**, parce qu'avant la publication une seule personne
+> est concernée, et qu'un geste suffit chez elle : dire au premier testeur d'effacer son dossier
+> `%LOCALAPPDATA%\Pastory\cache\cours`, puis de rouvrir Pastory. Si d'autres l'ont installé avant
+> le 2026-10-13, alors **(c)** : un TWRR un peu faux sans rien qui le signale est exactement ce que
+> ce projet s'interdit. (b) change une règle qui protège la source, pour un défaut passé. **L'ampleur
+> de l'écart n'a pas été mesurée** : elle dépend de ce qu'a fait chaque cours pendant sa semaine
+> manquante.

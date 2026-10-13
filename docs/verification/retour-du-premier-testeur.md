@@ -1,9 +1,10 @@
 # Cahier de vérification — le retour du premier testeur
 
 Trois changements, nés du premier essai de Pastory par quelqu'un d'autre que le propriétaire
-(2026-10-13) : l'installation ([D-112](../decisions.md)), l'attente de la première ouverture
-([D-110](../decisions.md)), et le détail par actif de la diversification
-([D-111](../decisions.md)). Toutes les valeurs écrites ici sont fictives
+(2026-10-13) : l'installation ([D-112](../decisions.md), [D-114](../decisions.md)), l'attente de
+la première ouverture ([D-110](../decisions.md)), et le détail par actif de la diversification
+([D-111](../decisions.md)) ; plus la réparation des séries de cours
+([D-113](../decisions.md)). Toutes les valeurs écrites ici sont fictives
 ([D-03](../decisions.md)).
 
 ---
@@ -62,7 +63,36 @@ Une ouverture **suivante**, le cache rempli : 3 à 4 secondes.
 Les cours sont demandés **une fois par actif** au lieu d'une fois par date d'opération. Les
 séries obtenues ont été comparées ligne à ligne : **tous les cours communs sont identiques**, et
 la nouvelle série contient en plus cinq séances (du 7 au 11 septembre) que l'ancienne méthode
-laissait de côté — voir [Q-62](../questions-ouvertes.md), qui dit ce que ce trou pouvait fausser.
+laissait de côté — voir [D-113](../decisions.md), qui dit ce que ce trou pouvait fausser.
+
+### La réparation des séries déjà gardées ([D-113](../decisions.md))
+
+Un cache construit avant ce changement garde ses jours manquants. À la première ouverture en
+ligne, Pastory reprend donc **une fois** la série entière de chaque actif, et n'ajoute que les
+jours absents : aucun cours déjà gardé n'est réécrit.
+
+**Cas fictif.** Un cache connaît un titre du 2 février au 3 avril, puis du 13 avril à hier : cinq
+séances manquent, du 6 au 10 avril. Dix jours séparent le 3 du 13 : pas « plus de dix », donc pas
+un trou aux yeux de Pastory. La valeur du 8 avril se lisait au cours du 3. Après la reprise, les
+cinq séances sont là ; le cours du 3 avril, lui, n'a pas bougé d'un centime, même si la source en
+donne aujourd'hui un autre.
+
+| Mesuré | Séances comblées | Cours gardés modifiés |
+|---|---|---|
+| Le cache de la démonstration, construit par petites fenêtres | 42, sur 8 titres | 0 |
+| Le même, à la seconde ouverture | 0 | 0 |
+| Une copie du cache du propriétaire | 7, sur 6 actifs | 0 |
+
+Le cache réparé de la démonstration est **identique, ligne à ligne**, à un cache neuf. Sur les
+données du propriétaire, les 60 relevés sont identiques avant et après la reprise : ces sept
+jours ne servaient à aucun chiffre affiché.
+
+### À vérifier par toi, pour la réparation
+
+- [ ] Ouvre Pastory, connecté à Internet : tes chiffres sont ceux d'avant. Dans
+  `%LOCALAPPDATA%\Pastory\cache\cours`, un fichier `_series_reprises.txt` liste tes actifs.
+- [ ] Dis à ton ami de mettre Pastory à jour puis de l'ouvrir : sa courbe perd ses paliers, sans
+  qu'il ait rien à effacer.
 
 ### Ce que la relecture indépendante a trouvé
 
@@ -168,13 +198,26 @@ installé, sans toucher à celui de la machine.
 - **L'installation des bibliothèques** (`uv sync`) : l'antivirus de la machine du propriétaire la
   bloque toujours. Elle n'a pas changé, à deux réglages près (des copies plutôt que des liens, et
   un second essai) ;
-- **la panne exacte du premier testeur** : elle n'est pas connue. Les trois causes plausibles sont
-  couvertes — `uv` installé mais pas encore dans le chemin de Windows, le fichier lancé depuis
-  l'archive, un dossier dans OneDrive.
+- **l'échec de fabrication lui-même** (« failed to build pandas ») : il faudrait laisser `uv`
+  télécharger Python 3.15, ce que le même antivirus empêche.
+
+### La panne du premier testeur : « failed to build pandas » ([D-114](../decisions.md))
+
+Aucune des trois causes d'abord couvertes n'était la bonne. Le message dit que `uv` a voulu
+**fabriquer** pandas, faute de l'avoir trouvé tout prêt :
+
+| | Sans `.python-version` | Avec |
+|---|---|---|
+| Python que choisit `uv` sur une machine qui n'en a pas (2026-10-13) | 3.15.0, sorti ce mois-ci | 3.12.15 |
+| pandas tout prêt pour ce Python, dans le fichier de verrouillage | **non** (3.12, 3.13, 3.14 seulement) | oui |
+| Ce que fait `uv` | tente de le compiler, échoue | le télécharge |
+
+La première ligne a été vérifiée en rejouant l'installation comme sur une machine neuve ; la
+deuxième se lit dans `uv.lock`, et un test la tient désormais.
 
 ### À vérifier par toi
 
-- [ ] Demande à ton ami **quel message** il a eu après avoir installé `uv` : s'il ne ressemble à
-  aucune des trois causes ci-dessus, il reste un défaut à trouver.
+- [ ] Si ton ami veut bien réessayer avec la nouvelle version, sur un dossier neuf : c'est le
+  seul essai qui prouvera la correction de bout en bout.
 - [ ] Si quelqu'un d'autre peut l'essayer sur une machine sans `uv` : télécharger, décompresser,
   double-cliquer — et noter chaque blocage.

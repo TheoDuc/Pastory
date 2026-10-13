@@ -216,3 +216,59 @@ class TestLeFichierDInstallation:
         assert "Decompressez d'abord l'archive" in sortie
         assert '"uv"' not in sortie and "astral" not in sortie
         assert list(tmp_path.iterdir()) == [copie]
+
+
+class TestLaVersionDePython:
+    """D-114 : chez le premier testeur, l'installation a échoué sur « failed to build
+    pandas ». Sans version fixée, `uv` prend le Python le plus récent — 3.15, sorti ce
+    mois-là — pour lequel pandas n'existait pas encore tout prêt ; il a tenté de le
+    fabriquer, ce qui demande un compilateur. Le fichier `.python-version` fixe la version."""
+
+    RACINE = installation.dossier_du_projet()
+
+    def version(self) -> str:
+        return (self.RACINE / ".python-version").read_text(encoding="utf-8").strip()
+
+    def test_la_version_est_fixee_et_le_projet_l_accepte(self):
+        import re
+        import tomllib
+
+        version = self.version()
+        assert re.fullmatch(r"3\.\d+", version), version
+        projet = tomllib.loads((self.RACINE / "pyproject.toml").read_text(encoding="utf-8"))
+        minimum = projet["project"]["requires-python"].removeprefix(">=")
+        assert tuple(map(int, version.split("."))) >= tuple(map(int, minimum.split(".")))
+
+    def test_chaque_bibliotheque_existe_toute_prete_pour_cette_version(self):
+        """Le garde-fou : pour le Python fixé, sous Windows 64 bits, aucune bibliothèque du
+        fichier de verrouillage ne doit avoir à être fabriquée. Mettre à jour une
+        bibliothèque sans regarder cela, c'est refaire la panne du premier testeur."""
+        import tomllib
+
+        marque = "cp" + self.version().replace(".", "")
+        verrou = tomllib.loads((self.RACINE / "uv.lock").read_text(encoding="utf-8"))
+        a_fabriquer = []
+        for paquet in verrou["package"]:
+            roues = [roue["url"].rsplit("/", 1)[-1] for roue in paquet.get("wheels", [])]
+            if not roues:
+                # Pastory lui-même, installé depuis ce dossier : il n'a rien à compiler.
+                assert "editable" in paquet["source"] or "virtual" in paquet["source"], paquet
+                continue
+            # Toute prête : sans rien de compilé, ou compilée pour ce Python (ou pour tous :
+            # « abi3 », « none ») sous Windows 64 bits.
+            toute_prete = any(
+                roue.endswith("-none-any.whl")
+                or (
+                    roue.endswith("win_amd64.whl")
+                    and any(f"-{pour}-" in roue for pour in (marque, "abi3", "none"))
+                )
+                for roue in roues
+            )
+            if not toute_prete:
+                a_fabriquer.append(paquet["name"])
+        assert a_fabriquer == []
+
+    def test_le_fichier_d_installation_ne_choisit_pas_une_autre_version(self):
+        texte = (self.RACINE / "Installer Pastory.cmd").read_bytes().decode("ascii")
+        assert "--python" not in texte and "UV_PYTHON=" not in texte
+        assert ".python-version" in texte

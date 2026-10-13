@@ -861,8 +861,8 @@ construction.
 3. devant la Diversification, il s'est demandé **quels actifs** étaient dans tel secteur, dans tel
    pays.
 
-**Fait, sur la branche `retour-du-premier-testeur`** — trois décisions
-([D-110](decisions.md) à [D-112](decisions.md)), une question ouverte
+**Fait, sur la branche `retour-du-premier-testeur`** — cinq décisions
+([D-110](decisions.md) à [D-114](decisions.md)), une question posée puis tranchée
 ([Q-62](questions-ouvertes.md)), et le [cahier](verification/retour-du-premier-testeur.md) :
 
 - **L'installation** ([D-112](decisions.md)) : le fichier installe `uv` lui-même, le retrouve là
@@ -875,6 +875,15 @@ construction.
   **93 secondes à 15**.
 - **Le détail par actif** ([D-111](decisions.md)) : chaque ligne de la Diversification se déplie
   vers les actifs qui la composent, et leur somme est le montant de la ligne, au centime.
+- **La réparation des séries de cours** ([D-113](decisions.md), la réponse du propriétaire à
+  Q-62) : chaque série est reprise une fois en entier, pour combler les jours qu'un cache
+  construit par petites fenêtres avait laissés de côté. Elle a comblé 42 séances sur le cache de
+  la démonstration — et **7 sur celui du propriétaire, qu'on croyait sans trou**.
+- **La vraie cause de la panne d'installation** ([D-114](decisions.md)) : « failed to build
+  pandas ». `uv` prenait le Python le plus récent — la 3.15, sortie ce mois-ci —, pour lequel
+  pandas n'existait pas encore tout prêt. La version est désormais fixée (3.12), et un test
+  vérifie que chaque bibliothèque existe toute prête pour elle. **Aucune des trois causes
+  d'abord supposées n'était la bonne : c'est le message du testeur qui a donné la réponse.**
 
 **Aucun chiffre n'a changé** : 60 relevés sur les données du propriétaire, hors ligne, identiques
 avant et après.
@@ -894,10 +903,10 @@ mesurer.**
 **Toi :**
 - suivre le [cahier](verification/retour-du-premier-testeur.md) : la barre sur la démonstration,
   une ligne de la Diversification additionnée à la main ;
-- demander à ton ami **quel message** il a eu après avoir installé `uv` : sa panne exacte n'est
-  pas connue, seules ses causes plausibles sont couvertes ;
-- trancher [Q-62](questions-ouvertes.md) (les semaines sans cours d'un cache déjà construit —
-  celui de ton ami en a sans doute) ;
+- ✅ le message de ton ami (« failed to build pandas ») et ta réponse à Q-62 : traités ;
+- si ton ami veut bien **réinstaller** avec la nouvelle version : c'est le seul essai qui prouvera
+  la correction de bout en bout, l'antivirus de ta machine empêchant de la jouer ici ;
+- dire si l'on retire **pandas**, qui n'est plus importé nulle part ([D-114](decisions.md)) ;
 - donner ton accord pour la fusion dans `main`.
 
 ## Étape 11 · Publication ⏳

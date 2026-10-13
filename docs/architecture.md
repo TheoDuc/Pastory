@@ -299,6 +299,9 @@ scripts/
 
 Installer Pastory.cmd          un double-clic : `uv` s'il manque, l'environnement, puis les
                                raccourcis (D-106, D-112)
+.python-version                la version de Python qu'installe `uv` : sans elle, il prend la
+                               plus récente, pour laquelle les bibliothèques n'existent pas
+                               toujours toutes prêtes (D-114)
 
 tests/                         même arborescence que pastory/, données fictives (D-38)
 ```
@@ -545,6 +548,12 @@ reçoit un `Suivi` (`pastory/avancement.py`) et y dit où il en est, actif par a
   et quelques jours sans cours entre deux fenêtres ;
 - **les compositions sont demandées dans l'ordre où `diversifier()` les demanderait** : le
   fournisseur garde ses réponses, et l'ordre des refus affichés ne change pas.
+
+**La première fois, chaque série de cours est reprise en entier** ([D-113](decisions.md),
+`FournisseurDeCours.reprendre`) : un cache construit avant D-110 peut avoir gardé des jours sans
+cours, et rien en lui ne le dit. Le cache retient ensuite que c'est fait
+(`cache/cours/_series_reprises.txt`). Seuls les jours absents sont ajoutés : un cours gardé reste
+définitif ([D-50](decisions.md)).
 
 ### 5.6 bis `lanceur.py`, `installation.py`, `demonstration/` — ouvrir Pastory comme un logiciel
 

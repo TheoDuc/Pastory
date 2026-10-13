@@ -191,7 +191,9 @@ def remplir_les_cours(
     vide, mesuré sur la démonstration, 78 secondes d'attente au lieu de 2, et la semaine qui
     tombait entre deux fenêtres restait sans cours.
 
-    Trois précautions, pour ne demander que ce qui peut manquer :
+    **La première fois, la série de chaque actif est reprise en entier** (D-113,
+    `FournisseurDeCours.reprendre`) : un cache construit par petites fenêtres peut avoir gardé
+    des jours sans cours. Ensuite, trois précautions, pour ne demander que ce qui peut manquer :
 
     - ce qui est déjà gardé n'est ni redemandé ni réécrit (D-50) ;
     - **un titre vendu n'est plus demandé après sa vente** : personne ne lit ses cours
@@ -230,13 +232,17 @@ def _remplir_un_actif(
     # On commence **avant** la première opération : des titres reçus un dimanche sont
     # valorisés au cours du vendredi, qui précède donc toute opération sur l'actif.
     debut = premiere - MARGE_AVANT
+    fin = fournisseur.aujourd_hui if detenu else derniere + MARGE_APRES
+    # Une fois par actif, la série entière est reprise : un cache construit avant D-110
+    # peut avoir gardé des jours sans cours, et rien en lui ne le dit (D-113).
+    if fournisseur.reprendre(actif, debut, fin):
+        return
     connus = fournisseur.jours_connus(actif)
     if connus is not None:
         premier_connu, dernier_connu = connus
         if not detenu and dernier_connu >= derniere:
             return
         debut = max(debut, premier_connu)
-    fin = fournisseur.aujourd_hui if detenu else derniere + MARGE_APRES
     fournisseur.remplir(actif, debut, fin)
 
 

@@ -305,6 +305,21 @@ l'écriture a confirmé, et ce qu'elle a ajouté :
   l'environnement installé fonctionne.
 - **`pyproject.toml` n'a pas changé à l'étape 10**, et c'est voulu : ni point d'entrée graphique,
   ni dépendance. Le lanceur s'appelle par `-m pastory.lanceur`.
+- **Une installation dépend de la date à laquelle on la fait** ([D-114](decisions.md)). Sans
+  version de Python fixée, `uv` prend la plus récente ; le fichier de verrouillage, lui, ne
+  connaît que les bibliothèques publiées le jour où il a été écrit. Entre les deux, une sortie de
+  Python suffit à casser l'installation d'un dépôt qui n'a pas changé d'une ligne. D'où
+  `.python-version`, et le test qui vérifie que chaque bibliothèque existe toute prête pour lui.
+- **pandas est déclaré et n'est plus importé** (constaté le 2026-10-13) : il reste dans
+  `pyproject.toml` depuis l'étape 1 ([D-33](decisions.md)), mais plus aucun module ne s'en sert.
+  À retirer à l'étape 11, avec une synchronisation de l'environnement (antivirus suspendu sur la
+  machine du propriétaire). Le commentaire de `lanceur.py` qui le cite est à corriger alors.
+- **Renommer le dossier du projet laisse trois traces** : les raccourcis (à recréer par
+  `pastory installer`), le chemin du projet dans l'environnement
+  (`.venv/Lib/site-packages/_editable_impl_pastory.pth`, corrigé à la main le 2026-10-13), et les
+  chemins gardés dans les fichiers compilés, sans conséquence. Windows répare seul la **cible**
+  d'un raccourci qu'on lance, mais pas son **image** : d'où une icône blanche sur un raccourci qui
+  marche.
 
 ## 9. Qualité et vérification
 

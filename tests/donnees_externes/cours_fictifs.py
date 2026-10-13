@@ -94,6 +94,13 @@ class CacheEnMemoire:
 
     def __init__(self) -> None:
         self.series: dict[str, dict[Date, Cours]] = {}
+        self.reprises: set[str] = set()
+
+    def serie_reprise(self, actif: str) -> bool:
+        return actif in self.reprises
+
+    def noter_la_reprise(self, actif: str) -> None:
+        self.reprises.add(actif)
 
     def lire(self, actif: str) -> dict[Date, Cours]:
         return dict(self.series.get(actif, {}))

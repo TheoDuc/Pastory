@@ -49,11 +49,16 @@ if not defined UV (
 
 rem Les certificats de Windows plutot que ceux d'uv : un antivirus qui inspecte les
 rem connexions securisees (Norton, Avast...) fait sinon echouer les telechargements.
-set UV_NATIVE_TLS=1
+rem Ce reglage a change de nom d'une version d'uv a l'autre : on donne a chacune le sien.
+call "%UV%" --help 2>nul | findstr /c:"--system-certs" >nul
+if errorlevel 1 (set UV_NATIVE_TLS=1) else (set UV_SYSTEM_CERTS=1)
 rem Des copies plutot que des liens : dans un dossier synchronise (OneDrive), les liens
 rem echouent.
 set UV_LINK_MODE=copy
 
+rem La version de Python est fixee par le fichier ".python-version" de ce dossier : sans
+rem lui, uv prend le Python le plus recent, pour lequel les bibliotheques n'existent pas
+rem toujours toutes pretes - il essaie alors de les fabriquer, et echoue.
 echo   2/3  Python et les bibliotheques ^(quelques minutes la premiere fois^)...
 echo.
 rem "call" : si uv est lui-meme un fichier de commandes, ce fichier-ci doit reprendre la main.
@@ -74,7 +79,10 @@ if errorlevel 1 (
     echo     - "invalid peer certificate" : un antivirus inspecte les connexions securisees.
     echo       Suspendez son analyse HTTPS le temps de l'installation, puis relancez ;
     echo     - "Acces refuse" : ce dossier est range dans OneDrive. Deplacez-le ailleurs,
-    echo       par exemple dans C:\Pastory, puis relancez ce fichier de la.
+    echo       par exemple dans C:\Pastory, puis relancez ce fichier de la ;
+    echo     - "failed to build" : une bibliotheque n'existe pas toute prete pour le Python
+    echo       employe. Verifiez que le fichier ".python-version" est bien dans ce dossier
+    echo       ^(il fixe la version de Python^) : s'il manque, telechargez Pastory de nouveau.
     echo.
     pause
     exit /b 1

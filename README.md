@@ -40,6 +40,10 @@ l'avoir décompressée ; un **antivirus qui inspecte les connexions sécurisées
 peer certificate » : suspendez son analyse HTTPS le temps de l'installation) ; un dossier rangé
 dans **OneDrive** (message « Accès refusé » : déplacez-le).
 
+Pastory s'installe avec **Python 3.12**, que `uv` télécharge de lui-même : c'est le fichier
+`.python-version` du dossier qui le fixe. Si vous voyez « failed to build », c'est qu'il manque —
+téléchargez Pastory de nouveau.
+
 Si vous déplacez ou renommez le dossier de Pastory, relancez `Installer Pastory.cmd` : les icônes
 pointent sur lui.
 
