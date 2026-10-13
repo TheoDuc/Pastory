@@ -115,6 +115,16 @@ prochain**, qui doit mettre son portefeuille à jour et non en créer un second.
 
 ## Les pièges de cette session
 
+- **Linux et macOS s'installent, mais n'ont jamais été essayés** ([D-117](decisions.md)) :
+  `installer-pastory.sh`, les fichiers `.desktop` et `.command` de `installation.py`, le journal
+  et la boîte de message du lanceur hors de Windows. Tout est testé avec de faux outils (un faux
+  `uv`, un faux Python, un faux `uname`), par le `sh` de Git sous Windows. **Le premier retour
+  d'un vrai Linux fait foi sur tout cela** : le demander avant d'y retoucher.
+- **Un fichier `.sh` garde ses fins de ligne Unix** (`.gitattributes`), un `.cmd` les siennes.
+  La première ligne du `.cmd` (`:; exec sh … #`) est lue des deux côtés : ne pas la « nettoyer ».
+- **Les tests des raccourcis nomment leur système** (`installer("win32")`, `"linux"`,
+  `"darwin"`) : ils ne dépendent plus de la machine qui les lance.
+
 - **Retirer une bibliothèque : l'interdire d'abord.** `sys.modules["pandas"] = None` avant
   `pytest.main(...)` : pandas ne servait plus, mais apportait `tzdata`, dont l'heure de Paris a
   besoin sous Windows ([D-116](decisions.md)). `uv lock --offline` suffit pour retirer une

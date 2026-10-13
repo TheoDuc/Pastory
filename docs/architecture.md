@@ -298,7 +298,9 @@ scripts/
 └── releve_de_demonstration.py écrit `demonstration/clotures.py` : à relancer si le scénario change
 
 Installer Pastory.cmd          un double-clic : `uv` s'il manque, l'environnement, puis les
-                               raccourcis (D-106, D-112)
+                               raccourcis (D-106, D-112). Lancé par `sh`, hors de Windows, il
+                               passe la main au fichier suivant
+installer-pastory.sh           le même, pour Linux et macOS (D-117)
 .python-version                la version de Python qu'installe `uv` : sans elle, il prend la
                                plus récente, pour laquelle les bibliothèques n'existent pas
                                toujours toutes prêtes (D-114)
