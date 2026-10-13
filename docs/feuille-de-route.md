@@ -814,7 +814,7 @@ côté du sien. Pastory a affiché la somme des deux comptes, sans rien dire, et
 ne permettait de revenir en arrière. C'était le cumul des exports de l'étape 8 ter, fait pour
 qu'un export récent s'ajoute aux précédents.
 
-**Fait (2026-10-13)**, sur la branche `etape-10-bis` ([D-109](decisions.md),
+**Fait et fusionné dans `main` (2026-10-13)** ([D-109](decisions.md),
 [cahier](verification/etape-10-bis.md)) : chaque fichier du dossier de dépôt est un
 portefeuille, et Pastory n'en lit qu'un à la fois. La couverture propose le choix, le nom du
 portefeuille ouvert reste affiché, et chacun se renomme et se supprime à l'écran. Un export
@@ -835,8 +835,17 @@ couverture.
 valorisé comme un autre — ses titres sont donc cherchés en ligne. La lecture sans réseau
 reste possible depuis un terminal (`--export`).
 
-**Toi :** suivre le [cahier](verification/etape-10-bis.md) ; et le mois prochain, vérifier que
-ton nouvel export **met à jour** ton portefeuille au lieu d'en créer un second.
+**Vérifiée par le propriétaire le 2026-10-13**, qui a trouvé en l'essayant le dernier défaut de
+l'étape : son portefeuille, renommé d'un prénom accentué, ne s'ouvrait plus. L'outil
+d'interface perd le clic d'un bouton dont l'identifiant porte un accent. Tous les essais
+avaient été faits avec des noms sans accent ; les boutons ne portent plus le nom tel quel, et
+des tests passent désormais par l'outil lui-même.
+
+**Toi :** le mois prochain, vérifier que ton nouvel export **met à jour** ton portefeuille au
+lieu d'en créer un second.
+
+**La suite, décidée le 2026-10-13 :** l'ami du propriétaire essaie Pastory avec son propre
+export ; son retour d'abord, puis l'étape 11.
 
 ## Étape 11 · Publication ⏳
 **But :** rendre le dépôt public sans risque.

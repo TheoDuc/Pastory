@@ -7,8 +7,8 @@ commencer.
 > **À mettre à jour par l'instance qui termine une étape**, avant la fusion dans `main`. La
 > dernière section dit comment.
 >
-> Dernière mise à jour : **2026-10-13**, à la fin de la session des étapes 10 (fusionnée et
-> envoyée) et 10 bis (branche `etape-10-bis`).
+> Dernière mise à jour : **2026-10-13**, à la fin de la session des étapes 10 et 10 bis, toutes
+> deux fusionnées dans `main`.
 
 ---
 
@@ -16,14 +16,20 @@ commencer.
 
 ```
 Lis CLAUDE.md puis docs/feuille-de-route.md, et docs/prompt-session-suivante.md.
-On attaque le bloc 9.5 : les écrans de correction — qu'on puisse corriger une valeur trouvée
-(cotation, type, frais courants, contenu, date du PEA) sans ouvrir de fichier.
+Mon ami a essayé Pastory. Voici son retour : […]
+Ensuite, on attaque l'étape 11 : la publication du dépôt.
 ```
 
-*Le propriétaire choisit l'ordre.* Deux autres suites sont prêtes, et ce fichier vaut pour les
-trois : **finir l'étape 10** (l'installation par un tiers, le raccourci Mac, les messages d'erreur,
-le guide d'adaptateur — voir la [feuille de route](feuille-de-route.md)), ou **l'étape 11**, la
-publication.
+**C'est l'ordre choisi par le propriétaire le 2026-10-13** : d'abord le retour de son ami, qui
+essaie Pastory avec son propre export — c'est aussi le premier essai par quelqu'un d'autre que
+lui —, puis **l'étape 11**. Si l'ami **installe** Pastory sur sa machine, c'est le test du
+fichier d'installation qui manquait à l'étape 10 : noter chaque blocage. Restent ouverts, sans
+ordre imposé : le bloc 9.5 (les écrans de correction) et la fin de l'étape 10.
+
+**Avant de publier (étape 11)** : le dossier `data_*/` d'un tiers est toujours dans le dossier
+du projet, gardé volontairement par le propriétaire. Il est exclu de git ; vérifier qu'aucun
+nom réel n'est entré dans l'historique (`git log --all -p | grep -i <nom>`) fait partie de la
+recherche de données personnelles de cette étape.
 
 ---
 
@@ -57,9 +63,11 @@ monétaire, des multi-actifs, de l'immobilier). Aucune ne bloque.
 **À la fin de la session du 2026-10-13** : l'étape 10 est **fusionnée dans `main` et envoyée**
 sur GitHub, vérifiée par le propriétaire (il reste de son [cahier](verification/etape-10.md)
 **l'essai d'une fenêtre réduite pendant une heure ou deux**, seul point non mesuré). L'étape
-10 bis est sur la branche `etape-10-bis` : il reste sa vérification par le
-[cahier](verification/etape-10-bis.md), puis la fusion et l'envoi, avec son accord. **Vérifier
-`git branch` et `git log` avant de supposer que c'est fait.**
+10 bis est **fusionnée dans `main`**, avec son accord, après qu'il a lui-même trouvé son
+dernier défaut (un nom de portefeuille accentué). Il reste de son
+[cahier](verification/etape-10-bis.md) ce qui demande du temps : son **export du mois
+prochain**, qui doit mettre son portefeuille à jour et non en créer un second. **Vérifier
+`git branch` et `git log` avant de supposer quoi que ce soit.**
 
 ---
 
