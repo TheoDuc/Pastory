@@ -6,6 +6,8 @@ celui d'un proche, qui ne détient qu'un titre que l'autre n'a pas.
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from pastory import demonstration
@@ -89,7 +91,8 @@ class TestAvecPlusieurs:
         choix = {
             b.children: getattr(b, "aria-pressed")
             for b in boutons(corps)
-            if getattr(b, "id", None) == portefeuilles.bouton("ouvrir", b.children)
+            if isinstance(b.children, str)
+            and getattr(b, "id", None) == portefeuilles.bouton("ouvrir", b.children)
         }
         assert choix == {"Camille": "false", LE_MIEN: "true"}
 
@@ -125,13 +128,13 @@ class TestAvecPlusieurs:
         assert actifs(chiffres) == les_miens
 
     def test_chaque_identifiant_est_unique_dans_la_page(self, chiffres, avec_un_proche):
-        for etat in ({}, {"a_supprimer": "Camille"}):
+        for etat in ({}, {"a_supprimer": portefeuilles.cle("Camille")}):
             tous = [repr(i) for i in identifiants(list(rendu(chiffres, **etat)))]
             assert sorted({i for i in tous if tous.count(i) > 1}) == []
 
     def test_chaque_classe_a_sa_regle(self, chiffres, avec_un_proche):
         posees = set()
-        for etat in ({}, {"a_supprimer": "Camille"}, {"onglet": "synthese"}):
+        for etat in ({}, {"a_supprimer": portefeuilles.cle("Camille")}, {"onglet": "synthese"}):
             posees |= classes(list(rendu(chiffres, **etat)))
         assert not posees - classes_definies()
 
@@ -162,8 +165,9 @@ class TestRenommer:
 
 class TestSupprimer:
     def test_un_premier_clic_ne_supprime_rien_il_pose_la_question(self, chiffres, avec_un_proche):
-        etat = etat_ecran.appliquer(etat_ecran.initial(), "supprimer", "Camille", [])
-        assert etat["a_supprimer"] == "Camille"
+        cle = portefeuilles.cle("Camille")
+        etat = etat_ecran.appliquer(etat_ecran.initial(), "supprimer", cle, [])
+        assert etat["a_supprimer"] == cle
 
         corps = rendu(chiffres, **etat)[4]
         assert "Supprimer « Camille » ?" in texte(corps)
@@ -301,3 +305,142 @@ class TestCeQueLaRelectureATrouve:
         lu = texte(rendu(chiffres, onglet=bandeau.ACCUEIL)[4])
         assert "Votre livre" not in lu
         assert "Camille" in lu and "pas pu être ouvert" in lu
+
+
+def _comme_le_navigateur(identifiant: dict) -> str:
+    """L'identifiant tel que le navigateur l'écrit : clés triées, sans espace, accents tels
+    quels."""
+    return json.dumps(identifiant, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def cliquer(interface, identifiant: dict, etat: dict, saisies: dict | None = None) -> dict | None:
+    """Un clic sur un bouton de portefeuille, **passé par Dash** comme le fait le navigateur.
+    Rend le nouvel état de l'écran, ou `None` si Dash n'a rien changé."""
+    sortie = next(
+        cle
+        for cle, rappel in interface.callback_map.items()
+        if portefeuilles.CHAMP in str(rappel.get("inputs"))
+    )
+    propriete = sortie.partition(".")[2]
+    champs = list((saisies or {}).items())
+    reponse = interface.server.test_client().post(
+        "/_dash-update-component",
+        data=json.dumps(
+            {
+                "output": sortie,
+                "outputs": {"id": "etat", "property": propriete},
+                "inputs": [[{"id": identifiant, "property": "n_clicks", "value": 1}]],
+                "changedPropIds": [_comme_le_navigateur(identifiant) + ".n_clicks"],
+                "state": [
+                    [
+                        {"id": champ, "property": "value", "value": valeur}
+                        for champ, valeur in ((portefeuilles.champ_du_nom(n), v) for n, v in champs)
+                    ],
+                    [
+                        {"id": champ, "property": "id", "value": champ}
+                        for champ in (portefeuilles.champ_du_nom(n) for n, _ in champs)
+                    ],
+                    {"id": "etat", "property": "data", "value": etat},
+                ],
+            }
+        ),
+        content_type="application/json",
+    )
+    if reponse.status_code == 204:
+        return None
+    assert reponse.status_code == 200, reponse.get_data(as_text=True)
+    # Dash rend la propriété sous son nom, sans le suffixe qui distingue les rappels.
+    (etat_rendu,) = reponse.get_json()["response"]["etat"].values()
+    return etat_rendu
+
+
+class TestUnNomAccentue:
+    """Trouvé par le propriétaire : nommé d'un prénom accentué, son portefeuille ne s'ouvrait
+    plus. Dash perd la valeur du clic d'un bouton dont l'identifiant porte un accent ; le clic
+    était alors pris pour celui d'un bouton qui vient d'apparaître, et ignoré. Aucun test ne
+    passait par Dash : ceux-ci le font."""
+
+    ACCENTUE = "Zoé, à Noël"
+
+    @pytest.fixture
+    def interface(self, chiffres, avec_un_proche):
+        depot.renommer(avec_un_proche, LE_MIEN, self.ACCENTUE)
+        depot.ouvrir(avec_un_proche, "Camille")
+        chiffres.relire()
+        return application.creer(chiffres)
+
+    def test_l_identifiant_d_un_bouton_ne_porte_aucun_accent(self, chiffres, interface):
+        corps = rendu(chiffres, a_supprimer=portefeuilles.cle(self.ACCENTUE))
+        for identifiant in identifiants(list(corps)):
+            assert repr(identifiant).isascii(), identifiant
+        assert portefeuilles.nom_de(portefeuilles.cle(self.ACCENTUE)) == self.ACCENTUE
+        assert portefeuilles.nom_de("ceci n'est pas une clé") is None
+
+    def test_aucun_identifiant_d_aucun_ecran_ne_porte_d_accent(self, chiffres, interface):
+        """Le garde-fou général : la même panne guette tout bouton dont l'identifiant
+        reprendrait un texte de l'utilisateur ou un libellé."""
+        depot.ouvrir(chiffres.dossier(), self.ACCENTUE)
+        chiffres.relire()
+        for onglet in [bandeau.ACCUEIL, *(o.cle for o in bandeau.ONGLETS)]:
+            for identifiant in identifiants(list(rendu(chiffres, onglet=onglet))):
+                assert repr(identifiant).isascii(), (onglet, identifiant)
+
+    def test_un_clic_l_ouvre(self, chiffres, interface, avec_un_proche):
+        clic = portefeuilles.bouton("ouvrir", self.ACCENTUE)
+        etat = cliquer(interface, clic, etat_ecran.initial())
+
+        assert etat is not None, "Dash n'a rien fait de ce clic"
+        assert depot.inventaire(avec_un_proche).ouvert.nom == self.ACCENTUE
+        assert TITRE_DU_PROCHE not in actifs(chiffres)
+
+    def test_on_le_renomme_d_un_autre_nom_accentue(self, chiffres, interface, avec_un_proche):
+        etat = cliquer(
+            interface,
+            portefeuilles.bouton("renommer", self.ACCENTUE),
+            etat_ecran.initial(),
+            saisies={self.ACCENTUE: "Élodie", "Camille": "Camille"},
+        )
+
+        assert etat["message"][0]["mot"] == "Renommé"
+        assert [p.nom for p in depot.inventaire(avec_un_proche).portefeuilles] == [
+            "Camille",
+            "Élodie",
+        ]
+
+    def test_on_le_supprime_en_deux_clics(self, chiffres, interface, avec_un_proche):
+        demande = etat_ecran.appliquer(
+            etat_ecran.initial(), "supprimer", portefeuilles.cle(self.ACCENTUE), []
+        )
+        assert f"Supprimer « {self.ACCENTUE} » ?" in texte(rendu(chiffres, **demande)[4])
+        assert (avec_un_proche / f"{self.ACCENTUE}.csv").exists()
+
+        etat = cliquer(interface, portefeuilles.bouton("supprimer", self.ACCENTUE), demande)
+
+        assert etat["a_supprimer"] is None and etat["message"][0]["mot"] == "Supprimé"
+        assert [p.nom for p in depot.inventaire(avec_un_proche).portefeuilles] == ["Camille"]
+
+    def test_un_bouton_qui_vient_d_apparaitre_ne_declenche_rien(self, interface, avec_un_proche):
+        """La garde qui ignorait les vrais clics est toujours là, pour ce qu'elle doit ignorer."""
+        sortie = next(
+            cle
+            for cle, rappel in interface.callback_map.items()
+            if portefeuilles.CHAMP in str(rappel.get("inputs"))
+        )
+        identifiant = portefeuilles.bouton("supprimer", "Camille")
+        reponse = interface.server.test_client().post(
+            "/_dash-update-component",
+            data=json.dumps(
+                {
+                    "output": sortie,
+                    "outputs": {"id": "etat", "property": sortie.partition(".")[2]},
+                    "inputs": [[{"id": identifiant, "property": "n_clicks", "value": 0}]],
+                    "changedPropIds": [
+                        json.dumps(identifiant, sort_keys=True, separators=(",", ":")) + ".n_clicks"
+                    ],
+                    "state": [[], [], {"id": "etat", "property": "data", "value": {}}],
+                }
+            ),
+            content_type="application/json",
+        )
+        assert reponse.status_code == 204
+        assert (avec_un_proche / "Camille.csv").exists()

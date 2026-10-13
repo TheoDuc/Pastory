@@ -94,6 +94,14 @@ sur GitHub, vérifiée par le propriétaire (il reste de son [cahier](verificati
 - **Ce que devient un dépôt** est décidé dans `vues/reception.py`, sur les identifiants
   d'opération. L'écran est dans `vues/portefeuilles.py` ; `Chiffres.inventaire()` rend `None`
   là où l'on ne choisit pas (un tiers, la démonstration).
+- **Jamais un texte de l'utilisateur dans l'identifiant d'un bouton.** Quand un identifiant
+  Dash porte un caractère accentué, la valeur du clic arrive vide, et la garde contre les
+  « boutons qui viennent d'apparaître » l'ignore : un portefeuille nommé « Zoé » ne s'ouvrait pas.
+  Les boutons portent une clé (`portefeuilles.cle`), et un test vérifie qu'aucun identifiant
+  d'aucun écran n'a d'accent. **Leçon de méthode :** ce défaut a passé 1 441 tests et un essai
+  en navigateur, parce que tous utilisaient des noms sans accent et qu'aucun test ne passait
+  par Dash. Un écran qui reçoit un texte libre s'essaie avec des accents, et ses rappels se
+  testent par `/_dash-update-component` (voir `cliquer`, `tests/vues/test_portefeuilles.py`).
 - **Le dossier se modifie aussi à la main** (le bouton « Ouvrir le dossier » y invite) : toute
   règle qui ne vit que dans le dépôt par l'écran est contournable. C'est `depot.inventaire`
   qui doit voir l'état du dossier — d'où `Inventaire.meme_compte` et le portefeuille « périmé ».

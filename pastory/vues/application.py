@@ -284,12 +284,17 @@ def creer(chiffres: Chiffres, veille: Veille | None = None) -> Dash:
         # bouton qui vient d'apparaître déclenche ce rappel avec zéro clic.
         if not ctx.triggered_id or not any(t["value"] for t in ctx.triggered):
             raise PreventUpdate
-        action, nom = ctx.triggered_id[portefeuilles.CHAMP], ctx.triggered_id["nom"]
+        action, cle = ctx.triggered_id[portefeuilles.CHAMP], ctx.triggered_id["nom"]
+        # Le bouton porte la clé du portefeuille, pas son nom : un accent dans un
+        # identifiant fait perdre le clic à Dash (`portefeuilles.cle`).
+        nom = portefeuilles.nom_de(cle)
+        if nom is None:
+            raise PreventUpdate
         saisie = next(
             (
                 valeur
                 for valeur, champ in zip(saisies, champs, strict=True)
-                if champ[portefeuilles.RENOMMER] == nom
+                if champ[portefeuilles.RENOMMER] == cle
             ),
             None,
         )

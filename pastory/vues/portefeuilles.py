@@ -33,14 +33,34 @@ CHACUN_EST_CALCULE_SEUL = (
 )
 
 
+def cle(nom: str) -> str:
+    """Ce qui désigne un portefeuille **dans l'identifiant d'un bouton** : son nom, écrit en
+    chiffres et en lettres sans accent.
+
+    Un nom ne peut pas y figurer tel quel. Quand l'identifiant d'un bouton porte un caractère
+    accentué, Dash ne retrouve plus la valeur du clic : elle arrive vide, et le clic est pris
+    pour celui d'un bouton qui vient d'apparaître, donc ignoré. C'est ainsi qu'un portefeuille
+    nommé d'un prénom accentué ne s'ouvrait pas (trouvé par le propriétaire, étape 10 bis) —
+    alors que tous les essais, faits avec des noms sans accent, passaient."""
+    return nom.encode("utf-8").hex()
+
+
+def nom_de(cle_du_bouton: str) -> str | None:
+    """Le nom que désigne une clé ; `None` si ce n'en est pas une."""
+    try:
+        return bytes.fromhex(cle_du_bouton).decode("utf-8")
+    except ValueError:
+        return None
+
+
 def bouton(action: str, nom: str) -> dict[str, str]:
     """L'identifiant d'un bouton qui agit sur le portefeuille `nom` (voir `application.py`)."""
-    return {CHAMP: action, "nom": nom}
+    return {CHAMP: action, "nom": cle(nom)}
 
 
 def champ_du_nom(nom: str) -> dict[str, str]:
     """L'identifiant du champ où l'on tape le nouveau nom du portefeuille `nom`."""
-    return {RENOMMER: nom}
+    return {RENOMMER: cle(nom)}
 
 
 def plusieurs(inventaire: Inventaire | None) -> bool:
@@ -96,7 +116,7 @@ def gestion(inventaire: Inventaire, a_supprimer: str | None) -> list:
                         className="portefeuille__entete",
                     ),
                     _suppression(portefeuille.nom)
-                    if a_supprimer == portefeuille.nom
+                    if a_supprimer == cle(portefeuille.nom)
                     else _actions(portefeuille.nom),
                 ],
                 className="portefeuille",
@@ -139,7 +159,7 @@ def _actions(nom: str) -> html.Div:
             html.Button(
                 "Supprimer",
                 # Un premier clic ne supprime rien : il demande confirmation (`etat.py`).
-                id=choix(SUPPRIMER, nom),
+                id=choix(SUPPRIMER, cle(nom)),
                 type="button",
                 className="bouton bouton--clair",
                 n_clicks=0,

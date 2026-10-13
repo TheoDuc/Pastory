@@ -35,7 +35,8 @@ def initial() -> Etat:
         "deplie": False,
         "ancre": None,
         "message": None,
-        # Le portefeuille dont on a demandé la suppression, en attente de confirmation.
+        # Le portefeuille dont on a demandé la suppression, en attente de confirmation : sa
+        # clé (`portefeuilles.cle`), jamais son nom.
         "a_supprimer": None,
         "version": 0,
     }

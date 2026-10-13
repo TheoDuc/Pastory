@@ -119,15 +119,27 @@ par un test :
 | Chaque geste relisait tout le dossier plusieurs fois | un geste sans effet ne recalcule plus rien |
 | Un fichier nommé « Exportation de transactions Camille » perdait son nom | seul le nom de la banque tel quel est remplacé |
 
+### Le défaut que tu as trouvé toi-même
+
+Après la relecture, en essayant : **un portefeuille dont le nom porte un accent ne s'ouvrait
+pas**. Le clic partait, et rien ne changeait. La cause est une limite de l'outil d'interface :
+quand l'identifiant d'un bouton contient un caractère accentué, la valeur du clic arrive vide,
+et Pastory prenait ce clic pour celui d'un bouton qui vient d'apparaître. Les boutons ne
+portent plus le nom tel quel. Ni les 1 441 tests ni l'essai en navigateur ne l'avaient vu :
+tous utilisaient des noms sans accent. Cinq tests passent désormais par l'outil d'interface
+lui-même, avec un nom accentué, et ils échouent sur le code d'avant.
+
 ### À vérifier par toi
 
+- [ ] Passe de l'un à l'autre de tes portefeuilles, **noms accentués compris**, renomme-en un
+  avec un accent, puis supprime-le.
 - [ ] Copie **à la main** un de tes anciens exports dans le dossier (« Ouvrir le dossier »,
   dans le détail de la lecture), puis ouvre-le dans Pastory : la couverture doit dire
   **« Périmé »**, et nommer le portefeuille à jour. Supprime-le ensuite.
 
 ## 6. Les tests
 
-1 441 tests, tous au vert, soit 101 de plus qu'à la fin de l'étape 10 (ceux du cumul sont
+1 447 tests, tous au vert, soit 107 de plus qu'à la fin de l'étape 10 (ceux du cumul sont
 réécrits) : la liste des portefeuilles et celui qui est ouvert ;
 les quatre cas d'un dépôt ; le renommage et ses noms refusés ; la suppression et sa confirmation ;
 l'écran avec un et avec deux portefeuilles ; la date du PEA par portefeuille ; et, de bout en
